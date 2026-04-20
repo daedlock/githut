@@ -42,7 +42,12 @@ function resolveIcon(name: string): LucideIcon {
   return ICON_MAP[name] ?? FileText;
 }
 
-export function TabBar() {
+export type TabBarProps = {
+  inline?: boolean;
+  className?: string;
+};
+
+export function TabBar({ inline = false, className }: TabBarProps) {
   const tabsEnabled = useSettingsStore((s) => s.tabsEnabled);
   const tabs = useTabsStore((s) => s.tabs);
   const activeTabId = useTabsStore((s) => s.activeTabId);
@@ -92,9 +97,12 @@ export function TabBar() {
   if (!tabsEnabled || tabs.length === 0) return null;
 
   return (
-    <div className="flex items-center border-t border-border">
+    <div className={cn("flex items-center", !inline && "border-b border-border", className)}>
       <div
-        className="flex min-w-0 flex-1 items-center overflow-x-auto px-3 scrollbar-none"
+        className={cn(
+          "flex min-w-0 flex-1 items-center overflow-x-auto scrollbar-none",
+          inline ? "px-1" : "px-3",
+        )}
         role="tablist"
         aria-label="Open tabs"
         style={{ scrollbarWidth: "none" }}

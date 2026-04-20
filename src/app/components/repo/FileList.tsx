@@ -233,7 +233,7 @@ function FileRow({
           )}
           <span
             className={cn(
-              "font-mono text-code leading-none transition-colors duration-75 truncate",
+              "font-mono text-code transition-colors duration-75 truncate",
               isDir ? "text-foreground group-hover:text-primary" : "text-foreground",
             )}
             title={entry.name}
