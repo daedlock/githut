@@ -1,4 +1,5 @@
 import { LogOut } from "lucide-react";
+import { Avatar } from "@/app/components/ui/Avatar";
 import { Button } from "@/app/components/ui/Button";
 
 export type UserMenuProps = {
@@ -10,13 +11,7 @@ export type UserMenuProps = {
 export function UserMenu({ login, avatarUrl, onSignOut }: UserMenuProps) {
   return (
     <>
-      {avatarUrl ? (
-        <img
-          src={avatarUrl}
-          alt={login ?? "User avatar"}
-          className="h-7 w-7 rounded-full border border-[var(--color-border-strong)]"
-        />
-      ) : null}
+      {avatarUrl ? <Avatar login={login ?? "User avatar"} avatarUrl={avatarUrl} size="lg" /> : null}
       <Button
         variant="ghost"
         size="icon"

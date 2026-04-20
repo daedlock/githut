@@ -1,0 +1,220 @@
+import { CheckCircle2, CircleDot, Tag, User, X } from "lucide-react";
+import { GithubMarkdown } from "@/app/components/GithubMarkdown";
+import { StatusMessage } from "@/app/components/StatusMessage";
+import { Avatar } from "@/app/components/ui/Avatar";
+import { Button } from "@/app/components/ui/Button";
+import { Card, CardBody, CardFooter, CardHeader } from "@/app/components/ui/Card";
+import { CommentBox } from "@/app/components/ui/CommentBox";
+import { AssigneeList } from "@/app/features/issues/components/AssigneeList";
+import { CommentCard } from "@/app/features/issues/components/CommentCard";
+import { IssueStatePill } from "@/app/features/issues/components/IssueStatePill";
+import { LabelPill } from "@/app/features/issues/components/LabelPill";
+import { SidebarSection } from "@/app/features/issues/components/SidebarSection";
+import type { ReactionContent, RepoIssue, RepoIssueComment } from "@/app/features/issues/schemas";
+import { formatRelativeTime } from "@/app/lib/time";
+
+export type IssueDetailProps = {
+  owner: string;
+  repo: string;
+  issue: RepoIssue | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  comments: RepoIssueComment[];
+  commentsLoading: boolean;
+  commentsError: boolean;
+  newCommentBody: string;
+  onNewCommentChange: (s: string) => void;
+  onSubmitComment: (e: React.FormEvent<HTMLFormElement>) => void;
+  onToggleState: () => void;
+  isTogglingState: boolean;
+  isPostingComment: boolean;
+  onAddIssueReaction: (content: ReactionContent) => void;
+  onAddCommentReaction: (commentId: number, content: ReactionContent) => void;
+  me: { login: string; avatar_url: string } | undefined;
+  onBack: () => void;
+};
+
+export function IssueDetail({
+  owner,
+  repo,
+  issue,
+  isLoading,
+  isError,
+  comments,
+  commentsLoading,
+  commentsError,
+  newCommentBody,
+  onNewCommentChange,
+  onSubmitComment,
+  onToggleState,
+  isTogglingState,
+  isPostingComment,
+  onAddIssueReaction,
+  onAddCommentReaction,
+  me,
+  onBack,
+}: IssueDetailProps) {
+  return (
+    <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 sm:py-6">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-sm text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)]"
+        >
+          <X className="h-3.5 w-3.5" />
+          Back to issues
+        </button>
+        {issue && (
+          <Button
+            variant={issue.state === "open" ? "secondary" : "primary"}
+            size="sm"
+            disabled={isTogglingState}
+            onClick={onToggleState}
+          >
+            {issue.state === "open" ? (
+              <>
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Close issue
+              </>
+            ) : (
+              <>
+                <CircleDot className="h-3.5 w-3.5" />
+                Reopen issue
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <StatusMessage>Loading issue…</StatusMessage>
+      ) : isError ? (
+        <StatusMessage tone="danger">Could not load this issue.</StatusMessage>
+      ) : !issue ? (
+        <StatusMessage tone="danger">This issue no longer exists.</StatusMessage>
+      ) : (
+        <>
+          <div className="mb-5">
+            <h1 className="text-xl font-semibold leading-snug tracking-tight text-[var(--color-fg)] sm:text-2xl">
+              {issue.title}{" "}
+              <span className="font-mono text-lg font-normal text-[var(--color-fg-faint)]">
+                #{issue.number}
+              </span>
+            </h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[var(--color-fg-muted)]">
+              <IssueStatePill state={issue.state} />
+              <span>
+                <span className="font-medium text-[var(--color-fg)]">{issue.user.login}</span>
+                {" opened this issue "}
+                {formatRelativeTime(issue.created_at)}
+              </span>
+              <span className="text-[var(--color-fg-faint)]">·</span>
+              <span>
+                {issue.comments} {issue.comments === 1 ? "comment" : "comments"}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+            {/* Main column */}
+            <div className="min-w-0 flex-1 space-y-3">
+              <CommentCard
+                login={issue.user.login}
+                avatarUrl={issue.user.avatar_url}
+                date={issue.created_at}
+                isAuthor
+                reactions={issue.reactions}
+                onAddReaction={onAddIssueReaction}
+              >
+                {issue.body?.trim() ? (
+                  <div className="readme-prose max-w-none text-sm">
+                    <GithubMarkdown>{issue.body}</GithubMarkdown>
+                  </div>
+                ) : (
+                  <p className="text-sm italic text-[var(--color-fg-faint)]">
+                    No description provided.
+                  </p>
+                )}
+              </CommentCard>
+
+              {commentsLoading ? (
+                <StatusMessage>Loading comments…</StatusMessage>
+              ) : commentsError ? (
+                <StatusMessage tone="danger">Could not load comments.</StatusMessage>
+              ) : (
+                comments.map((c) => (
+                  <CommentCard
+                    key={c.id}
+                    login={c.user.login}
+                    avatarUrl={c.user.avatar_url}
+                    date={c.created_at}
+                    reactions={c.reactions}
+                    onAddReaction={(content) => onAddCommentReaction(c.id, content)}
+                  >
+                    <div className="readme-prose max-w-none text-sm">
+                      <GithubMarkdown>{c.body}</GithubMarkdown>
+                    </div>
+                  </CommentCard>
+                ))
+              )}
+
+              <Card as="div" radius="md" tone="default" border="strong">
+                <form onSubmit={onSubmitComment}>
+                  <CardHeader>
+                    {me?.avatar_url && (
+                      <Avatar login={me.login} avatarUrl={me.avatar_url} size="sm" />
+                    )}
+                    <span className="text-sm font-medium text-[var(--color-fg)]">
+                      Add a comment
+                    </span>
+                  </CardHeader>
+                  <CardBody flush>
+                    <CommentBox
+                      owner={owner}
+                      repo={repo}
+                      value={newCommentBody}
+                      onChange={onNewCommentChange}
+                      placeholder="Leave a comment"
+                      rows={4}
+                    />
+                  </CardBody>
+                  <CardFooter className="flex justify-end">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={!newCommentBody.trim() || isPostingComment}
+                    >
+                      {isPostingComment ? "Posting…" : "Comment"}
+                    </Button>
+                  </CardFooter>
+                </form>
+              </Card>
+            </div>
+
+            {/* Sidebar */}
+            <aside className="w-full lg:w-52 lg:flex-shrink-0">
+              <div className="space-y-5">
+                <SidebarSection icon={<Tag className="h-3.5 w-3.5" />} title="Labels">
+                  {issue.labels.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {issue.labels.map((label) => (
+                        <LabelPill key={label.id} label={label} size="sm" />
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-[var(--color-fg-faint)]">None yet</span>
+                  )}
+                </SidebarSection>
+
+                <SidebarSection icon={<User className="h-3.5 w-3.5" />} title="Assignees">
+                  <AssigneeList assignees={issue.assignees} variant="rows" />
+                </SidebarSection>
+              </div>
+            </aside>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
