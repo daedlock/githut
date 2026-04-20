@@ -1,6 +1,6 @@
 import { Fragment, useMemo } from "react";
 import { cn } from "@/app/lib/cn";
-import { Skeleton } from "@/app/components/ui/Skeleton";
+import { Skeleton } from "@/app/components/ui/skeleton";
 import { countChanges, type DiffHunk, type DiffLine, parseUnifiedDiff } from "./parseDiff";
 import { FS_BOLD, FS_ITALIC, FS_STRIKETHROUGH, FS_UNDERLINE } from "./types";
 import type { CodeLine, CodeToken } from "./types";
@@ -52,7 +52,7 @@ export function DiffView({ patch, lang = "text", mode = "unified", className }: 
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg)]",
+        "overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-subtle)]",
         className,
       )}
     >
@@ -611,7 +611,7 @@ function plainTokens(content: string): CodeLine {
 
 function DiffSkeleton() {
   return (
-    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg)]">
+    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
       <div className="border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-3 py-1.5">
         <Skeleton className="h-3 w-48" />
       </div>

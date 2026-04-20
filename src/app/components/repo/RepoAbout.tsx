@@ -1,6 +1,6 @@
 import { ExternalLink, GitFork, Globe, Scale, Star } from "lucide-react";
-import { Badge } from "@/app/components/ui/Badge";
-import { Skeleton } from "@/app/components/ui/Skeleton";
+import { Badge } from "@/app/components/ui/badge";
+import { Skeleton } from "@/app/components/ui/skeleton";
 import { LanguageBar } from "@/app/components/repo/LanguageBar";
 import type { LanguageShare } from "@/app/hooks/useRepoLanguages";
 import type { Repo } from "@/app/hooks/useRepo";

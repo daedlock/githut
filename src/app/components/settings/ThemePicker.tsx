@@ -16,7 +16,7 @@ import { cn } from "@/app/lib/cn";
 
 type PreviewWrapper = {
   /** Set as `data-theme` on the preview wrapper, or undefined for :root default. */
-  dataTheme?: "ember" | "ember-soft" | "ember-light";
+  dataTheme?: "ember" | "ember-soft" | "ember-light" | "dune" | "haze" | "lagoon" | "matrix" | "moss" | "sagecream";
   /** Add `.dark` class to the preview wrapper for stone-dark scoping. */
   dark?: boolean;
 };
@@ -70,6 +70,54 @@ const CARDS: ThemeCard[] = [
     palette: "ember",
     preference: "dark",
     preview: { dataTheme: "ember" },
+  },
+  {
+    id: "dune",
+    name: "Dune",
+    tagline: "Amber earth on charcoal steel",
+    palette: "dune",
+    preference: "dark",
+    preview: { dataTheme: "dune" },
+  },
+  {
+    id: "haze",
+    name: "Haze",
+    tagline: "Lavender mist, dusty mauve spark",
+    palette: "haze",
+    preference: "dark",
+    preview: { dataTheme: "haze" },
+  },
+  {
+    id: "lagoon",
+    name: "Lagoon",
+    tagline: "Coral reef at dusk, teal waters",
+    palette: "lagoon",
+    preference: "dark",
+    preview: { dataTheme: "lagoon" },
+  },
+  {
+    id: "matrix",
+    name: "Matrix",
+    tagline: "Green phosphor glow",
+    palette: "matrix",
+    preference: "dark",
+    preview: { dataTheme: "matrix" },
+  },
+  {
+    id: "moss",
+    name: "Moss",
+    tagline: "Deep forest, warm earth tones",
+    palette: "moss",
+    preference: "dark",
+    preview: { dataTheme: "moss" },
+  },
+  {
+    id: "sagecream",
+    name: "Sagecream",
+    tagline: "Neutral graphite, sage whisper",
+    palette: "sagecream",
+    preference: "dark",
+    preview: { dataTheme: "sagecream" },
   },
 ];
 

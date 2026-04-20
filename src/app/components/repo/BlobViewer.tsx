@@ -2,7 +2,7 @@ import { CodeView } from "@/app/components/code";
 import { useCodeTokens } from "@/app/components/code";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { OrgRendered } from "@/app/components/OrgRendered";
-import { Skeleton } from "@/app/components/ui/Skeleton";
+import { Skeleton } from "@/app/components/ui/skeleton";
 import type { RepoFile } from "@/app/hooks/useRepoFile";
 import { detectLang } from "@/app/lib/detectLang";
 

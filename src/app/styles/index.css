@@ -138,18 +138,18 @@
    *   -gutter:   line-number column tint (18%), slightly stronger than -bg
    *   -marker:   the +/- glyph color itself — uses the full status token
    */
-  --diff-add-bg: color-mix(in oklab, var(--color-success) 12%, var(--color-bg));
-  --diff-add-bg-word: color-mix(in oklab, var(--color-success) 28%, var(--color-bg));
-  --diff-add-gutter: color-mix(in oklab, var(--color-success) 18%, var(--color-bg));
+  --diff-add-bg: color-mix(in oklab, var(--color-success) 12%, var(--color-bg-subtle));
+  --diff-add-bg-word: color-mix(in oklab, var(--color-success) 28%, var(--color-bg-subtle));
+  --diff-add-gutter: color-mix(in oklab, var(--color-success) 18%, var(--color-bg-subtle));
   --diff-add-marker: var(--color-success);
-  --diff-del-bg: color-mix(in oklab, var(--color-danger) 12%, var(--color-bg));
-  --diff-del-bg-word: color-mix(in oklab, var(--color-danger) 28%, var(--color-bg));
-  --diff-del-gutter: color-mix(in oklab, var(--color-danger) 18%, var(--color-bg));
+  --diff-del-bg: color-mix(in oklab, var(--color-danger) 12%, var(--color-bg-subtle));
+  --diff-del-bg-word: color-mix(in oklab, var(--color-danger) 28%, var(--color-bg-subtle));
+  --diff-del-gutter: color-mix(in oklab, var(--color-danger) 18%, var(--color-bg-subtle));
   --diff-del-marker: var(--color-danger);
-  --diff-hunk-bg: var(--color-bg-subtle);
+  --diff-hunk-bg: var(--color-bg-sunken);
   --diff-hunk-fg: var(--color-fg-muted);
   --diff-hunk-border: var(--color-border);
-  --diff-expand-hover: color-mix(in oklab, var(--color-accent) 10%, var(--color-bg));
+  --diff-expand-hover: color-mix(in oklab, var(--color-accent) 10%, var(--color-bg-subtle));
 
   /*
    * Chart slot colors (language bars, pie charts, segmented stats).
@@ -414,10 +414,10 @@ html.dark {
  * We own the bg via our surface tokens; Shiki only controls token colors.
  */
 .shiki {
-  background-color: var(--color-bg) !important;
+  background-color: var(--color-bg-subtle) !important;
 }
 html.dark .shiki {
-  background-color: var(--color-bg) !important;
+  background-color: var(--color-bg-subtle) !important;
 }
 .shiki span {
   color: var(--shiki-light);
@@ -849,5 +849,472 @@ body {
   --chart-slot-5: #905050;
   --chart-slot-6: #7a6820;
   --chart-other: #8a7c62;
+}
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ *   Doom themes — ported from ~/.config/doom/themes/dlock-*
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ *   All six are dark-only (doom themes are dark by nature). Each owns its
+ *   complete token set: surfaces, text, accent, status, syntax, icons, chart.
+ *   They use [data-theme] specificity so .dark rules stay inert while active.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+/* ─── Dune — warm amber earth on charcoal blue ─────────────────────────────── */
+
+[data-theme="dune"] {
+  color-scheme: dark;
+
+  /* Surfaces — H205 charcoal blue-grey */
+  --color-bg: #171b1e;
+  --color-bg-subtle: #1c2124;
+  --color-bg-sunken: #252a2e;
+  --color-border: #252a2e;
+  --color-border-strong: #343a3e;
+
+  /* Text — warm pale oak */
+  --color-fg: #d0c8b8;
+  --color-fg-muted: #8a9298;
+  --color-fg-faint: #505860;
+
+  /* Hero accent — olive amber (H28 S35%) */
+  --color-accent: #b89068;
+  --color-accent-hover: #c89c72;
+  --color-accent-fg: #171b1e;
+
+  /* Status */
+  --color-success: #80a070;
+  --color-danger: #c07060;
+  --color-warning: #b0a860;
+  --color-focus: #b89068;
+
+  /* Issue pills */
+  --color-issue-open-bg: #202a1e;
+  --color-issue-open-fg: #90b080;
+  --color-issue-closed-bg: #2a2218;
+  --color-issue-closed-fg: #c09870;
+
+  /* Syntax */
+  --syntax-keyword: #b89068;
+  --syntax-string: #80a070;
+  --syntax-number: #c07060;
+  --syntax-function: #6090a8;
+  --syntax-type: #b0a860;
+  --syntax-property: #b89068;
+  --syntax-constant: #609888;
+  --syntax-variable: #d0c8b8;
+  --syntax-operator: #8a9298;
+  --syntax-punctuation: #8a9298;
+  --syntax-tag: #c07060;
+  --syntax-attribute: #70a090;
+  --syntax-meta: #6090a8;
+  --syntax-comment: #505860;
+  --syntax-regex: #80a070;
+
+  /* File icons */
+  --icon-ts: #6090a8;
+  --icon-js: #b0a860;
+  --icon-python: #6090a8;
+  --icon-rust: #c07060;
+  --icon-go: #609888;
+  --icon-ruby: #c07060;
+  --icon-markup: #b89068;
+  --icon-style: #908098;
+  --icon-data: #b0a860;
+  --icon-image: #908098;
+  --icon-docker: #486878;
+  --icon-shell: #80a070;
+  --icon-default: #505860;
+
+  /* Chart slots */
+  --chart-slot-1: #b89068;
+  --chart-slot-2: #6090a8;
+  --chart-slot-3: #80a070;
+  --chart-slot-4: #b0a860;
+  --chart-slot-5: #c07060;
+  --chart-slot-6: #609888;
+  --chart-other: #505860;
+}
+
+/* ─── Haze — lavender mist, dusty mauve spark ──────────────────────────────── */
+
+[data-theme="haze"] {
+  color-scheme: dark;
+
+  /* Surfaces — H260 purple-grey */
+  --color-bg: #2a292e;
+  --color-bg-subtle: #302f34;
+  --color-bg-sunken: #38373c;
+  --color-border: #38373c;
+  --color-border-strong: #46454a;
+
+  /* Text — soft lavender */
+  --color-fg: #d5d0d8;
+  --color-fg-muted: #908a96;
+  --color-fg-faint: #5c5b60;
+
+  /* Hero accent — dusty mauve */
+  --color-accent: #d0a0c8;
+  --color-accent-hover: #daaed4;
+  --color-accent-fg: #2a292e;
+
+  /* Status */
+  --color-success: #88a080;
+  --color-danger: #d8a0a8;
+  --color-warning: #b8a880;
+  --color-focus: #d0a0c8;
+
+  /* Issue pills */
+  --color-issue-open-bg: #252e25;
+  --color-issue-open-fg: #98b090;
+  --color-issue-closed-bg: #332a33;
+  --color-issue-closed-fg: #d8a0c8;
+
+  /* Syntax */
+  --syntax-keyword: #d0a0c8;
+  --syntax-string: #88a080;
+  --syntax-number: #d8a0a8;
+  --syntax-function: #90b8c8;
+  --syntax-type: #d8a0a8;
+  --syntax-property: #c09080;
+  --syntax-constant: #c09080;
+  --syntax-variable: #d5d0d8;
+  --syntax-operator: #908a96;
+  --syntax-punctuation: #908a96;
+  --syntax-tag: #d8a0a8;
+  --syntax-attribute: #70b8b0;
+  --syntax-meta: #90b8c8;
+  --syntax-comment: #747278;
+  --syntax-regex: #88a080;
+
+  /* File icons */
+  --icon-ts: #90b8c8;
+  --icon-js: #b8a880;
+  --icon-python: #90b8c8;
+  --icon-rust: #d0a0c8;
+  --icon-go: #70b8b0;
+  --icon-ruby: #d8a0a8;
+  --icon-markup: #c09080;
+  --icon-style: #d0a0c8;
+  --icon-data: #b8a880;
+  --icon-image: #d0a0c8;
+  --icon-docker: #608890;
+  --icon-shell: #88a080;
+  --icon-default: #5c5b60;
+
+  /* Chart slots */
+  --chart-slot-1: #d0a0c8;
+  --chart-slot-2: #90b8c8;
+  --chart-slot-3: #d8a0a8;
+  --chart-slot-4: #88a080;
+  --chart-slot-5: #70b8b0;
+  --chart-slot-6: #b8a880;
+  --chart-other: #5c5b60;
+}
+
+/* ─── Lagoon — coral reef at dusk ──────────────────────────────────────────── */
+
+[data-theme="lagoon"] {
+  color-scheme: dark;
+
+  /* Surfaces — H170 dark teal */
+  --color-bg: #101a18;
+  --color-bg-subtle: #152120;
+  --color-bg-sunken: #1c2a28;
+  --color-border: #1c2a28;
+  --color-border-strong: #283836;
+
+  /* Text — dry sage warmth */
+  --color-fg: #c8c4b0;
+  --color-fg-muted: #829a96;
+  --color-fg-faint: #3e524f;
+
+  /* Hero accent — coral */
+  --color-accent: #e07060;
+  --color-accent-hover: #e88070;
+  --color-accent-fg: #101a18;
+
+  /* Status */
+  --color-success: #60b878;
+  --color-danger: #e07060;
+  --color-warning: #b8b060;
+  --color-focus: #e07060;
+
+  /* Issue pills */
+  --color-issue-open-bg: #182a1e;
+  --color-issue-open-fg: #70c888;
+  --color-issue-closed-bg: #2a1a20;
+  --color-issue-closed-fg: #d07888;
+
+  /* Syntax */
+  --syntax-keyword: #e07060;
+  --syntax-string: #b8b060;
+  --syntax-number: #d09058;
+  --syntax-function: #43aa8b;
+  --syntax-type: #d06878;
+  --syntax-property: #d09058;
+  --syntax-constant: #9080b0;
+  --syntax-variable: #c8c4b0;
+  --syntax-operator: #5a706c;
+  --syntax-punctuation: #5a706c;
+  --syntax-tag: #e07060;
+  --syntax-attribute: #50b8a0;
+  --syntax-meta: #5898b8;
+  --syntax-comment: #3e524f;
+  --syntax-regex: #b8b060;
+
+  /* File icons */
+  --icon-ts: #5898b8;
+  --icon-js: #b8b060;
+  --icon-python: #5898b8;
+  --icon-rust: #e07060;
+  --icon-go: #43aa8b;
+  --icon-ruby: #d06878;
+  --icon-markup: #d09058;
+  --icon-style: #9080b0;
+  --icon-data: #b8b060;
+  --icon-image: #9080b0;
+  --icon-docker: #407088;
+  --icon-shell: #60b878;
+  --icon-default: #3e524f;
+
+  /* Chart slots */
+  --chart-slot-1: #e07060;
+  --chart-slot-2: #43aa8b;
+  --chart-slot-3: #d06878;
+  --chart-slot-4: #b8b060;
+  --chart-slot-5: #5898b8;
+  --chart-slot-6: #9080b0;
+  --chart-other: #3e524f;
+}
+
+/* ─── Matrix — green phosphor glow ─────────────────────────────────────────── */
+
+[data-theme="matrix"] {
+  color-scheme: dark;
+
+  /* Surfaces — H150 very dark green */
+  --color-bg: #0c120f;
+  --color-bg-subtle: #131b17;
+  --color-bg-sunken: #1a231f;
+  --color-border: #1a231f;
+  --color-border-strong: #2d3933;
+
+  /* Text — bright phosphor green */
+  --color-fg: #ddeee3;
+  --color-fg-muted: #87a194;
+  --color-fg-faint: #485b52;
+
+  /* Hero accent — bright green */
+  --color-accent: #4dcb8c;
+  --color-accent-hover: #5dd89a;
+  --color-accent-fg: #0c120f;
+
+  /* Status */
+  --color-success: #4dcb8c;
+  --color-danger: #c07c7c;
+  --color-warning: #b8ce8d;
+  --color-focus: #4dcb8c;
+
+  /* Issue pills */
+  --color-issue-open-bg: #112a1a;
+  --color-issue-open-fg: #5dd89a;
+  --color-issue-closed-bg: #2a1414;
+  --color-issue-closed-fg: #cc8c8c;
+
+  /* Syntax */
+  --syntax-keyword: #4dcb8c;
+  --syntax-string: #b8ce8d;
+  --syntax-number: #d0a88b;
+  --syntax-function: #33cc8c;
+  --syntax-type: #309171;
+  --syntax-property: #7cc0af;
+  --syntax-constant: #8bb18b;
+  --syntax-variable: #ddeee3;
+  --syntax-operator: #657b70;
+  --syntax-punctuation: #657b70;
+  --syntax-tag: #c07c7c;
+  --syntax-attribute: #7cc0af;
+  --syntax-meta: #4dcb8c;
+  --syntax-comment: #485b52;
+  --syntax-regex: #b8ce8d;
+
+  /* File icons */
+  --icon-ts: #7cc0af;
+  --icon-js: #b8ce8d;
+  --icon-python: #7cc0af;
+  --icon-rust: #c07c7c;
+  --icon-go: #4dcb8c;
+  --icon-ruby: #c07c7c;
+  --icon-markup: #d0a88b;
+  --icon-style: #8bb18b;
+  --icon-data: #b8ce8d;
+  --icon-image: #8bb18b;
+  --icon-docker: #447e6f;
+  --icon-shell: #4dcb8c;
+  --icon-default: #485b52;
+
+  /* Chart slots */
+  --chart-slot-1: #4dcb8c;
+  --chart-slot-2: #7cc0af;
+  --chart-slot-3: #b8ce8d;
+  --chart-slot-4: #33cc8c;
+  --chart-slot-5: #c07c7c;
+  --chart-slot-6: #d0a88b;
+  --chart-other: #485b52;
+}
+
+/* ─── Moss — deep forest, warm earthy greens ────────────────────────────────── */
+
+[data-theme="moss"] {
+  color-scheme: dark;
+
+  /* Surfaces — H145 dark forest green */
+  --color-bg: #1e2421;
+  --color-bg-subtle: #252d28;
+  --color-bg-sunken: #2e3830;
+  --color-border: #2e3830;
+  --color-border-strong: #3d4c42;
+
+  /* Text — warm tan */
+  --color-fg: #d0c8b0;
+  --color-fg-muted: #99ad9c;
+  --color-fg-faint: #5a6e5e;
+
+  /* Hero accent — sage green */
+  --color-accent: #85b870;
+  --color-accent-hover: #95c880;
+  --color-accent-fg: #1e2421;
+
+  /* Status */
+  --color-success: #85b870;
+  --color-danger: #c47070;
+  --color-warning: #b0a860;
+  --color-focus: #85b870;
+
+  /* Issue pills */
+  --color-issue-open-bg: #223022;
+  --color-issue-open-fg: #95c880;
+  --color-issue-closed-bg: #2a1e2a;
+  --color-issue-closed-fg: #c098b8;
+
+  /* Syntax */
+  --syntax-keyword: #85b870;
+  --syntax-string: #b0a860;
+  --syntax-number: #bf9060;
+  --syntax-function: #70b8a0;
+  --syntax-type: #60b090;
+  --syntax-property: #bf9060;
+  --syntax-constant: #9080b0;
+  --syntax-variable: #d0c8b0;
+  --syntax-operator: #7a9080;
+  --syntax-punctuation: #7a9080;
+  --syntax-tag: #c47070;
+  --syntax-attribute: #60b090;
+  --syntax-meta: #6daaa0;
+  --syntax-comment: #5a6e5e;
+  --syntax-regex: #b0a860;
+
+  /* File icons */
+  --icon-ts: #6daaa0;
+  --icon-js: #b0a860;
+  --icon-python: #6daaa0;
+  --icon-rust: #c47070;
+  --icon-go: #85b870;
+  --icon-ruby: #c47070;
+  --icon-markup: #bf9060;
+  --icon-style: #b088a8;
+  --icon-data: #b0a860;
+  --icon-image: #b088a8;
+  --icon-docker: #508878;
+  --icon-shell: #85b870;
+  --icon-default: #5a6e5e;
+
+  /* Chart slots */
+  --chart-slot-1: #85b870;
+  --chart-slot-2: #70b8a0;
+  --chart-slot-3: #b0a860;
+  --chart-slot-4: #60b090;
+  --chart-slot-5: #c47070;
+  --chart-slot-6: #bf9060;
+  --chart-other: #5a6e5e;
+}
+
+/* ─── Sagecream — neutral graphite, sage whisper ────────────────────────────── */
+
+[data-theme="sagecream"] {
+  color-scheme: dark;
+
+  /* Surfaces — H30 near-neutral warm grey */
+  --color-bg: #1a1918;
+  --color-bg-subtle: #201f1e;
+  --color-bg-sunken: #2d2c2a;
+  --color-border: #2d2c2a;
+  --color-border-strong: #3c3b38;
+
+  /* Text — cream warmth */
+  --color-fg: #d0cdb8;
+  --color-fg-muted: #8e8a80;
+  --color-fg-faint: #565450;
+
+  /* Hero accent — dry sage */
+  --color-accent: #90a878;
+  --color-accent-hover: #a0b888;
+  --color-accent-fg: #1a1918;
+
+  /* Status */
+  --color-success: #90a878;
+  --color-danger: #b07870;
+  --color-warning: #b0a860;
+  --color-focus: #90a878;
+
+  /* Issue pills */
+  --color-issue-open-bg: #202820;
+  --color-issue-open-fg: #a0b888;
+  --color-issue-closed-bg: #282018;
+  --color-issue-closed-fg: #b09068;
+
+  /* Syntax */
+  --syntax-keyword: #90a878;
+  --syntax-string: #b0a860;
+  --syntax-number: #b07870;
+  --syntax-function: #b09068;
+  --syntax-type: #b0a860;
+  --syntax-property: #b09068;
+  --syntax-constant: #70a090;
+  --syntax-variable: #d0cdb8;
+  --syntax-operator: #8e8a80;
+  --syntax-punctuation: #8e8a80;
+  --syntax-tag: #b07870;
+  --syntax-attribute: #78a890;
+  --syntax-meta: #7090a0;
+  --syntax-comment: #6e6b64;
+  --syntax-regex: #b0a860;
+
+  /* File icons */
+  --icon-ts: #7090a0;
+  --icon-js: #b0a860;
+  --icon-python: #7090a0;
+  --icon-rust: #b07870;
+  --icon-go: #90a878;
+  --icon-ruby: #b07870;
+  --icon-markup: #b09068;
+  --icon-style: #a08080;
+  --icon-data: #b0a860;
+  --icon-image: #a08080;
+  --icon-docker: #506878;
+  --icon-shell: #90a878;
+  --icon-default: #565450;
+
+  /* Chart slots */
+  --chart-slot-1: #90a878;
+  --chart-slot-2: #7090a0;
+  --chart-slot-3: #b0a860;
+  --chart-slot-4: #b09068;
+  --chart-slot-5: #b07870;
+  --chart-slot-6: #70a090;
+  --chart-other: #565450;
 }
 

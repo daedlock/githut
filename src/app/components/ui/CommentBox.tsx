@@ -10,8 +10,8 @@ import {
 import { CheckCircle2, CircleDot, Eye, GitPullRequest, Pencil } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
-import { Avatar } from "@/app/components/ui/Avatar";
-import { Skeleton } from "@/app/components/ui/Skeleton";
+import { Avatar } from "@/app/components/ui/avatar";
+import { Skeleton } from "@/app/components/ui/skeleton";
 import { useDebouncedValue } from "@/app/hooks/useDebouncedValue";
 import { type MentionItem, useMentionSearch } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";

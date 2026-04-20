@@ -1,4 +1,4 @@
-import { Avatar } from "@/app/components/ui/Avatar";
+import { Avatar } from "@/app/components/ui/avatar";
 import type { IssueUser } from "@/app/features/issues/schemas";
 
 /**

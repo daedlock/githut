@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { CommitRow } from "@/app/components/repo/CommitRow";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Container } from "@/app/components/ui/Container";
-import { Skeleton } from "@/app/components/ui/Skeleton";
+import { Skeleton } from "@/app/components/ui/skeleton";
 import { useRepo } from "@/app/hooks/useRepo";
 import { useRepoCommits } from "@/app/hooks/useRepoCommits";
 import { formatFullDate, groupByDay } from "@/app/lib/time";

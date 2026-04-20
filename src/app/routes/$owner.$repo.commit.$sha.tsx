@@ -3,7 +3,7 @@ import { AlertCircle, ArrowLeft, Check, Copy } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 import { DiffLayout, type DiffLayoutFile, type FileStatus } from "@/app/components/code";
 import { StatusMessage } from "@/app/components/StatusMessage";
-import { Skeleton } from "@/app/components/ui/Skeleton";
+import { Skeleton } from "@/app/components/ui/skeleton";
 import { type CommitFile, useRepoCommit } from "@/app/hooks/useRepoCommit";
 import { detectLang } from "@/app/lib/detectLang";
 import { formatRelativeTime } from "@/app/lib/time";

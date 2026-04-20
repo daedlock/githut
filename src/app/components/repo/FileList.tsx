@@ -1,5 +1,5 @@
 import { ChevronRight, FileText, Folder, GitCommitHorizontal } from "lucide-react";
-import { Skeleton } from "@/app/components/ui/Skeleton";
+import { Skeleton } from "@/app/components/ui/skeleton";
 import type { ContentEntry } from "@/app/hooks/useRepoContents";
 import type { PathCommit } from "@/app/hooks/usePathCommit";
 import { cn } from "@/app/lib/cn";

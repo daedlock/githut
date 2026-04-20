@@ -1,9 +1,9 @@
-import * as Dialog from "@radix-ui/react-dialog";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Command } from "cmdk";
 import {
+  BookMarked,
   CheckCircle2,
   CircleDot,
+  Command as CommandIcon,
   FilePlus,
   GitPullRequest,
   Home,
@@ -12,6 +12,15 @@ import {
   SunMoon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@/app/components/ui/command";
 import {
   parsePaletteQuery,
   useCommandPaletteSearch,
@@ -27,16 +36,15 @@ import { useCommandPalette, useCommandPaletteStore } from "@/app/stores/commandP
 import { useThemeStore } from "@/app/stores/theme";
 
 /**
- * Command palette — P1.T1.b content.
+ * Command palette (`⌘K`).
+ *
+ * Composed on shadcn's <CommandDialog> — Dialog + cmdk wired together with
+ * built-in animations (data-[state=open/closed]), focus management, and
+ * semantic-token styling that inherits our theme bridge automatically.
  *
  * Sections (top→bottom): Recent · Actions · Repos · Issues & PRs.
- * Sources live in `useCommandPaletteItems`; rendering + keyboard live here.
- *
- * Palette owns its own `⌘K` binding — this file mounts once at the app
- * root, so a useKeybindings call here is the canonical global registration.
- * The stub in `lib/shortcuts.ts` stays as a no-op for any other consumer
- * who merges GLOBAL_SHORTCUTS; composition-at-component beats mutating the
- * shared registry per the G1 follow-up.
+ * Query-mode parsing lives in useCommandPaletteItems:
+ *   ">" → Actions · "@" → Repos · "#N" / bare digits → jump-to-number.
  */
 
 type ActionItem = {
@@ -44,8 +52,6 @@ type ActionItem = {
   label: string;
   icon: LucideIcon;
   keywords?: string[];
-  // Actions that should fall under ">" must not claim to be navigation — we
-  // still push them to the MRU store so "Recent" can surface them.
   onRun: () => void;
 };
 
@@ -55,6 +61,7 @@ export function CommandPalette() {
   const { close, toggle } = useCommandPalette();
   const navigate = useNavigate();
 
+  // Close on route change
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const prevPath = useRef(pathname);
   useEffect(() => {
@@ -64,44 +71,33 @@ export function CommandPalette() {
     }
   }, [pathname]);
 
-  // Parse the current URL for repo context — used to scope the "new issue"
-  // action and the `#123` number jump. Reading from the pathname avoids
-  // needing a Route hook (this component lives at the app root, above the
-  // `$owner/$repo` route's scope).
+  // Parse repo context from URL — drives the "new issue" action + `#N` jump.
   const repoContext = useMemo(() => {
     const parts = pathname.split("/").filter(Boolean);
     if (parts.length < 2) return null;
-    // Skip non-repo top-level routes.
     if (["login", "settings", "playground", "w"].includes(parts[0]!)) return null;
     return { owner: parts[0]!, repo: parts[1]! };
   }, [pathname]);
 
-  // Global ⌘K. Toggle, not open — so ⌘K while already open closes it, matching
-  // Linear/Raycast. cmdk owns the key internally once focus is in its input,
-  // so our listener never fires from inside the palette (editable target check
-  // in useKeybindings already filters inputs).
+  // Global ⌘K binding — useKeybindings skips dispatch when focus is inside
+  // an input/textarea, which is exactly the right behavior: cmdk owns the
+  // key once its input has focus (the palette toggles from outside it).
   const shortcutMap = useMemo(() => ({ "⌘k": toggle }), [toggle]);
   useKeybindings(shortcutMap);
 
-  // ─── Sources ────────────────────────────────────────────────────────────────
   const [query, setQuery] = useState("");
   const mode = parsePaletteQuery(query);
   const recent = useRecentItems(5);
   const repos = useRepos();
   const search = useCommandPaletteSearch(mode.kind === "all" ? mode.query : "");
 
-  // Reset query on close so reopening always shows the default view.
+  // Reset query on close
   useEffect(() => {
     if (!open) setQuery("");
   }, [open]);
 
-  // ─── Navigation helpers ────────────────────────────────────────────────────
   const go = useCallback(
     (item: Omit<RecentItem, "visitedAt">) => {
-      // Persist to MRU before routing. The navigation itself closes the dialog
-      // via the route-change effect above, but we call close() for the
-      // same-route case (e.g., re-selecting the current repo) and to preempt
-      // the race between TanStack's async transition + the effect firing.
       void pushRecentItem(item);
       close();
       navigate({ to: item.href });
@@ -124,9 +120,6 @@ export function CommandPalette() {
     [close],
   );
 
-  // Direct jump on numeric input — fires when user presses Enter while the
-  // query parser resolved a bare number. Keeps the palette empty visually
-  // (no results section) but Enter still has a meaning.
   const jumpToNumber = useCallback(
     (num: number) => {
       if (!repoContext) return;
@@ -141,7 +134,6 @@ export function CommandPalette() {
     [repoContext, go],
   );
 
-  // ─── Actions ────────────────────────────────────────────────────────────────
   const actions = useMemo<ActionItem[]>(() => {
     const base: ActionItem[] = [
       {
@@ -172,7 +164,6 @@ export function CommandPalette() {
         label: `New issue in ${repoContext.owner}/${repoContext.repo}`,
         icon: FilePlus,
         keywords: ["create", "bug", "report"],
-        // Issues route will respect `?new=1` post-P2; link is future-safe.
         onRun: () =>
           navigate({
             to: `/${repoContext.owner}/${repoContext.repo}/issues?new=1`,
@@ -182,7 +173,6 @@ export function CommandPalette() {
     return base;
   }, [navigate, repoContext]);
 
-  // ─── Section filters for mode routing ──────────────────────────────────────
   const showRecent = mode.kind === "all" && recent.length > 0;
   const showActions = mode.kind === "all" || mode.kind === "actions";
   const showRepos = mode.kind === "all" || mode.kind === "repos";
@@ -190,329 +180,176 @@ export function CommandPalette() {
   const numberMode = mode.kind === "number";
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Portal>
-        <Dialog.Overlay
-          className={cn(
-            "fixed inset-0 z-50",
-            "bg-[color-mix(in_oklab,var(--color-fg)_32%,transparent)]",
-            "backdrop-blur-[2px]",
-            "[animation:palette-backdrop-in_120ms_cubic-bezier(0.16,1,0.3,1)]",
-          )}
+    <CommandDialog
+      open={open}
+      onOpenChange={setOpen}
+      title="Command palette"
+      description="Search, navigate, or run a command"
+      className="max-w-[min(640px,calc(100vw-2rem))]"
+    >
+      <div
+        // Reserve ⌘Enter for peek (P2.G4); number-mode takes Enter itself.
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            return;
+          }
+          if (numberMode && e.key === "Enter") {
+            e.preventDefault();
+            jumpToNumber(mode.number);
+          }
+        }}
+      >
+        <CommandInput
+          value={query}
+          onValueChange={setQuery}
+          placeholder={
+            repoContext
+              ? "Search, > actions, @ repos, # issue number…"
+              : "Search, > actions, @ repos…"
+          }
         />
-        <Dialog.Content
-          aria-describedby={undefined}
-          className={cn(
-            "fixed left-1/2 top-[22%] z-50",
-            "w-[min(640px,calc(100vw-2rem))]",
-            "-translate-x-1/2 -translate-y-1/2",
-            "overflow-hidden rounded-[var(--radius-lg)]",
-            "border border-[var(--color-border-strong)] bg-[var(--color-bg)]",
-            "shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_32px_-12px_rgba(0,0,0,0.22)]",
-            "[animation:palette-enter_120ms_cubic-bezier(0.16,1,0.3,1)]",
-            // Both :focus and :focus-visible — Radix Dialog auto-focuses the
-            // Content on open, which would otherwise light up the global
-            // *:focus-visible 2px orange ring.
-            "focus:outline-none focus-visible:outline-none",
+
+        <CommandList>
+          <CommandEmpty>
+            {numberMode
+              ? repoContext
+                ? `↵ to open #${mode.number} in ${repoContext.owner}/${repoContext.repo}`
+                : "Open a repo first to jump to an issue number."
+              : "No results."}
+          </CommandEmpty>
+
+          {showRecent && (
+            <CommandGroup heading="Recent">
+              {recent.map((item) => (
+                <CommandItem
+                  key={`recent-${item.id}`}
+                  value={`recent ${item.label} ${item.href} ${item.kind}`}
+                  onSelect={() => go(item)}
+                >
+                  <RecentIcon kind={item.kind} />
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 truncate",
+                      (item.kind === "repo" || item.kind === "issue" || item.kind === "pr") &&
+                        "font-mono tabular-nums",
+                    )}
+                  >
+                    {item.label}
+                  </span>
+                  <CommandShortcut>
+                    {formatRelativeTime(new Date(item.visitedAt).toISOString())}
+                  </CommandShortcut>
+                </CommandItem>
+              ))}
+            </CommandGroup>
           )}
-        >
-          <Dialog.Title className="sr-only">Command palette</Dialog.Title>
 
-          <Command
-            label="Command palette"
-            className="flex flex-col"
-            // For number-mode we take over Enter ourselves, so filtering is
-            // irrelevant. Leave cmdk on its defaults for all other modes.
-            shouldFilter={!numberMode}
-            onKeyDown={(e) => {
-              // Reserve ⌘Enter for peek. Stub for now — P2.G4 will wire it.
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                // TODO: peek (P2.G4)
-                return;
-              }
-              if (numberMode && e.key === "Enter") {
-                e.preventDefault();
-                jumpToNumber(mode.number);
-              }
-            }}
-          >
-            <div className="flex items-center border-b border-[var(--color-border)] px-4">
-              <Command.Input
-                value={query}
-                onValueChange={setQuery}
-                autoFocus
-                placeholder="Search, or type > for actions, @ for repos, #123 to open an issue…"
-                className={cn(
-                  "w-full bg-transparent py-3 text-body text-[var(--color-fg)]",
-                  "placeholder:text-[var(--color-fg-faint)]",
-                  "focus:outline-none",
-                )}
-              />
-            </div>
+          {showActions && (
+            <CommandGroup heading="Actions">
+              {actions.map((a) => {
+                const Icon = a.icon;
+                return (
+                  <CommandItem
+                    key={a.id}
+                    value={`> ${a.label} ${a.keywords?.join(" ") ?? ""}`}
+                    onSelect={() => runAction(a)}
+                  >
+                    <Icon />
+                    <span className="flex-1 truncate">{a.label}</span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          )}
 
-            <Command.List className="max-h-[420px] overflow-y-auto px-2 py-2">
-              <Command.Empty
-                className={cn("px-3 py-6 text-center text-ui text-[var(--color-fg-faint)]")}
-              >
-                {numberMode
-                  ? repoContext
-                    ? `Press Enter to open #${mode.number} in ${repoContext.owner}/${repoContext.repo}`
-                    : "Open a repo first to jump to an issue number."
-                  : "No results."}
-              </Command.Empty>
-
-              {showRecent && (
-                <Section heading="Recent">
-                  {recent.map((item) => (
-                    <RecentRow key={`recent-${item.id}`} item={item} onRun={() => go(item)} />
-                  ))}
-                </Section>
-              )}
-
-              {showActions && (
-                <Section heading="Actions">
-                  {actions.map((a) => (
-                    <ActionRow key={a.id} action={a} onRun={() => runAction(a)} />
-                  ))}
-                </Section>
-              )}
-
-              {showRepos && repos.data && repos.data.length > 0 && (
-                <Section heading="Repos">
-                  {repos.data.slice(0, 50).map((r) => (
-                    <RepoRow
-                      key={`repo-${r.id}`}
-                      fullName={r.fullName}
-                      language={r.language}
-                      pushedAt={r.pushedAt}
-                      onRun={() =>
-                        go({
-                          id: `repo:${r.fullName}`,
-                          kind: "repo",
-                          label: r.fullName,
-                          href: `/${r.owner.login}/${r.name}`,
-                          meta: r.language ?? undefined,
-                        })
-                      }
-                    />
-                  ))}
-                </Section>
-              )}
-
-              {showSearch && (
-                <Section
-                  heading="Issues & PRs"
-                  eyebrowRight={
-                    search.isFetching ? (
-                      <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
-                        searching…
-                      </span>
-                    ) : null
+          {showRepos && repos.data && repos.data.length > 0 && (
+            <CommandGroup heading="Repos">
+              {repos.data.slice(0, 50).map((r) => (
+                <CommandItem
+                  key={`repo-${r.id}`}
+                  value={`@ ${r.fullName} ${r.language ?? ""}`}
+                  onSelect={() =>
+                    go({
+                      id: `repo:${r.fullName}`,
+                      kind: "repo",
+                      label: r.fullName,
+                      href: `/${r.owner.login}/${r.name}`,
+                      meta: r.language ?? undefined,
+                    })
                   }
                 >
-                  {(search.data ?? []).map((hit) => (
-                    <SearchRow
-                      key={`hit-${hit.id}`}
-                      hit={hit}
-                      onRun={() =>
-                        go({
-                          id: `${hit.kind}:${hit.repoFullName}#${hit.number}`,
-                          kind: hit.kind,
-                          label: hit.title,
-                          href: hit.href,
-                          meta: `${hit.repoFullName} · #${hit.number}`,
-                        })
-                      }
-                    />
-                  ))}
-                </Section>
-              )}
-            </Command.List>
+                  <BookMarked />
+                  <span className="min-w-0 flex-1 truncate font-mono tabular-nums">
+                    {r.fullName}
+                  </span>
+                  <CommandShortcut>
+                    {r.language ?? formatRelativeTime(r.pushedAt)}
+                  </CommandShortcut>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
 
-            <div
-              className={cn(
-                "flex items-center justify-between border-t border-[var(--color-border)]",
-                "bg-[var(--color-bg-subtle)] px-3 py-2",
-              )}
+          {showSearch && (
+            <CommandGroup
+              heading={
+                <span className="flex items-center justify-between">
+                  <span>Issues & PRs</span>
+                  {search.isFetching && (
+                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                      searching…
+                    </span>
+                  )}
+                </span>
+              }
             >
-              <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
-                {modeLabel(mode)}
-              </span>
-              <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
-                ↵ to open · esc to close
-              </span>
-            </div>
-          </Command>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
-  );
-}
-
-function modeLabel(mode: ReturnType<typeof parsePaletteQuery>): string {
-  if (mode.kind === "actions") return "Actions";
-  if (mode.kind === "repos") return "Repos";
-  if (mode.kind === "number") return `Open #${mode.number}`;
-  return "Command palette";
-}
-
-// ─── Section + Row primitives ──────────────────────────────────────────────────
-// Kept inline on purpose — §rules item "Don't invent new abstractions."
-
-function Section({
-  heading,
-  eyebrowRight,
-  children,
-}: {
-  heading: string;
-  eyebrowRight?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  // cmdk auto-hides a group with zero matching children when filtering. The
-  // wrapping `Command.Group` handles the "hide heading on empty query" case
-  // for us — only visible groups render their heading. The only case we
-  // render manually is the eyebrow-right slot for the searching… indicator.
-  return (
-    <Command.Group
-      heading={
-        <div className="flex items-baseline justify-between px-2 pt-3 pb-1">
-          <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
-            {heading}
-          </span>
-          {eyebrowRight}
-        </div>
-      }
-      className="px-0"
-    >
-      {children}
-    </Command.Group>
-  );
-}
-
-// Shared row class — centralizes cmdk data-selected styling per §6.
-const rowClass = cn(
-  "flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] px-2.5 py-2 text-ui",
-  "text-[var(--color-fg)]",
-  "data-[selected=true]:bg-[var(--color-bg-sunken)]",
-);
-
-function RecentRow({ item, onRun }: { item: RecentItem; onRun: () => void }) {
-  const monoLabel = item.kind === "repo" || item.kind === "issue" || item.kind === "pr";
-  return (
-    <Command.Item
-      // Include href + kind in value so cmdk's fuzzy filter matches on more
-      // than the visible label.
-      value={`recent ${item.label} ${item.href} ${item.kind}`}
-      onSelect={onRun}
-      className={rowClass}
-    >
-      <RecentIcon kind={item.kind} />
-      <span className={cn("min-w-0 flex-1 truncate", monoLabel && "font-mono tabular-nums")}>
-        {item.label}
-      </span>
-      {item.meta && (
-        <span className="shrink-0 font-mono text-micro text-[var(--color-fg-faint)] tabular-nums">
-          {item.meta}
-        </span>
-      )}
-      <span className="shrink-0 font-mono text-micro text-[var(--color-fg-faint)] tabular-nums">
-        {formatRelativeTime(new Date(item.visitedAt).toISOString())}
-      </span>
-    </Command.Item>
+              {(search.data ?? []).map((hit) => {
+                const Icon =
+                  hit.kind === "pr"
+                    ? GitPullRequest
+                    : hit.state === "open"
+                      ? CircleDot
+                      : CheckCircle2;
+                return (
+                  <CommandItem
+                    key={`hit-${hit.id}`}
+                    value={`${hit.repoFullName} #${hit.number} ${hit.title}`}
+                    onSelect={() =>
+                      go({
+                        id: `${hit.kind}:${hit.repoFullName}#${hit.number}`,
+                        kind: hit.kind,
+                        label: hit.title,
+                        href: hit.href,
+                        meta: `${hit.repoFullName} · #${hit.number}`,
+                      })
+                    }
+                  >
+                    <Icon
+                      className={cn(
+                        hit.state === "open" ? "text-success" : "text-muted-foreground",
+                      )}
+                    />
+                    <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                      #{hit.number}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{hit.title}</span>
+                    <CommandShortcut>{hit.repoFullName}</CommandShortcut>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          )}
+        </CommandList>
+      </div>
+    </CommandDialog>
   );
 }
 
 function RecentIcon({ kind }: { kind: RecentItem["kind"] }) {
-  const cls = "h-3.5 w-3.5 shrink-0 text-[var(--color-fg-faint)]";
-  if (kind === "pr") return <GitPullRequest className={cls} />;
-  if (kind === "issue") return <CircleDot className={cls} />;
-  if (kind === "action") return <SunMoon className={cls} />;
-  // repo + file share a neutral dot
-  return (
-    <span
-      aria-hidden
-      className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-fg-faint)] ml-1 mr-1"
-    />
-  );
-}
-
-function ActionRow({ action, onRun }: { action: ActionItem; onRun: () => void }) {
-  const Icon = action.icon;
-  return (
-    <Command.Item
-      value={`> ${action.label} ${action.keywords?.join(" ") ?? ""}`}
-      onSelect={onRun}
-      className={rowClass}
-    >
-      <Icon className="h-3.5 w-3.5 shrink-0 text-[var(--color-fg-muted)]" />
-      <span className="min-w-0 flex-1 truncate">{action.label}</span>
-      <span className="shrink-0 font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
-        Action
-      </span>
-    </Command.Item>
-  );
-}
-
-function RepoRow({
-  fullName,
-  language,
-  pushedAt,
-  onRun,
-}: {
-  fullName: string;
-  language: string | null;
-  pushedAt: string;
-  onRun: () => void;
-}) {
-  return (
-    <Command.Item value={`@ ${fullName} ${language ?? ""}`} onSelect={onRun} className={rowClass}>
-      <span
-        aria-hidden
-        className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-fg-faint)] ml-1 mr-1"
-      />
-      <span className="min-w-0 flex-1 truncate font-mono tabular-nums">{fullName}</span>
-      {language && (
-        <span className="shrink-0 text-micro text-[var(--color-fg-faint)]">{language}</span>
-      )}
-      <span className="shrink-0 font-mono text-micro text-[var(--color-fg-faint)] tabular-nums">
-        {formatRelativeTime(pushedAt)}
-      </span>
-    </Command.Item>
-  );
-}
-
-function SearchRow({
-  hit,
-  onRun,
-}: {
-  hit: {
-    kind: "issue" | "pr";
-    state: "open" | "closed";
-    number: number;
-    title: string;
-    repoFullName: string;
-  };
-  onRun: () => void;
-}) {
-  // Icon choice encodes both kind and state — matches the CommentBox pattern.
-  const Icon = hit.kind === "pr" ? GitPullRequest : hit.state === "open" ? CircleDot : CheckCircle2;
-  const iconColor =
-    hit.state === "open" ? "text-[var(--color-success)]" : "text-[var(--color-fg-faint)]";
-  return (
-    <Command.Item
-      value={`${hit.repoFullName} #${hit.number} ${hit.title}`}
-      onSelect={onRun}
-      className={rowClass}
-    >
-      <Icon className={cn("h-3.5 w-3.5 shrink-0", iconColor)} />
-      <span className="shrink-0 font-mono text-ui text-[var(--color-fg-faint)] tabular-nums">
-        #{hit.number}
-      </span>
-      <span className="min-w-0 flex-1 truncate">{hit.title}</span>
-      <span className="shrink-0 font-mono text-micro text-[var(--color-fg-faint)] tabular-nums">
-        {hit.repoFullName}
-      </span>
-    </Command.Item>
-  );
+  if (kind === "pr") return <GitPullRequest />;
+  if (kind === "issue") return <CircleDot />;
+  if (kind === "action") return <CommandIcon />;
+  if (kind === "repo") return <BookMarked />;
+  return <CommandIcon />;
 }

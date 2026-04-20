@@ -5,7 +5,7 @@ import { Breadcrumb, FileList } from "@/app/components/repo/FileList";
 import { ReadmeViewer } from "@/app/components/repo/ReadmeViewer";
 import { RepoAbout } from "@/app/components/repo/RepoAbout";
 import { Container } from "@/app/components/ui/Container";
-import { Skeleton } from "@/app/components/ui/Skeleton";
+import { Skeleton } from "@/app/components/ui/skeleton";
 import { useRepo } from "@/app/hooks/useRepo";
 import { useRepoContents } from "@/app/hooks/useRepoContents";
 import { useRepoFile } from "@/app/hooks/useRepoFile";

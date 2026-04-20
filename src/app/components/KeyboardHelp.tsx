@@ -1,25 +1,15 @@
-import * as Dialog from "@radix-ui/react-dialog";
+import { Dialog as DialogPrimitive } from "radix-ui";
 import { useRouterState } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { cn } from "@/app/lib/cn";
 import { useKeyboardHelpStore } from "@/app/stores/keyboardHelp";
 import { Kbd } from "@/app/components/ui/kbd";
-
-/**
- * Keyboard help overlay — `?` opens a dialog listing every registered
- * shortcut, grouped by scope. Motion + shell reuses P1.G2's palette
- * keyframes so the two dialogs feel like one primitive.
- *
- * The shortcut list is a module-level editorial constant below — labels
- * are descriptive prose, not runtime reflection of `GLOBAL_SHORTCUTS`.
- * Follow-up: reconcile with `lib/shortcuts.ts` once per-surface maps land.
- */
+import { Dialog, DialogOverlay, DialogPortal, DialogTitle } from "@/app/components/ui/dialog";
 
 type Scope = "global" | "repo" | "diff" | "list";
 
 type Shortcut = {
-  /** Space-separated key tokens. `⌘ K` → ⌘ then K. `g h` → g then h. */
   chord: string;
   label: string;
   scope: Scope;
@@ -55,7 +45,6 @@ const SCOPE_TITLES: Record<Scope, string> = {
   list: "List",
 };
 
-// Default vertical order; overridden when a surface is promoted via route.
 const DEFAULT_ORDER: readonly Scope[] = ["global", "repo", "diff", "list"];
 
 function promoteScope(scope: Scope): readonly Scope[] {
@@ -63,8 +52,6 @@ function promoteScope(scope: Scope): readonly Scope[] {
   return [scope, ...DEFAULT_ORDER.filter((s) => s !== scope)];
 }
 
-// Map the current pathname → the scope that should sit at the top.
-// Commit + PR detail are the only "diff" surfaces we own today.
 function scopeForPath(pathname: string): Scope {
   if (/\/[^/]+\/[^/]+\/commit\/[^/]+/.test(pathname)) return "diff";
   if (/\/[^/]+\/[^/]+\/pulls\/[^/]+/.test(pathname)) return "diff";
@@ -72,8 +59,6 @@ function scopeForPath(pathname: string): Scope {
   return "global";
 }
 
-// Render a chord string as a sequence of <Kbd> elements. Tokens are split on
-// whitespace; `⌘`, `⇧`, `⌥` and single-letter keys each become one Kbd.
 function renderChord(chord: string): React.ReactNode {
   const tokens = chord.split(/\s+/).filter(Boolean);
   return (
@@ -89,8 +74,6 @@ export function KeyboardHelp() {
   const open = useKeyboardHelpStore((s) => s.open);
   const setOpen = useKeyboardHelpStore((s) => s.setOpen);
 
-  // `?` is registered scoped to this component's lifecycle so the binding
-  // disappears if we ever tear the overlay out of the tree.
   useKeybindings(
     useMemo(
       () => ({
@@ -103,7 +86,6 @@ export function KeyboardHelp() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const order = useMemo(() => promoteScope(scopeForPath(pathname)), [pathname]);
 
-  // Group once per open state. Empty groups (e.g. Repo today) collapse away.
   const grouped = useMemo(() => {
     const byScope: Record<Scope, Shortcut[]> = { global: [], repo: [], diff: [], list: [] };
     for (const s of SHORTCUTS) byScope[s.scope].push(s);
@@ -113,9 +95,9 @@ export function KeyboardHelp() {
   }, [order]);
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Portal>
-        <Dialog.Overlay
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogPortal>
+        <DialogOverlay
           className={cn(
             "fixed inset-0 z-50",
             "bg-[color-mix(in_oklab,var(--color-fg)_32%,transparent)]",
@@ -123,7 +105,7 @@ export function KeyboardHelp() {
             "[animation:palette-backdrop-in_120ms_cubic-bezier(0.16,1,0.3,1)]",
           )}
         />
-        <Dialog.Content
+        <DialogPrimitive.Content
           aria-describedby={undefined}
           className={cn(
             "fixed left-1/2 top-[22%] z-50",
@@ -133,18 +115,11 @@ export function KeyboardHelp() {
             "border border-[var(--color-border-strong)] bg-[var(--color-bg)]",
             "shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_32px_-12px_rgba(0,0,0,0.22)]",
             "[animation:palette-enter_120ms_cubic-bezier(0.16,1,0.3,1)]",
-            // Radix Dialog.Content auto-focuses on open; without
-            // focus-visible:outline-none the global *:focus-visible rule
-            // paints a 2px orange ring around the whole modal.
             "focus:outline-none focus-visible:outline-none",
           )}
         >
-          <Dialog.Title className="sr-only">Keyboard shortcuts</Dialog.Title>
+          <DialogTitle className="sr-only">Keyboard shortcuts</DialogTitle>
 
-          {/*
-           * Header strip — matches the palette's footer typography so the two
-           * dialogs share a family resemblance. This is the help's eyebrow.
-           */}
           <div
             className={cn(
               "flex items-center justify-between border-b border-[var(--color-border)]",
@@ -156,10 +131,6 @@ export function KeyboardHelp() {
             </span>
           </div>
 
-          {/*
-           * Scrollable body. Max-height mirrors the palette so the two dialogs
-           * align visually when stacked in memory.
-           */}
           <div className="max-h-[min(520px,calc(100vh-12rem))] overflow-y-auto px-4 py-4">
             {grouped.map(({ scope, items }, idx) => (
               <section key={scope} className={idx === 0 ? "" : "mt-5"}>
@@ -196,8 +167,8 @@ export function KeyboardHelp() {
               ⌘K for commands
             </span>
           </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        </DialogPrimitive.Content>
+      </DialogPortal>
+    </Dialog>
   );
 }
