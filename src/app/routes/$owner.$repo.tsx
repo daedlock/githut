@@ -1,12 +1,12 @@
-import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useEffect } from "react";
 
-import { type RepoTabDef, RepoTabs } from "@/app/components/repo/RepoTabs";
+import { RepoSubTabs } from "@/app/components/repo/RepoSubTabs";
 import { AppShell } from "@/app/components/shell/AppShell";
 import { ShellFooter } from "@/app/components/shell/ShellFooter";
 import { TopBar } from "@/app/components/shell/TopBar";
 import { useAuthStore } from "@/app/stores/auth";
-import { useWorkspacesStore } from "@/app/stores/workspaces";
+import { useTabsStore } from "@/app/stores/tabs";
 
 export const Route = createFileRoute("/$owner/$repo")({
   beforeLoad: () => {
@@ -18,61 +18,46 @@ export const Route = createFileRoute("/$owner/$repo")({
 function RepoLayout() {
   const { owner, repo } = Route.useParams();
 
-  const tabs: RepoTabDef[] = [
-    { to: `/${owner}/${repo}/code`, label: "Code" },
-    { to: `/${owner}/${repo}/commits`, label: "Commits" },
-    { to: `/${owner}/${repo}/pulls`, label: "Pull requests" },
-    { to: `/${owner}/${repo}/issues`, label: "Issues" },
-  ];
-
   return (
     <AppShell
       header={
         <div className="flex flex-col">
-          {/* No hairline on TopBar — RepoTabs below closes the assembly. */}
           <TopBar bordered={false} />
-          <RepoTabs owner={owner} repo={repo} tabs={tabs} />
+          <RepoSubTabs owner={owner} repo={repo} />
         </div>
       }
       footer={<ShellFooter bordered origin="localhost:5173" />}
     >
-      <WorkspaceRegistrar owner={owner} repo={repo} />
+      <TabScrollRegistrar />
       <Outlet />
     </AppShell>
   );
 }
 
 /**
- * Invisible side-effect: registers the current repo as a workspace entry,
- * keeps the stored href (pathname + search + hash) in sync, and restores
- * scroll position when the workspace is re-entered.
+ * Saves scroll position to the active tab on unmount,
+ * restores it on mount. Replaces WorkspaceRegistrar.
  */
-function WorkspaceRegistrar({ owner, repo }: { owner: string; repo: string }) {
-  const href = useRouterState({ select: (s) => s.location.href });
-  const push = useWorkspacesStore((s) => s.push);
-  const saveScroll = useWorkspacesStore((s) => s.saveScroll);
-  const key = `${owner}/${repo}`;
+function TabScrollRegistrar() {
+  const activeTabId = useTabsStore((s) => s.activeTabId);
+  const saveScroll = useTabsStore((s) => s.saveScroll);
 
-  // Register / update the workspace entry whenever the URL changes.
+  // Restore scroll on mount
   useEffect(() => {
-    push(owner, repo, href);
-  }, [owner, repo, href, push]);
-
-  // Restore saved scroll position when this workspace mounts.
-  useEffect(() => {
-    const entry = useWorkspacesStore.getState().entries.find((e) => e.key === key);
-    if (entry && entry.scrollY > 0) {
-      // Wait one frame for content to render before scrolling.
-      requestAnimationFrame(() => window.scrollTo(0, entry.scrollY));
+    if (!activeTabId) return;
+    const tab = useTabsStore.getState().tabs.find((t) => t.id === activeTabId);
+    if (tab && tab.scrollY > 0) {
+      requestAnimationFrame(() => window.scrollTo(0, tab.scrollY));
     }
-  }, [key]);
+  }, [activeTabId]);
 
-  // Save scroll position when leaving this workspace.
+  // Save scroll on unmount
   useEffect(() => {
     return () => {
-      saveScroll(key, window.scrollY);
+      const id = useTabsStore.getState().activeTabId;
+      if (id) saveScroll(id, window.scrollY);
     };
-  }, [key, saveScroll]);
+  }, [saveScroll]);
 
   return null;
 }

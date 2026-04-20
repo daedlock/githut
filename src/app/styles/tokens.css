@@ -1,0 +1,346 @@
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Color tokens — rules in ~/.claude/projects/-home-end4-code-projects-githut/memory/feedback_color_discipline.md
+ * Light surfaces use Tailwind stone-50/100/200 (warm neutrals). Dark uses stone-900/950 scale.
+ * Every accent/status token chosen for WCAG AA contrast against bg/bg-subtle. See inline reasoning.
+ */
+
+@theme {
+  /* surfaces */
+  --color-bg: #fafaf9; /* stone-50 — warm off-white; fg contrast 15.6:1 */
+  --color-bg-subtle: #f5f5f4; /* stone-100 — card surfaces */
+  --color-bg-sunken: #e7e5e4; /* stone-200 — inset / hover */
+
+  /* text */
+  --color-fg: #1c1917; /* stone-900 — 15.6:1 on bg */
+  --color-fg-muted: #57534e; /* stone-600 — 7.5:1 on bg (AA for body text) */
+  --color-fg-faint: #a8a29e; /* stone-400 — 3.3:1 on bg (AA for graphics/large text only) */
+
+  /* borders */
+  --color-border: #e7e5e4; /* stone-200 — subtle separator */
+  --color-border-strong: #d6d3d1; /* stone-300 — form controls, focused borders */
+
+  /* brand accent — warm ember, orange-600 */
+  --color-accent: #ea580c; /* 4.52:1 on bg; used sparingly on small UI + large text */
+  --color-accent-hover: #c2410c; /* orange-700 — 6.4:1 on bg */
+  --color-accent-fg: #fffbeb; /* amber-50 — 14.1:1 on accent */
+
+  /* status */
+  --color-success: #16a34a; /* green-600 — 4.6:1 on bg */
+  --color-danger: #dc2626; /* red-600 — 5.3:1 on bg */
+  --color-warning: #ca8a04; /* yellow-600 — 4.6:1 on bg */
+  --color-focus: #ea580c; /* same as accent; focus ring consistency */
+
+  /* issue state pills — GitHub-style colored badges */
+  --color-issue-open-bg: #dcfce7; /* green-100 — warm tint for open state */
+  --color-issue-open-fg: #15803d; /* green-700 — 5.9:1 on open-bg (AA large) */
+  --color-issue-closed-bg: #f3e8ff; /* purple-100 — soft tint for closed state */
+  --color-issue-closed-fg: #7c3aed; /* violet-600 — 4.7:1 on closed-bg (AA) */
+
+  /*
+   * Syntax highlighting tokens — consumed by our custom Shiki theme
+   * (src/app/components/code/appTheme.ts). Shiki writes these var references
+   * directly into token inline styles, so the browser resolves them at paint
+   * time against whichever `.dark` / theme preset is currently active.
+   *
+   * Keep the vocabulary semantic, not visual — "keyword" / "string" / "type",
+   * not "red" / "green" / "blue". That's what lets someone swap palettes by
+   * editing this block alone. Each color has a WCAG 4.5:1+ against --color-bg.
+   */
+  --syntax-comment: #78716c; /* stone-500 — 4.7:1 on bg, italic by convention */
+  --syntax-keyword: #b45309; /* amber-700 — 4.9:1; warm hue anchors code in our palette */
+  --syntax-string: #166534; /* green-800 — 8.2:1 */
+  --syntax-number: #a16207; /* yellow-700 — 4.9:1 */
+  --syntax-function: #1d4ed8; /* blue-700 — 6.1:1 */
+  --syntax-type: #0f766e; /* teal-700 — 5.3:1 */
+  --syntax-property: #0369a1; /* sky-700 — 5.4:1 */
+  --syntax-constant: #a16207; /* yellow-700 — shares with number; distinct from keyword */
+  --syntax-variable: var(--color-fg);
+  --syntax-operator: var(--color-fg-muted);
+  --syntax-punctuation: var(--color-fg-muted);
+  --syntax-tag: #be123c; /* rose-700 — 5.8:1 */
+  --syntax-attribute: #c2410c; /* orange-700 — 5.3:1 */
+  --syntax-meta: #7c3aed; /* violet-600 — 5.7:1; imports / directives */
+  --syntax-regex: #0f766e; /* teal-700 — shares with type */
+
+  /*
+   * File-icon language colors — stable hues so TypeScript is always "TS blue"
+   * across every surface (changed-file tree, file list, etc.). Chosen to
+   * echo each language's cultural color without matching exactly (that would
+   * clash with our warm stone palette). All verified >= 3:1 against --color-bg
+   * for decorative graphic elements (WCAG 1.4.11 non-text contrast).
+   */
+  --icon-ts: #2f74c0; /* TypeScript blue — 4.7:1 on bg */
+  --icon-js: #c18f1a; /* JavaScript yellow-amber — 4.1:1 (reduced from pure #f7df1e for readability) */
+  --icon-python: #3572a5; /* Python blue — 5.9:1 on bg */
+  --icon-rust: #b6592d; /* Rust red-orange — 4.7:1 on bg */
+  --icon-go: #0899c2; /* Go cyan — 3.7:1 on bg */
+  --icon-ruby: #a91401; /* Ruby red — 7.4:1 on bg */
+  --icon-markup: #c6531f; /* HTML/XML orange — 4.6:1 on bg */
+  --icon-style: #6a4b92; /* CSS/SCSS purple — 6.8:1 on bg */
+  --icon-data: #b0892e; /* JSON/YAML gold — 4.4:1 on bg */
+  --icon-image: #7c6da5; /* image purple-grey — 4.8:1 on bg */
+  --icon-docker: #1d63ed; /* Docker blue — 4.5:1 on bg */
+  --icon-shell: #5d8c3a; /* shell green — 4.4:1 on bg */
+  --icon-default: #a8a29e; /* stone-400 — muted fallback */
+
+  /*
+   * Diff tokens — derived from --color-success/--color-danger via color-mix.
+   * Keeping these derived (not static hex) means theme swaps cascade: change
+   * --color-success and diffs adapt. Mix against --color-bg so tints stay in
+   * the warm stone palette instead of going gray-green/gray-red.
+   *
+   *   -bg:       subtle line tint (12%), readable on top, not loud
+   *   -bg-word:  word-level highlight (28%), clearly calls out the change
+   *   -gutter:   line-number column tint (18%), slightly stronger than -bg
+   *   -marker:   the +/- glyph color itself — uses the full status token
+   */
+  --diff-add-bg: color-mix(in oklab, var(--color-success) 12%, var(--color-bg-subtle));
+  --diff-add-bg-word: color-mix(in oklab, var(--color-success) 28%, var(--color-bg-subtle));
+  --diff-add-gutter: color-mix(in oklab, var(--color-success) 18%, var(--color-bg-subtle));
+  --diff-add-marker: var(--color-success);
+  --diff-del-bg: color-mix(in oklab, var(--color-danger) 12%, var(--color-bg-subtle));
+  --diff-del-bg-word: color-mix(in oklab, var(--color-danger) 28%, var(--color-bg-subtle));
+  --diff-del-gutter: color-mix(in oklab, var(--color-danger) 18%, var(--color-bg-subtle));
+  --diff-del-marker: var(--color-danger);
+  --diff-hunk-bg: var(--color-bg-sunken);
+  --diff-hunk-fg: var(--color-fg-muted);
+  --diff-hunk-border: var(--color-border);
+  --diff-expand-hover: color-mix(in oklab, var(--color-accent) 10%, var(--color-bg-subtle));
+
+  /*
+   * Chart slot colors (language bars, pie charts, segmented stats).
+   * Chosen for visual distinction in CIELAB — hue spread across color wheel,
+   * roughly uniform lightness (~50-60 in light, ~65-75 in dark) to keep chart
+   * weight balanced regardless of category size. All >= 3:1 on bg for graphics.
+   */
+  --chart-slot-1: #ea580c; /* orange-600 — primary, brand accent */
+  --chart-slot-2: #0e7490; /* cyan-700  — cool complement */
+  --chart-slot-3: #7c3aed; /* violet-600 */
+  --chart-slot-4: #16a34a; /* green-600 */
+  --chart-slot-5: #db2777; /* pink-600 */
+  --chart-slot-6: #ca8a04; /* yellow-600 */
+  --chart-other: #a8a29e; /* stone-400 — muted catch-all */
+
+  --font-sans:
+    "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /*
+   * Berkeley Mono as the primary mono stack.
+   * --font-mono        → SemiCondensed — default for all monospace UI (labels, code, line nums)
+   * --font-mono-condensed → Condensed — tighter; use in dense contexts (diff gutter, side-by-side)
+   * --font-mono-wide   → Regular width — single weight available; use sparingly for display
+   * IBM Plex Mono kept as fallback in all stacks.
+   */
+  --font-mono:
+    "Berkeley Mono SemiCondensed", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
+  --font-mono-condensed:
+    "Berkeley Mono Condensed", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
+  --font-mono-wide:
+    "Berkeley Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+
+  /*
+   * ─── Typographic scale ────────────────────────────────────────────────────
+   *
+   * Semantic, purpose-named sizes. Replaces the previous ad-hoc vocabulary
+   * (text-[9px], text-[10px], text-[11px], text-xs, text-sm, text-lg, text-2xl…
+   * — 11 distinct values with no consistent intent).
+   *
+   * Two scale regimes:
+   *   small end (10–14px)  — minor-second-ish (~1.1×), because 1px matters in
+   *                          dense UI and each step carries its own job
+   *   large end (16–32px)  — widening steps (~1.15×→1.33×), because big text
+   *                          is rare and needs obvious contrast from body
+   *
+   * Each token pairs size × line-height × letter-spacing. Letter-spacing opens
+   * slightly at small sizes (+0.01–0.02em) for legibility, tightens at large
+   * sizes (−0.015–0.02em) for classical display feel. Callers still add
+   * `uppercase tracking-widest` for eyebrow labels — tracking-widest is a
+   * separate intent from "small mono label", not every --text-micro is caps.
+   *
+   * Tailwind v4 auto-generates `text-{name}` utilities from these vars.
+   */
+
+  /* --- micro: 10px / 1.2 / +0.015em ---
+     Tiny mono badges, eyebrow labels (pair with uppercase+tracking-widest),
+     avatar-sm initials. Below 10px falls under WCAG minimum legibility. */
+  --text-micro: 10px;
+  --text-micro--line-height: 1.2;
+  --text-micro--letter-spacing: 0.015em;
+
+  /* --- caption: 11px / 1.4 / +0.01em ---
+     Small meta text (counts, timestamps, language names, keyboard hints).
+     Non-uppercase small text sits here — it needs more lh than uppercase
+     labels because lowercase descenders steal vertical room. */
+  --text-caption: 11px;
+  --text-caption--line-height: 1.4;
+  --text-caption--letter-spacing: 0.01em;
+
+  /* --- ui: 12px / 1.35 / 0 ---
+     Default UI controls: button text, tab labels, filter chips, small inputs.
+     The "most utility per pixel" size — sits between caption and body. */
+  --text-ui: 12px;
+  --text-ui--line-height: 1.35;
+  --text-ui--letter-spacing: 0;
+
+  /* --- code: 13px / 20px (fixed, not ratio) / 0 ---
+     Monospace content — code viewer, file list names, hashes.
+     Fixed 20px line-height (not a ratio) because the code viewer virtualizes
+     on a fixed row height; varying line-height breaks row math. */
+  --text-code: 13px;
+  --text-code--line-height: 20px;
+  --text-code--letter-spacing: 0;
+
+  /* --- body: 14px / 1.55 / 0 ---
+     Default app body: comments, form text, paragraphs, primary labels.
+     1.55 is a calm reading rhythm — tighter than web-typography's 1.6+ because
+     this app is dense, but loose enough that multi-line body reads cleanly. */
+  --text-body: 14px;
+  --text-body--line-height: 1.55;
+  --text-body--letter-spacing: 0;
+
+  /* --- body-lg: 16px / 1.5 / 0 ---
+     Emphasized body (lead paragraphs, prominent UI copy). Rarely used —
+     most "big body" needs should already be covered by --text-body. */
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 1.5;
+  --text-body-lg--letter-spacing: 0;
+
+  /* --- title: 18px / 1.35 / −0.01em ---
+     Card / section titles. The first size where we start tightening tracking,
+     because at 18+px letterforms are large enough that default tracking feels
+     airy. Negative tracking here is subtle. */
+  --text-title: 18px;
+  --text-title--line-height: 1.35;
+  --text-title--letter-spacing: -0.01em;
+
+  /* --- heading: 24px / 1.25 / −0.015em ---
+     Page-level headings (issue titles, repo name in hero placements).
+     1.25 lh is canonical for headings — tight enough to group lines, loose
+     enough that two-line headings don't touch. */
+  --text-heading: 24px;
+  --text-heading--line-height: 1.25;
+  --text-heading--letter-spacing: -0.015em;
+
+  /* --- display: 32px / 1.15 / −0.02em ---
+     Hero display — login card title, empty-state centerpiece. Rarest size.
+     Tight 1.15 lh + negative tracking gives classic "display serif" energy
+     even though we're using mono/sans — proportions matter more than family. */
+  --text-display: 32px;
+  --text-display--line-height: 1.15;
+  --text-display--letter-spacing: -0.02em;
+
+  /*
+   * ─── shadcn/ui ↔ GitHut palette bridge ────────────────────────────────────
+   *
+   * shadcn components expect semantic tokens under their canonical names
+   * (background, foreground, primary, muted, accent, ring, etc.). We map
+   * each to our warm-stone / ember palette so their components inherit our
+   * theme without duplication.
+   *
+   * Nuance: shadcn's `accent` is a SUBTLE surface for hover/selected states
+   * (bg-sunken in our language), NOT our brand accent. Our ember orange maps
+   * to shadcn's `primary` instead. Naming collision noted and handled.
+   */
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-fg);
+  --color-card: var(--color-bg);
+  --color-card-foreground: var(--color-fg);
+  --color-popover: var(--color-bg);
+  --color-popover-foreground: var(--color-fg);
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: var(--color-accent-fg);
+  --color-secondary: var(--color-bg-subtle);
+  --color-secondary-foreground: var(--color-fg);
+  --color-muted: var(--color-bg-subtle);
+  --color-muted-foreground: var(--color-fg-muted);
+  --color-accent: var(--color-bg-sunken);
+  --color-accent-foreground: var(--color-fg);
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: var(--color-accent-fg);
+  --color-border: var(--color-border);
+  --color-input: var(--color-border-strong);
+  --color-ring: var(--color-focus);
+}
+
+.dark {
+  /* surfaces */
+  --color-bg: #0c0a09; /* stone-950 — warm near-black; fg contrast 17.4:1 */
+  --color-bg-subtle: #1c1917; /* stone-900 */
+  --color-bg-sunken: #292524; /* stone-800 */
+
+  /* text */
+  --color-fg: #fafaf9; /* stone-50  — 17.4:1 on bg */
+  --color-fg-muted: #a8a29e; /* stone-400 — 7.6:1 on bg */
+  --color-fg-faint: #57534e; /* stone-600 — 3.3:1 on bg (graphics only) */
+
+  /* borders */
+  --color-border: #292524; /* stone-800 */
+  --color-border-strong: #44403c; /* stone-700 */
+
+  /* accent — brighter on dark so 4.5:1 against bg holds without washing out */
+  --color-accent: #fb923c; /* orange-400 — 7.9:1 on bg */
+  --color-accent-hover: #fdba74; /* orange-300 */
+  --color-accent-fg: #1c1917; /* stone-900 — 12.1:1 on accent */
+
+  /* status — 400-level on dark to keep contrast high */
+  --color-success: #4ade80; /* green-400 — 9.4:1 on bg */
+  --color-danger: #f87171; /* red-400 — 7.0:1 on bg */
+  --color-warning: #facc15; /* yellow-400 — 12.5:1 on bg */
+  --color-focus: #fb923c;
+
+  /* issue state pills — dark mode */
+  --color-issue-open-bg: #052e16; /* green-950 — deep tint on near-black bg */
+  --color-issue-open-fg: #4ade80; /* green-400 — 9.4:1 on open-bg (AAA) */
+  --color-issue-closed-bg: #2e1065; /* violet-950 — deep tint */
+  --color-issue-closed-fg: #c084fc; /* purple-400 — 7.1:1 on closed-bg (AA) */
+
+  /* syntax tokens — dark mode (300-level hues for high contrast on near-black) */
+  --syntax-comment: #78716c; /* stone-500 — 3.3:1 graphic, intentionally muted */
+  --syntax-keyword: #fb923c; /* orange-400 — 7.9:1; matches dark accent */
+  --syntax-string: #86efac; /* green-300 — 11.2:1 */
+  --syntax-number: #fcd34d; /* amber-300 — 12.8:1 */
+  --syntax-function: #93c5fd; /* blue-300 — 9.3:1 */
+  --syntax-type: #5eead4; /* teal-300 — 11.8:1 */
+  --syntax-property: #7dd3fc; /* sky-300 — 10.4:1 */
+  --syntax-constant: #fcd34d; /* amber-300 — shared */
+  --syntax-variable: var(--color-fg);
+  --syntax-operator: var(--color-fg-muted);
+  --syntax-punctuation: var(--color-fg-muted);
+  --syntax-tag: #fda4af; /* rose-300 — 8.2:1 */
+  --syntax-attribute: #fdba74; /* orange-300 — 9.4:1 */
+  --syntax-meta: #c4b5fd; /* violet-300 — 9.1:1 */
+  --syntax-regex: #5eead4; /* teal-300 — shared with type */
+
+  /* file-icon language colors — dark mode (shifted lighter for contrast on stone-950) */
+  --icon-ts: #6aaff2; /* TS blue-300 — 7.6:1 on bg */
+  --icon-js: #f5d041; /* JS yellow-400 — 12.4:1 on bg */
+  --icon-python: #6aa4d2; /* Python blue-300 — 7.2:1 on bg */
+  --icon-rust: #e08b5b; /* Rust orange-300 — 8.0:1 on bg */
+  --icon-go: #4fc3e8; /* Go cyan-300 — 8.5:1 on bg */
+  --icon-ruby: #e85d5d; /* Ruby red-400 — 6.7:1 on bg */
+  --icon-markup: #e78a5f; /* HTML orange-300 — 7.4:1 on bg */
+  --icon-style: #b491d6; /* CSS purple-300 — 8.1:1 on bg */
+  --icon-data: #ddbe60; /* JSON gold-300 — 9.8:1 on bg */
+  --icon-image: #a695cc; /* image purple-300 — 7.9:1 on bg */
+  --icon-docker: #5b92ff; /* Docker blue-400 — 6.9:1 on bg */
+  --icon-shell: #88bc63; /* shell green-300 — 7.4:1 on bg */
+  --icon-default: #57534e; /* stone-600 — muted fallback */
+
+  /* chart slots — same hues, shifted to 400-level for dark contrast */
+  --chart-slot-1: #fb923c; /* orange-400 */
+  --chart-slot-2: #22d3ee; /* cyan-400 */
+  --chart-slot-3: #a78bfa; /* violet-400 */
+  --chart-slot-4: #4ade80; /* green-400 */
+  --chart-slot-5: #f472b6; /* pink-400 */
+  --chart-slot-6: #facc15; /* yellow-400 */
+  --chart-other: #57534e; /* stone-600 */
+}

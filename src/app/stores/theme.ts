@@ -13,7 +13,7 @@ export type ResolvedTheme = "light" | "dark";
  * - ember       — warm graphite with a single coral hero (darkembertheme.com)
  * - ember-soft  — lifted-graphite ember variant, softer contrast
  */
-export type Palette = "stone" | "ember" | "ember-soft" | "dune" | "haze" | "lagoon" | "matrix" | "moss" | "sagecream";
+export type Palette = "stone" | "ember" | "ember-soft" | "dune" | "haze" | "lagoon" | "lagoon-light" | "matrix" | "moss" | "sagecream";
 
 type ThemeState = {
   palette: Palette;
@@ -65,10 +65,12 @@ function resolveDataTheme(palette: Palette, resolved: ResolvedTheme): string | n
   if (palette === "stone") return null;
   if (palette === "ember") return resolved === "dark" ? "ember" : "ember-light";
   if (palette === "ember-soft") return resolved === "dark" ? "ember-soft" : "ember-light";
-  // Doom-ported palettes are dark-only; light preference falls back to the same theme.
+  // Lagoon has paired light/dark; lagoon-light has no paired dark — falls back to lagoon-light.
+  if (palette === "lagoon") return resolved === "dark" ? "lagoon" : "lagoon-light";
+  if (palette === "lagoon-light") return resolved === "light" ? "lagoon-light" : "lagoon";
+  // Remaining doom-ported palettes are dark-only; light preference falls back to the same theme.
   if (palette === "dune") return "dune";
   if (palette === "haze") return "haze";
-  if (palette === "lagoon") return "lagoon";
   if (palette === "matrix") return "matrix";
   if (palette === "moss") return "moss";
   if (palette === "sagecream") return "sagecream";

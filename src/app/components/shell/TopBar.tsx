@@ -1,7 +1,7 @@
 import { Link, useMatches } from "@tanstack/react-router";
 import { InboxPill } from "@/app/components/shell/InboxPill";
+import { TabBar } from "@/app/components/shell/TabBar";
 import { UserMenu } from "@/app/components/shell/UserMenu";
-import { WorkspaceBar } from "@/app/components/shell/WorkspaceBar";
 import { WorkspaceSwitcher } from "@/app/components/shell/WorkspaceSwitcher";
 import { Container } from "@/app/components/ui/Container";
 import { useMe } from "@/app/hooks/useMe";
@@ -83,7 +83,7 @@ export function TopBar({ bordered = false, className }: TopBarProps) {
           {me ? <UserMenu login={me.login} avatarUrl={me.avatar_url} onSignOut={logout} /> : null}
         </div>
       </Container>
-      <WorkspaceBar bottomBorder={!bordered} />
+      <TabBar />
     </header>
   );
 }

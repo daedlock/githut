@@ -35,8 +35,11 @@ import { useRepos } from "@/app/hooks/useRepos";
 import { logout } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
 import { clearRecentItems, pushRecentItem, type RecentItem } from "@/app/lib/recentItems";
+import { getTabMeta } from "@/app/lib/tabMeta";
 import { formatRelativeTime } from "@/app/lib/time";
 import { useCommandPalette, useCommandPaletteStore } from "@/app/stores/commandPalette";
+import { useSettingsStore } from "@/app/stores/settings";
+import { hrefToTabId, useTabsStore } from "@/app/stores/tabs";
 import { type Palette, useThemeStore } from "@/app/stores/theme";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -114,6 +117,13 @@ const THEME_DEFS: readonly {
     keywords: ["lavender", "mauve", "purple"],
   },
   {
+    id: "lagoon-light",
+    name: "Lagoon Light",
+    palette: "lagoon",
+    preference: "light",
+    keywords: ["seafoam", "coral", "paper", "light"],
+  },
+  {
     id: "lagoon",
     name: "Lagoon",
     palette: "lagoon",
@@ -146,14 +156,32 @@ const THEME_DEFS: readonly {
 // ─── Command builder ─────────────────────────────────────────────────────────
 // Returns a flat array of all available commands. cmdk handles the filtering.
 
+/**
+ * Navigate to an href — through the tab system if enabled, or direct router
+ * navigation if tabs are off.
+ */
+function openTabOrNavigate(href: string, navigate: ReturnType<typeof useNavigate>) {
+  if (useSettingsStore.getState().tabsEnabled) {
+    const id = hrefToTabId(href);
+    const meta = getTabMeta(id);
+    useTabsStore.getState().openTab(href, {
+      label: meta.label,
+      sublabel: meta.sublabel,
+      icon: meta.icon.displayName ?? meta.icon.name ?? "File",
+    });
+  } else {
+    navigate({ to: href });
+  }
+}
+
 function buildCommands(
-  navigate: ReturnType<typeof useNavigate>,
   close: () => void,
   repoContext: RepoContext,
+  navigate: ReturnType<typeof useNavigate>,
 ): { actions: PaletteCommand[]; themes: PaletteCommand[] } {
   const goTo = (path: string) => () => {
     close();
-    navigate({ to: path });
+    openTabOrNavigate(path, navigate);
   };
   const r = repoContext;
   const base = r ? `/${r.owner}/${r.repo}` : null;
@@ -273,22 +301,25 @@ export function CommandPalette() {
     return { owner: parts[0]!, repo: parts[1]! };
   }, [pathname]);
 
-  // ⌘K + vim-style navigation shortcuts
+  // ⌘K + vim-style navigation shortcuts — all go through openTab
   const shortcuts = useMemo(
     () => ({
       "⌘k": toggle,
-      "g h": () => navigate({ to: "/" }),
+      "g h": () => openTabOrNavigate("/", navigate),
       "g i": () => {
-        if (repoContext) navigate({ to: `/${repoContext.owner}/${repoContext.repo}/issues` });
+        if (repoContext)
+          openTabOrNavigate(`/${repoContext.owner}/${repoContext.repo}/issues`, navigate);
       },
       "g p": () => {
-        if (repoContext) navigate({ to: `/${repoContext.owner}/${repoContext.repo}/pulls` });
+        if (repoContext)
+          openTabOrNavigate(`/${repoContext.owner}/${repoContext.repo}/pulls`, navigate);
       },
       "g c": () => {
-        if (repoContext) navigate({ to: `/${repoContext.owner}/${repoContext.repo}/code` });
+        if (repoContext)
+          openTabOrNavigate(`/${repoContext.owner}/${repoContext.repo}/code`, navigate);
       },
     }),
-    [toggle, navigate, repoContext],
+    [toggle, repoContext, navigate],
   );
   useKeybindings(shortcuts);
 
@@ -302,8 +333,8 @@ export function CommandPalette() {
   const repos = useRepos();
   const search = useCommandPaletteSearch(mode.kind === "all" ? mode.query : "");
   const { actions, themes } = useMemo(
-    () => buildCommands(navigate, close, repoContext),
-    [navigate, close, repoContext],
+    () => buildCommands(close, repoContext, navigate),
+    [close, repoContext, navigate],
   );
 
   // Reset query on close
@@ -311,12 +342,12 @@ export function CommandPalette() {
     if (!open) setQuery("");
   }, [open]);
 
-  // Navigation helper — push to recents + navigate
+  // Navigation helper — push to recents + open tab
   const go = useCallback(
     (item: Omit<RecentItem, "visitedAt">) => {
       void pushRecentItem(item);
       close();
-      navigate({ to: item.href });
+      openTabOrNavigate(item.href, navigate);
     },
     [close, navigate],
   );

@@ -9,7 +9,9 @@ import { ThemeToggle } from "@/app/components/ThemeToggle";
 import { Container } from "@/app/components/ui/Container";
 import { useMe } from "@/app/hooks/useMe";
 import { logout } from "@/app/lib/auth";
+import { cn } from "@/app/lib/cn";
 import { useAuthStore } from "@/app/stores/auth";
+import { useSettingsStore } from "@/app/stores/settings";
 
 export const Route = createFileRoute("/settings")({
   beforeLoad: () => {
@@ -42,87 +44,81 @@ function SettingsPage() {
       }
       footer={<ShellFooter bordered origin="localhost:5173" />}
     >
-      <Container className="py-8 sm:py-10">
-        {/* Editorial masthead — Berkeley Mono, oversized, no decoration */}
-        <header className="mb-10">
-          <h1 className="font-mono text-display font-medium leading-none tracking-tight text-foreground">
-            Settings
-            <span className="text-primary">_</span>
-          </h1>
-          <p className="mt-2 font-sans text-body text-muted-foreground">
-            Configure how GitHut looks and behaves. Changes persist to this browser.
-          </p>
-        </header>
+      <Container className="py-6 sm:py-8">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+          <header className="flex flex-col gap-1">
+            <h1 className="font-mono text-title font-medium tracking-tight text-foreground">
+              Settings
+            </h1>
+            <p className="font-sans text-ui text-muted-foreground">
+              Keep it simple for now. Appearance preferences are saved in this browser.
+            </p>
+          </header>
 
-        <SettingsSection
-          title="Palette"
-          description={
-            <>
-              Pick a visual identity for the app. Each preview renders in its own
-              palette — what you see is what you get. Applies instantly.
-            </>
-          }
-        >
-          <ThemePicker />
-        </SettingsSection>
+          <section className="rounded-md border border-border bg-background">
+            <div className="border-b border-border px-4 py-3">
+              <h2 className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
+                Appearance
+              </h2>
+            </div>
+            <div className="px-4 py-4">
+              <ThemePicker />
+            </div>
+          </section>
 
-        {/* Placeholder sections — ready when you are */}
-        <SettingsSection
-          title="Account"
-          description="Sign-in, token scopes, and data sync. Coming soon."
-        >
-          <ComingSoon>
-            Signed in as{" "}
-            <span className="font-mono text-foreground">{me?.login ?? "…"}</span>. Sign-out
-            lives in the header menu; deeper controls arrive with M5.
-          </ComingSoon>
-        </SettingsSection>
+          <WorkspaceTabsSection />
 
-        <SettingsSection
-          title="About"
-          description="GitHut is a focused, opinionated client for GitHub."
-        >
-          <ComingSoon>
-            Version, build, and credits surface here once we wire the version stamp.
-          </ComingSoon>
-        </SettingsSection>
+          <section className="rounded-md border border-border bg-background px-4 py-3">
+            <div className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
+              Account
+            </div>
+            <p className="mt-2 font-sans text-ui text-muted-foreground">
+              Signed in as <span className="font-mono text-foreground">{me?.login ?? "…"}</span>.
+            </p>
+          </section>
+        </div>
       </Container>
     </AppShell>
   );
 }
 
-// ─── Section primitive ─────────────────────────────────────────────────────
+function WorkspaceTabsSection() {
+  const tabsEnabled = useSettingsStore((s) => s.tabsEnabled);
+  const setTabsEnabled = useSettingsStore((s) => s.setTabsEnabled);
 
-function SettingsSection({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: React.ReactNode;
-  children: React.ReactNode;
-}) {
   return (
-    <section className="mb-12 border-t border-border pt-8">
-      <div className="mb-6 flex flex-col gap-1">
-        <h2 className="font-mono text-micro font-medium uppercase tracking-widest text-muted-foreground">
-          {title}
+    <section className="rounded-md border border-border bg-background">
+      <div className="border-b border-border px-4 py-3">
+        <h2 className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
+          Workspace
         </h2>
-        {description ? (
-          <p className="max-w-2xl font-sans text-body text-muted-foreground">
-            {description}
-          </p>
-        ) : null}
       </div>
-      {children}
+      <div className="flex items-center justify-between px-4 py-4">
+        <div className="flex flex-col gap-1">
+          <span className="font-sans text-ui font-medium text-foreground">Workspace tabs</span>
+          <span className="font-sans text-caption text-muted-foreground">
+            Open pages in tabs for quick switching between repos, issues, and PRs.
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setTabsEnabled(!tabsEnabled)}
+          role="switch"
+          aria-checked={tabsEnabled}
+          className={cn(
+            "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border border-border transition-colors duration-150",
+            tabsEnabled ? "bg-primary" : "bg-(--color-bg-sunken)",
+          )}
+        >
+          <span
+            className={cn(
+              "pointer-events-none inline-block size-3.5 rounded-full bg-background transition-transform duration-150",
+              tabsEnabled ? "translate-x-4" : "translate-x-0.5",
+            )}
+            style={{ marginTop: "2px" }}
+          />
+        </button>
+      </div>
     </section>
-  );
-}
-
-function ComingSoon({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-md border border-dashed border-border px-4 py-5 font-sans text-body italic text-[var(--color-fg-faint)]">
-      {children}
-    </div>
   );
 }

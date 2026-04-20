@@ -1,0 +1,150 @@
+/*
+ * Prose block for rendered README markdown.
+ * Scoped via .readme-prose. Body + headings use sans; only code spans and
+ * fenced blocks are monospace (inherits var(--font-mono) from their own rules below).
+ */
+.readme-prose {
+  color: var(--color-fg);
+  line-height: 1.65;
+  font-size: 0.9375rem;
+}
+.readme-prose > *:first-child {
+  margin-top: 0;
+}
+.readme-prose > *:last-child {
+  margin-bottom: 0;
+}
+
+.readme-prose h1,
+.readme-prose h2,
+.readme-prose h3,
+.readme-prose h4,
+.readme-prose h5,
+.readme-prose h6 {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin-top: 1.75em;
+  margin-bottom: 0.6em;
+  line-height: 1.25;
+}
+.readme-prose h1 {
+  font-size: 1.75rem;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--color-border);
+}
+.readme-prose h2 {
+  font-size: 1.375rem;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--color-border);
+}
+.readme-prose h3 {
+  font-size: 1.125rem;
+}
+.readme-prose h4 {
+  font-size: 1rem;
+}
+.readme-prose h5 {
+  font-size: 0.875rem;
+}
+.readme-prose h6 {
+  font-size: 0.8125rem;
+  color: var(--color-fg-muted);
+}
+
+.readme-prose p {
+  margin: 0.75em 0;
+}
+.readme-prose a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.readme-prose a:hover {
+  color: var(--color-accent-hover);
+}
+
+.readme-prose ul,
+.readme-prose ol {
+  margin: 0.75em 0;
+  padding-left: 1.5em;
+}
+.readme-prose ul {
+  list-style: disc;
+}
+.readme-prose ol {
+  list-style: decimal;
+}
+.readme-prose li {
+  margin: 0.2em 0;
+}
+.readme-prose li > p {
+  margin: 0.2em 0;
+}
+
+.readme-prose blockquote {
+  margin: 1em 0;
+  padding: 0.25em 1em;
+  color: var(--color-fg-muted);
+  border-left: 3px solid var(--color-border-strong);
+}
+
+.readme-prose code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  padding: 0.1em 0.35em;
+  background: var(--color-bg-sunken);
+  border-radius: var(--radius-xs);
+}
+
+.readme-prose pre {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  line-height: 1.5;
+  margin: 1em 0;
+  padding: 1em;
+  background: var(--color-bg-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+.readme-prose pre code {
+  padding: 0;
+  background: transparent;
+  font-size: inherit;
+}
+
+.readme-prose table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  margin: 1em 0;
+  border-collapse: collapse;
+}
+.readme-prose th,
+.readme-prose td {
+  border: 1px solid var(--color-border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+.readme-prose th {
+  background: var(--color-bg-subtle);
+  font-weight: 500;
+}
+
+.readme-prose hr {
+  border: 0;
+  height: 1px;
+  background: var(--color-border);
+  margin: 2em 0;
+}
+
+.readme-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+}
+
+.readme-prose input[type="checkbox"] {
+  margin-right: 0.5em;
+  accent-color: var(--color-accent);
+}

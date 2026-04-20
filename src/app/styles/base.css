@@ -1,0 +1,209 @@
+html,
+body,
+#root {
+  height: 100%;
+}
+
+html {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  color-scheme: light;
+
+  /*
+   * Palette interaction surfaces — accent-tinted bg for hover/selected.
+   * color-mix against --color-focus (always the brand accent, never
+   * corrupted by the shadcn bridge) and --color-bg. Resolves at paint
+   * time so it adapts to every theme + light/dark automatically.
+   */
+  --palette-hover: color-mix(in oklch, var(--color-focus) 6%, var(--color-bg));
+  --palette-selected: color-mix(in oklch, var(--color-focus) 14%, var(--color-bg));
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/*
+ * Shiki dual-theme switching.
+ * codeToHtml is called with { themes: { light: 'github-light-default', dark: 'github-dark' } }
+ * which emits --shiki-light / --shiki-dark inline vars on each span.
+ * We activate the appropriate set via the .dark class on <html>.
+ */
+/*
+ * Shiki dual-theme: background only on the container, NOT on spans.
+ * CSS custom properties inherit — setting bg on spans makes every token
+ * inherit the container's --shiki-*-bg, producing full-row colored bars.
+ * We own the bg via our surface tokens; Shiki only controls token colors.
+ */
+.shiki {
+  background-color: var(--color-bg-subtle) !important;
+}
+html.dark .shiki {
+  background-color: var(--color-bg-subtle) !important;
+}
+.shiki span {
+  color: var(--shiki-light);
+  font-style: var(--shiki-light-font-style);
+  font-weight: var(--shiki-light-font-weight);
+  text-decoration: var(--shiki-light-text-decoration);
+}
+html.dark .shiki span {
+  color: var(--shiki-dark);
+  font-style: var(--shiki-dark-font-style);
+  font-weight: var(--shiki-dark-font-weight);
+  text-decoration: var(--shiki-dark-text-decoration);
+}
+
+/*
+ * Code-viewer typography utility. Token colors themselves are inline on each
+ * span — the renderer reads `token.color`, which is a `var(--syntax-*)`
+ * reference from our custom Shiki theme. The CSS vars handle light/dark swap
+ * at paint time, so no per-mode override is needed here.
+ *
+ * font-feature-settings-code enables ligatures + code-specific OpenType features.
+ */
+
+/*
+ * Skeleton "gradient" fade — the signature loading style from the issues list.
+ * A mask-image lets us fade the BOTTOM of a list of skeleton rows to transparent
+ * without computing per-row opacity. Works with any number of children, no JS.
+ *
+ * Visual intent: the list of placeholders reads as "there's more content, it's
+ * just loading", not "there are exactly N items here". The fade tapers thought,
+ * like a pencil sketch trailing off — gentler than an abrupt cut-off.
+ */
+.skeleton-fade {
+  mask-image: linear-gradient(to bottom, #000 0%, #000 40%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 40%, transparent 100%);
+}
+
+/*
+ * Diff line backgrounds — applied to the whole line row.
+ * The gutter sits inside the same row and overrides to the -gutter token
+ * so the line-number column reads as "part of the frame, not part of the content".
+ */
+.diff-line-add {
+  background: var(--diff-add-bg);
+}
+.diff-line-del {
+  background: var(--diff-del-bg);
+}
+.diff-line-add .diff-gutter {
+  background: var(--diff-add-gutter);
+}
+.diff-line-del .diff-gutter {
+  background: var(--diff-del-gutter);
+}
+
+/*
+ * Word-level emphasis — the exact characters that differ within a changed line.
+ * Context scoped by parent .diff-line-add/del so the same span picks up the
+ * right hue without props.
+ */
+.diff-line-add .diff-word {
+  background: var(--diff-add-bg-word);
+  border-radius: 2px;
+}
+.diff-line-del .diff-word {
+  background: var(--diff-del-bg-word);
+  border-radius: 2px;
+}
+.font-feature-settings-code {
+  font-feature-settings:
+    "liga" 1,
+    "calt" 1,
+    "cv02",
+    "cv03",
+    "cv04",
+    "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/*
+ * Popover entrance — fast, quiet slide + scale. Matches the app's industrial
+ * utilitarian tone: no bounce, no glow, just a crisp settle. 120ms with a
+ * gentle exponential ease so it decelerates naturally into place.
+ */
+@keyframes popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.popover-enter {
+  animation: popover-in 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top left;
+}
+.popover-enter[data-placement^="top"] {
+  transform-origin: bottom left;
+  animation-name: popover-in-up;
+}
+@keyframes popover-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(3px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/*
+ * Command-palette entrance — fade + scale-up, 120ms cubic-out.
+ * Mirrors the motion language from `popover-enter` (same duration, same ease
+ * curve) but with a slightly larger scale delta because the palette is a
+ * larger, centered surface — a smaller transform here reads as "stutter"
+ * rather than "arriving". Transform-origin is center so the scale feels
+ * balanced against the viewport-center position.
+ *
+ * Kept as a keyed CSS class (not a Tailwind arbitrary) so the motion is
+ * shared, tweakable in one place, and carries no inline keyframe string
+ * in TSX. Backdrop gets a separate plain fade — it's not scaled.
+ */
+@keyframes palette-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes palette-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/*
+ * Focus indicators live on individual components (Button, Input, etc.) —
+ * each surface paints its own subtle `focus-visible` state (a neutral border
+ * shift or 1px foreground/15 ring). We don't want a global outline fallback
+ * because it overrides those component-level styles on specificity and
+ * reintroduces the loud brand-colored ring we deliberately moved away from.
+ *
+ * Elements without an explicit component style still get the browser-native
+ * :focus-visible indicator, which is sufficient for a11y on bare HTML.
+ */
+
+::selection {
+  background-color: var(--color-accent);
+  color: var(--color-accent-fg);
+}
