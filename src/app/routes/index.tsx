@@ -1,12 +1,12 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { HomeWelcome } from "@/app/components/HomeWelcome";
-import { StatusMessage } from "@/app/components/StatusMessage";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { RepoListWidget } from "@/app/components/repo/RepoListWidget";
 import { AppShell } from "@/app/components/shell/AppShell";
 import { ShellFooter } from "@/app/components/shell/ShellFooter";
 import { ShellHeader } from "@/app/components/shell/ShellHeader";
 import { UserMenu } from "@/app/components/shell/UserMenu";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 import { useMe } from "@/app/hooks/useMe";
+import { useRepos } from "@/app/hooks/useRepos";
 import { logout } from "@/app/lib/auth";
 import { useAuthStore } from "@/app/stores/auth";
 
@@ -18,7 +18,9 @@ export const Route = createFileRoute("/")({
 });
 
 function IndexPage() {
-  const { data: me, isPending, error } = useMe();
+  const { data: me } = useMe();
+  const repos = useRepos();
+  const navigate = useNavigate();
 
   return (
     <AppShell
@@ -36,26 +38,19 @@ function IndexPage() {
       }
       footer={<ShellFooter bordered origin="localhost:5173" />}
     >
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
-        {isPending ? (
-          <StatusMessage>Loading your GitHub identity…</StatusMessage>
-        ) : error ? (
-          <StatusMessage tone="danger">
-            Couldn't reach GitHub: {error instanceof Error ? error.message : String(error)}
-          </StatusMessage>
-        ) : me ? (
-          <>
-            <HomeWelcome name={me.name ?? ""} login={me.login} />
-            {import.meta.env.DEV ? (
-              <Link
-                to="/playground"
-                className="font-mono text-xs text-[var(--color-fg-faint)] underline underline-offset-4 hover:text-[var(--color-fg)]"
-              >
-                /playground
-              </Link>
-            ) : null}
-          </>
-        ) : null}
+      <div className="mx-auto w-full max-w-4xl px-6 py-6">
+        <div className="grid grid-cols-1 gap-4">
+          <RepoListWidget
+            repos={repos.data}
+            isPending={repos.isPending}
+            onRepoClick={(repo) =>
+              navigate({
+                to: "/$owner/$repo",
+                params: { owner: repo.owner.login, repo: repo.name },
+              })
+            }
+          />
+        </div>
       </div>
     </AppShell>
   );

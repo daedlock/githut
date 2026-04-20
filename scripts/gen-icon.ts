@@ -1,9 +1,13 @@
 #!/usr/bin/env bun
 /**
- * Generate an image via OpenRouter.
+ * Generate or edit an image via OpenRouter.
  *
  * Usage:
- *   bun scripts/gen-icon.ts <prompt-file> [--model openai/gpt-5-image] [--out generated/]
+ *   bun scripts/gen-icon.ts <prompt-file> [--model openai/gpt-5-image] [--out generated/] [--ref PATH]
+ *
+ *   --ref PATH   Reference image to pass as input for image-to-image editing.
+ *                Enables true iteration: the model sees the prior image and
+ *                edits it per the prompt instead of generating from scratch.
  */
 
 import { mkdir } from "node:fs/promises";
@@ -11,18 +15,21 @@ import { basename, extname, join, resolve } from "node:path";
 
 const args = process.argv.slice(2);
 if (args.length === 0) {
-  console.error("usage: bun scripts/gen-icon.ts <prompt-file> [--model MODEL] [--out DIR]");
+  console.error(
+    "usage: bun scripts/gen-icon.ts <prompt-file> [--model MODEL] [--out DIR] [--ref PATH]",
+  );
   process.exit(1);
 }
 
 const promptFile = args[0]!;
-const getFlag = (name: string, fallback: string) => {
+const getFlag = (name: string, fallback: string | null = null): string | null => {
   const i = args.indexOf(`--${name}`);
   return i >= 0 && args[i + 1] ? args[i + 1]! : fallback;
 };
 
-const model = getFlag("model", "openai/gpt-5-image");
-const outDir = resolve(getFlag("out", "generated"));
+const model = getFlag("model", "openai/gpt-5-image")!;
+const outDir = resolve(getFlag("out", "generated")!);
+const refPath = getFlag("ref");
 
 const key = process.env.OPENROUTER_API_KEY;
 if (!key) {
@@ -38,9 +45,27 @@ if (!prompt.trim()) {
 
 await mkdir(outDir, { recursive: true });
 
+type ContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+const userContent: ContentPart[] = [{ type: "text", text: prompt }];
+
+if (refPath) {
+  const refBuf = await Bun.file(refPath).arrayBuffer();
+  const refB64 = Buffer.from(refBuf).toString("base64");
+  const mime = refPath.endsWith(".jpg") || refPath.endsWith(".jpeg") ? "image/jpeg" : "image/png";
+  userContent.push({
+    type: "image_url",
+    image_url: { url: `data:${mime};base64,${refB64}` },
+  });
+  console.log(`ref:    ${refPath} (${(refBuf.byteLength / 1024).toFixed(1)} KiB, ${mime})`);
+}
+
 console.log(`model:  ${model}`);
 console.log(`prompt: ${basename(promptFile)} (${prompt.length} chars)`);
 console.log(`out:    ${outDir}`);
+console.log(`mode:   ${refPath ? "image-to-image (edit)" : "text-to-image (generate)"}`);
 console.log("→ calling OpenRouter…");
 
 const t0 = Date.now();
@@ -55,7 +80,7 @@ const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
   body: JSON.stringify({
     model,
     modalities: ["image", "text"],
-    messages: [{ role: "user", content: prompt }],
+    messages: [{ role: "user", content: userContent }],
   }),
 });
 

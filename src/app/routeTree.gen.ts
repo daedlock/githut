@@ -12,6 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as PlaygroundRouteImport } from './routes/playground'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OwnerRepoRouteImport } from './routes/$owner.$repo'
+import { Route as OwnerRepoIndexRouteImport } from './routes/$owner.$repo.index'
+import { Route as OwnerRepoPullsRouteImport } from './routes/$owner.$repo.pulls'
+import { Route as OwnerRepoIssuesRouteImport } from './routes/$owner.$repo.issues'
+import { Route as OwnerRepoCodeRouteImport } from './routes/$owner.$repo.code'
 
 const PlaygroundRoute = PlaygroundRouteImport.update({
   id: '/playground',
@@ -28,35 +33,99 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OwnerRepoRoute = OwnerRepoRouteImport.update({
+  id: '/$owner/$repo',
+  path: '/$owner/$repo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OwnerRepoIndexRoute = OwnerRepoIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OwnerRepoRoute,
+} as any)
+const OwnerRepoPullsRoute = OwnerRepoPullsRouteImport.update({
+  id: '/pulls',
+  path: '/pulls',
+  getParentRoute: () => OwnerRepoRoute,
+} as any)
+const OwnerRepoIssuesRoute = OwnerRepoIssuesRouteImport.update({
+  id: '/issues',
+  path: '/issues',
+  getParentRoute: () => OwnerRepoRoute,
+} as any)
+const OwnerRepoCodeRoute = OwnerRepoCodeRouteImport.update({
+  id: '/code',
+  path: '/code',
+  getParentRoute: () => OwnerRepoRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/playground': typeof PlaygroundRoute
+  '/$owner/$repo': typeof OwnerRepoRouteWithChildren
+  '/$owner/$repo/code': typeof OwnerRepoCodeRoute
+  '/$owner/$repo/issues': typeof OwnerRepoIssuesRoute
+  '/$owner/$repo/pulls': typeof OwnerRepoPullsRoute
+  '/$owner/$repo/': typeof OwnerRepoIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/playground': typeof PlaygroundRoute
+  '/$owner/$repo/code': typeof OwnerRepoCodeRoute
+  '/$owner/$repo/issues': typeof OwnerRepoIssuesRoute
+  '/$owner/$repo/pulls': typeof OwnerRepoPullsRoute
+  '/$owner/$repo': typeof OwnerRepoIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/playground': typeof PlaygroundRoute
+  '/$owner/$repo': typeof OwnerRepoRouteWithChildren
+  '/$owner/$repo/code': typeof OwnerRepoCodeRoute
+  '/$owner/$repo/issues': typeof OwnerRepoIssuesRoute
+  '/$owner/$repo/pulls': typeof OwnerRepoPullsRoute
+  '/$owner/$repo/': typeof OwnerRepoIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/playground'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/playground'
+    | '/$owner/$repo'
+    | '/$owner/$repo/code'
+    | '/$owner/$repo/issues'
+    | '/$owner/$repo/pulls'
+    | '/$owner/$repo/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/playground'
-  id: '__root__' | '/' | '/login' | '/playground'
+  to:
+    | '/'
+    | '/login'
+    | '/playground'
+    | '/$owner/$repo/code'
+    | '/$owner/$repo/issues'
+    | '/$owner/$repo/pulls'
+    | '/$owner/$repo'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/playground'
+    | '/$owner/$repo'
+    | '/$owner/$repo/code'
+    | '/$owner/$repo/issues'
+    | '/$owner/$repo/pulls'
+    | '/$owner/$repo/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   PlaygroundRoute: typeof PlaygroundRoute
+  OwnerRepoRoute: typeof OwnerRepoRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -82,13 +151,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$owner/$repo': {
+      id: '/$owner/$repo'
+      path: '/$owner/$repo'
+      fullPath: '/$owner/$repo'
+      preLoaderRoute: typeof OwnerRepoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$owner/$repo/': {
+      id: '/$owner/$repo/'
+      path: '/'
+      fullPath: '/$owner/$repo/'
+      preLoaderRoute: typeof OwnerRepoIndexRouteImport
+      parentRoute: typeof OwnerRepoRoute
+    }
+    '/$owner/$repo/pulls': {
+      id: '/$owner/$repo/pulls'
+      path: '/pulls'
+      fullPath: '/$owner/$repo/pulls'
+      preLoaderRoute: typeof OwnerRepoPullsRouteImport
+      parentRoute: typeof OwnerRepoRoute
+    }
+    '/$owner/$repo/issues': {
+      id: '/$owner/$repo/issues'
+      path: '/issues'
+      fullPath: '/$owner/$repo/issues'
+      preLoaderRoute: typeof OwnerRepoIssuesRouteImport
+      parentRoute: typeof OwnerRepoRoute
+    }
+    '/$owner/$repo/code': {
+      id: '/$owner/$repo/code'
+      path: '/code'
+      fullPath: '/$owner/$repo/code'
+      preLoaderRoute: typeof OwnerRepoCodeRouteImport
+      parentRoute: typeof OwnerRepoRoute
+    }
   }
 }
+
+interface OwnerRepoRouteChildren {
+  OwnerRepoCodeRoute: typeof OwnerRepoCodeRoute
+  OwnerRepoIssuesRoute: typeof OwnerRepoIssuesRoute
+  OwnerRepoPullsRoute: typeof OwnerRepoPullsRoute
+  OwnerRepoIndexRoute: typeof OwnerRepoIndexRoute
+}
+
+const OwnerRepoRouteChildren: OwnerRepoRouteChildren = {
+  OwnerRepoCodeRoute: OwnerRepoCodeRoute,
+  OwnerRepoIssuesRoute: OwnerRepoIssuesRoute,
+  OwnerRepoPullsRoute: OwnerRepoPullsRoute,
+  OwnerRepoIndexRoute: OwnerRepoIndexRoute,
+}
+
+const OwnerRepoRouteWithChildren = OwnerRepoRoute._addFileChildren(
+  OwnerRepoRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   PlaygroundRoute: PlaygroundRoute,
+  OwnerRepoRoute: OwnerRepoRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
