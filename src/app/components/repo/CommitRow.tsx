@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Copy, GitCommit } from "lucide-react";
 import { useState } from "react";
-import { Button } from "@/app/components/ui/Button";
+import { Button } from "@/app/components/ui/button";
 import type { CommitSummary } from "@/app/hooks/useRepoCommits";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";

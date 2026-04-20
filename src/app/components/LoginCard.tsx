@@ -1,5 +1,5 @@
-import { Button } from "@/app/components/ui/Button";
-import { Kbd } from "@/app/components/ui/Kbd";
+import { Button } from "@/app/components/ui/button";
+import { Kbd } from "@/app/components/ui/kbd";
 
 function GitHubMark({ className }: { className?: string }) {
   return (

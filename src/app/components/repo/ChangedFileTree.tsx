@@ -2,7 +2,7 @@ import { ChevronDown, ChevronRight, FoldVertical, Search, UnfoldVertical, X } fr
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import type { FileStatus } from "@/app/components/code";
 import { FileIcon } from "@/app/components/repo/FileIcon";
-import { Input } from "@/app/components/ui/Input";
+import { Input } from "@/app/components/ui/input";
 import { cn } from "@/app/lib/cn";
 
 /**

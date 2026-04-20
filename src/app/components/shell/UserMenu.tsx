@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { LogOut, Settings } from "lucide-react";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 import { Avatar } from "@/app/components/ui/Avatar";
-import { Button } from "@/app/components/ui/Button";
+import { Button } from "@/app/components/ui/button";
 
 export type UserMenuProps = {
   login?: string;

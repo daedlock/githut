@@ -1,5 +1,5 @@
 import { Container } from "@/app/components/ui/Container";
-import { Kbd } from "@/app/components/ui/Kbd";
+import { Kbd } from "@/app/components/ui/kbd";
 import { cn } from "@/app/lib/cn";
 
 export type ShellFooterProps = {

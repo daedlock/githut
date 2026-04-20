@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { cn } from "@/app/lib/cn";
 import { useKeyboardHelpStore } from "@/app/stores/keyboardHelp";
-import { Kbd } from "@/app/components/ui/Kbd";
+import { Kbd } from "@/app/components/ui/kbd";
 
 /**
  * Keyboard help overlay — `?` opens a dialog listing every registered

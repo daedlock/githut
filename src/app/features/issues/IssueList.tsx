@@ -1,9 +1,9 @@
 import { AlertCircle, CheckCircle2, CircleDot, Plus, Search, X } from "lucide-react";
-import { Button } from "@/app/components/ui/Button";
+import { Button } from "@/app/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/app/components/ui/Card";
 import { CommentBox } from "@/app/components/ui/CommentBox";
 import { Container } from "@/app/components/ui/Container";
-import { Input } from "@/app/components/ui/Input";
+import { Input } from "@/app/components/ui/input";
 import { IssueListSkeleton } from "@/app/features/issues/components/IssueListSkeleton";
 import { IssueRow } from "@/app/features/issues/components/IssueRow";
 import { type StateFilter, StateTab } from "@/app/features/issues/components/StateTab";

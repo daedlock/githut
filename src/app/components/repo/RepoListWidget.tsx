@@ -1,7 +1,7 @@
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { RepoRow } from "@/app/components/repo/RepoRow";
-import { Input } from "@/app/components/ui/Input";
+import { Input } from "@/app/components/ui/input";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { Widget } from "@/app/components/ui/Widget";
 import { cn } from "@/app/lib/cn";

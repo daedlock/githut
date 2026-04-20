@@ -2,7 +2,7 @@ import { CheckCircle2, CircleDot, Tag, User, X } from "lucide-react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Avatar } from "@/app/components/ui/Avatar";
-import { Button } from "@/app/components/ui/Button";
+import { Button } from "@/app/components/ui/button";
 import { Card, CardBody, CardFooter, CardHeader } from "@/app/components/ui/Card";
 import { CommentBox } from "@/app/components/ui/CommentBox";
 import { Container } from "@/app/components/ui/Container";
@@ -82,7 +82,7 @@ export function IssueDetail({
         </button>
         {issue && (
           <Button
-            variant={issue.state === "open" ? "secondary" : "primary"}
+            variant={issue.state === "open" ? "secondary" : "default"}
             size="sm"
             disabled={isTogglingState}
             onClick={onToggleState}

@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { DiffLayout, type DiffLayoutFile } from "@/app/components/code";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
-import { Button } from "@/app/components/ui/Button";
-import { Input } from "@/app/components/ui/Input";
-import { Kbd } from "@/app/components/ui/Kbd";
+import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
+import { Kbd } from "@/app/components/ui/kbd";
 
 export const Route = createFileRoute("/playground")({
   component: PlaygroundPage,
@@ -62,16 +62,16 @@ function PlaygroundPage() {
         </div>
 
         <Section title="Button" meta="variant × size">
-          <Button variant="primary">Primary</Button>
+          <Button variant="default">Primary</Button>
           <Button variant="secondary">Secondary</Button>
           <Button variant="ghost">Ghost</Button>
-          <Button variant="danger">Danger</Button>
+          <Button variant="destructive">Danger</Button>
           <Button disabled>Disabled</Button>
         </Section>
 
         <Section title="Button sizes">
           <Button size="sm">Small</Button>
-          <Button size="md">Medium</Button>
+          <Button size="default">Medium</Button>
           <Button size="lg">Large</Button>
           <Button size="icon" aria-label="Search">
             <Search className="h-4 w-4" />
@@ -83,13 +83,13 @@ function PlaygroundPage() {
             <Input placeholder="Search repositories…" />
           </div>
           <div className="w-64">
-            <Input variant="mono" placeholder="deadbeef1234" />
+            <Input className="font-mono tracking-tight" placeholder="deadbeef1234" />
           </div>
           <div className="w-48">
-            <Input size="sm" placeholder="Small" />
+            <Input className="h-7 text-ui" placeholder="Small" />
           </div>
           <div className="w-48">
-            <Input size="lg" placeholder="Large" />
+            <Input className="h-11 text-body" placeholder="Large" />
           </div>
           <div className="w-64">
             <Input disabled placeholder="Disabled" />

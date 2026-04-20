@@ -1,5 +1,5 @@
 import { Monitor, Moon, Sun } from "lucide-react";
-import { Button } from "@/app/components/ui/Button";
+import { Button } from "@/app/components/ui/button";
 import { useThemeStore } from "@/app/stores/theme";
 
 const ICONS = {
