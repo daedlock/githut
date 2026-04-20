@@ -1,4 +1,5 @@
 import { Avatar } from "@/app/components/ui/avatar";
+import { ProfileLink } from "@/app/components/user/ProfileLink";
 import type { IssueUser } from "@/app/features/issues/schemas";
 
 /**
@@ -37,7 +38,9 @@ export function AssigneeList({
       {assignees.map((a) => (
         <div key={a.login} className="flex items-center gap-2">
           <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
-          <span className="text-caption text-muted-foreground">{a.login}</span>
+          <ProfileLink login={a.login} className="text-caption text-muted-foreground">
+            {a.login}
+          </ProfileLink>
         </div>
       ))}
     </div>

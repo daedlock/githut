@@ -1,4 +1,5 @@
 import { CheckCircle2, CircleDot, MessageSquare } from "lucide-react";
+import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { AssigneeList } from "@/app/features/issues/components/AssigneeList";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import type { RepoIssue } from "@/app/features/issues/schemas";
@@ -7,9 +8,17 @@ import { formatRelativeTime } from "@/app/lib/time";
 
 export function IssueRow({ issue, onClick }: { issue: RepoIssue; onClick: () => void }) {
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Open issue #${issue.number}: ${issue.title}`}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       className="flex w-full items-start gap-3 px-4 py-3.5 text-left outline-none transition-colors hover:bg-muted focus-visible:bg-muted sm:px-5"
     >
       <div className="mt-0.5 flex-shrink-0">
@@ -35,7 +44,13 @@ export function IssueRow({ issue, onClick }: { issue: RepoIssue; onClick: () => 
               issue.state === "open" ? issue.created_at : (issue.closed_at ?? issue.updated_at),
             )}
             {" by "}
-            <span className="text-muted-foreground">{issue.user.login}</span>
+            <ProfileLink
+              login={issue.user.login}
+              stopPropagation
+              className="text-muted-foreground"
+            >
+              {issue.user.login}
+            </ProfileLink>
           </span>
           {issue.comments > 0 && (
             <span className="inline-flex items-center gap-1">
@@ -62,6 +77,6 @@ export function IssueRow({ issue, onClick }: { issue: RepoIssue; onClick: () => 
           <AssigneeList assignees={issue.assignees} variant="stack" max={3} />
         </div>
       )}
-    </button>
+    </div>
   );
 }

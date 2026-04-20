@@ -7,6 +7,7 @@ import { ShellHeader } from "@/app/components/shell/ShellHeader";
 import { UserMenu } from "@/app/components/shell/UserMenu";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 import { Container } from "@/app/components/ui/Container";
+import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { useMe } from "@/app/hooks/useMe";
 import { logout } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
@@ -73,7 +74,11 @@ function SettingsPage() {
               Account
             </div>
             <p className="mt-2 font-sans text-ui text-muted-foreground">
-              Signed in as <span className="font-mono text-foreground">{me?.login ?? "…"}</span>.
+              Signed in as{" "}
+              <ProfileLink login={me?.login ?? ""} className="font-mono text-foreground">
+                {me?.login ?? "…"}
+              </ProfileLink>
+              .
             </p>
           </section>
         </div>

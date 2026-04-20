@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Copy, GitCommit } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/app/components/ui/button";
+import { ProfileLink } from "@/app/components/user/ProfileLink";
 import type { CommitSummary } from "@/app/hooks/useRepoCommits";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
@@ -25,6 +26,7 @@ export function CommitRow({ commit, owner, repo }: CommitRowProps) {
   // Prefer the GitHub-mapped user (has login + avatar); fall back to the
   // git-native author for unmatched emails (render name only, no avatar).
   const displayAuthor = commit.author?.login ?? commit.commit.author.name;
+  const authorLogin = commit.author?.login;
   const avatar = commit.author?.avatar_url;
 
   return (
@@ -76,7 +78,13 @@ export function CommitRow({ commit, owner, repo }: CommitRowProps) {
           ) : (
             <GitCommit className="size-3 flex-shrink-0 text-[var(--color-fg-faint)]" />
           )}
-          <span className="truncate font-medium text-foreground">{displayAuthor}</span>
+          {authorLogin ? (
+            <ProfileLink login={authorLogin} className="truncate font-medium text-foreground">
+              {displayAuthor}
+            </ProfileLink>
+          ) : (
+            <span className="truncate font-medium text-foreground">{displayAuthor}</span>
+          )}
           <span className="text-[var(--color-fg-faint)]">
             committed {formatRelativeTime(commit.commit.author.date)}
           </span>

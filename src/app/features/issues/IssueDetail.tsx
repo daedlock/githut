@@ -6,6 +6,7 @@ import { Button } from "@/app/components/ui/button";
 import { Card, CardBody, CardFooter, CardHeader } from "@/app/components/ui/Card";
 import { CommentBox } from "@/app/components/ui/CommentBox";
 import { Container } from "@/app/components/ui/Container";
+import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { AssigneeList } from "@/app/features/issues/components/AssigneeList";
 import { CommentCard } from "@/app/features/issues/components/CommentCard";
 import { IssueStatePill } from "@/app/features/issues/components/IssueStatePill";
@@ -125,7 +126,9 @@ export function IssueDetail({
             <div className="mt-2 flex flex-wrap items-center gap-2 text-body text-muted-foreground">
               <IssueStatePill state={issue.state} />
               <span>
-                <span className="font-medium text-foreground">{issue.user.login}</span>
+                <ProfileLink login={issue.user.login} className="font-medium text-foreground">
+                  {issue.user.login}
+                </ProfileLink>
                 {" opened this issue "}
                 {formatRelativeTime(issue.created_at)}
               </span>

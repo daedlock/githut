@@ -4,6 +4,7 @@ import { Fragment, useMemo, useState } from "react";
 import { DiffLayout, type DiffLayoutFile, type FileStatus } from "@/app/components/code";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Skeleton } from "@/app/components/ui/skeleton";
+import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { type CommitFile, useRepoCommit } from "@/app/hooks/useRepoCommit";
 import { detectLang } from "@/app/lib/detectLang";
 import { cn } from "@/app/lib/cn";
@@ -97,6 +98,7 @@ function CommitHeader({
 }) {
   const { title, body } = splitMessage(commit.commit.message);
   const displayAuthor = commit.author?.login ?? commit.commit.author.name;
+  const authorLogin = commit.author?.login;
   const avatar = commit.author?.avatar_url;
 
   return (
@@ -125,7 +127,13 @@ function CommitHeader({
             className="size-4 flex-shrink-0 rounded-full border border-border"
           />
         ) : null}
-        <span className="font-medium text-foreground">{displayAuthor}</span>
+        {authorLogin ? (
+          <ProfileLink login={authorLogin} className="font-medium text-foreground">
+            {displayAuthor}
+          </ProfileLink>
+        ) : (
+          <span className="font-medium text-foreground">{displayAuthor}</span>
+        )}
         <span>committed {formatRelativeTime(commit.commit.author.date)}</span>
 
         {commit.parents.length > 0 && (
