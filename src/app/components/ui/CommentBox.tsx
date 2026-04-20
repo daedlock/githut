@@ -1,16 +1,9 @@
-import {
-  autoUpdate,
-  FloatingPortal,
-  flip,
-  offset,
-  shift,
-  size,
-  useFloating,
-} from "@floating-ui/react";
 import { CheckCircle2, CircleDot, Eye, GitPullRequest, Pencil } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { Avatar } from "@/app/components/ui/avatar";
+import { Badge } from "@/app/components/ui/badge";
+import { Popover, PopoverAnchor, PopoverContent } from "@/app/components/ui/popover";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { useDebouncedValue } from "@/app/hooks/useDebouncedValue";
 import { type MentionItem, useMentionSearch } from "@/app/hooks/useMentionSearch";
@@ -36,10 +29,10 @@ function detectTrigger(text: string, cursorPos: number): Trigger | null {
 
 // ─── Caret pixel coords (mirror-div technique) ───────────────────────────────
 // Textareas don't expose a native "where is the caret in screen space" API.
-// We create an off-screen div with the textarea's computed text styles,
-// fill it with the text up to the caret, drop a marker span, and read the
-// marker's bounding rect. This is the standard approach (same idea as
-// textarea-caret-position npm pkg) and handles line wrapping correctly.
+// We create an off-screen div with the textarea's computed text styles, fill
+// it with the text up to the caret, drop a marker span, and read the marker's
+// bounding rect. Returns a DOMRect in viewport coordinates — what Radix
+// Popover's virtualRef expects from getBoundingClientRect().
 
 const CARET_STYLE_PROPS = [
   "boxSizing",
@@ -67,8 +60,6 @@ function getCaretCoords(textarea: HTMLTextAreaElement, position: number): DOMRec
   const computed = window.getComputedStyle(textarea);
   const mirror = document.createElement("div");
 
-  // CSSStyleDeclaration's index type includes read-only keys (length, parentRule),
-  // so TS refuses a direct assignment loop. Cast and iterate.
   const target = mirror.style as unknown as Record<string, string>;
   for (const prop of CARET_STYLE_PROPS) {
     target[prop] = computed[prop];
@@ -90,7 +81,7 @@ function getCaretCoords(textarea: HTMLTextAreaElement, position: number): DOMRec
   mirror.textContent = textarea.value.slice(0, position);
 
   const marker = document.createElement("span");
-  marker.textContent = "\u200b"; // zero-width space — occupies a position w/o visual width
+  marker.textContent = "\u200b";
   mirror.appendChild(marker);
 
   const markerRect = marker.getBoundingClientRect();
@@ -111,116 +102,7 @@ function getCaretCoords(textarea: HTMLTextAreaElement, position: number): DOMRec
   );
 }
 
-// ─── Dropdown ────────────────────────────────────────────────────────────────
-
-function Dropdown({
-  anchor,
-  triggerType,
-  triggerStart,
-  items,
-  isPending,
-  selectedIdx,
-  onSelect,
-}: {
-  anchor: HTMLTextAreaElement | null;
-  triggerType: "@" | "#";
-  triggerStart: number;
-  items: MentionItem[];
-  isPending: boolean;
-  selectedIdx: number;
-  onSelect: (item: MentionItem) => void;
-}) {
-  const { refs, floatingStyles, placement, update } = useFloating({
-    placement: "bottom-start",
-    strategy: "fixed",
-    whileElementsMounted: autoUpdate,
-    middleware: [
-      offset(4),
-      // Flip to top-start when bottom is clipped. We keep the fallback set small
-      // and aligned to the same horizontal anchor so the dropdown feels stable.
-      flip({ fallbackPlacements: ["top-start"], padding: 8 }),
-      shift({ padding: 8, crossAxis: false }),
-      size({
-        padding: 8,
-        apply({ availableHeight, elements }) {
-          Object.assign(elements.floating.style, {
-            width: "320px",
-            maxHeight: `${Math.min(availableHeight, 300)}px`,
-          });
-        },
-      }),
-    ],
-  });
-
-  // Virtual reference that returns the caret's screen rect. Floating UI
-  // reads .getBoundingClientRect() each positioning pass, so the dropdown
-  // stays under the caret across typing, wrapping, and textarea scroll.
-  useEffect(() => {
-    if (!anchor) return;
-    refs.setPositionReference({
-      getBoundingClientRect: () => getCaretCoords(anchor, triggerStart),
-      contextElement: anchor,
-    });
-    // Caret can shift on resize or when the textarea is scrolled — nudge FUI.
-    update();
-  }, [anchor, triggerStart, refs, update]);
-
-  const showSkeleton = isPending && items.length === 0;
-  const showEmpty = !isPending && items.length === 0;
-
-  return (
-    <FloatingPortal>
-      <div
-        ref={refs.setFloating}
-        style={{ ...floatingStyles, zIndex: 9999 }}
-        data-placement={placement}
-        className={cn(
-          "popover-enter",
-          "overflow-hidden rounded-[var(--radius-md)]",
-          "border border-[var(--color-border-strong)] bg-[var(--color-bg)]",
-          // Crisp 2-layer shadow — a tight ring + a softer drop.
-          // Avoids the generic shadow-xl look; feels more deliberate.
-          "shadow-[0_1px_0_rgba(0,0,0,0.04),0_8px_24px_-8px_rgba(0,0,0,0.18)]",
-        )}
-      >
-        <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-3 py-1.5">
-          <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
-            {triggerType === "@" ? "Mention a user" : "Reference an issue or PR"}
-          </span>
-          {isPending && items.length > 0 && (
-            <span className="ml-auto flex items-center gap-1">
-              <span className="h-1 w-1 rounded-full bg-[var(--color-accent)] animate-pulse" />
-              <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
-                searching
-              </span>
-            </span>
-          )}
-        </div>
-
-        <div className="max-h-[260px] overflow-auto">
-          {showSkeleton ? (
-            <div className="flex flex-col py-1">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-2.5 px-3 py-2">
-                  <Skeleton className="h-5 w-5 rounded-full" />
-                  <Skeleton className="h-3.5 flex-1 max-w-[60%]" />
-                </div>
-              ))}
-            </div>
-          ) : showEmpty ? (
-            <div className="px-3 py-3 font-mono text-ui text-[var(--color-fg-faint)]">
-              No matches
-            </div>
-          ) : (
-            items.map((item, i) => (
-              <Row key={item.id} item={item} selected={i === selectedIdx} onSelect={onSelect} />
-            ))
-          )}
-        </div>
-      </div>
-    </FloatingPortal>
-  );
-}
+// ─── Row ────────────────────────────────────────────────────────────────────
 
 function Row({
   item,
@@ -240,54 +122,49 @@ function Row({
         onSelect(item);
       }}
       className={cn(
-        "group relative flex w-full items-center gap-2.5 px-3 py-2 text-left text-body",
-        "transition-[background-color,transform] duration-75",
-        selected
-          ? "bg-[var(--color-bg-sunken)]"
-          : "hover:bg-[var(--color-bg-subtle)] active:translate-x-px",
+        "group relative flex w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-hidden select-none",
+        "transition-colors duration-75",
+        selected ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground",
       )}
     >
-      {/* Selected indicator — sharp accent bar on the left edge */}
       <span
         aria-hidden
         className={cn(
-          "absolute inset-y-1 left-0 w-[2px] rounded-full transition-opacity duration-75",
-          selected ? "bg-[var(--color-accent)] opacity-100" : "opacity-0",
+          "absolute inset-y-1.5 left-0 w-[2px] rounded-full transition-opacity duration-75",
+          selected ? "bg-primary opacity-100" : "opacity-0",
         )}
       />
 
       {item.kind === "@" ? (
         <>
           <Avatar login={item.login} avatarUrl={item.avatar} size="sm" />
-          <span className="truncate font-medium text-[var(--color-fg)]">{item.login}</span>
-          <span className="ml-auto shrink-0 font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
+          <span className="truncate font-medium text-foreground">{item.login}</span>
+          <Badge variant="secondary" className="ml-auto font-mono uppercase tracking-widest">
             member
-          </span>
+          </Badge>
         </>
       ) : (
         <>
           {item.isPR ? (
             <GitPullRequest
               className={cn(
-                "h-3.5 w-3.5 flex-shrink-0",
-                item.state === "open"
-                  ? "text-[var(--color-success)]"
-                  : "text-[var(--color-fg-faint)]",
+                "size-3.5 shrink-0",
+                item.state === "open" ? "text-[var(--color-success)]" : "text-muted-foreground",
               )}
             />
           ) : item.state === "open" ? (
-            <CircleDot className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-success)]" />
+            <CircleDot className="size-3.5 shrink-0 text-[var(--color-success)]" />
           ) : (
-            <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-fg-faint)]" />
+            <CheckCircle2 className="size-3.5 shrink-0 text-muted-foreground" />
           )}
-          <span className="font-mono text-ui text-[var(--color-fg-faint)] tabular-nums">
+          <span className="font-mono text-ui text-muted-foreground tabular-nums">
             #{item.number}
           </span>
-          <span className="min-w-0 flex-1 truncate text-[var(--color-fg)]">{item.title}</span>
+          <span className="min-w-0 flex-1 truncate text-foreground">{item.title}</span>
           {item.isPR && (
-            <span className="ml-auto shrink-0 rounded border border-[var(--color-border)] px-1 py-px font-mono text-micro uppercase tracking-wider text-[var(--color-fg-faint)]">
+            <Badge variant="outline" className="ml-auto font-mono uppercase tracking-wider">
               PR
-            </span>
+            </Badge>
           )}
         </>
       )}
@@ -295,7 +172,7 @@ function Row({
   );
 }
 
-// ─── CommentBox ───────────────────────────────────────────────────────────────
+// ─── CommentBox ─────────────────────────────────────────────────────────────
 
 export interface CommentBoxProps {
   owner: string;
@@ -325,8 +202,21 @@ export function CommentBox({
   const [selectedIdx, setSelectedIdx] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Debounce the search query — 180ms of quiet before hitting GraphQL.
-  // Keeps typing snappy (no fetch per keystroke) while still feeling live.
+  // Virtual anchor for Radix Popover — resolves to the caret's viewport rect
+  // at position-time. Mutable ref-object, NOT React state, so updates to
+  // `trigger` don't re-render the popover; Radix only calls
+  // getBoundingClientRect() when it needs to position.
+  const triggerRef = useRef(trigger);
+  triggerRef.current = trigger;
+  const virtualAnchorRef = useRef<{ getBoundingClientRect(): DOMRect }>({
+    getBoundingClientRect: () => {
+      const t = triggerRef.current;
+      const ta = textareaRef.current;
+      if (!t || !ta) return new DOMRect(0, 0, 0, 0);
+      return getCaretCoords(ta, t.startIndex);
+    },
+  });
+
   const debouncedQuery = useDebouncedValue(trigger?.query ?? "", 180);
 
   const { data: items, isFetching } = useMentionSearch(
@@ -394,15 +284,13 @@ export function CommentBox({
   }
 
   function handleBlur() {
-    // Delay so onMouseDown in dropdown can fire first and intercept selection
+    // Delay so onMouseDown inside the popover can fire first
     setTimeout(() => setTrigger(null), 150);
   }
 
-  const isSearching =
-    isFetching &&
-    // Only show "searching" indicator when a query is pending but we have prior results.
-    // If there are no prior results, the skeleton state handles visual feedback.
-    dropdownItems.length > 0;
+  const isSearching = isFetching && dropdownItems.length > 0;
+  const showSkeleton = !!trigger && isFetching && dropdownItems.length === 0;
+  const showEmpty = !!trigger && !isFetching && dropdownItems.length === 0;
 
   return (
     <div className={cn("flex flex-col", className)}>
@@ -425,7 +313,8 @@ export function CommentBox({
       </div>
 
       {mode === "write" && (
-        <>
+        <Popover open={!!trigger}>
+          <PopoverAnchor virtualRef={virtualAnchorRef} />
           <textarea
             ref={textareaRef}
             value={value}
@@ -439,19 +328,58 @@ export function CommentBox({
             autoFocus={autoFocus}
             className="w-full resize-y bg-[var(--color-bg)] px-3 py-2.5 text-body text-[var(--color-fg)] placeholder:text-[var(--color-fg-faint)] focus:outline-none disabled:opacity-50"
           />
+          <PopoverContent
+            align="start"
+            sideOffset={4}
+            // Don't steal focus from the textarea when the popover opens —
+            // the user is still typing their query.
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            // Keep popover open across textarea interactions; we manage
+            // dismissal via trigger state (blur / Escape / selection).
+            onInteractOutside={(e) => e.preventDefault()}
+            className="w-[320px] gap-0 p-0 overflow-hidden"
+          >
+            <div className="flex items-center gap-2 border-b border-border bg-muted px-3 py-1.5">
+              <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
+                {trigger?.type === "@" ? "Mention a user" : "Reference an issue or PR"}
+              </span>
+              {isSearching && (
+                <span className="ml-auto flex items-center gap-1">
+                  <span className="h-1 w-1 rounded-full bg-primary animate-pulse" />
+                  <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
+                    searching
+                  </span>
+                </span>
+              )}
+            </div>
 
-          {trigger && (
-            <Dropdown
-              anchor={textareaRef.current}
-              triggerType={trigger.type}
-              triggerStart={trigger.startIndex}
-              items={dropdownItems}
-              isPending={isFetching || isSearching}
-              selectedIdx={selectedIdx}
-              onSelect={insertCompletion}
-            />
-          )}
-        </>
+            <div className="max-h-[260px] overflow-auto p-1">
+              {showSkeleton ? (
+                <div className="flex flex-col gap-0.5">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-2.5 px-2 py-1.5">
+                      <Skeleton className="size-5 rounded-full" />
+                      <Skeleton className="h-3.5 flex-1 max-w-[60%]" />
+                    </div>
+                  ))}
+                </div>
+              ) : showEmpty ? (
+                <div className="px-2 py-3 font-mono text-ui text-muted-foreground text-center">
+                  No matches
+                </div>
+              ) : (
+                dropdownItems.map((item, i) => (
+                  <Row
+                    key={item.id}
+                    item={item}
+                    selected={i === selectedIdx}
+                    onSelect={insertCompletion}
+                  />
+                ))
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
       )}
 
       {mode === "preview" && (
@@ -469,7 +397,7 @@ export function CommentBox({
   );
 }
 
-// ─── Tab button ───────────────────────────────────────────────────────────────
+// ─── Tab button ─────────────────────────────────────────────────────────────
 
 function TabBtn({
   active,

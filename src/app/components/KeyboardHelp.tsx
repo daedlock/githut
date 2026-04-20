@@ -1,11 +1,15 @@
-import { Dialog as DialogPrimitive } from "radix-ui";
 import { useRouterState } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { cn } from "@/app/lib/cn";
 import { useKeyboardHelpStore } from "@/app/stores/keyboardHelp";
 import { Kbd } from "@/app/components/ui/kbd";
-import { Dialog, DialogOverlay, DialogPortal, DialogTitle } from "@/app/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/app/components/ui/dialog";
 
 type Scope = "global" | "repo" | "diff" | "list";
 
@@ -96,79 +100,53 @@ export function KeyboardHelp() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogPortal>
-        <DialogOverlay
-          className={cn(
-            "fixed inset-0 z-50",
-            "bg-[color-mix(in_oklab,var(--color-fg)_32%,transparent)]",
-            "backdrop-blur-[2px]",
-            "[animation:palette-backdrop-in_120ms_cubic-bezier(0.16,1,0.3,1)]",
-          )}
-        />
-        <DialogPrimitive.Content
-          aria-describedby={undefined}
-          className={cn(
-            "fixed left-1/2 top-[22%] z-50",
-            "w-[min(560px,calc(100vw-2rem))]",
-            "-translate-x-1/2 -translate-y-1/2",
-            "overflow-hidden rounded-[var(--radius-lg)]",
-            "border border-[var(--color-border-strong)] bg-[var(--color-bg)]",
-            "shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_32px_-12px_rgba(0,0,0,0.22)]",
-            "[animation:palette-enter_120ms_cubic-bezier(0.16,1,0.3,1)]",
-            "focus:outline-none focus-visible:outline-none",
-          )}
-        >
-          <DialogTitle className="sr-only">Keyboard shortcuts</DialogTitle>
+      <DialogContent
+        showCloseButton={false}
+        className="top-[22%] translate-y-0 w-[min(560px,calc(100vw-2rem))] gap-0 overflow-hidden p-0 sm:max-w-[560px]"
+      >
+        <DialogTitle className="sr-only">Keyboard shortcuts</DialogTitle>
+        <DialogDescription className="sr-only">
+          List of keyboard shortcuts available in this app.
+        </DialogDescription>
 
-          <div
-            className={cn(
-              "flex items-center justify-between border-b border-[var(--color-border)]",
-              "bg-[var(--color-bg-subtle)] px-4 py-2.5",
-            )}
-          >
-            <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
-              Keyboard shortcuts
-            </span>
-          </div>
+        <div className="flex items-center justify-between border-b border-border bg-muted px-4 py-2.5">
+          <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
+            Keyboard shortcuts
+          </span>
+        </div>
 
-          <div className="max-h-[min(520px,calc(100vh-12rem))] overflow-y-auto px-4 py-4">
-            {grouped.map(({ scope, items }, idx) => (
-              <section key={scope} className={idx === 0 ? "" : "mt-5"}>
-                <h3
-                  className={cn(
-                    "pb-2 mb-3 border-b border-[var(--color-border)]",
-                    "font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]",
-                  )}
-                >
-                  {SCOPE_TITLES[scope]}
-                </h3>
-                <ul className="grid grid-cols-[auto_1fr] items-center gap-x-5 gap-y-2">
-                  {items.map((s) => (
-                    <li key={`${scope}-${s.chord}-${s.label}`} className="contents">
-                      <div className="justify-self-start">{renderChord(s.chord)}</div>
-                      <div className="text-ui text-[var(--color-fg-muted)]">{s.label}</div>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
+        <div className="max-h-[min(520px,calc(100vh-12rem))] overflow-y-auto px-4 py-4">
+          {grouped.map(({ scope, items }, idx) => (
+            <section key={scope} className={idx === 0 ? "" : "mt-5"}>
+              <h3
+                className={cn(
+                  "pb-2 mb-3 border-b border-border",
+                  "font-mono text-micro uppercase tracking-widest text-muted-foreground",
+                )}
+              >
+                {SCOPE_TITLES[scope]}
+              </h3>
+              <ul className="grid grid-cols-[auto_1fr] items-center gap-x-5 gap-y-2">
+                {items.map((s) => (
+                  <li key={`${scope}-${s.chord}-${s.label}`} className="contents">
+                    <div className="justify-self-start">{renderChord(s.chord)}</div>
+                    <div className="text-ui text-muted-foreground">{s.label}</div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
 
-          <div
-            className={cn(
-              "flex items-center justify-between border-t border-[var(--color-border)]",
-              "bg-[var(--color-bg-subtle)] px-3 py-2",
-            )}
-          >
-            <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
-              ? to close
-            </span>
-            <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
-              ⌘K for commands
-            </span>
-          </div>
-        </DialogPrimitive.Content>
-      </DialogPortal>
+        <div className="flex items-center justify-between border-t border-border bg-muted px-3 py-2">
+          <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
+            ? to close
+          </span>
+          <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
+            ⌘K for commands
+          </span>
+        </div>
+      </DialogContent>
     </Dialog>
   );
 }
