@@ -30,16 +30,20 @@ const STORAGE_CAP = 20;
 // to render without a flash. We warm this on first `getRecentItems()` and
 // keep it in sync on every push. Subscribers are notified when it mutates so
 // the palette re-renders without prop drilling.
-let cache: RecentItem[] | null = null;
+// EMPTY is a stable reference — useSyncExternalStore compares snapshots by
+// identity, so returning `[]` literals here would loop forever. Same reason
+// cache is seeded to EMPTY on first read.
+const EMPTY: readonly RecentItem[] = Object.freeze([]);
+let cache: RecentItem[] = EMPTY as RecentItem[];
 let loading: Promise<RecentItem[]> | null = null;
 const subscribers = new Set<() => void>();
 
 async function loadOnce(): Promise<RecentItem[]> {
-  if (cache) return cache;
+  if (cache !== (EMPTY as RecentItem[])) return cache;
   if (loading) return loading;
   loading = (async () => {
     const stored = (await get<RecentItem[]>(KEY)) ?? [];
-    cache = Array.isArray(stored) ? stored : [];
+    cache = Array.isArray(stored) && stored.length > 0 ? stored : (EMPTY as RecentItem[]);
     return cache;
   })();
   return loading;
@@ -56,7 +60,7 @@ export async function hydrateRecentItems(): Promise<RecentItem[]> {
 }
 
 export function getRecentItemsSync(): RecentItem[] {
-  return cache ?? [];
+  return cache;
 }
 
 export function subscribeRecentItems(fn: () => void): () => void {
@@ -79,7 +83,7 @@ export async function pushRecentItem(item: Omit<RecentItem, "visitedAt">): Promi
 }
 
 export async function clearRecentItems(): Promise<void> {
-  cache = [];
+  cache = EMPTY as RecentItem[];
   notify();
   await set(KEY, []);
 }
