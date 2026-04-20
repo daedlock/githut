@@ -1,5 +1,4 @@
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import type { ReadmePayload } from "@/app/hooks/useRepoReadme";
 
 export function ReadmeViewer({ readme }: { readme: ReadmePayload }) {
@@ -12,7 +11,7 @@ export function ReadmeViewer({ readme }: { readme: ReadmePayload }) {
         <span className="font-mono text-[10px] text-[var(--color-fg-faint)]">{readme.path}</span>
       </header>
       <div className="readme-prose p-6">
-        <Markdown remarkPlugins={[remarkGfm]}>{readme.markdown}</Markdown>
+        <GithubMarkdown>{readme.markdown}</GithubMarkdown>
       </div>
     </article>
   );

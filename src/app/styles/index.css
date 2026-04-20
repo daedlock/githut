@@ -6,6 +6,33 @@
 @import "@fontsource/ibm-plex-mono/400.css";
 @import "@fontsource/ibm-plex-mono/500.css";
 
+/* ── Berkeley Mono (regular width — only Regular weight available) ───────── */
+@font-face { font-family: "Berkeley Mono"; font-weight: 400; font-style: normal; src: url("/fonts/BerkeleyMono-Regular.ttf") format("truetype"); }
+
+/* ── Berkeley Mono Condensed ─────────────────────────────────────────────── */
+@font-face { font-family: "Berkeley Mono Condensed"; font-weight: 300; font-style: normal;  src: url("/fonts/BerkeleyMono-Light-Condensed.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono Condensed"; font-weight: 300; font-style: italic; src: url("/fonts/BerkeleyMono-Light-Condensed-Oblique.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono Condensed"; font-weight: 400; font-style: normal;  src: url("/fonts/BerkeleyMono-Condensed.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono Condensed"; font-weight: 400; font-style: italic; src: url("/fonts/BerkeleyMono-Condensed-Oblique.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono Condensed"; font-weight: 500; font-style: normal;  src: url("/fonts/BerkeleyMono-Medium-Condensed.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono Condensed"; font-weight: 500; font-style: italic; src: url("/fonts/BerkeleyMono-Medium-Condensed-Oblique.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono Condensed"; font-weight: 600; font-style: normal;  src: url("/fonts/BerkeleyMono-SemiBold-Condensed.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono Condensed"; font-weight: 600; font-style: italic; src: url("/fonts/BerkeleyMono-SemiBold-Condensed-Oblique.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono Condensed"; font-weight: 700; font-style: normal;  src: url("/fonts/BerkeleyMono-Bold-Condensed.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono Condensed"; font-weight: 700; font-style: italic; src: url("/fonts/BerkeleyMono-Bold-Condensed-Oblique.ttf") format("truetype"); }
+
+/* ── Berkeley Mono SemiCondensed ─────────────────────────────────────────── */
+@font-face { font-family: "Berkeley Mono SemiCondensed"; font-weight: 300; font-style: normal;  src: url("/fonts/BerkeleyMono-Light-SemiCondensed.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono SemiCondensed"; font-weight: 300; font-style: italic; src: url("/fonts/BerkeleyMono-Light-SemiCondensed-Oblique.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono SemiCondensed"; font-weight: 400; font-style: normal;  src: url("/fonts/BerkeleyMono-SemiCondensed.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono SemiCondensed"; font-weight: 400; font-style: italic; src: url("/fonts/BerkeleyMono-SemiCondensed-Oblique.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono SemiCondensed"; font-weight: 500; font-style: normal;  src: url("/fonts/BerkeleyMono-Medium-SemiCondensed.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono SemiCondensed"; font-weight: 500; font-style: italic; src: url("/fonts/BerkeleyMono-Medium-SemiCondensed-Oblique.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono SemiCondensed"; font-weight: 600; font-style: normal;  src: url("/fonts/BerkeleyMono-SemiBold-SemiCondensed.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono SemiCondensed"; font-weight: 600; font-style: italic; src: url("/fonts/BerkeleyMono-SemiBold-SemiCondensed-Oblique.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono SemiCondensed"; font-weight: 700; font-style: normal;  src: url("/fonts/BerkeleyMono-Bold-SemiCondensed.ttf") format("truetype"); }
+@font-face { font-family: "Berkeley Mono SemiCondensed"; font-weight: 700; font-style: italic; src: url("/fonts/BerkeleyMono-Bold-SemiCondensed-Oblique.ttf") format("truetype"); }
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
@@ -62,7 +89,20 @@
 
   --font-sans:
     "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /*
+   * Berkeley Mono as the primary mono stack.
+   * --font-mono        → SemiCondensed — default for all monospace UI (labels, code, line nums)
+   * --font-mono-condensed → Condensed — tighter; use in dense contexts (diff gutter, side-by-side)
+   * --font-mono-wide   → Regular width — single weight available; use sparingly for display
+   * IBM Plex Mono kept as fallback in all stacks.
+   */
+  --font-mono:
+    "Berkeley Mono SemiCondensed", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-mono-condensed:
+    "Berkeley Mono Condensed", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-mono-wide:
+    "Berkeley Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --radius-xs: 2px;
   --radius-sm: 3px;
