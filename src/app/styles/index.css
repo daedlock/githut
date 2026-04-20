@@ -477,6 +477,27 @@ html.dark .shiki span {
   to   { opacity: 1; transform: translateY(0)   scale(1); }
 }
 
+/*
+ * Command-palette entrance — fade + scale-up, 120ms cubic-out.
+ * Mirrors the motion language from `popover-enter` (same duration, same ease
+ * curve) but with a slightly larger scale delta because the palette is a
+ * larger, centered surface — a smaller transform here reads as "stutter"
+ * rather than "arriving". Transform-origin is center so the scale feels
+ * balanced against the viewport-center position.
+ *
+ * Kept as a keyed CSS class (not a Tailwind arbitrary) so the motion is
+ * shared, tweakable in one place, and carries no inline keyframe string
+ * in TSX. Backdrop gets a separate plain fade — it's not scaled.
+ */
+@keyframes palette-enter {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes palette-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 body {
   font-family: var(--font-sans);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
