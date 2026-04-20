@@ -210,7 +210,10 @@ export function CommandPalette() {
             "border border-[var(--color-border-strong)] bg-[var(--color-bg)]",
             "shadow-[0_1px_0_rgba(0,0,0,0.04),0_12px_32px_-12px_rgba(0,0,0,0.22)]",
             "[animation:palette-enter_120ms_cubic-bezier(0.16,1,0.3,1)]",
-            "focus:outline-none",
+            // Both :focus and :focus-visible — Radix Dialog auto-focuses the
+            // Content on open, which would otherwise light up the global
+            // *:focus-visible 2px orange ring.
+            "focus:outline-none focus-visible:outline-none",
           )}
         >
           <Dialog.Title className="sr-only">Command palette</Dialog.Title>

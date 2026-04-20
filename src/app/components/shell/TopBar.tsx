@@ -97,9 +97,11 @@ function PaletteTrigger({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       aria-label="Open command palette"
       title="Open command palette"
+      // h-7 + leading-none + centered flex so the glyphs sit in the middle
+      // instead of being clipped at the top by tight padding.
       className={cn(
-        "inline-flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1",
-        "font-mono text-caption text-[var(--color-fg-muted)]",
+        "inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2",
+        "font-mono text-caption leading-none text-[var(--color-fg-muted)]",
         "transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]",
       )}
     >

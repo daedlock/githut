@@ -289,24 +289,359 @@ Most of these are already partially enforced. Formalizing them so every future s
 
 ---
 
-## 7. Build order
+## 7. Parallelization model
 
-Rough estimates; adjust per velocity.
+This plan is built to be executed by **multiple agents running in parallel**. Each phase starts with a short serial "gate" pass that establishes shared contracts (types, hooks, primitives), then opens up for concurrent task execution.
 
-| Phase | Scope | Est. |
+### 7.1 Coordination rules
+
+1. **One agent per task.** Task IDs (see §8) are the coordination unit. An agent claims a task by updating a task-tracker with its worktree name; no other agent touches that task until it's merged or released.
+2. **Worktree isolation.** Every agent works on a separate git worktree branched from `main`. No direct work on `main` except merges.
+3. **Own only what you claim.** Every task has an `Owns:` list of file paths. An agent may **only modify files in that list**. If a task requires editing outside its scope, it stops and opens a follow-up task.
+4. **Read before you write.** Every agent reads `plan.md`, the relevant memory files (`~/.claude/projects/-home-end4-code-projects-githut/memory/`), and the existing components it will touch before writing code. Five minutes of reading prevents hours of rework.
+5. **Types/contracts are committed first.** If a task produces shared types or hooks consumed by parallel tasks, it must land those contracts (signatures, exports) before its consumers start. See §7.3.
+6. **No speculative abstractions.** Don't add generic helpers "in case" a sibling task needs them. If two tasks end up duplicating logic, that's a known follow-up — extract after merge.
+7. **Follow the visual language rules** (§6) and the color discipline memory. Raw hex in components = rejected in review.
+8. **Keep `bun tsc --noEmit` green.** Every task's exit criteria includes a clean type-check on `main`-rebased HEAD.
+9. **Conflict resolution.** If an agent hits a merge conflict on rebase, it re-runs against the updated `main` — does not modify anyone else's work. Shared surfaces (top bar, palette, memory files) are serialized via task deps.
+
+### 7.2 Task DAG
+
+Phases gate on each other, but tasks **within** a phase run in parallel once that phase's gate tasks are done. The order is:
+
+```
+P0 (done)
+  │
+  ├──> P1 gates ────> P1 parallel tasks
+  │         │               │
+  │         └───────────────┼──────────┐
+  │                         ▼          ▼
+  ├──> P2 gates ────> P2 parallel tasks
+  │                         │
+  │                         ▼
+  ├──> P3 gates ────> P3 parallel tasks (largest fan-out)
+  │                         │
+  │                         ▼
+  ├──> P4 (fully parallel — no gates)
+  │
+  └──> P5 (async, pick up anytime after P3)
+```
+
+Gates are strictly serial; everything under a gate's arrow is parallel.
+
+### 7.3 Shared contracts — built by gate tasks
+
+These are the primitives every downstream task consumes. Land them before parallel work starts.
+
+| Contract | Produced by | Consumed by |
 |---|---|---|
-| **0 — Done** | Shell + theme + type scale + diff viewer + commits list + commit detail + issues CRUD + comment box + file tree | ✓ |
-| **1 — Nav unlock** | Top bar rework (inbox pill, palette trigger, workspace stub) · command palette with Actions/Repos/Search · keyboard layer + `?` help | 1 week |
-| **2 — Inbox** | Replace `/` with triaged inbox · notifications polling hook · peek panel primitive · inbox-pill peek | 1 week |
-| **3 — PR view** | PR list with segmented filter · PR detail Change view with tabs (Overview / Files / Commits / Discussion) · approval + merge actions | 2 weeks |
-| **4 — Polish & speed** | Motion kit · prefetch-on-hover · optimistic mutations · visual language audit pass | 1 week |
-| **5 — Innovation bets** | AI PR summary (toggleable) · unified Change model for commits+PRs · workspaces real impl · AST-level diff (research) | async |
+| `useKeybindings(map)` hook | `P1.G1` | all palette/surface shortcuts |
+| `<CommandPalette />` opener API | `P1.G2` | top bar trigger, keyboard shortcuts |
+| `useNotifications()` hook + normalized row type | `P2.G3` | inbox sections, inbox pill badge |
+| `<PeekPanel />` primitive + `usePeek()` state | `P2.G4` | inbox pill, list-row clicks, palette `⌘Enter` |
+| Pulls schemas + `useRepoPulls/Pull/PullFiles` hooks | `P3.G5` | PR list, PR detail shell, every PR tab |
+| `Change` view-model type (commit ∪ PR) | `P3.G6` | PR detail tabs, future unified change view |
+| `lib/motion.tsx` primitives | `P4.T4.a` | any subsequent polish pass |
 
-**Phase 1 is the unlock.** Once palette + keyboard ship, the app *feels* like Linear even before the PR view is built. Users start their day in GitHut instead of github.com. That habit change is what makes the rest worth doing.
+Every gate task's acceptance criteria includes "exports the contract and lands it on `main` before dependents start."
+
+### 7.4 Worktree tooling
+
+Use the Agent tool with `isolation: "worktree"` so each agent gets a clean branch. The main-repo `.claude/` configs propagate automatically. Agents run their own `bun tsc --noEmit` and `bun run build` as part of acceptance.
 
 ---
 
-## 8. Non-goals / out of scope (this plan)
+## 8. Build plan — tasks
+
+Each task below can be handed to an agent verbatim. Tasks are independent within their phase unless they list a dep.
+
+### Phase 0 — Done
+
+Shell, theme, type scale, `DiffLayout`/`DiffView`, commits list, commit detail, issues CRUD, `CommentBox` with @/# triggers, reactions, `ChangedFileTree`, `FileIcon`, Ember theme presets.
+
+### Phase 1 — Nav unlock
+
+Target: palette + keyboard + top bar upgrade. Land: **~1 week across 2–3 agents**.
+
+#### `P1.G1` — Keyboard layer primitive [GATE]
+**Scope:** shared hook for keyboard shortcuts with focus-aware dispatch.
+**Owns:** `src/app/hooks/useKeybindings.ts` (new), `src/app/lib/shortcuts.ts` (new — registry of global shortcuts).
+**Depends on:** none.
+**Acceptance:**
+- `useKeybindings(map)` accepts `{ [chord: string]: () => void }` (supports `j`, `g h`, `⌘k`, `shift+enter`, etc.)
+- Auto-disables dispatch when focus is in `input`, `textarea`, `[contenteditable]`, or when a modifier conflicts with browser (e.g., `⌘r`)
+- `g` prefix chord supported with 500ms timeout
+- Exports `shortcuts.ts` with the current global map (see §4.*, §5.3)
+- Tsc clean
+
+#### `P1.G2` — cmdk + Radix Dialog install + shell [GATE]
+**Scope:** install `cmdk`, scaffold the empty palette shell. Actual content lands in T1.b.
+**Owns:** `package.json`, `src/app/components/CommandPalette.tsx` (new, empty shell), `src/app/stores/commandPalette.ts` (new, zustand open/close).
+**Depends on:** none.
+**Acceptance:**
+- `bunx cmdk` installed; Radix `Dialog` already available
+- `<CommandPalette />` renders an empty Radix Dialog with a cmdk input, opened via `usePaletteStore.open()`
+- Exported API: `useCommandPalette()` returning `{ open, close, toggle }`
+- Dialog closes on `Esc`, backdrop click, or route change
+- Motion: fade + scale-up enter (120ms)
+
+#### `P1.T1.a` — Top bar rework
+**Scope:** new top-bar composition per §3 — workspace switcher stub, inbox pill, palette trigger, user menu.
+**Owns:** `src/app/components/shell/ShellHeader.tsx`, `src/app/components/shell/TopBar.tsx` (new), `src/app/components/shell/WorkspaceSwitcher.tsx` (new, stub), `src/app/components/shell/InboxPill.tsx` (new, stub that shows count=0 until P2).
+**Depends on:** `P1.G2` (for palette trigger).
+**Acceptance:**
+- Renders in the layout described in §3 visual
+- Workspace switcher is a popover listing "All repos" only (real impl in P5)
+- Inbox pill = clickable button that opens a peek (stub: opens empty peek until P2.T2.b lands)
+- Palette trigger = button labelled `⌘K`, hits `usePaletteStore.open()`
+- `UserMenu` still renders sign-out and theme toggle (moved here from top bar)
+- Tsc clean; existing routes still render correctly
+
+#### `P1.T1.b` — Command palette content
+**Scope:** sections Recent · Actions · Repos · Search. Per §5.1.
+**Owns:** `src/app/components/CommandPalette.tsx` (fill in), `src/app/hooks/useCommandPaletteItems.ts` (new), `src/app/lib/recentItems.ts` (new — IDB-backed MRU store).
+**Depends on:** `P1.G1` (for `⌘K` binding), `P1.G2` (shell).
+**Acceptance:**
+- `⌘K` opens palette from anywhere
+- Actions section with at least: toggle theme, sign out, open inbox, new issue
+- Repos section: fuzzy-match pinned + recent repos (uses existing `useRepos`)
+- Search section: cross-repo issue/PR search via GitHub Search API (`GET /search/issues`)
+- `Enter` navigates; `⌘Enter` reserved for peek (no-op until `P2.G4`)
+- Recent MRU grows with every navigation (cap 20)
+- No raw hex, all tokens
+
+#### `P1.T1.c` — Keyboard help overlay
+**Scope:** `?` opens a dialog listing every registered shortcut, grouped by surface.
+**Owns:** `src/app/components/KeyboardHelp.tsx` (new), `src/app/stores/keyboardHelp.ts` (new).
+**Depends on:** `P1.G1`.
+**Acceptance:**
+- `?` opens the overlay (global shortcut, skipped in inputs)
+- Lists shortcuts grouped by scope (Global, Repo, Diff, List)
+- Highlights the group matching the current route
+- `Esc` closes
+
+---
+
+### Phase 2 — Inbox
+
+Target: make `/` a triaged inbox with peek support. Land: **~1 week across 2–3 agents**.
+
+#### `P2.G3` — Notifications hook [GATE]
+**Scope:** `useNotifications()` + normalized `InboxRow` type.
+**Owns:** `src/app/features/inbox/schemas.ts` (new), `src/app/features/inbox/hooks.ts` (new), `src/app/features/inbox/types.ts` (new).
+**Depends on:** none.
+**Acceptance:**
+- Polls `/notifications` every 60s with 5s jitter; pauses when `document.hidden`
+- Additionally fires `is:open review-requested:@me` and `is:open assignee:@me` cross-repo searches every 5min
+- Returns `{ awaiting: InboxRow[], mentioned: InboxRow[], assigned: InboxRow[], yours: InboxRow[] }`
+- `InboxRow` normalizes PR/issue/commit shapes into `{ id, kind, repo, number, title, updatedAt, urgency, url }`
+- Uses TanStack Query with persister; staleTime 30s
+- Local snooze/archive store (persisted) filters rows out; keyed by `${repo}#${id}`
+
+#### `P2.G4` — Peek panel primitive [GATE]
+**Scope:** slide-over drawer + `usePeek()` state.
+**Owns:** `src/app/components/PeekPanel.tsx` (new), `src/app/stores/peek.ts` (new).
+**Depends on:** none.
+**Acceptance:**
+- `<PeekPanel />` mounted at app root renders a right-side drawer (50% viewport, min 480px)
+- `usePeek()` API: `open({ kind, ...payload })`, `close()`, `promote()` (navigates to full route, closes peek)
+- `Esc`/backdrop closes; internal nav replaces content (Finder Quick Look semantics)
+- One peek at a time; second `open()` replaces first
+- Slide-over motion (180ms ease-out) using CSS transitions
+- Focus management: first focusable inside receives focus on open; restores on close
+
+#### `P2.T2.a` — Inbox route
+**Scope:** replace `src/app/routes/index.tsx` with the triaged inbox from §4.1.
+**Owns:** `src/app/routes/index.tsx`, `src/app/features/inbox/InboxPage.tsx` (new), `src/app/features/inbox/InboxRow.tsx` (new), `src/app/features/inbox/InboxSection.tsx` (new).
+**Depends on:** `P2.G3`, `P2.G4`, `P1.G1`.
+**Acceptance:**
+- Matches the 4-section layout in §4.1 visually
+- `j/k`/`Enter`/`p`/`e`/`s`/`u` shortcuts wired
+- Section headers collapsible with `h/l`
+- Empty state text
+- Archives and snoozed items persist across reloads
+
+#### `P2.T2.b` — Inbox pill peek integration
+**Scope:** wire the inbox pill in the top bar to open the inbox content as a peek.
+**Owns:** `src/app/components/shell/InboxPill.tsx`.
+**Depends on:** `P2.G4`, `P2.T2.a` (reuses `InboxPage` content inside peek).
+**Acceptance:**
+- Click opens peek with inbox content
+- Badge shows unread count (`awaiting.length + mentioned.length`), updates live
+- `⌘Enter` inside peek promotes to full `/` route
+
+#### `P2.T2.c` — Repo list retired (moved to `/w/all`)
+**Scope:** move the old home-page repo list to the new workspace route.
+**Owns:** `src/app/routes/w.$name.tsx` (new), `src/app/components/repo/RepoListWidget.tsx` (move).
+**Depends on:** none (parallel with T2.a/T2.b).
+**Acceptance:**
+- `/w/all` renders the repo list (old home content)
+- Home (`/`) no longer shows repos
+- `WorkspaceSwitcher` stub from `P1.T1.a` links to `/w/all`
+
+---
+
+### Phase 3 — PR view
+
+Target: ship the "Change" view. Largest parallel fan-out. Land: **~2 weeks across 4–6 agents**.
+
+#### `P3.G5` — Pulls data layer [GATE]
+**Scope:** schemas + hooks mirroring the issues feature shape.
+**Owns:** `src/app/features/pulls/schemas.ts` (new), `src/app/features/pulls/hooks.ts` (new), `src/app/features/pulls/types.ts` (new).
+**Depends on:** none.
+**Acceptance:**
+- Exports: `useRepoPulls(owner, repo, filter)`, `useRepoPull(owner, repo, number)`, `useRepoPullFiles(owner, repo, number)`, `useRepoPullReviews`, `useRepoPullComments`, `useRepoPullCommits`
+- Mutations: `useCreatePullComment`, `useSubmitPullReview`, `useMergePull`, `useAddPullReaction`
+- Zod schemas at boundary (`PullSummarySchema`, `PullDetailSchema`, `PullFileSchema`, `PullReviewSchema`)
+- Follows the hook conventions in `src/app/hooks/` (staleTime, enabled guards, queryKey shape)
+
+#### `P3.G6` — `Change` view-model [GATE]
+**Scope:** a thin union type so commits and PRs can share tabs downstream.
+**Owns:** `src/app/features/changes/types.ts` (new).
+**Depends on:** none (ideally lands same time as G5 but no dependency).
+**Acceptance:**
+- Exports `type Change = { kind: "commit" | "pr"; id: string; title: string; author: Actor; changedFiles: DiffLayoutFile[]; ...meta }` or similar
+- Helpers: `changeFromCommit(commit)`, `changeFromPull(pull, files)`
+- Keep minimal — only fields needed by downstream tasks
+
+#### `P3.T3.a` — PR list
+**Scope:** `routes/$owner.$repo.pulls.tsx` (replace the coming-soon placeholder).
+**Owns:** that route file + `src/app/features/pulls/PullList.tsx` (new), `PullRow.tsx` (new), `PullListFilters.tsx` (new).
+**Depends on:** `P3.G5`.
+**Acceptance:**
+- Segmented tabs: `Needs your review · Yours · All`
+- Row shape per §4.7
+- `j/k/Enter/p/a/r/c` shortcuts wired
+- Virtualized when >100 rows
+
+#### `P3.T3.b` — PR detail shell [GATE for tabs c/d/e/f]
+**Scope:** `routes/$owner.$repo.pulls.$num.tsx` with sub-route tab switcher.
+**Owns:** that route file + `src/app/features/pulls/PullDetailShell.tsx` (new), `PullHeader.tsx` (new).
+**Depends on:** `P3.G5`, `P3.G6`.
+**Acceptance:**
+- Renders the header per §4.8 (title, branches, state pills)
+- Tab switcher: Overview / Files changed / Commits / Discussion (URL: `?tab=overview|files|commits|discussion`)
+- Approval/merge action buttons in header (wired stubs; real logic in T3.g)
+- Tabs render empty-state placeholders until their owning task lands
+
+#### `P3.T3.c` — Overview tab
+**Scope:** description + conversation timeline.
+**Owns:** `src/app/features/pulls/tabs/OverviewTab.tsx` (new).
+**Depends on:** `P3.T3.b`.
+**Acceptance:**
+- Renders PR body via `GithubMarkdown`
+- Lists linked issues (parses "fixes #N" from body)
+- Timeline of comments + events (labeled/assigned/reviewed)
+- Reuses `CommentBox` for posting
+
+#### `P3.T3.d` — Files changed tab
+**Scope:** wire `DiffLayout` to PR files.
+**Owns:** `src/app/features/pulls/tabs/FilesTab.tsx` (new).
+**Depends on:** `P3.T3.b`, existing `DiffLayout`.
+**Acceptance:**
+- Uses `useRepoPullFiles` → maps to `DiffLayoutFile[]` → renders `<DiffLayout />`
+- Sidebar auto-collapses for 1-file PRs (existing pattern)
+
+#### `P3.T3.e` — Commits tab
+**Scope:** list of commits in the PR; click → commit-detail view inline or peek.
+**Owns:** `src/app/features/pulls/tabs/CommitsTab.tsx` (new).
+**Depends on:** `P3.T3.b`.
+**Acceptance:**
+- Lists commits per the commits timeline design (§4.5)
+- Click a commit opens it in a peek drawer (uses `P2.G4`)
+
+#### `P3.T3.f` — Discussion tab
+**Scope:** review-level conversation (separate from inline file comments).
+**Owns:** `src/app/features/pulls/tabs/DiscussionTab.tsx` (new).
+**Depends on:** `P3.T3.b`.
+**Acceptance:**
+- Renders review comments grouped by review submission
+- Supports reply + reactions via existing primitives
+- `r` shortcut to post reply to focused comment
+
+#### `P3.T3.g` — Review actions
+**Scope:** approve · request changes · comment · merge buttons + mutations.
+**Owns:** `src/app/features/pulls/PullActions.tsx` (new), extends `P3.G5` mutations.
+**Depends on:** `P3.T3.b` (for header slot).
+**Acceptance:**
+- Approve/request/comment open a `CommentBox` modal with appropriate review state
+- Merge button gated on CI + required reviewers; confirmation dialog before merge
+- Shortcuts `a` (approve), `r` (request), `c` (comment), `m` (merge) wired
+
+---
+
+### Phase 4 — Polish & speed
+
+All tasks independent. Pick any order. Land: **~1 week across 2–3 agents**.
+
+#### `P4.T4.a` — Motion kit
+**Owns:** `src/app/lib/motion.tsx` (new).
+**Depends on:** none.
+**Acceptance:** exports `fadeIn`, `slideOver`, `listEnter` per §5.5; uses CSS transitions where possible, `@keyframes` in `index.css` for shared ones.
+
+#### `P4.T4.b` — Prefetch-on-hover
+**Owns:** a shared `<PrefetchLink />` wrapper in `src/app/components/PrefetchLink.tsx`; refactor in-tree `<Link>` usages in list components.
+**Depends on:** none.
+**Acceptance:** hovering a repo row / issue row / PR row for >50ms prefetches the target route's loaders via TanStack Router.
+
+#### `P4.T4.c` — Optimistic mutations audit
+**Scope:** every mutation hook gets optimistic update + rollback on error. Tracked list:
+- `useCreateIssueComment`, `useUpdateIssueState`, `useAddIssueReaction`
+- `useCreatePull*Comment`, `useSubmitPullReview`, `useMergePull`
+**Owns:** `src/app/features/issues/hooks.ts`, `src/app/features/pulls/hooks.ts`.
+**Depends on:** `P3.G5`.
+**Acceptance:** after each mutation, UI updates within one frame before server confirmation; on 4xx/5xx, state rolls back + toast.
+
+#### `P4.T4.d` — Visual language audit
+**Scope:** grep-driven refactor enforcing §6 rules.
+**Owns:** anywhere a rule is violated (agent lists files changed in summary).
+**Depends on:** none (prefer to run last in P4 so earlier tasks' new code is covered).
+**Acceptance:** `grep -rE 'text-\[(9|1[0-9])px\]|#[0-9a-fA-F]{3,8}' src/app/components src/app/routes` returns zero results.
+
+---
+
+### Phase 5 — Innovation bets (async)
+
+Each bet is a standalone track. Pick up anytime after P3 lands. No deps between bets.
+
+- **`P5.B1` — AI PR summary**: LLM-generated "what this changes" paragraph at the top of PR Overview. Cached per head-SHA. Feature-flagged behind `settings.ai`.
+- **`P5.B2` — Unified Change route**: merge `/:o/:r/commit/:sha` and `/:o/:r/pulls/:n` into one `<ChangeView />` using the `Change` view-model from `P3.G6`.
+- **`P5.B3` — Workspaces real impl**: CRUD workspaces, persist to IndexedDB, per-workspace notification filtering.
+- **`P5.B4` — AST-level diff**: research spike. Difftastic-style structural diff for JS/TS/Rust. Behind a flag.
+- **`P5.B5` — Offline mutation queue**: queue writes when offline, drain on reconnect with conflict resolution UX.
+
+---
+
+## 9. Agent brief template
+
+When dispatching an agent for any task above, use this prompt structure:
+
+```
+You are implementing `<TASK_ID>` from plan.md. Read plan.md sections 1–7 and your task body in §8 before doing anything else.
+
+## Your task
+<Paste the task block verbatim — Scope, Owns, Depends on, Acceptance.>
+
+## Rules
+- Work in a worktree. Do not touch files outside your `Owns:` list.
+- Follow the visual language rules in §6 and the color discipline memory.
+- Read the feedback memory files under ~/.claude/projects/-home-end4-code-projects-githut/memory/ before writing code.
+- `bun tsc --noEmit` must pass on exit.
+- Do not invent new dependencies without adding them to the Owns list.
+
+## Deliverable
+A short report listing:
+- Files created/modified
+- Any new shared contracts exported
+- Anything that went out of scope (stop and flag instead of doing it)
+- How to verify acceptance (commands to run, routes to visit)
+```
+
+Dispatch with `Agent` tool, `isolation: "worktree"`, `run_in_background: true`. Wait for the completion notification before reviewing.
+
+---
+
+## 10. Non-goals / out of scope (this plan)
 
 - Writing/editing code
 - Actions / CI runs
@@ -324,7 +659,7 @@ If the user asks for any of these, deflect to github.com and consider whether th
 
 ---
 
-## 9. Decision log — things NOT to relitigate
+## 11. Decision log — things NOT to relitigate
 
 1. **No global left sidebar.** Decided for main-content horizontal density. Revisit only if list-based surfaces come to dominate the app.
 2. **Command palette is primary nav.** Decided; any "I want a menu" impulse should be a palette item instead.
