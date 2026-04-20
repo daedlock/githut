@@ -17,7 +17,7 @@ type ContainerProps = HTMLAttributes<HTMLElement> & {
 
 export function Container({ children, className, as: As = "div", ...rest }: ContainerProps) {
   return (
-    <As className={cn("mx-auto w-full max-w-6xl px-4 sm:px-6", className)} {...rest}>
+    <As className={cn("mx-auto w-full max-w-8xl px-4 sm:px-6", className)} {...rest}>
       {children}
     </As>
   );

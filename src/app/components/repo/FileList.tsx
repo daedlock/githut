@@ -1,8 +1,20 @@
+import { Link } from "@tanstack/react-router";
 import { ChevronRight, FileText, Folder, GitCommitHorizontal } from "lucide-react";
 import { Skeleton } from "@/app/components/ui/skeleton";
+import { type PathCommit, usePathCommit } from "@/app/hooks/usePathCommit";
 import type { ContentEntry } from "@/app/hooks/useRepoContents";
-import type { PathCommit } from "@/app/hooks/usePathCommit";
 import { cn } from "@/app/lib/cn";
+
+const FILE_LIST_SKELETON_KEYS = [
+  "row-1",
+  "row-2",
+  "row-3",
+  "row-4",
+  "row-5",
+  "row-6",
+  "row-7",
+  "row-8",
+] as const;
 
 function relativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -61,14 +73,15 @@ export function Breadcrumb({
           </span>
         );
       })}
-      <span className="ml-1 text-[var(--color-fg-faint)] text-ui flex-shrink-0">
-        @ {branch}
-      </span>
+      <span className="ml-1 text-[var(--color-fg-faint)] text-ui flex-shrink-0">@ {branch}</span>
     </nav>
   );
 }
 
 export function FileList({
+  owner,
+  repo,
+  refName,
   entries,
   isPending,
   path,
@@ -76,6 +89,9 @@ export function FileList({
   commitPending,
   onNavigate,
 }: {
+  owner: string;
+  repo: string;
+  refName?: string;
   entries: ContentEntry[] | undefined;
   isPending: boolean;
   path: string;
@@ -101,7 +117,14 @@ export function FileList({
           <Skeleton className="h-3.5 w-64" />
         ) : commit ? (
           <>
-            <span className="text-ui text-foreground truncate min-w-0">{commit.message}</span>
+            <Link
+              to="/$owner/$repo/commit/$sha"
+              params={{ owner, repo, sha: commit.sha }}
+              title={commit.message}
+              className="flex-1 min-w-0 truncate rounded-sm text-ui text-foreground underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-foreground/15"
+            >
+              {commit.message}
+            </Link>
             <span className="ml-auto text-caption font-mono text-[var(--color-fg-faint)] flex-shrink-0 flex items-center gap-2">
               <span>{commit.authorName}</span>
               <span title={commit.date}>{relativeTime(commit.date)}</span>
@@ -112,17 +135,36 @@ export function FileList({
         )}
       </div>
 
-      <table className="w-full text-body border-collapse">
+      <table className="w-full table-fixed text-body border-collapse">
         <tbody className={isPending ? "skeleton-fade" : undefined}>
           {isPending ? (
-            Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
+            FILE_LIST_SKELETON_KEYS.map((key) => <SkeletonRow key={key} />)
           ) : (
             <>
               {showParent && (
-                <ParentRow onNavigate={() => onNavigate?.({ type: "dir", name: "..", path: path.split("/").slice(0, -1).join("/"), sha: "", size: 0, html_url: null, download_url: null })} />
+                <ParentRow
+                  onNavigate={() =>
+                    onNavigate?.({
+                      type: "dir",
+                      name: "..",
+                      path: path.split("/").slice(0, -1).join("/"),
+                      sha: "",
+                      size: 0,
+                      html_url: null,
+                      download_url: null,
+                    })
+                  }
+                />
               )}
               {sorted.map((entry) => (
-                <FileRow key={entry.sha || entry.path} entry={entry} onNavigate={onNavigate} />
+                <FileRow
+                  key={entry.sha || entry.path}
+                  owner={owner}
+                  repo={repo}
+                  refName={refName}
+                  entry={entry}
+                  onNavigate={onNavigate}
+                />
               ))}
             </>
           )}
@@ -138,26 +180,40 @@ function ParentRow({ onNavigate }: { onNavigate: () => void }) {
       className="group border-b border-border hover:bg-muted transition-colors duration-75 cursor-pointer"
       onClick={onNavigate}
     >
-      <td className="pl-4 pr-2 py-2 w-5">
-        <Folder className="size-4 text-[var(--color-fg-faint)] flex-shrink-0" />
+      <td className="pl-4 pr-4 py-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Folder className="size-4 text-[var(--color-fg-faint)] flex-shrink-0" />
+          <span className="font-mono text-code text-muted-foreground group-hover:text-foreground transition-colors duration-75 truncate">
+            ..
+          </span>
+        </div>
       </td>
-      <td className="pr-4 py-2">
-        <span className="font-mono text-code text-muted-foreground group-hover:text-foreground transition-colors duration-75">
-          ..
-        </span>
-      </td>
+      <td className="hidden md:table-cell px-4 py-2 md:w-[52%]" />
+      <td className="pr-4 py-2 w-[8.5rem]" />
     </tr>
   );
 }
 
 function FileRow({
+  owner,
+  repo,
+  refName,
   entry,
   onNavigate,
 }: {
+  owner: string;
+  repo: string;
+  refName?: string;
   entry: ContentEntry;
   onNavigate?: (entry: ContentEntry) => void;
 }) {
   const isDir = entry.type === "dir";
+  const { data: entryCommit, isPending: entryCommitPending } = usePathCommit(
+    owner,
+    repo,
+    entry.path,
+    refName,
+  );
 
   return (
     <tr
@@ -168,24 +224,54 @@ function FileRow({
       )}
       onClick={() => onNavigate?.(entry)}
     >
-      <td className="pl-4 pr-2 py-2 w-5">
-        {isDir ? (
-          <Folder className="size-4 text-primary flex-shrink-0" />
+      <td className="pl-4 pr-4 py-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          {isDir ? (
+            <Folder className="size-4 text-primary flex-shrink-0" />
+          ) : (
+            <FileText className="size-4 text-[var(--color-fg-faint)] flex-shrink-0" />
+          )}
+          <span
+            className={cn(
+              "font-mono text-code leading-none transition-colors duration-75 truncate",
+              isDir ? "text-foreground group-hover:text-primary" : "text-foreground",
+            )}
+            title={entry.name}
+          >
+            {entry.name}
+          </span>
+        </div>
+      </td>
+      <td className="hidden md:table-cell px-4 py-2 md:w-[52%]">
+        {entryCommitPending ? (
+          <Skeleton className="h-3.5 w-48" />
+        ) : entryCommit?.message ? (
+          <Link
+            to="/$owner/$repo/commit/$sha"
+            params={{ owner, repo, sha: entryCommit.sha }}
+            title={entryCommit.message}
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              "block truncate rounded-sm text-body underline-offset-2 outline-none",
+              "text-muted-foreground hover:text-foreground hover:underline",
+              "focus-visible:ring-1 focus-visible:ring-foreground/15",
+              "transition-colors duration-75",
+            )}
+          >
+            {entryCommit.message}
+          </Link>
         ) : (
-          <FileText className="size-4 text-[var(--color-fg-faint)] flex-shrink-0" />
+          <span className="block truncate text-body text-[var(--color-fg-faint)]">—</span>
         )}
       </td>
-      <td className="pr-4 py-2 w-full">
-        <span
-          className={cn(
-            "font-mono text-code leading-none transition-colors duration-75",
-            isDir
-              ? "text-foreground group-hover:text-primary"
-              : "text-muted-foreground group-hover:text-foreground",
-          )}
-        >
-          {entry.name}
-        </span>
+      <td className="pr-4 py-2 w-[8.5rem] text-right">
+        {entryCommitPending ? (
+          <Skeleton className="ml-auto h-3.5 w-16" />
+        ) : (
+          <span className="font-mono text-caption text-muted-foreground whitespace-nowrap">
+            {entryCommit ? relativeTime(entryCommit.date) : ""}
+          </span>
+        )}
       </td>
     </tr>
   );
@@ -194,11 +280,17 @@ function FileRow({
 function SkeletonRow() {
   return (
     <tr className="border-b border-border last:border-0">
-      <td className="pl-4 pr-2 py-2 w-5">
-        <Skeleton className="size-4" />
+      <td className="pl-4 pr-4 py-2">
+        <div className="flex items-center gap-2">
+          <Skeleton className="size-4" />
+          <Skeleton className="h-3.5 w-32" />
+        </div>
       </td>
-      <td className="pr-4 py-2">
-        <Skeleton className="h-3.5 w-32" />
+      <td className="hidden md:table-cell px-4 py-2 md:w-[52%]">
+        <Skeleton className="h-3.5 w-48" />
+      </td>
+      <td className="pr-4 py-2 w-[8.5rem]">
+        <Skeleton className="ml-auto h-3.5 w-16" />
       </td>
     </tr>
   );

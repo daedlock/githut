@@ -6,18 +6,33 @@ import { ReadmeViewer } from "@/app/components/repo/ReadmeViewer";
 import { RepoAbout } from "@/app/components/repo/RepoAbout";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton } from "@/app/components/ui/skeleton";
+import { usePathCommit } from "@/app/hooks/usePathCommit";
 import { useRepo } from "@/app/hooks/useRepo";
+import type { ContentEntry } from "@/app/hooks/useRepoContents";
 import { useRepoContents } from "@/app/hooks/useRepoContents";
 import { useRepoFile } from "@/app/hooks/useRepoFile";
 import { useRepoLanguages } from "@/app/hooks/useRepoLanguages";
 import { useRepoReadme } from "@/app/hooks/useRepoReadme";
-import { usePathCommit } from "@/app/hooks/usePathCommit";
-import type { ContentEntry } from "@/app/hooks/useRepoContents";
 
 const codeSearchSchema = z.object({
   path: z.string().optional(),
   view: z.enum(["tree", "blob"]).optional(),
 });
+
+const BLOB_SKELETON_WIDTHS = [
+  "40%",
+  "59%",
+  "78%",
+  "42%",
+  "61%",
+  "80%",
+  "44%",
+  "63%",
+  "82%",
+  "46%",
+  "65%",
+  "84%",
+] as const;
 
 export const Route = createFileRoute("/$owner/$repo/code")({
   validateSearch: codeSearchSchema,
@@ -91,12 +106,7 @@ function CodePage() {
     <Container className="py-6">
       {/* breadcrumb */}
       <div className="mb-3">
-        <Breadcrumb
-          repo={repo}
-          path={path}
-          branch={branch ?? ""}
-          onNavigate={navigateToPath}
-        />
+        <Breadcrumb repo={repo} path={path} branch={branch ?? ""} onNavigate={navigateToPath} />
       </div>
 
       <div className="flex gap-6 items-start">
@@ -111,6 +121,9 @@ function CodePage() {
           ) : (
             <>
               <FileList
+                owner={owner}
+                repo={repo}
+                refName={branch}
                 entries={contents}
                 isPending={contentsPending}
                 path={path}
@@ -126,11 +139,7 @@ function CodePage() {
         {/* sidebar — always visible */}
         {showSidebar && (
           <div className="w-64 flex-shrink-0 sticky top-6">
-            <RepoAbout
-              repo={repoData}
-              languages={languages}
-              languagesPending={languagesPending}
-            />
+            <RepoAbout repo={repoData} languages={languages} languagesPending={languagesPending} />
           </div>
         )}
       </div>
@@ -143,8 +152,8 @@ function BlobSkeleton() {
     <div className="rounded-md border border-border overflow-hidden">
       <div className="h-10 bg-muted border-b border-border" />
       <div className="skeleton-fade p-4 flex flex-col gap-2">
-        {Array.from({ length: 12 }).map((_, i) => (
-          <Skeleton key={i} className="h-4" style={{ width: `${40 + (i * 19) % 55}%` }} />
+        {BLOB_SKELETON_WIDTHS.map((width) => (
+          <Skeleton key={width} className="h-4" style={{ width }} />
         ))}
       </div>
     </div>
