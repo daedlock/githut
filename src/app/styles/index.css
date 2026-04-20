@@ -116,6 +116,29 @@ html.dark {
   color-scheme: dark;
 }
 
+/*
+ * Shiki dual-theme switching.
+ * codeToHtml is called with { themes: { light: 'github-light-default', dark: 'github-dark' } }
+ * which emits --shiki-light / --shiki-dark inline vars on each span.
+ * We activate the appropriate set via the .dark class on <html>.
+ */
+.shiki,
+.shiki span {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+  font-style: var(--shiki-light-font-style);
+  font-weight: var(--shiki-light-font-weight);
+  text-decoration: var(--shiki-light-text-decoration);
+}
+html.dark .shiki,
+html.dark .shiki span {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
+  font-style: var(--shiki-dark-font-style);
+  font-weight: var(--shiki-dark-font-weight);
+  text-decoration: var(--shiki-dark-text-decoration);
+}
+
 body {
   font-family: var(--font-sans);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
