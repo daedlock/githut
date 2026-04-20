@@ -6,6 +6,7 @@ import { StatusMessage } from "@/app/components/StatusMessage";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { type CommitFile, useRepoCommit } from "@/app/hooks/useRepoCommit";
 import { detectLang } from "@/app/lib/detectLang";
+import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 
 export const Route = createFileRoute("/$owner/$repo/commit/$sha")({
@@ -43,18 +44,22 @@ function CommitDetailPage() {
         <Link
           to="/$owner/$repo/commits"
           params={{ owner, repo }}
-          className="mb-2 inline-flex items-center gap-1.5 text-ui text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)]"
+          className={cn(
+            "mb-2 inline-flex items-center gap-1.5 rounded-sm px-1 py-0.5 -ml-1",
+            "text-ui text-muted-foreground outline-none transition-colors",
+            "hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/20",
+          )}
         >
-          <ArrowLeft className="h-3 w-3" />
+          <ArrowLeft className="size-3" />
           All commits
         </Link>
 
         {isPending ? (
           <CommitHeaderSkeleton />
         ) : isError || !commit ? (
-          <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-4 py-6 text-center">
-            <AlertCircle className="mx-auto mb-2 h-4 w-4 text-[var(--color-danger)]" />
-            <p className="text-ui text-[var(--color-fg-muted)]">Could not load this commit.</p>
+          <div className="rounded-md border border-border bg-muted px-4 py-6 text-center">
+            <AlertCircle className="mx-auto mb-2 size-4 text-destructive" />
+            <p className="text-ui text-muted-foreground">Could not load this commit.</p>
           </div>
         ) : (
           <CommitHeader commit={commit} owner={owner} repo={repo} />
@@ -62,18 +67,16 @@ function CommitDetailPage() {
       </div>
 
       {commit && diffFiles.length > 0 && (
-        <div className="border-t border-[var(--color-border)]">
+        <div className="border-t border-border">
           <DiffLayout
             files={diffFiles}
-            // Single-file commits don't need a sidebar — gives the diff the
-            // full viewport. User can still open the tree with [ if they want.
             initialSidebarOpen={diffFiles.length > 1}
           />
         </div>
       )}
 
       {commit && diffFiles.length === 0 && (
-        <div className="border-t border-[var(--color-border)] px-4 py-8 sm:px-6">
+        <div className="border-t border-border px-4 py-8 sm:px-6">
           <StatusMessage>No file changes in this commit.</StatusMessage>
         </div>
       )}
@@ -111,22 +114,18 @@ function CommitHeader({
        * over-signals hierarchy. pr-24 reserves space for the SHA chip so long
        * titles don't collide with it.
        */}
-      <h1 className="pr-24 text-title font-medium text-[var(--color-fg)]">{title}</h1>
+      <h1 className="pr-24 text-title font-medium text-foreground">{title}</h1>
 
-      {/*
-       * Meta as prose — single line reading "author committed time · parent sha".
-       * No labels, no chips (except the parent link which needs a surface to
-       * hint at clickability). Dot separators carry the rhythm.
-       */}
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-ui text-[var(--color-fg-muted)]">
+      {/* Meta as prose — single line, no chips. Dot separators carry rhythm. */}
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-ui text-muted-foreground">
         {avatar ? (
           <img
             src={avatar}
             alt=""
-            className="h-4 w-4 flex-shrink-0 rounded-full border border-[var(--color-border)]"
+            className="size-4 flex-shrink-0 rounded-full border border-border"
           />
         ) : null}
-        <span className="font-medium text-[var(--color-fg)]">{displayAuthor}</span>
+        <span className="font-medium text-foreground">{displayAuthor}</span>
         <span>committed {formatRelativeTime(commit.commit.author.date)}</span>
 
         {commit.parents.length > 0 && (
@@ -146,7 +145,13 @@ function CommitHeader({
                   <Link
                     to="/$owner/$repo/commit/$sha"
                     params={{ owner, repo, sha: p.sha }}
-                    className="rounded-[var(--radius-xs)] font-mono text-caption tabular-nums text-[var(--color-fg-muted)] underline decoration-[var(--color-border-strong)] decoration-1 underline-offset-2 transition-colors hover:text-[var(--color-fg)] hover:decoration-[var(--color-fg-muted)]"
+                    className={cn(
+                      "rounded-sm font-mono text-caption tabular-nums",
+                      "text-muted-foreground outline-none",
+                      "underline decoration-input decoration-1 underline-offset-2 transition-colors",
+                      "hover:text-foreground hover:decoration-muted-foreground",
+                      "focus-visible:ring-1 focus-visible:ring-ring/20",
+                    )}
                   >
                     {p.sha.slice(0, 7)}
                   </Link>
@@ -157,9 +162,8 @@ function CommitHeader({
         )}
       </div>
 
-      {/* Optional body — left-border accent, mono. Reads like `git log` body. */}
       {body && (
-        <pre className="mt-3 max-w-3xl whitespace-pre-wrap border-l-2 border-[var(--color-border-strong)] pl-3 font-mono text-code text-[var(--color-fg-muted)]">
+        <pre className="mt-3 max-w-3xl whitespace-pre-wrap border-l-2 border-input pl-3 font-mono text-code text-muted-foreground">
           {body}
         </pre>
       )}
@@ -180,13 +184,19 @@ function ShaChip({ sha }: { sha: string }) {
       }}
       title={copied ? "Copied!" : "Copy full SHA"}
       aria-label="Copy full SHA"
-      className="group inline-flex items-center gap-1.5 rounded-[var(--radius-xs)] border border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-1 font-mono text-caption tabular-nums text-[var(--color-fg-muted)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg)]"
+      className={cn(
+        "group inline-flex items-center gap-1.5 rounded-sm border border-border bg-background px-2 py-1",
+        "font-mono text-caption tabular-nums text-muted-foreground",
+        "outline-none transition-colors",
+        "hover:border-input hover:text-foreground",
+        "focus-visible:ring-1 focus-visible:ring-ring/20",
+      )}
     >
       <span>{sha.slice(0, 7)}</span>
       {copied ? (
-        <Check className="h-3 w-3 text-[var(--color-success)]" />
+        <Check className="size-3 text-[var(--color-success)]" />
       ) : (
-        <Copy className="h-3 w-3 text-[var(--color-fg-faint)] transition-colors group-hover:text-[var(--color-fg-muted)]" />
+        <Copy className="size-3 text-[var(--color-fg-faint)] transition-colors group-hover:text-muted-foreground" />
       )}
     </button>
   );
@@ -206,10 +216,10 @@ function normalizeStatus(status: CommitFile["status"]): FileStatus {
 
 function CommitHeaderSkeleton() {
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <Skeleton className="h-5 w-2/3" />
       <div className="flex items-center gap-3">
-        <Skeleton className="h-4 w-4 rounded-full" />
+        <Skeleton className="size-4 rounded-full" />
         <Skeleton className="h-3.5 w-48" />
       </div>
     </div>

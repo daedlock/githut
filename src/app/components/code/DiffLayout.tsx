@@ -144,34 +144,37 @@ export function DiffLayout({
   }, [files, activeFile, scrollToFile]);
 
   return (
-    <div className={cn("w-full bg-[var(--color-bg)]", className)}>
+    <div className={cn("w-full bg-background", className)}>
       {/* ─── Sticky top bar ─────────────────────────────────────────────────
-       *    z-20 sits it above the sticky sidebar (z-10) so they don't overlap
-       *    visually. Gets its bg from --color-bg-subtle so when content scrolls
-       *    behind, nothing bleeds through. */}
+       *    z-20 sits it above the sticky sidebar (z-10). */}
       <div
-        className="sticky top-0 z-20 flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-4 sm:px-6"
+        className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-muted px-4 sm:px-6"
         style={{ height: TOPBAR_H }}
       >
         <button
           type="button"
           onClick={() => setSidebarOpen((v) => !v)}
-          className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-[var(--radius-xs)] text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)]"
+          className={cn(
+            "inline-flex size-7 flex-shrink-0 items-center justify-center rounded-sm",
+            "text-muted-foreground outline-none transition-colors",
+            "hover:bg-accent hover:text-foreground",
+            "focus-visible:ring-1 focus-visible:ring-ring/20",
+          )}
           title={sidebarOpen ? "Hide file tree  [" : "Show file tree  ["}
           aria-label={sidebarOpen ? "Hide file tree" : "Show file tree"}
         >
           {sidebarOpen ? (
-            <PanelLeftClose className="h-3.5 w-3.5" />
+            <PanelLeftClose className="size-3.5" />
           ) : (
-            <PanelLeftOpen className="h-3.5 w-3.5" />
+            <PanelLeftOpen className="size-3.5" />
           )}
         </button>
 
         <div className="flex items-baseline gap-2.5">
-          <span className="text-ui font-medium text-[var(--color-fg)] tabular-nums">
+          <span className="text-ui font-medium text-foreground tabular-nums">
             {files.length}
           </span>
-          <span className="text-caption text-[var(--color-fg-muted)]">
+          <span className="text-caption text-muted-foreground">
             {files.length === 1 ? "file changed" : "files changed"}
           </span>
           <span className="text-caption text-[var(--color-fg-faint)]">·</span>
@@ -183,24 +186,20 @@ export function DiffLayout({
           </span>
         </div>
 
-        {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Global mode toggle — flipping this re-keys all FileDiffs so each one
-            remounts with the new default. Heavy-ish but simple + correct. */}
-        <div className="flex items-center rounded-[var(--radius-sm)] border border-[var(--color-border-strong)] bg-[var(--color-bg)] p-0.5">
+        {/* Global mode toggle — re-keys all FileDiffs so each remounts with new default. */}
+        <div className="flex items-center rounded-md border border-input bg-background p-0.5">
           <ModeBtn active={mode === "unified"} onClick={() => setMode("unified")} title="Unified view">
-            <Rows2 className="h-3 w-3" />
+            <Rows2 className="size-3" />
             <span>Unified</span>
           </ModeBtn>
           <ModeBtn active={mode === "split"} onClick={() => setMode("split")} title="Split view">
-            <Columns2 className="h-3 w-3" />
+            <Columns2 className="size-3" />
             <span>Split</span>
           </ModeBtn>
         </div>
 
-        {/* Keyboard hint — reveals the muscle-memory affordances without pasting
-            a cheatsheet. Kept subtle so it doesn't compete with content. */}
         <div className="hidden items-center gap-1 md:flex">
           <KbdPill>j</KbdPill>
           <KbdPill>k</KbdPill>
@@ -211,14 +210,11 @@ export function DiffLayout({
       </div>
 
       {/* ─── Sidebar + main ────────────────────────────────────────────────
-       *    The sidebar is sticky and self-start so it aligns to the top of
-       *    this flex row, then sticks once scrolled past. max-height caps it
-       *    to viewport-minus-topbar so long trees get their own inner scroll
-       *    (via ChangedFileTree internals) rather than extending infinitely. */}
+       *    Sticky sidebar parks below the top bar; long trees get inner scroll. */}
       <div className="flex w-full items-start">
         {sidebarOpen && (
           <aside
-            className="sticky z-10 hidden w-[280px] flex-shrink-0 overflow-y-auto border-r border-[var(--color-border)] p-2 lg:block"
+            className="sticky z-10 hidden w-[280px] flex-shrink-0 overflow-y-auto border-r border-border p-2 lg:block"
             style={{ top: TOPBAR_H, maxHeight: `calc(100dvh - ${TOPBAR_H}px)` }}
           >
             <ChangedFileTree
@@ -285,10 +281,12 @@ function ModeBtn({
       onClick={onClick}
       title={title}
       className={cn(
-        "inline-flex h-6 items-center gap-1.5 rounded-[var(--radius-xs)] px-2 text-caption transition-colors",
+        "inline-flex h-6 items-center gap-1.5 rounded-sm px-2 text-caption",
+        "outline-none transition-colors",
+        "focus-visible:ring-1 focus-visible:ring-ring/20",
         active
-          ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
-          : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
+          ? "bg-accent text-accent-foreground"
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
       {children}
@@ -298,7 +296,7 @@ function ModeBtn({
 
 function KbdPill({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded-[var(--radius-xs)] border border-[var(--color-border-strong)] bg-[var(--color-bg)] px-1 font-mono text-micro text-[var(--color-fg-muted)]">
+    <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded-sm border border-input bg-background px-1 font-mono text-micro text-muted-foreground">
       {children}
     </kbd>
   );

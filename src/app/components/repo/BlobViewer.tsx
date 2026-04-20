@@ -26,9 +26,9 @@ export function BlobViewer({ file }: { file: RepoFile }) {
   );
 
   const codeCard = (
-    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] overflow-hidden">
+    <div className="rounded-md border border-border overflow-hidden">
       {/* header */}
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border bg-muted">
         <span className="font-mono text-caption uppercase tracking-widest text-[var(--color-fg-faint)]">
           {lang}
         </span>
@@ -54,17 +54,16 @@ export function BlobViewer({ file }: { file: RepoFile }) {
     </div>
   );
 
-  // Plain (non-renderable) files: code card only.
   if (!isRenderable || isBinary) return codeCard;
 
-  // Markdown / Org: show source above, rendered preview below — mirrors the
-  // README pattern on the repo code page so users get the same read-at-a-glance UX.
+  // Markdown / Org: source above, rendered preview below — mirrors the README
+  // pattern so users get the same read-at-a-glance UX.
   return (
     <div className="flex flex-col gap-4">
       {codeCard}
-      <article className="rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg)]">
-        <header className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-2.5">
-          <span className="font-mono text-ui font-medium uppercase tracking-widest text-[var(--color-fg-muted)]">
+      <article className="rounded-md border border-border bg-background">
+        <header className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+          <span className="font-mono text-ui font-medium uppercase tracking-widest text-muted-foreground">
             preview
           </span>
           <span className="font-mono text-micro text-[var(--color-fg-faint)]">{file.path}</span>

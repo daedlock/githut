@@ -16,13 +16,13 @@ export function ComingSoon({ title, description, icon: Icon, className }: Coming
         className,
       )}
     >
-      {Icon ? <Icon className="h-8 w-8 text-[var(--color-fg-faint)]" strokeWidth={1.5} /> : null}
-      <h2 className="font-mono text-title font-medium tracking-tight">
+      {Icon ? <Icon className="size-8 text-[var(--color-fg-faint)]" strokeWidth={1.5} /> : null}
+      <h2 className="font-mono text-title font-medium tracking-tight text-foreground">
         {title}
-        <span className="text-[var(--color-accent)]">_</span>
+        <span className="text-primary">_</span>
       </h2>
       {description ? (
-        <p className="max-w-sm text-body text-[var(--color-fg-muted)]">{description}</p>
+        <p className="max-w-sm text-body text-muted-foreground">{description}</p>
       ) : null}
       <div className="mt-2 font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
         coming soon

@@ -27,7 +27,7 @@ export function ThemeToggle() {
       aria-label={`${LABEL[preference]} — click to cycle`}
       title={LABEL[preference]}
     >
-      <Icon className="h-4 w-4" />
+      <Icon />
     </Button>
   );
 }

@@ -52,7 +52,7 @@ export function DiffView({ patch, lang = "text", mode = "unified", className }: 
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-subtle)]",
+        "overflow-hidden rounded-md border border-border bg-muted",
         className,
       )}
     >
@@ -73,7 +73,7 @@ export function DiffView({ patch, lang = "text", mode = "unified", className }: 
         <div className="w-max min-w-full">
           {hunks.map((hunk, hIdx) => (
             <Fragment key={hIdx}>
-              {hIdx > 0 && <div className="h-px bg-[var(--color-border)]" />}
+              {hIdx > 0 && <div className="h-px bg-border" />}
               <HunkHeader hunk={hunk} />
               {mode === "unified" ? (
                 <UnifiedHunk
@@ -318,7 +318,7 @@ function SplitHunk({
     // `min-w-0` on grid children is the key: it lets each column shrink to its
     // share (50%) so overflow-x-auto can actually compute a scrollable overflow
     // instead of the column growing to fit content and pushing the grid wider.
-    <div className="grid grid-cols-2 divide-x divide-[var(--color-border)]">
+    <div className="grid grid-cols-2 divide-x divide-border">
       <div className="min-w-0 overflow-x-auto">
         {/* Same w-max/min-w-full pattern as unified mode — all rows in this
             column share the widest-row width so bg tints don't stop mid-row
@@ -415,7 +415,7 @@ function SplitPadRow() {
   // Empty counterpart on the other side of a split — tinted with bg-subtle so
   // the viewer reads the asymmetry at a glance. No gutter digit, no marker.
   return (
-    <div className="flex h-[20px] items-stretch bg-[var(--color-bg-subtle)]/60">
+    <div className="flex h-[20px] items-stretch bg-muted/60">
       <span className="w-10 flex-shrink-0" />
       <span className="w-5 flex-shrink-0" />
       <span className="flex-1" />
@@ -611,11 +611,11 @@ function plainTokens(content: string): CodeLine {
 
 function DiffSkeleton() {
   return (
-    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg-subtle)]">
-      <div className="border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-3 py-1.5">
+    <div className="overflow-hidden rounded-md border border-border bg-muted">
+      <div className="border-b border-border bg-muted px-3 py-1.5">
         <Skeleton className="h-3 w-48" />
       </div>
-      <div className="skeleton-fade space-y-1 p-3">
+      <div className="skeleton-fade flex flex-col gap-1 p-3">
         {Array.from({ length: 10 }).map((_, i) => (
           <Skeleton key={i} className="h-4" style={{ width: `${50 + (i * 17) % 40}%` }} />
         ))}

@@ -27,8 +27,8 @@ function SettingsPage() {
         <ShellHeader
           bordered
           subtitle={
-            <span className="inline-flex items-center gap-1.5 font-mono text-xs text-[var(--color-fg-muted)]">
-              <SettingsIcon className="h-3 w-3" />
+            <span className="inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+              <SettingsIcon className="size-3" />
               settings
             </span>
           }
@@ -45,11 +45,11 @@ function SettingsPage() {
       <Container className="py-8 sm:py-10">
         {/* Editorial masthead — Berkeley Mono, oversized, no decoration */}
         <header className="mb-10">
-          <h1 className="font-mono text-[32px] font-medium leading-none tracking-tight text-[var(--color-fg)]">
+          <h1 className="font-mono text-display font-medium leading-none tracking-tight text-foreground">
             Settings
-            <span className="text-[var(--color-accent)]">_</span>
+            <span className="text-primary">_</span>
           </h1>
-          <p className="mt-2 font-sans text-sm text-[var(--color-fg-muted)]">
+          <p className="mt-2 font-sans text-body text-muted-foreground">
             Configure how GitHut looks and behaves. Changes persist to this browser.
           </p>
         </header>
@@ -73,7 +73,7 @@ function SettingsPage() {
         >
           <ComingSoon>
             Signed in as{" "}
-            <span className="font-mono text-[var(--color-fg)]">{me?.login ?? "…"}</span>. Sign-out
+            <span className="font-mono text-foreground">{me?.login ?? "…"}</span>. Sign-out
             lives in the header menu; deeper controls arrive with M5.
           </ComingSoon>
         </SettingsSection>
@@ -103,13 +103,13 @@ function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mb-12 border-t border-[var(--color-border)] pt-8">
+    <section className="mb-12 border-t border-border pt-8">
       <div className="mb-6 flex flex-col gap-1">
-        <h2 className="font-mono text-[11px] font-medium uppercase tracking-widest text-[var(--color-fg-muted)]">
+        <h2 className="font-mono text-micro font-medium uppercase tracking-widest text-muted-foreground">
           {title}
         </h2>
         {description ? (
-          <p className="max-w-2xl font-sans text-sm text-[var(--color-fg-muted)]">
+          <p className="max-w-2xl font-sans text-body text-muted-foreground">
             {description}
           </p>
         ) : null}
@@ -121,7 +121,7 @@ function SettingsSection({
 
 function ComingSoon({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--color-border)] px-4 py-5 font-sans text-sm italic text-[var(--color-fg-faint)]">
+    <div className="rounded-md border border-dashed border-border px-4 py-5 font-sans text-body italic text-[var(--color-fg-faint)]">
       {children}
     </div>
   );

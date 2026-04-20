@@ -30,17 +30,19 @@ export function InboxPill({ count = 0, onClick }: InboxPillProps) {
       aria-label={hasUnread ? `Inbox — ${count} unread` : "Inbox"}
       title="Inbox"
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-2 py-1",
-        "text-caption tabular-nums",
-        "text-[var(--color-fg-muted)]",
-        "transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]",
+        "inline-flex items-center gap-1.5 rounded-md px-2 py-1",
+        "text-caption tabular-nums text-muted-foreground",
+        "outline-none transition-colors",
+        "hover:bg-muted hover:text-foreground",
+        "focus-visible:bg-muted focus-visible:text-foreground",
+        "focus-visible:ring-1 focus-visible:ring-ring/20",
       )}
     >
       <span
         aria-hidden
         className={cn(
-          "inline-block h-1.5 w-1.5 rounded-full",
-          hasUnread ? "bg-[var(--color-accent)]" : "bg-[var(--color-fg-faint)]",
+          "inline-block size-1.5 rounded-full",
+          hasUnread ? "bg-primary" : "bg-[var(--color-fg-faint)]",
         )}
       />
       <span>{count}</span>

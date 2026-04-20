@@ -31,40 +31,38 @@ export function RepoRow({ repo, showOwner = false, onClick }: RepoRowProps) {
     <button
       type="button"
       onClick={() => onClick?.(repo)}
-      className="group flex w-full items-center gap-3 border-b border-[var(--color-border)] px-4 py-2.5 text-left transition-colors last:border-b-0 hover:bg-[var(--color-bg-sunken)] focus-visible:bg-[var(--color-bg-sunken)] focus-visible:outline-none"
+      className="group flex w-full items-center gap-3 border-b border-border px-4 py-2.5 text-left outline-none transition-colors last:border-b-0 hover:bg-accent focus-visible:bg-accent"
     >
-      <div className="min-w-0 flex-1 space-y-1">
+      <div className="min-w-0 flex-1 flex flex-col gap-1">
         <div className="flex items-center gap-2 font-mono text-body leading-none">
-          {showOwner ? (
-            <span className="text-[var(--color-fg-muted)]">{repo.owner.login}/</span>
-          ) : null}
-          <span className="font-medium text-[var(--color-fg)] truncate">{repo.name}</span>
+          {showOwner ? <span className="text-muted-foreground">{repo.owner.login}/</span> : null}
+          <span className="font-medium text-foreground truncate">{repo.name}</span>
           {repo.visibility === "private" ? (
             <Lock
-              className="h-3 w-3 flex-shrink-0 text-[var(--color-fg-faint)]"
+              className="size-3 flex-shrink-0 text-[var(--color-fg-faint)]"
               aria-label="Private"
             />
           ) : null}
         </div>
         {repo.description ? (
-          <p className="truncate text-ui text-[var(--color-fg-muted)]">{repo.description}</p>
+          <p className="truncate text-ui text-muted-foreground">{repo.description}</p>
         ) : (
           <p className="truncate text-ui text-[var(--color-fg-faint)] italic">No description</p>
         )}
       </div>
 
-      <div className="flex flex-shrink-0 items-center gap-3 font-mono text-caption text-[var(--color-fg-muted)]">
+      <div className="flex flex-shrink-0 items-center gap-3 font-mono text-caption text-muted-foreground">
         {repo.language ? <span className="hidden sm:inline">{repo.language}</span> : null}
         {repo.stars > 0 ? (
           <span className="hidden items-center gap-1 sm:inline-flex">
-            <Star className="h-3 w-3" />
+            <Star className="size-3" />
             {formatStars(repo.stars)}
           </span>
         ) : null}
         <span className="hidden md:inline text-[var(--color-fg-faint)]">
           {formatPushed(repo.pushedAt)}
         </span>
-        <ChevronRight className="h-4 w-4 text-[var(--color-fg-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--color-fg-muted)]" />
+        <ChevronRight className="size-4 text-[var(--color-fg-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
       </div>
     </button>
   );

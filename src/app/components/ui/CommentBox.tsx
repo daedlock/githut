@@ -294,9 +294,9 @@ export function CommentBox({
 
   return (
     <div className={cn("flex flex-col", className)}>
-      <div className="flex items-center border-b border-[var(--color-border)]">
+      <div className="flex items-center border-b border-border">
         <TabBtn active={mode === "write"} onClick={() => setMode("write")}>
-          <Pencil className="h-3 w-3" />
+          <Pencil className="size-3" />
           Write
         </TabBtn>
         <TabBtn
@@ -304,7 +304,7 @@ export function CommentBox({
           onClick={() => setMode("preview")}
           disabled={!value.trim()}
         >
-          <Eye className="h-3 w-3" />
+          <Eye className="size-3" />
           Preview
         </TabBtn>
         <span className="ml-auto select-none pr-3 font-mono text-micro text-[var(--color-fg-faint)]">
@@ -326,7 +326,7 @@ export function CommentBox({
             rows={rows}
             disabled={disabled}
             autoFocus={autoFocus}
-            className="w-full resize-y bg-[var(--color-bg)] px-3 py-2.5 text-body text-[var(--color-fg)] placeholder:text-[var(--color-fg-faint)] focus:outline-none disabled:opacity-50"
+            className="w-full resize-y bg-background px-3 py-2.5 text-body text-foreground placeholder:text-[var(--color-fg-faint)] focus:outline-none disabled:opacity-50"
           />
           <PopoverContent
             align="start"
@@ -389,7 +389,7 @@ export function CommentBox({
               <GithubMarkdown>{value}</GithubMarkdown>
             </div>
           ) : (
-            <p className="text-body italic text-[var(--color-fg-faint)]">Nothing to preview.</p>
+            <p className="text-body italic text-muted-foreground">Nothing to preview.</p>
           )}
         </div>
       )}
@@ -416,10 +416,11 @@ function TabBtn({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-ui font-medium transition-colors",
+        "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-ui font-medium",
+        "outline-none transition-colors",
         active
-          ? "border-[var(--color-accent)] text-[var(--color-fg)]"
-          : "border-transparent text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] disabled:cursor-not-allowed disabled:opacity-40",
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40",
       )}
     >
       {children}

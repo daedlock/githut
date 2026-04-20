@@ -18,6 +18,7 @@ import {
   type RepoIssue,
   type RepoIssueComment,
 } from "@/app/features/issues/schemas";
+import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 
 export type IssueDetailProps = {
@@ -75,9 +76,13 @@ export function IssueDetail({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-body text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)]"
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-sm px-1 py-0.5 -ml-1",
+            "text-body text-muted-foreground outline-none transition-colors",
+            "hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/20",
+          )}
         >
-          <X className="h-3.5 w-3.5" />
+          <X className="size-3.5" />
           Back to issues
         </button>
         {issue && (
@@ -89,12 +94,12 @@ export function IssueDetail({
           >
             {issue.state === "open" ? (
               <>
-                <CheckCircle2 className="h-3.5 w-3.5" />
+                <CheckCircle2 data-icon="inline-start" />
                 Close issue
               </>
             ) : (
               <>
-                <CircleDot className="h-3.5 w-3.5" />
+                <CircleDot data-icon="inline-start" />
                 Reopen issue
               </>
             )}
@@ -111,16 +116,16 @@ export function IssueDetail({
       ) : (
         <>
           <div className="mb-5">
-            <h1 className="text-xl font-semibold leading-snug tracking-tight text-[var(--color-fg)] sm:text-2xl">
+            <h1 className="text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">
               {issue.title}{" "}
               <span className="font-mono text-title font-normal text-[var(--color-fg-faint)]">
                 #{issue.number}
               </span>
             </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-body text-[var(--color-fg-muted)]">
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-body text-muted-foreground">
               <IssueStatePill state={issue.state} />
               <span>
-                <span className="font-medium text-[var(--color-fg)]">{issue.user.login}</span>
+                <span className="font-medium text-foreground">{issue.user.login}</span>
                 {" opened this issue "}
                 {formatRelativeTime(issue.created_at)}
               </span>
@@ -133,7 +138,7 @@ export function IssueDetail({
 
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
             {/* Main column */}
-            <div className="min-w-0 flex-1 space-y-3">
+            <div className="min-w-0 flex-1 flex flex-col gap-3">
               <CommentCard
                 login={issue.user.login}
                 avatarUrl={issue.user.avatar_url}
@@ -177,7 +182,7 @@ export function IssueDetail({
                     {me?.avatar_url && (
                       <Avatar login={me.login} avatarUrl={me.avatar_url} size="sm" />
                     )}
-                    <span className="text-body font-medium text-[var(--color-fg)]">
+                    <span className="text-body font-medium text-foreground">
                       Add a comment
                     </span>
                   </CardHeader>
@@ -206,8 +211,8 @@ export function IssueDetail({
 
             {/* Sidebar */}
             <aside className="w-full lg:w-52 lg:flex-shrink-0">
-              <div className="space-y-5">
-                <SidebarSection icon={<Tag className="h-3.5 w-3.5" />} title="Labels">
+              <div className="flex flex-col gap-5">
+                <SidebarSection icon={<Tag className="size-3.5" />} title="Labels">
                   {issue.labels.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
                       {issue.labels.map((label) => (
@@ -219,7 +224,7 @@ export function IssueDetail({
                   )}
                 </SidebarSection>
 
-                <SidebarSection icon={<User className="h-3.5 w-3.5" />} title="Assignees">
+                <SidebarSection icon={<User className="size-3.5" />} title="Assignees">
                   <AssigneeList assignees={issue.assignees} variant="rows" />
                 </SidebarSection>
               </div>

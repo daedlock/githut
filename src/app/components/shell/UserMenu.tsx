@@ -19,14 +19,11 @@ export function UserMenu({ login, avatarUrl, onSignOut }: UserMenuProps) {
        * not primary navigation, so it doesn't belong in the top-bar action row.
        */}
       <ThemeToggle />
-      <Link
-        to="/settings"
-        aria-label="Settings"
-        title="Settings"
-        className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)]"
-      >
-        <Settings className="h-4 w-4" />
-      </Link>
+      <Button variant="ghost" size="icon" asChild aria-label="Settings" title="Settings">
+        <Link to="/settings">
+          <Settings />
+        </Link>
+      </Button>
       <Button
         variant="ghost"
         size="icon"
@@ -34,7 +31,7 @@ export function UserMenu({ login, avatarUrl, onSignOut }: UserMenuProps) {
         aria-label="Sign out"
         title="Sign out"
       >
-        <LogOut className="h-4 w-4" />
+        <LogOut />
       </Button>
     </>
   );

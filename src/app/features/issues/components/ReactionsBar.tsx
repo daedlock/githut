@@ -27,7 +27,7 @@ export function ReactionsBar({
   const hasAny = reactionsHaveAny(reactions);
 
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-[var(--color-border)] pt-2.5">
+    <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-border pt-2.5">
       {REACTION_CONTENTS.filter((k) => (reactions[k] ?? 0) > 0).map((k) => {
         const mineId = myReactions.get(k);
         const mine = mineId != null;
@@ -39,10 +39,12 @@ export function ReactionsBar({
             aria-pressed={mine}
             title={mine ? "Remove your reaction" : `React with ${k}`}
             className={cn(
-              "inline-flex h-5 items-center gap-1 rounded-full border px-2 leading-none transition-colors",
+              "inline-flex h-5 items-center gap-1 rounded-full border px-2 leading-none",
+              "outline-none transition-colors",
+              "focus-visible:ring-1 focus-visible:ring-ring/20",
               mine
-                ? "border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_12%,var(--color-bg))] text-[var(--color-accent)]"
-                : "border-[var(--color-border)] bg-[var(--color-bg-subtle)] text-[var(--color-fg-muted)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-sunken)]",
+                ? "border-primary bg-[color-mix(in_oklab,var(--color-primary)_12%,var(--color-bg))] text-primary"
+                : "border-border bg-muted text-muted-foreground hover:border-input hover:bg-accent",
             )}
           >
             {/* Explicit sizing — system emoji fonts ignore text-xs/text-caption
@@ -66,14 +68,16 @@ export function ReactionsBar({
           type="button"
           onClick={() => setPickerOpen((v) => !v)}
           title="Add reaction"
+          aria-label="Add reaction"
           className={cn(
-            "inline-flex h-5 items-center gap-1 rounded-full border px-2 leading-none transition-colors",
-            hasAny
-              ? "border-[var(--color-border)] text-[var(--color-fg-faint)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg-muted)]"
-              : "border-dashed border-[var(--color-border)] text-[var(--color-fg-faint)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg-muted)]",
+            "inline-flex h-5 items-center gap-1 rounded-full border px-2 leading-none",
+            "outline-none transition-colors",
+            "focus-visible:ring-1 focus-visible:ring-ring/20",
+            "text-[var(--color-fg-faint)] hover:text-muted-foreground hover:border-input",
+            hasAny ? "border-border" : "border-dashed border-border",
           )}
         >
-          <Smile className="h-3 w-3" />
+          <Smile className="size-3" />
         </button>
 
         {pickerOpen && (
@@ -83,7 +87,7 @@ export function ReactionsBar({
               onClick={() => setPickerOpen(false)}
               role="presentation"
             />
-            <div className="absolute left-0 top-full z-20 mt-1.5 flex gap-0.5 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-bg)] p-1 shadow-lg">
+            <div className="absolute left-0 top-full z-20 mt-1.5 flex gap-0.5 rounded-md border border-input bg-popover p-1 shadow-md ring-1 ring-foreground/10">
               {REACTION_CONTENTS.map((k) => {
                 const mineId = myReactions.get(k);
                 const mine = mineId != null;
@@ -97,10 +101,12 @@ export function ReactionsBar({
                       setPickerOpen(false);
                     }}
                     className={cn(
-                      "flex h-6 w-6 items-center justify-center rounded leading-none transition-colors",
+                      "flex size-6 items-center justify-center rounded-sm leading-none",
+                      "outline-none transition-colors",
+                      "focus-visible:ring-1 focus-visible:ring-ring/20",
                       mine
-                        ? "bg-[color-mix(in_oklab,var(--color-accent)_14%,var(--color-bg))] ring-1 ring-[var(--color-accent)]"
-                        : "hover:bg-[var(--color-bg-sunken)]",
+                        ? "bg-[color-mix(in_oklab,var(--color-primary)_14%,var(--color-bg))] ring-1 ring-primary"
+                        : "hover:bg-accent",
                     )}
                   >
                     <span className="text-[13px] leading-none">{REACTION_EMOJIS[k]}</span>

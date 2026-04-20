@@ -5,11 +5,11 @@ export type HomeWelcomeProps = {
 
 export function HomeWelcome({ name, login }: HomeWelcomeProps) {
   return (
-    <div className="space-y-4">
-      <h1 className="font-mono text-display font-medium">
-        Welcome, <span className="text-[var(--color-accent)]">{name || login}</span>
+    <div className="flex flex-col gap-4">
+      <h1 className="font-mono text-display font-medium text-foreground">
+        Welcome, <span className="text-primary">{name || login}</span>
       </h1>
-      <p className="max-w-md text-body text-[var(--color-fg-muted)]">
+      <p className="max-w-md text-body text-muted-foreground">
         Authenticated via GitHub. Token lives in your browser only — the Worker never sees it after
         callback.
       </p>

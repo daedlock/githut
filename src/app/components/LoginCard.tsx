@@ -20,16 +20,16 @@ export type LoginCardProps = {
 export function LoginCard({ errorMessage, onLogin }: LoginCardProps) {
   return (
     <div className="w-full max-w-[360px]">
-      <div className="mb-10 space-y-3">
+      <div className="mb-10 flex flex-col gap-3">
         <div className="inline-flex items-center gap-2 font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]">
-          <span className="h-px w-6 bg-[var(--color-border-strong)]" />
+          <span className="h-px w-6 bg-input" />
           <span>v0.1 — dev</span>
         </div>
-        <h1 className="font-mono text-display font-medium">
+        <h1 className="font-mono text-display font-medium text-foreground">
           Sign&nbsp;in
-          <span className="text-[var(--color-accent)]">_</span>
+          <span className="text-primary">_</span>
         </h1>
-        <p className="text-body text-[var(--color-fg-muted)]">
+        <p className="text-body text-muted-foreground">
           A faster read-path for GitHub. Built for engineers who live in issues, PRs, and diffs.
         </p>
       </div>
@@ -37,15 +37,15 @@ export function LoginCard({ errorMessage, onLogin }: LoginCardProps) {
       {errorMessage ? (
         <div
           role="alert"
-          className="mb-4 rounded-[var(--radius-md)] border border-[var(--color-danger)]/40 bg-[var(--color-danger)]/10 px-3 py-2 font-mono text-ui text-[var(--color-danger)]"
+          className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 font-mono text-ui text-destructive"
         >
           {errorMessage}
         </div>
       ) : null}
 
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         <Button size="lg" className="w-full" onClick={onLogin}>
-          <GitHubMark className="h-4 w-4" />
+          <GitHubMark className="size-4" />
           Continue with GitHub
         </Button>
 
@@ -55,7 +55,7 @@ export function LoginCard({ errorMessage, onLogin }: LoginCardProps) {
         </p>
       </div>
 
-      <div className="mt-16 flex items-center gap-3 border-t border-[var(--color-border)] pt-5 text-caption text-[var(--color-fg-faint)]">
+      <div className="mt-16 flex items-center gap-3 border-t border-border pt-5 text-caption text-[var(--color-fg-faint)]">
         <span className="font-mono uppercase tracking-widest">Shortcuts</span>
         <div className="ml-auto flex items-center gap-1.5">
           <Kbd>?</Kbd>

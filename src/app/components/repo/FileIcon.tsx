@@ -211,14 +211,14 @@ export function FileIcon({ filename, className }: FileIconProps) {
   const Icon = spec.icon;
   // `color` inline wins over any CSS cascade, and since we reference a CSS
   // var it still swaps with the theme.
-  return <Icon className={cn("h-3.5 w-3.5 flex-shrink-0", className)} style={{ color: spec.color }} />;
+  return <Icon className={cn("size-3.5 flex-shrink-0", className)} style={{ color: spec.color }} />;
 }
 
 /** Directory icon — intentionally muted so language-colored files pop. */
 export function DirIcon({ className }: { className?: string }) {
   return (
     <Dot
-      className={cn("h-3.5 w-3.5 flex-shrink-0 text-[var(--color-fg-faint)]", className)}
+      className={cn("size-3.5 flex-shrink-0 text-[var(--color-fg-faint)]", className)}
     />
   );
 }

@@ -44,21 +44,26 @@ export function FileDiff({
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] bg-[var(--color-bg-subtle)]",
+        "overflow-hidden rounded-lg border border-input bg-muted",
         className,
       )}
     >
-      <header className="flex items-center gap-3 border-b border-[var(--color-border)] px-3 py-2">
+      <header className="flex items-center gap-3 border-b border-border px-3 py-2">
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}
-          className="flex-shrink-0 rounded p-0.5 text-[var(--color-fg-faint)] transition-colors hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)]"
+          className={cn(
+            "flex-shrink-0 rounded-sm p-0.5 text-[var(--color-fg-faint)]",
+            "outline-none transition-colors",
+            "hover:bg-accent hover:text-foreground",
+            "focus-visible:ring-1 focus-visible:ring-ring/20",
+          )}
           aria-label={collapsed ? "Expand diff" : "Collapse diff"}
         >
           {collapsed ? (
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRight className="size-3.5" />
           ) : (
-            <ChevronDown className="h-3.5 w-3.5" />
+            <ChevronDown className="size-3.5" />
           )}
         </button>
 
@@ -69,12 +74,12 @@ export function FileDiff({
         <ChangeStats additions={additions} deletions={deletions} />
 
         {hasPatch && (
-          <div className="ml-2 flex items-center rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg)] p-0.5">
+          <div className="ml-2 flex items-center rounded-sm border border-border bg-background p-0.5">
             <ModeBtn active={mode === "unified"} onClick={() => setMode("unified")} title="Unified">
-              <Rows2 className="h-3 w-3" />
+              <Rows2 className="size-3" />
             </ModeBtn>
             <ModeBtn active={mode === "split"} onClick={() => setMode("split")} title="Split">
-              <Columns2 className="h-3 w-3" />
+              <Columns2 className="size-3" />
             </ModeBtn>
           </div>
         )}
@@ -117,11 +122,11 @@ function StatusBadge({ status }: { status: FileStatus }) {
       ? "bg-[var(--diff-add-gutter)] text-[var(--diff-add-marker)]"
       : status === "removed"
         ? "bg-[var(--diff-del-gutter)] text-[var(--diff-del-marker)]"
-        : "bg-[var(--color-bg-sunken)] text-[var(--color-fg-muted)]";
+        : "bg-accent text-muted-foreground";
   return (
     <span
       className={cn(
-        "inline-flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-[var(--radius-xs)] font-mono text-micro font-semibold",
+        "inline-flex size-[18px] flex-shrink-0 items-center justify-center rounded-sm font-mono text-micro font-semibold",
         tone,
       )}
       aria-label={status}
@@ -151,7 +156,7 @@ function Filename({
           <span className="flex-shrink-0 text-[var(--color-fg-faint)]">→</span>
         </>
       )}
-      <span className="truncate font-medium text-[var(--color-fg)]">{filename}</span>
+      <span className="truncate font-medium text-foreground">{filename}</span>
     </div>
   );
 }
@@ -187,10 +192,10 @@ function ChangeStats({ additions, deletions }: { additions: number; deletions: n
           <span
             key={i}
             className={cn(
-              "h-2 w-2 rounded-[1px]",
+              "size-2 rounded-[1px]",
               kind === "add" && "bg-[var(--diff-add-marker)]",
               kind === "del" && "bg-[var(--diff-del-marker)]",
-              kind === "empty" && "bg-[var(--color-bg-sunken)]",
+              kind === "empty" && "bg-accent",
             )}
           />
         ))}
@@ -216,10 +221,12 @@ function ModeBtn({
       onClick={onClick}
       title={title}
       className={cn(
-        "inline-flex h-5 w-5 items-center justify-center rounded-[var(--radius-xs)] transition-colors",
+        "inline-flex size-5 items-center justify-center rounded-sm",
+        "outline-none transition-colors",
+        "focus-visible:ring-1 focus-visible:ring-ring/20",
         active
-          ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
-          : "text-[var(--color-fg-faint)] hover:text-[var(--color-fg)]",
+          ? "bg-accent text-accent-foreground"
+          : "text-[var(--color-fg-faint)] hover:text-foreground",
       )}
     >
       {children}

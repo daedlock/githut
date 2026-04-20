@@ -33,11 +33,11 @@ export function AssigneeList({
   }
 
   return (
-    <div className="space-y-1.5">
+    <div className="flex flex-col gap-1.5">
       {assignees.map((a) => (
         <div key={a.login} className="flex items-center gap-2">
           <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
-          <span className="text-caption text-[var(--color-fg-muted)]">{a.login}</span>
+          <span className="text-caption text-muted-foreground">{a.login}</span>
         </div>
       ))}
     </div>

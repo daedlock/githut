@@ -38,13 +38,13 @@ export function CommentCard({
     <Card radius="md" tone="default" border="soft" as="article">
       <CardHeader>
         <Avatar login={login} avatarUrl={avatarUrl} size="sm" />
-        <p className="text-body text-[var(--color-fg-muted)]">
-          <span className="font-medium text-[var(--color-fg)]">{login}</span>
+        <p className="text-body text-muted-foreground">
+          <span className="font-medium text-foreground">{login}</span>
           {" commented "}
           {formatRelativeTime(date)}
         </p>
         {isAuthor && (
-          <span className="ml-auto rounded border border-[var(--color-border)] px-1.5 py-px font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
+          <span className="ml-auto rounded-sm border border-border px-1.5 py-px font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
             Author
           </span>
         )}

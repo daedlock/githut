@@ -49,9 +49,9 @@ export function RepoListWidget({ repos, isPending, onRepoClick }: RepoListWidget
       actions={<GroupToggle value={groupMode} onChange={setGroupMode} />}
       bodyClassName="p-0"
     >
-      <div className="border-b border-[var(--color-border)] px-4 py-3">
+      <div className="border-b border-border px-4 py-3">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-fg-faint)]" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -89,7 +89,7 @@ export function RepoListWidget({ repos, isPending, onRepoClick }: RepoListWidget
 
 function OwnerHeader({ owner, count }: { owner: string; count: number }) {
   return (
-    <div className="flex items-baseline gap-2 bg-[var(--color-bg-sunken)]/50 px-4 py-1.5 font-mono text-micro uppercase tracking-widest text-[var(--color-fg-muted)]">
+    <div className="flex items-baseline gap-2 bg-accent/50 px-4 py-1.5 font-mono text-micro uppercase tracking-widest text-muted-foreground">
       <span>{owner}</span>
       <span className="text-[var(--color-fg-faint)]">
         {count} {count === 1 ? "repo" : "repos"}
@@ -115,9 +115,9 @@ function RepoRowsSkeleton() {
       {widths.map((titleW, i) => (
         <div
           key={i}
-          className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-2.5 last:border-b-0"
+          className="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
         >
-          <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="min-w-0 flex-1 flex flex-col gap-1.5">
             <Skeleton className="h-3.5" style={{ width: `${titleW}%` }} />
             <Skeleton className="h-3" style={{ width: `${Math.min(90, titleW + 20)}%` }} />
           </div>
@@ -137,17 +137,18 @@ function GroupToggle({
   onChange: (next: GroupMode) => void;
 }) {
   return (
-    <div className="flex items-center rounded-[var(--radius-sm)] border border-[var(--color-border-strong)] p-0.5">
+    <div className="flex items-center rounded-md border border-input p-0.5">
       {(["owner", "flat"] as const).map((mode) => (
         <button
           key={mode}
           type="button"
           onClick={() => onChange(mode)}
           className={cn(
-            "h-5 px-2 font-mono text-micro uppercase tracking-widest transition-colors",
+            "h-5 px-2 rounded-sm font-mono text-micro uppercase tracking-widest",
+            "outline-none transition-colors",
             value === mode
-              ? "bg-[var(--color-fg)] text-[var(--color-bg)]"
-              : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
+              ? "bg-foreground text-background"
+              : "text-muted-foreground hover:text-foreground",
           )}
         >
           {mode === "owner" ? "by org" : "flat"}

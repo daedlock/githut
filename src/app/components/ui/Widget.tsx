@@ -14,17 +14,17 @@ export function Widget({ title, meta, actions, children, className, bodyClassNam
   return (
     <section
       className={cn(
-        "flex flex-col rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-bg-subtle)]",
+        "flex flex-col rounded-md border border-input bg-muted",
         className,
       )}
     >
-      <header className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-2.5">
+      <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
         <div className="flex items-baseline gap-2 min-w-0">
-          <h2 className="font-mono text-ui font-medium uppercase tracking-widest truncate">
+          <h2 className="font-mono text-ui font-medium uppercase tracking-widest text-foreground truncate">
             {title}
           </h2>
           {meta ? (
-            <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
+            <span className="font-mono text-micro tabular-nums uppercase tracking-widest text-[var(--color-fg-faint)]">
               {meta}
             </span>
           ) : null}

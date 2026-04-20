@@ -28,15 +28,15 @@ export function CommitRow({ commit, owner, repo }: CommitRowProps) {
   const avatar = commit.author?.avatar_url;
 
   return (
-    <div className="group flex items-start gap-3 border-b border-[var(--color-border)] px-4 py-3 last:border-b-0 transition-colors hover:bg-[var(--color-bg-subtle)]">
+    <div className="group flex items-start gap-3 border-b border-border px-4 py-3 last:border-b-0 transition-colors hover:bg-muted">
       {/* Title + body */}
       <div className="min-w-0 flex-1">
         <Link
           to="/$owner/$repo/commit/$sha"
           params={{ owner, repo, sha: commit.sha }}
-          className="block"
+          className="block outline-none rounded-sm focus-visible:ring-1 focus-visible:ring-ring/20"
         >
-          <p className="truncate text-sm font-medium text-[var(--color-fg)] group-hover:text-[var(--color-accent)]">
+          <p className="truncate text-sm font-medium text-foreground group-hover:text-primary">
             {title}
           </p>
         </Link>
@@ -47,16 +47,18 @@ export function CommitRow({ commit, owner, repo }: CommitRowProps) {
               type="button"
               onClick={() => setBodyOpen((o) => !o)}
               className={cn(
-                "mt-1 inline-flex items-center gap-1 rounded-[var(--radius-xs)] border border-[var(--color-border)] px-1.5 py-px",
+                "mt-1 inline-flex items-center gap-1 rounded-sm border border-border px-1.5 py-px",
                 "font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]",
-                "transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg-muted)]",
+                "outline-none transition-colors",
+                "hover:border-input hover:text-muted-foreground",
+                "focus-visible:ring-1 focus-visible:ring-ring/20",
               )}
               aria-expanded={bodyOpen}
             >
               {bodyOpen ? "hide body" : "…"}
             </button>
             {bodyOpen && (
-              <pre className="mt-2 whitespace-pre-wrap rounded-[var(--radius-xs)] bg-[var(--color-bg-subtle)] p-3 font-mono text-[12px] leading-relaxed text-[var(--color-fg-muted)]">
+              <pre className="mt-2 whitespace-pre-wrap rounded-sm bg-muted p-3 font-mono text-[12px] leading-relaxed text-muted-foreground">
                 {body}
               </pre>
             )}
@@ -64,17 +66,17 @@ export function CommitRow({ commit, owner, repo }: CommitRowProps) {
         )}
 
         {/* Author + time row */}
-        <div className="mt-1 flex items-center gap-2 text-xs text-[var(--color-fg-muted)]">
+        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
           {avatar ? (
             <img
               src={avatar}
               alt=""
-              className="h-4 w-4 flex-shrink-0 rounded-full border border-[var(--color-border)]"
+              className="size-4 flex-shrink-0 rounded-full border border-border"
             />
           ) : (
-            <GitCommit className="h-3 w-3 flex-shrink-0 text-[var(--color-fg-faint)]" />
+            <GitCommit className="size-3 flex-shrink-0 text-[var(--color-fg-faint)]" />
           )}
-          <span className="truncate font-medium text-[var(--color-fg)]">{displayAuthor}</span>
+          <span className="truncate font-medium text-foreground">{displayAuthor}</span>
           <span className="text-[var(--color-fg-faint)]">
             committed {formatRelativeTime(commit.commit.author.date)}
           </span>
@@ -114,19 +116,25 @@ function ShaChip({
       <Link
         to="/$owner/$repo/commit/$sha"
         params={{ owner, repo, sha }}
-        className="rounded-[var(--radius-xs)] border border-[var(--color-border)] bg-[var(--color-bg)] px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-[var(--color-fg-muted)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg)]"
+        className={cn(
+          "rounded-sm border border-border bg-background px-1.5 py-0.5",
+          "font-mono text-caption tabular-nums text-muted-foreground",
+          "outline-none transition-colors",
+          "hover:border-input hover:text-foreground",
+          "focus-visible:ring-1 focus-visible:ring-ring/20",
+        )}
         title={sha}
       >
         {shortSha}
       </Link>
       <Button
         variant="ghost"
-        size="icon"
+        size="icon-xs"
         onClick={onCopy}
         title={copied ? "Copied!" : "Copy full SHA"}
         aria-label="Copy full SHA"
       >
-        <Copy className="h-3 w-3" />
+        <Copy />
       </Button>
     </div>
   );

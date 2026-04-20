@@ -5,8 +5,8 @@ import { cn } from "@/app/lib/cn";
 const statusVariants = cva("font-mono text-body", {
   variants: {
     tone: {
-      muted: "text-[var(--color-fg-muted)]",
-      danger: "text-[var(--color-danger)]",
+      muted: "text-muted-foreground",
+      danger: "text-destructive",
     },
   },
   defaultVariants: { tone: "muted" },

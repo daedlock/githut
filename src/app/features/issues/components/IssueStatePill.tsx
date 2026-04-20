@@ -11,7 +11,7 @@ export function IssueStatePill({ state }: { state: "open" | "closed" }) {
           : "bg-[var(--color-issue-closed-bg)] text-[var(--color-issue-closed-fg)]",
       )}
     >
-      {state === "open" ? <CircleDot className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
+      {state === "open" ? <CircleDot className="size-3" /> : <CheckCircle2 className="size-3" />}
       {state === "open" ? "Open" : "Closed"}
     </span>
   );

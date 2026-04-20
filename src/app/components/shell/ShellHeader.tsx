@@ -20,30 +20,24 @@ export type ShellHeaderProps = {
 
 export function ShellHeader({ subtitle, right, bordered = false, className }: ShellHeaderProps) {
   return (
-    <header className={cn(bordered && "border-b border-[var(--color-border)]", className)}>
+    <header className={cn(bordered && "border-b border-border", className)}>
       <Container className="flex items-center gap-4 py-3">
-        {/*
-         * Wordmark as terminal prompt — "GitHut_" with accent cursor.
-         * Matches the login/coming-soon screens so the identity carries across
-         * every view. Clickable home link (replaces the separate back-arrow
-         * that used to sit in the subtitle, which read ambiguously).
-         */}
         <Link
           to="/"
-          className="group inline-flex items-baseline gap-0 font-mono text-body font-medium tracking-tight text-[var(--color-fg)] select-none"
+          className="group inline-flex items-baseline gap-0 font-mono text-body font-medium tracking-tight text-foreground select-none"
           aria-label="Home"
         >
           GitHut
           <span
             aria-hidden
-            className="text-[var(--color-accent)] transition-opacity duration-150 group-hover:opacity-60"
+            className="text-primary transition-opacity duration-150 group-hover:opacity-60"
           >
             _
           </span>
         </Link>
 
         {subtitle ? (
-          <div className="flex min-w-0 items-baseline text-ui text-[var(--color-fg-muted)]">
+          <div className="flex min-w-0 items-baseline text-ui text-muted-foreground">
             {subtitle}
           </div>
         ) : null}

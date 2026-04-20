@@ -37,7 +37,7 @@ export function Breadcrumb({
       <button
         type="button"
         onClick={() => onNavigate("")}
-        className="text-[var(--color-accent)] hover:underline truncate"
+        className="text-primary hover:underline truncate outline-none rounded-sm focus-visible:ring-1 focus-visible:ring-ring/20"
       >
         {repo}
       </button>
@@ -46,14 +46,14 @@ export function Breadcrumb({
         const isLast = i === parts.length - 1;
         return (
           <span key={segPath} className="flex items-center gap-1 min-w-0">
-            <ChevronRight className="h-3.5 w-3.5 text-[var(--color-fg-faint)] flex-shrink-0" />
+            <ChevronRight className="size-3.5 text-[var(--color-fg-faint)] flex-shrink-0" />
             {isLast ? (
-              <span className="text-[var(--color-fg)] truncate">{part}</span>
+              <span className="text-foreground truncate">{part}</span>
             ) : (
               <button
                 type="button"
                 onClick={() => onNavigate(segPath)}
-                className="text-[var(--color-accent)] hover:underline truncate"
+                className="text-primary hover:underline truncate outline-none rounded-sm focus-visible:ring-1 focus-visible:ring-ring/20"
               >
                 {part}
               </button>
@@ -93,17 +93,15 @@ export function FileList({
   const showParent = !!path;
 
   return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] overflow-hidden">
+    <div className="rounded-md border border-border overflow-hidden">
       {/* commit strip */}
-      <div className="flex items-center gap-2 px-4 py-2 bg-[var(--color-bg-subtle)] border-b border-[var(--color-border)]">
-        <GitCommitHorizontal className="h-3.5 w-3.5 text-[var(--color-fg-faint)] flex-shrink-0" />
+      <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-border">
+        <GitCommitHorizontal className="size-3.5 text-[var(--color-fg-faint)] flex-shrink-0" />
         {commitPending || commit === undefined ? (
           <Skeleton className="h-3.5 w-64" />
         ) : commit ? (
           <>
-            <span className="text-ui text-[var(--color-fg)] truncate min-w-0">
-              {commit.message}
-            </span>
+            <span className="text-ui text-foreground truncate min-w-0">{commit.message}</span>
             <span className="ml-auto text-caption font-mono text-[var(--color-fg-faint)] flex-shrink-0 flex items-center gap-2">
               <span>{commit.authorName}</span>
               <span title={commit.date}>{relativeTime(commit.date)}</span>
@@ -137,14 +135,14 @@ export function FileList({
 function ParentRow({ onNavigate }: { onNavigate: () => void }) {
   return (
     <tr
-      className="group border-b border-[var(--color-border)] hover:bg-[var(--color-bg-subtle)] transition-colors duration-75 cursor-pointer"
+      className="group border-b border-border hover:bg-muted transition-colors duration-75 cursor-pointer"
       onClick={onNavigate}
     >
       <td className="pl-4 pr-2 py-2 w-5">
-        <Folder className="h-4 w-4 text-[var(--color-fg-faint)] flex-shrink-0" />
+        <Folder className="size-4 text-[var(--color-fg-faint)] flex-shrink-0" />
       </td>
       <td className="pr-4 py-2">
-        <span className="font-mono text-code text-[var(--color-fg-muted)] group-hover:text-[var(--color-fg)] transition-colors duration-75">
+        <span className="font-mono text-code text-muted-foreground group-hover:text-foreground transition-colors duration-75">
           ..
         </span>
       </td>
@@ -164,27 +162,26 @@ function FileRow({
   return (
     <tr
       className={cn(
-        "group border-b border-[var(--color-border)] last:border-0",
-        "hover:bg-[var(--color-bg-subtle)] transition-colors duration-75",
+        "group border-b border-border last:border-0",
+        "hover:bg-muted transition-colors duration-75",
         onNavigate && "cursor-pointer",
       )}
       onClick={() => onNavigate?.(entry)}
     >
       <td className="pl-4 pr-2 py-2 w-5">
         {isDir ? (
-          <Folder className="h-4 w-4 text-[var(--color-accent)] flex-shrink-0" />
+          <Folder className="size-4 text-primary flex-shrink-0" />
         ) : (
-          <FileText className="h-4 w-4 text-[var(--color-fg-faint)] flex-shrink-0" />
+          <FileText className="size-4 text-[var(--color-fg-faint)] flex-shrink-0" />
         )}
       </td>
       <td className="pr-4 py-2 w-full">
         <span
           className={cn(
-            "font-mono text-code leading-none",
+            "font-mono text-code leading-none transition-colors duration-75",
             isDir
-              ? "text-[var(--color-fg)] group-hover:text-[var(--color-accent)]"
-              : "text-[var(--color-fg-muted)] group-hover:text-[var(--color-fg)]",
-            "transition-colors duration-75",
+              ? "text-foreground group-hover:text-primary"
+              : "text-muted-foreground group-hover:text-foreground",
           )}
         >
           {entry.name}
@@ -196,9 +193,9 @@ function FileRow({
 
 function SkeletonRow() {
   return (
-    <tr className="border-b border-[var(--color-border)] last:border-0">
+    <tr className="border-b border-border last:border-0">
       <td className="pl-4 pr-2 py-2 w-5">
-        <Skeleton className="h-4 w-4" />
+        <Skeleton className="size-4" />
       </td>
       <td className="pr-4 py-2">
         <Skeleton className="h-3.5 w-32" />

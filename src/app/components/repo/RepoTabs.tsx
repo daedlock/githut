@@ -17,7 +17,7 @@ export type RepoTabsProps = {
 
 export function RepoTabs({ tabs }: RepoTabsProps) {
   return (
-    <div className="border-b border-[var(--color-border)]">
+    <div className="border-b border-border">
       <Container as="nav" className="flex items-end gap-0" aria-label="Repository sections">
         {tabs.map((tab) => (
           <Link
@@ -25,18 +25,15 @@ export function RepoTabs({ tabs }: RepoTabsProps) {
             // biome-ignore lint/suspicious/noExplicitAny: dynamic route path is runtime-constructed
             to={tab.to as any}
             className={cn(
-              // Sans UI font for navigation — mono is reserved for eyebrows,
-              // code, and technical metadata. Navigation text should read as
-              // body/UI, same family as the rest of the app's readable copy.
-              // Weight is fixed (no 400→500 shift on active) so there's zero
-              // metric reflow when sliding between tabs; color + underline
-              // already signal active state clearly.
+              // Sans UI font for navigation — mono reserved for eyebrows, code, identifiers.
+              // Fixed weight across active/inactive so there's no metric reflow on tab change.
               "group relative flex items-center gap-1.5 px-3 py-2 text-ui",
-              "text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)]",
+              "text-muted-foreground transition-colors hover:text-foreground",
+              "focus-visible:text-foreground focus-visible:outline-none",
             )}
             activeProps={{
               className:
-                "text-[var(--color-fg)] after:absolute after:inset-x-3 after:-bottom-px after:h-[2px] after:bg-[var(--color-accent)]",
+                "text-foreground after:absolute after:inset-x-3 after:-bottom-px after:h-[2px] after:bg-primary",
             }}
           >
             <span>{tab.label}</span>

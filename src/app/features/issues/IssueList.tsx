@@ -4,6 +4,7 @@ import { Card, CardBody, CardHeader } from "@/app/components/ui/Card";
 import { CommentBox } from "@/app/components/ui/CommentBox";
 import { Container } from "@/app/components/ui/Container";
 import { Input } from "@/app/components/ui/input";
+import { cn } from "@/app/lib/cn";
 import { IssueListSkeleton } from "@/app/features/issues/components/IssueListSkeleton";
 import { IssueRow } from "@/app/features/issues/components/IssueRow";
 import { type StateFilter, StateTab } from "@/app/features/issues/components/StateTab";
@@ -61,18 +62,24 @@ export function IssueList({
           {/* New-issue compose form. Uses a plain form inside so onSubmit wires up. */}
           <form onSubmit={onSubmitIssue}>
             <CardHeader>
-              <span className="font-mono text-micro font-medium uppercase tracking-widest text-[var(--color-fg-muted)]">
+              <span className="font-mono text-micro font-medium uppercase tracking-widest text-muted-foreground">
                 New issue
               </span>
               <button
                 type="button"
                 onClick={onToggleCompose}
-                className="ml-auto rounded p-1 text-[var(--color-fg-faint)] transition-colors hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)]"
+                aria-label="Cancel"
+                className={cn(
+                  "ml-auto rounded-sm p-1 text-[var(--color-fg-faint)]",
+                  "outline-none transition-colors",
+                  "hover:bg-accent hover:text-foreground",
+                  "focus-visible:ring-1 focus-visible:ring-ring/20",
+                )}
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="size-3.5" />
               </button>
             </CardHeader>
-            <CardBody flush className="space-y-3 p-4">
+            <CardBody flush className="flex flex-col gap-3 p-4">
               <Input
                 value={newIssueTitle}
                 onChange={(e) => onNewIssueTitleChange(e.target.value)}
@@ -80,7 +87,7 @@ export function IssueList({
                 className="h-9 text-body font-medium"
                 autoFocus
               />
-              <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border-strong)] focus-within:border-[var(--color-focus)] focus-within:ring-2 focus-within:ring-[var(--color-focus)]/20">
+              <div className="overflow-hidden rounded-md border border-input focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/20">
                 <CommentBox
                   owner={owner}
                   repo={repo}
@@ -126,7 +133,7 @@ export function IssueList({
             </div>
             <div className="flex items-center gap-2">
               <div className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-fg-faint)]" />
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchText}
                   onChange={(e) => onSearch(e.target.value)}
@@ -135,7 +142,7 @@ export function IssueList({
                 />
               </div>
               <Button size="sm" onClick={onToggleCompose}>
-                <Plus className="h-3.5 w-3.5" />
+                <Plus data-icon="inline-start" />
                 New issue
               </Button>
             </div>
@@ -144,23 +151,23 @@ export function IssueList({
 
         <CardBody
           flush
-          className="divide-y divide-[var(--color-border)] overflow-hidden rounded-b-[var(--radius-lg)] bg-[var(--color-bg)]"
+          className="divide-y divide-border overflow-hidden rounded-b-[var(--radius-lg)] bg-background"
         >
           {isLoading ? (
             <IssueListSkeleton />
           ) : isError ? (
             <div className="px-5 py-10 text-center">
-              <AlertCircle className="mx-auto mb-2 h-5 w-5 text-[var(--color-danger)]" />
-              <p className="text-body text-[var(--color-fg-muted)]">Could not load issues.</p>
+              <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
+              <p className="text-body text-muted-foreground">Could not load issues.</p>
             </div>
           ) : issues.length === 0 ? (
             <div className="px-5 py-12 text-center">
               {stateFilter === "open" ? (
-                <CircleDot className="mx-auto mb-3 h-6 w-6 text-[var(--color-fg-faint)]" />
+                <CircleDot className="mx-auto mb-3 size-6 text-[var(--color-fg-faint)]" />
               ) : (
-                <CheckCircle2 className="mx-auto mb-3 h-6 w-6 text-[var(--color-fg-faint)]" />
+                <CheckCircle2 className="mx-auto mb-3 size-6 text-[var(--color-fg-faint)]" />
               )}
-              <p className="text-body font-medium text-[var(--color-fg-muted)]">
+              <p className="text-body font-medium text-muted-foreground">
                 {searchText ? "No issues match your search." : `No ${stateFilter} issues.`}
               </p>
             </div>

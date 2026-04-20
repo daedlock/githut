@@ -135,7 +135,7 @@ export function ThemePicker() {
     card.palette === palette && card.preference === preference;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {CARDS.map((card) => (
           <PreviewCard
@@ -177,12 +177,13 @@ function PreviewCard({
       className={cn(
         // The wrapper itself IS in the card's own palette — every descendant
         // that references --color-* / --syntax-* reads the scoped values.
-        "group relative block overflow-hidden rounded-[var(--radius-md)]",
-        "border bg-[var(--color-bg)] text-[var(--color-fg)] text-left",
-        "transition-[border-color,transform] duration-150",
+        "group relative block overflow-hidden rounded-md",
+        "border bg-background text-foreground text-left",
+        "outline-none transition-[border-color,transform] duration-150",
+        "focus-visible:ring-1 focus-visible:ring-ring/20",
         active
-          ? "border-[var(--color-accent)] ring-2 ring-[var(--color-accent)]/40"
-          : "border-[var(--color-border)] hover:border-[var(--color-border-strong)]",
+          ? "border-primary ring-1 ring-primary/40"
+          : "border-border hover:border-input",
         // stone-dark preview uses Tailwind's .dark variant to trigger the
         // existing .dark {} block — scoped to just this card.
         card.preview.dark && "dark",
@@ -190,20 +191,18 @@ function PreviewCard({
       aria-pressed={active}
       aria-label={`${card.name} theme`}
     >
-      {/* Active check — coral dot, upper right */}
       {active && (
         <span
-          className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
+          className="absolute right-3 top-3 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
           aria-hidden
         >
-          <Check className="h-3 w-3" strokeWidth={3} />
+          <Check className="size-3" strokeWidth={3} />
         </span>
       )}
 
       <div className="p-5">
-        {/* Title — Berkeley Mono, large-ish but not shouting */}
         <div className="mb-1 font-mono text-[15px] font-medium tracking-tight">{card.name}</div>
-        <div className="font-sans text-[12px] italic text-[var(--color-fg-muted)]">
+        <div className="font-sans text-caption italic text-muted-foreground">
           {card.tagline}
         </div>
       </div>
@@ -284,7 +283,7 @@ function PreviewCard({
 
       {/* Accent swatch strip — the 6 palette hues + the hero ring */}
       <div
-        className="flex items-center gap-1.5 border-t border-[var(--color-border)] px-5 py-3"
+        className="flex items-center gap-1.5 border-t border-border px-5 py-3"
         aria-hidden
       >
         <Swatch colorVar="--color-accent" primary />
@@ -339,7 +338,7 @@ function Swatch({ colorVar, primary }: { colorVar: string; primary?: boolean }) 
     <span
       className={cn(
         "inline-block rounded-full",
-        primary ? "h-3 w-3 ring-1 ring-[var(--color-accent-fg)]/30" : "h-2 w-2",
+        primary ? "size-3 ring-1 ring-[var(--color-accent-fg)]/30" : "size-2",
       )}
       style={{ backgroundColor: `var(${colorVar})` }}
     />
@@ -363,27 +362,29 @@ function PreferenceToggle({
 
   return (
     <div className="flex items-center gap-3">
-      <span className="font-mono text-[11px] uppercase tracking-widest text-[var(--color-fg-muted)]">
+      <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
         Follow
       </span>
-      <div className="inline-flex rounded-[var(--radius-sm)] border border-[var(--color-border)] bg-[var(--color-bg)] p-0.5">
+      <div className="inline-flex rounded-md border border-border bg-background p-0.5">
         {options.map((o) => (
           <button
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
             className={cn(
-              "rounded-[var(--radius-xs)] px-3 py-1 font-mono text-[11px] transition-colors",
+              "rounded-sm px-3 py-1 font-mono text-micro",
+              "outline-none transition-colors",
+              "focus-visible:ring-1 focus-visible:ring-ring/20",
               current === o.value
-                ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
-                : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {o.label}
           </button>
         ))}
       </div>
-      <span className="font-sans text-[11px] italic text-[var(--color-fg-faint)]">
+      <span className="font-sans text-micro italic text-[var(--color-fg-faint)]">
         {current === "system"
           ? "matches OS color scheme"
           : "override OS preference"}

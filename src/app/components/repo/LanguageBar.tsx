@@ -56,7 +56,7 @@ export function LanguageBar({
               className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: slotColor(i) }}
             />
-            <span className="font-mono text-caption text-[var(--color-fg-muted)]">{lang.name}</span>
+            <span className="font-mono text-caption text-muted-foreground">{lang.name}</span>
             <span className="font-mono text-caption text-[var(--color-fg-faint)]">
               {lang.percentage.toFixed(1)}%
             </span>
@@ -68,7 +68,7 @@ export function LanguageBar({
               className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: "var(--chart-other)" }}
             />
-            <span className="font-mono text-caption text-[var(--color-fg-muted)]">Other</span>
+            <span className="font-mono text-caption text-muted-foreground">Other</span>
             <span className="font-mono text-caption text-[var(--color-fg-faint)]">
               {otherPct.toFixed(1)}%
             </span>

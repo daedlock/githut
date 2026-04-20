@@ -15,7 +15,7 @@ export function SidebarSection({
 }) {
   return (
     <div>
-      <div className="mb-2 flex items-center gap-1.5 border-b border-[var(--color-border)] pb-1.5">
+      <div className="mb-2 flex items-center gap-1.5 border-b border-border pb-1.5">
         <span className="text-[var(--color-fg-faint)]">{icon}</span>
         <span className="font-mono text-micro font-medium uppercase tracking-widest text-[var(--color-fg-faint)]">
           {title}

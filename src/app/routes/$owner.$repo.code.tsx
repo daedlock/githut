@@ -140,8 +140,8 @@ function CodePage() {
 
 function BlobSkeleton() {
   return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] overflow-hidden">
-      <div className="h-10 bg-[var(--color-bg-subtle)] border-b border-[var(--color-border)]" />
+    <div className="rounded-md border border-border overflow-hidden">
+      <div className="h-10 bg-muted border-b border-border" />
       <div className="skeleton-fade p-4 flex flex-col gap-2">
         {Array.from({ length: 12 }).map((_, i) => (
           <Skeleton key={i} className="h-4" style={{ width: `${40 + (i * 19) % 55}%` }} />

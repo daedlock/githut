@@ -19,7 +19,7 @@ export function ShellFooter({
     <footer
       className={cn(
         "font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]",
-        bordered && "border-t border-[var(--color-border)]",
+        bordered && "border-t border-border",
         className,
       )}
     >

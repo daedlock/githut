@@ -10,18 +10,18 @@ export function IssueRow({ issue, onClick }: { issue: RepoIssue; onClick: () => 
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--color-bg-subtle)] sm:px-5"
+      className="flex w-full items-start gap-3 px-4 py-3.5 text-left outline-none transition-colors hover:bg-muted focus-visible:bg-muted sm:px-5"
     >
       <div className="mt-0.5 flex-shrink-0">
         {issue.state === "open" ? (
-          <CircleDot className="h-4 w-4 text-[var(--color-success)]" />
+          <CircleDot className="size-4 text-[var(--color-success)]" />
         ) : (
-          <CheckCircle2 className="h-4 w-4 text-[var(--color-fg-faint)]" />
+          <CheckCircle2 className="size-4 text-[var(--color-fg-faint)]" />
         )}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className="text-body font-medium text-[var(--color-fg)]">{issue.title}</span>
+          <span className="text-body font-medium text-foreground">{issue.title}</span>
           {issue.labels.map((label) => (
             <LabelPill key={label.id} label={label} size="xs" />
           ))}
@@ -35,11 +35,11 @@ export function IssueRow({ issue, onClick }: { issue: RepoIssue; onClick: () => 
               issue.state === "open" ? issue.created_at : (issue.closed_at ?? issue.updated_at),
             )}
             {" by "}
-            <span className="text-[var(--color-fg-muted)]">{issue.user.login}</span>
+            <span className="text-muted-foreground">{issue.user.login}</span>
           </span>
           {issue.comments > 0 && (
             <span className="inline-flex items-center gap-1">
-              <MessageSquare className="h-3 w-3" />
+              <MessageSquare className="size-3" />
               {issue.comments}
             </span>
           )}

@@ -19,28 +19,30 @@ export function StateTab({
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 px-3 py-2 text-body transition-colors",
+        "inline-flex items-center gap-1.5 px-3 py-2 text-body rounded-sm",
+        "outline-none transition-colors",
+        "focus-visible:ring-1 focus-visible:ring-ring/20",
         isActive
-          ? "font-semibold text-[var(--color-fg)]"
-          : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",
+          ? "font-semibold text-foreground"
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
       {state === "open" ? (
         <CircleDot
           className={cn(
-            "h-4 w-4",
+            "size-4",
             isActive ? "text-[var(--color-success)]" : "text-[var(--color-fg-faint)]",
           )}
         />
       ) : (
         <CheckCircle2
           className={cn(
-            "h-4 w-4",
-            isActive ? "text-[var(--color-fg-muted)]" : "text-[var(--color-fg-faint)]",
+            "size-4",
+            isActive ? "text-muted-foreground" : "text-[var(--color-fg-faint)]",
           )}
         />
       )}
-      <span>{count}</span>
+      <span className="tabular-nums">{count}</span>
       <span className="capitalize">{state}</span>
     </button>
   );

@@ -29,16 +29,16 @@ import { cn } from "@/app/lib/cn";
 const cardVariants = cva("flex flex-col", {
   variants: {
     radius: {
-      md: "rounded-[var(--radius-md)]",
-      lg: "rounded-[var(--radius-lg)]",
+      md: "rounded-md",
+      lg: "rounded-lg",
     },
     tone: {
-      default: "bg-[var(--color-bg)]",
-      subtle: "bg-[var(--color-bg-subtle)]",
+      default: "bg-background",
+      subtle: "bg-muted",
     },
     border: {
-      soft: "border border-[var(--color-border)]",
-      strong: "border border-[var(--color-border-strong)]",
+      soft: "border border-border",
+      strong: "border border-input",
     },
   },
   defaultVariants: {
@@ -110,9 +110,9 @@ export const CardHeader = forwardRef<HTMLElement, CardHeaderProps>(
         // unconstrained, letting popovers/dropdowns escape without being
         // clipped.
         className={cn(
-          "flex items-center gap-2.5 overflow-hidden border-b border-[var(--color-border)] px-4 py-2.5",
+          "flex items-center gap-2.5 overflow-hidden border-b border-border px-4 py-2.5",
           headerRadius[radius],
-          filled && "bg-[var(--color-bg-subtle)]",
+          filled && "bg-muted",
           className,
         )}
         {...props}
@@ -147,7 +147,7 @@ export const CardFooter = forwardRef<HTMLElement, CardFooterProps>(
       <footer
         ref={ref}
         className={cn(
-          "border-t border-[var(--color-border)] px-3 py-2.5",
+          "border-t border-border px-3 py-2.5",
           footerRadius[radius],
           className,
         )}
