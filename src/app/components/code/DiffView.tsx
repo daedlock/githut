@@ -57,33 +57,44 @@ export function DiffView({ patch, lang = "text", mode = "unified", className }: 
       )}
     >
       <div
-        className={cn(
-          "overflow-x-auto font-mono text-code font-feature-settings-code",
-        )}
+        className={cn("overflow-x-auto text-code font-feature-settings-code")}
+        // Force the mono token inline — Tailwind's @layer utility for `font-mono`
+        // loses to body's unlayered `font-family: var(--font-sans)` rule, so an
+        // inline style is the only way to guarantee the code font wins. Same
+        // trick CodeView uses for the same reason.
+        style={{ fontFamily: "var(--font-mono)" }}
       >
-        {hunks.map((hunk, hIdx) => (
-          <Fragment key={hIdx}>
-            {hIdx > 0 && <div className="h-px bg-[var(--color-border)]" />}
-            <HunkHeader hunk={hunk} />
-            {mode === "unified" ? (
-              <UnifiedHunk
-                hunk={hunk}
-                oldTokens={oldTokens}
-                newTokens={newTokens}
-                oldLineMap={oldLineMap}
-                newLineMap={newLineMap}
-              />
-            ) : (
-              <SplitHunk
-                hunk={hunk}
-                oldTokens={oldTokens}
-                newTokens={newTokens}
-                oldLineMap={oldLineMap}
-                newLineMap={newLineMap}
-              />
-            )}
-          </Fragment>
-        ))}
+        {/*
+         * Content wrapper grows to the widest row (w-max) and never shrinks
+         * below the viewport (min-w-full). All children render `w-full` of
+         * this wrapper, so hunk headers, diff rows, short lines, long lines
+         * all share the same box width — no ragged right edge when scrolled.
+         */}
+        <div className="w-max min-w-full">
+          {hunks.map((hunk, hIdx) => (
+            <Fragment key={hIdx}>
+              {hIdx > 0 && <div className="h-px bg-[var(--color-border)]" />}
+              <HunkHeader hunk={hunk} />
+              {mode === "unified" ? (
+                <UnifiedHunk
+                  hunk={hunk}
+                  oldTokens={oldTokens}
+                  newTokens={newTokens}
+                  oldLineMap={oldLineMap}
+                  newLineMap={newLineMap}
+                />
+              ) : (
+                <SplitHunk
+                  hunk={hunk}
+                  oldTokens={oldTokens}
+                  newTokens={newTokens}
+                  oldLineMap={oldLineMap}
+                  newLineMap={newLineMap}
+                />
+              )}
+            </Fragment>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -198,7 +209,7 @@ function DiffRow({
   const lineClass =
     kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
   return (
-    <div className={cn("flex items-stretch", lineClass)}>
+    <div className={cn("flex w-full items-stretch", lineClass)}>
       <div className="diff-gutter flex flex-shrink-0 select-none font-mono tabular-nums text-[var(--color-fg-faint)]">
         <span className="w-10 px-1 text-right">{oldNum ?? ""}</span>
         <span className="w-10 px-1 text-right">{newNum ?? ""}</span>
@@ -213,7 +224,12 @@ function DiffRow({
       >
         {kind === "add" ? "+" : kind === "del" ? "−" : " "}
       </span>
-      <span className="min-w-0 flex-1 overflow-x-auto whitespace-pre pr-3">
+      {/*
+       * Long lines: parent column is `overflow-x-auto`, so content here is
+       * just `whitespace-pre` with no per-line overflow. One horizontal
+       * scrollbar at the bottom of the whole file, not one per line.
+       */}
+      <span className="whitespace-pre pr-3">
         <RenderedLine tokens={tokens} rawText={rawText} emphasis={emphasis} />
       </span>
     </div>
@@ -299,46 +315,56 @@ function SplitHunk({
   }, [hunk]);
 
   return (
+    // `min-w-0` on grid children is the key: it lets each column shrink to its
+    // share (50%) so overflow-x-auto can actually compute a scrollable overflow
+    // instead of the column growing to fit content and pushing the grid wider.
     <div className="grid grid-cols-2 divide-x divide-[var(--color-border)]">
-      <div>
-        {rows.map((row, rIdx) => {
-          if (!row.left) return <SplitPadRow key={`l-${rIdx}`} />;
-          const { idx, line } = row.left;
-          const tokens = tokensForOld(line, oldTokens, oldLineMap);
-          const emphasis =
-            line.kind === "del" && pairs.has(idx) ? wordDiffs.get(idx) : undefined;
-          return (
-            <SplitRow
-              key={`l-${rIdx}`}
-              side="old"
-              kind={line.kind}
-              num={line.oldNum}
-              tokens={tokens}
-              rawText={line.content}
-              emphasis={emphasis}
-            />
-          );
-        })}
+      <div className="min-w-0 overflow-x-auto">
+        {/* Same w-max/min-w-full pattern as unified mode — all rows in this
+            column share the widest-row width so bg tints don't stop mid-row
+            when the column is scrolled. */}
+        <div className="w-max min-w-full">
+          {rows.map((row, rIdx) => {
+            if (!row.left) return <SplitPadRow key={`l-${rIdx}`} />;
+            const { idx, line } = row.left;
+            const tokens = tokensForOld(line, oldTokens, oldLineMap);
+            const emphasis =
+              line.kind === "del" && pairs.has(idx) ? wordDiffs.get(idx) : undefined;
+            return (
+              <SplitRow
+                key={`l-${rIdx}`}
+                side="old"
+                kind={line.kind}
+                num={line.oldNum}
+                tokens={tokens}
+                rawText={line.content}
+                emphasis={emphasis}
+              />
+            );
+          })}
+        </div>
       </div>
-      <div>
-        {rows.map((row, rIdx) => {
-          if (!row.right) return <SplitPadRow key={`r-${rIdx}`} />;
-          const { idx, line } = row.right;
-          const tokens = tokensForNew(line, newTokens, newLineMap);
-          const emphasis =
-            line.kind === "add" && inversePairs.has(idx) ? wordDiffs.get(idx) : undefined;
-          return (
-            <SplitRow
-              key={`r-${rIdx}`}
-              side="new"
-              kind={line.kind}
-              num={line.newNum}
-              tokens={tokens}
-              rawText={line.content}
-              emphasis={emphasis}
-            />
-          );
-        })}
+      <div className="min-w-0 overflow-x-auto">
+        <div className="w-max min-w-full">
+          {rows.map((row, rIdx) => {
+            if (!row.right) return <SplitPadRow key={`r-${rIdx}`} />;
+            const { idx, line } = row.right;
+            const tokens = tokensForNew(line, newTokens, newLineMap);
+            const emphasis =
+              line.kind === "add" && inversePairs.has(idx) ? wordDiffs.get(idx) : undefined;
+            return (
+              <SplitRow
+                key={`r-${rIdx}`}
+                side="new"
+                kind={line.kind}
+                num={line.newNum}
+                tokens={tokens}
+                rawText={line.content}
+                emphasis={emphasis}
+              />
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -361,7 +387,7 @@ function SplitRow({
   const lineClass =
     kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
   return (
-    <div className={cn("flex items-stretch", lineClass)}>
+    <div className={cn("flex w-full items-stretch", lineClass)}>
       <span className="diff-gutter w-10 flex-shrink-0 select-none px-1 text-right font-mono tabular-nums text-[var(--color-fg-faint)]">
         {num ?? ""}
       </span>
@@ -375,7 +401,10 @@ function SplitRow({
       >
         {kind === "add" ? "+" : kind === "del" ? "−" : " "}
       </span>
-      <span className="min-w-0 flex-1 overflow-x-auto whitespace-pre pr-3">
+      {/* Per-line overflow would create one scrollbar per row — ugly. The
+          parent column carries `overflow-x-auto` so one scrollbar per side
+          handles all the long lines below it. */}
+      <span className="whitespace-pre pr-3">
         <RenderedLine tokens={tokens} rawText={rawText} emphasis={emphasis} />
       </span>
     </div>
@@ -432,13 +461,7 @@ function TokenSpan({ token, emphasis }: { token: CodeToken; emphasis?: boolean }
   return (
     <span
       className={cn("code-token", emphasis && "diff-word")}
-      style={
-        {
-          "--tl": token.light.color,
-          "--td": token.dark.color,
-          ...fontStyleToCSS(token.light.fontStyle),
-        } as React.CSSProperties
-      }
+      style={{ color: token.color, ...fontStyleToCSS(token.fontStyle) }}
     >
       {token.content}
     </span>
@@ -496,8 +519,8 @@ function buildEmphasizedPieces(
       pieces.push({
         token: {
           content: token.content.slice(segStart - tokStart, segEnd - tokStart),
-          light: token.light,
-          dark: token.dark,
+          color: token.color,
+          fontStyle: token.fontStyle,
         },
         emphasis: isEmphasis,
       });
@@ -581,7 +604,7 @@ function tokensForNew(line: DiffLine, newTokens: CodeLine[], map: Map<number, nu
 }
 
 function plainTokens(content: string): CodeLine {
-  return [{ content, light: {}, dark: {} }];
+  return [{ content }];
 }
 
 // ── Skeleton ────────────────────────────────────────────────────────────────
@@ -592,7 +615,7 @@ function DiffSkeleton() {
       <div className="border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-3 py-1.5">
         <Skeleton className="h-3 w-48" />
       </div>
-      <div className="space-y-1 p-3">
+      <div className="skeleton-fade space-y-1 p-3">
         {Array.from({ length: 10 }).map((_, i) => (
           <Skeleton key={i} className="h-4" style={{ width: `${50 + (i * 17) % 40}%` }} />
         ))}

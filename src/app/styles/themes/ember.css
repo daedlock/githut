@@ -1,0 +1,190 @@
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ *   Ember theme presets
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ *   "One vivid coral spark in a sea of warm graphite."
+ *
+ *   Source of truth:  ~/code/projects/ember-theme/ember/palette.json
+ *   Philosophy:       8 muted accents at CIELAB L*52–58, one vivid coral
+ *                     (#e08060) at S67% cutting through. Eyes know exactly
+ *                     where to look. Everything else recedes.
+ *
+ *   Three variants:
+ *     ember        — dark graphite, #1c1b19 (the default ember)
+ *     ember-soft   — lifted graphite, #242320 (softer contrast)
+ *     ember-light  — warm ivory, #e6dac4 (darkened accents)
+ *
+ *   Surfaces and accents override token-by-token; derived diff tokens fall
+ *   out automatically via color-mix() against --color-success/--color-danger.
+ *
+ *   Specificity: [data-theme="X"] beats html.dark, so .dark-keyed rules
+ *   in index.css stay inert while a preset is active.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+/* ─── Dark variants (ember, ember-soft) — share accent palette ───────────── */
+
+[data-theme="ember"],
+[data-theme="ember-soft"] {
+  /* Text */
+  --color-fg: #d8d0c0;              /* warm ivory — 11.2:1 on #1c1b19 */
+  --color-fg-muted: #a0988a;        /* warm mid — ~6.1:1 */
+  --color-fg-faint: #5e574c;        /* warm low — 3.4:1 (graphics) */
+
+  /* Borders — step lighter than surfaces, warm-tinted */
+  --color-border-strong: #4d4943;
+
+  /* Hero accent — the single ember in the ash */
+  --color-accent: #e08060;          /* coral */
+  --color-accent-hover: #ec8870;
+  --color-accent-fg: #1c1b19;       /* dark bg reads on coral */
+
+  /* Status — chosen from within the muted palette so errors don't shriek */
+  --color-success: #8a9868;         /* olive */
+  --color-danger: #b07878;          /* rose */
+  --color-warning: #c8b468;         /* gold */
+  --color-focus: #e08060;           /* coral, same as accent */
+
+  /* Issue state pills — tinted bgs + brightened fgs within the palette */
+  --color-issue-open-bg: #2d362a;   /* dark olive tint */
+  --color-issue-open-fg: #a6b47a;   /* brightened olive */
+  --color-issue-closed-bg: #3a2f37; /* dark mauve tint */
+  --color-issue-closed-fg: #c8a8bc; /* brightened mauve */
+
+  /* Syntax — direct mapping from Ember's semantic roles in palette.json */
+  --syntax-keyword: #e08060;        /* coral — hero (keywords, return, if) */
+  --syntax-string: #8a9868;         /* olive */
+  --syntax-number: #c09058;         /* orange — also constants, properties */
+  --syntax-function: #c8b468;       /* gold */
+  --syntax-type: #c8b468;           /* gold — functions & types share per palette */
+  --syntax-property: #c09058;       /* orange */
+  --syntax-constant: #c09058;       /* orange */
+  --syntax-variable: #d8d0c0;       /* fg default */
+  --syntax-operator: #a0988a;       /* fg-muted — structure recedes */
+  --syntax-punctuation: #a0988a;    /* fg-muted */
+  --syntax-tag: #b07878;            /* rose — HTML tags */
+  --syntax-attribute: #80a090;      /* sage — methods hue, distinct from tag */
+  --syntax-meta: #988090;           /* mauve — imports, directives */
+  --syntax-comment: #6b6357;        /* extra-muted, italic by theme */
+  --syntax-regex: #8a9868;          /* olive — shared with string */
+
+  /* File icons — every language maps to an Ember accent so the app feels
+     cohesive; TypeScript is steel-blue, JS is gold, Rust is coral, etc. */
+  --icon-ts: #7890a0;               /* steel */
+  --icon-js: #c8b468;               /* gold */
+  --icon-python: #7890a0;           /* steel */
+  --icon-rust: #e08060;             /* coral */
+  --icon-go: #80a090;               /* sage */
+  --icon-ruby: #b07878;             /* rose */
+  --icon-markup: #c09058;           /* orange */
+  --icon-style: #988090;            /* mauve */
+  --icon-data: #c8b468;             /* gold */
+  --icon-image: #988090;            /* mauve */
+  --icon-docker: #7890a0;           /* steel */
+  --icon-shell: #8a9868;            /* olive */
+  --icon-default: #5e574c;
+
+  /* Chart slots — the 8 Ember accents, coral first so the hero leads */
+  --chart-slot-1: #e08060;          /* coral */
+  --chart-slot-2: #7890a0;          /* steel */
+  --chart-slot-3: #988090;          /* mauve */
+  --chart-slot-4: #8a9868;          /* olive */
+  --chart-slot-5: #b07878;          /* rose */
+  --chart-slot-6: #c8b468;          /* gold */
+  --chart-other: #5e574c;
+}
+
+/* ember — canonical graphite at L10% */
+[data-theme="ember"] {
+  --color-bg: #1c1b19;
+  --color-bg-subtle: #242320;
+  --color-bg-sunken: #2c2a26;
+  --color-border: #35332e;
+  color-scheme: dark;
+}
+
+/* ember-soft — lifted graphite at L13%, softer contrast for long sessions */
+[data-theme="ember-soft"] {
+  --color-bg: #242320;
+  --color-bg-subtle: #2c2a26;
+  --color-bg-sunken: #35332e;
+  --color-border: #3e3a33;
+  color-scheme: dark;
+}
+
+/* ─── Light variant — darkened accents for contrast on parchment ─────────── */
+
+[data-theme="ember-light"] {
+  color-scheme: light;
+
+  /* Surfaces — warm parchment, not clinical white */
+  --color-bg: #e6dac4;              /* ivory */
+  --color-bg-subtle: #ddd0b8;       /* step darker */
+  --color-bg-sunken: #d0c1a4;       /* hover / inset */
+  --color-border: #c0b290;
+  --color-border-strong: #a89876;
+
+  /* Text — near-black warm brown, long-read-comfortable */
+  --color-fg: #282418;              /* ~13.7:1 on bg */
+  --color-fg-muted: #5c5240;        /* ~6.2:1 */
+  --color-fg-faint: #8a7c62;        /* ~3.5:1 (graphics) */
+
+  /* Hero accent — coral darkened from #e08060 to #b84c30 for AA on parchment */
+  --color-accent: #b84c30;
+  --color-accent-hover: #9e4028;
+  --color-accent-fg: #e6dac4;
+
+  --color-success: #4a6830;         /* olive dark */
+  --color-danger: #905050;          /* rose dark */
+  --color-warning: #7a6820;         /* gold dark */
+  --color-focus: #b84c30;
+
+  /* Issue state pills — earthy tints on parchment */
+  --color-issue-open-bg: #d5e0c0;
+  --color-issue-open-fg: #4a6830;
+  --color-issue-closed-bg: #e0c8d2;
+  --color-issue-closed-fg: #704058;
+
+  /* Syntax — accents_light variant from palette.json, all AA on parchment */
+  --syntax-keyword: #b84c30;        /* coral dark */
+  --syntax-string: #4a6830;         /* olive dark */
+  --syntax-number: #946030;         /* orange dark */
+  --syntax-function: #7a6820;       /* gold dark */
+  --syntax-type: #7a6820;
+  --syntax-property: #946030;
+  --syntax-constant: #946030;
+  --syntax-variable: #282418;
+  --syntax-operator: #5c5240;
+  --syntax-punctuation: #5c5240;
+  --syntax-tag: #905050;             /* rose dark */
+  --syntax-attribute: #386858;      /* sage dark */
+  --syntax-meta: #706070;           /* mauve dark */
+  --syntax-comment: #8a7c62;
+  --syntax-regex: #4a6830;
+
+  /* Icons — darkened accent set */
+  --icon-ts: #3a6080;
+  --icon-js: #7a6820;
+  --icon-python: #3a6080;
+  --icon-rust: #b84c30;
+  --icon-go: #386858;
+  --icon-ruby: #905050;
+  --icon-markup: #946030;
+  --icon-style: #706070;
+  --icon-data: #7a6820;
+  --icon-image: #706070;
+  --icon-docker: #3a6080;
+  --icon-shell: #4a6830;
+  --icon-default: #8a7c62;
+
+  /* Chart slots — darkened variants */
+  --chart-slot-1: #b84c30;
+  --chart-slot-2: #3a6080;
+  --chart-slot-3: #706070;
+  --chart-slot-4: #4a6830;
+  --chart-slot-5: #905050;
+  --chart-slot-6: #7a6820;
+  --chart-other: #8a7c62;
+}

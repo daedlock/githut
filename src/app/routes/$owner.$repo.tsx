@@ -1,5 +1,4 @@
-import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { type RepoTabDef, RepoTabs } from "@/app/components/repo/RepoTabs";
 import { AppShell } from "@/app/components/shell/AppShell";
 import { ShellFooter } from "@/app/components/shell/ShellFooter";
@@ -23,6 +22,7 @@ function RepoLayout() {
 
   const tabs: RepoTabDef[] = [
     { to: `/${owner}/${repo}/code`, label: "Code" },
+    { to: `/${owner}/${repo}/commits`, label: "Commits" },
     { to: `/${owner}/${repo}/pulls`, label: "Pull requests" },
     { to: `/${owner}/${repo}/issues`, label: "Issues" },
   ];
@@ -32,19 +32,15 @@ function RepoLayout() {
       header={
         <div className="flex flex-col">
           <ShellHeader
+            // No hairline here — the RepoTabs row below closes the header
+            // assembly with a single bottom border. Two separators would
+            // create a striped/telephone-wire look.
             bordered={false}
             subtitle={
-              <span className="flex items-center gap-1.5">
-                <Link
-                  to="/"
-                  className="inline-flex items-center gap-1 text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
-                  aria-label="Back to home"
-                >
-                  <ArrowLeft className="h-3 w-3" />
-                </Link>
+              <span className="flex items-baseline gap-1.5 truncate">
                 <span className="text-[var(--color-fg-muted)]">{owner}</span>
                 <span className="text-[var(--color-fg-faint)]">/</span>
-                <span className="font-medium text-[var(--color-fg)]">{repo}</span>
+                <span className="font-medium text-[var(--color-fg)] truncate">{repo}</span>
               </span>
             }
             right={

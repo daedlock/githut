@@ -5,6 +5,7 @@ import { Breadcrumb, FileList } from "@/app/components/repo/FileList";
 import { ReadmeViewer } from "@/app/components/repo/ReadmeViewer";
 import { RepoAbout } from "@/app/components/repo/RepoAbout";
 import { Container } from "@/app/components/ui/Container";
+import { Skeleton } from "@/app/components/ui/Skeleton";
 import { useRepo } from "@/app/hooks/useRepo";
 import { useRepoContents } from "@/app/hooks/useRepoContents";
 import { useRepoFile } from "@/app/hooks/useRepoFile";
@@ -141,13 +142,9 @@ function BlobSkeleton() {
   return (
     <div className="rounded-[var(--radius-md)] border border-[var(--color-border)] overflow-hidden">
       <div className="h-10 bg-[var(--color-bg-subtle)] border-b border-[var(--color-border)]" />
-      <div className="p-4 flex flex-col gap-2">
+      <div className="skeleton-fade p-4 flex flex-col gap-2">
         {Array.from({ length: 12 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-4 animate-pulse rounded-[var(--radius-xs)] bg-[var(--color-bg-sunken)]"
-            style={{ width: `${40 + (i * 19) % 55}%` }}
-          />
+          <Skeleton key={i} className="h-4" style={{ width: `${40 + (i * 19) % 55}%` }} />
         ))}
       </div>
     </div>

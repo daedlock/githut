@@ -2,13 +2,13 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import type { StateFilter } from "@/app/features/issues/components/StateTab";
 import {
-  useAddCommentReaction,
-  useAddIssueReaction,
   useCreateIssue,
   useCreateIssueComment,
   useRepoIssue,
   useRepoIssueComments,
   useRepoIssues,
+  useToggleCommentReaction,
+  useToggleIssueReaction,
   useUpdateIssueState,
 } from "@/app/features/issues/hooks";
 import { IssueDetail } from "@/app/features/issues/IssueDetail";
@@ -44,10 +44,15 @@ function IssuesPage() {
   const commentsQuery = useRepoIssueComments(owner, repo, selectedIssueNumber);
 
   const createIssueMutation = useCreateIssue(owner, repo);
-  const createCommentMutation = useCreateIssueComment(owner, repo, selectedIssueNumber);
-  const updateStateMutation = useUpdateIssueState(owner, repo, selectedIssueNumber);
-  const addIssueReactionMutation = useAddIssueReaction(owner, repo, selectedIssueNumber);
-  const addCommentReactionMutation = useAddCommentReaction(owner, repo, selectedIssueNumber);
+  const createCommentMutation = useCreateIssueComment(owner, repo, me);
+  const updateStateMutation = useUpdateIssueState(owner, repo);
+  const toggleIssueReactionMutation = useToggleIssueReaction(owner, repo, me?.id);
+  const toggleCommentReactionMutation = useToggleCommentReaction(
+    owner,
+    repo,
+    selectedIssueNumber,
+    me?.id,
+  );
 
   // ─── Derived list state ───────────────────────────────────────────────────
   const openCount = useMemo(
@@ -92,10 +97,9 @@ function IssuesPage() {
           e.preventDefault();
           const body = newCommentBody.trim();
           if (!selectedIssueNumber || !body) return;
-          createCommentMutation.mutate(
-            { issueNumber: selectedIssueNumber, body },
-            { onSuccess: () => setNewCommentBody("") },
-          );
+          // Optimistic append happens in onMutate — clear the textbox immediately
+          setNewCommentBody("");
+          createCommentMutation.mutate({ issueNumber: selectedIssueNumber, body });
         }}
         onToggleState={() =>
           selectedIssue &&
@@ -106,12 +110,16 @@ function IssuesPage() {
         }
         isTogglingState={updateStateMutation.isPending}
         isPostingComment={createCommentMutation.isPending}
-        onAddIssueReaction={(content) =>
+        onToggleIssueReaction={(content, existingReactionId) =>
           selectedIssue &&
-          addIssueReactionMutation.mutate({ issueNumber: selectedIssue.number, content })
+          toggleIssueReactionMutation.mutate({
+            issueNumber: selectedIssue.number,
+            content,
+            existingReactionId,
+          })
         }
-        onAddCommentReaction={(commentId, content) =>
-          addCommentReactionMutation.mutate({ commentId, content })
+        onToggleCommentReaction={(commentId, content, existingReactionId) =>
+          toggleCommentReactionMutation.mutate({ commentId, content, existingReactionId })
         }
         me={me}
         onBack={() => navigate({ search: {} })}

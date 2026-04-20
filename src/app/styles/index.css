@@ -6,6 +6,10 @@
 @import "@fontsource/ibm-plex-mono/400.css";
 @import "@fontsource/ibm-plex-mono/500.css";
 
+/* Theme presets — must come AFTER the base @theme / .dark blocks below so
+   html[data-theme] selectors win the cascade when a preset is active. */
+@import "./themes/ember.css" layer(theme-presets);
+
 /* ── Berkeley Mono (regular width — only Regular weight available) ───────── */
 @font-face { font-family: "Berkeley Mono"; font-weight: 400; font-style: normal; src: url("/fonts/BerkeleyMono-Regular.ttf") format("truetype"); }
 
@@ -72,6 +76,53 @@
   --color-issue-open-fg: #15803d;  /* green-700 — 5.9:1 on open-bg (AA large) */
   --color-issue-closed-bg: #f3e8ff; /* purple-100 — soft tint for closed state */
   --color-issue-closed-fg: #7c3aed; /* violet-600 — 4.7:1 on closed-bg (AA) */
+
+  /*
+   * Syntax highlighting tokens — consumed by our custom Shiki theme
+   * (src/app/components/code/appTheme.ts). Shiki writes these var references
+   * directly into token inline styles, so the browser resolves them at paint
+   * time against whichever `.dark` / theme preset is currently active.
+   *
+   * Keep the vocabulary semantic, not visual — "keyword" / "string" / "type",
+   * not "red" / "green" / "blue". That's what lets someone swap palettes by
+   * editing this block alone. Each color has a WCAG 4.5:1+ against --color-bg.
+   */
+  --syntax-comment: #78716c;     /* stone-500 — 4.7:1 on bg, italic by convention */
+  --syntax-keyword: #b45309;     /* amber-700 — 4.9:1; warm hue anchors code in our palette */
+  --syntax-string: #166534;      /* green-800 — 8.2:1 */
+  --syntax-number: #a16207;      /* yellow-700 — 4.9:1 */
+  --syntax-function: #1d4ed8;    /* blue-700 — 6.1:1 */
+  --syntax-type: #0f766e;        /* teal-700 — 5.3:1 */
+  --syntax-property: #0369a1;    /* sky-700 — 5.4:1 */
+  --syntax-constant: #a16207;    /* yellow-700 — shares with number; distinct from keyword */
+  --syntax-variable: var(--color-fg);
+  --syntax-operator: var(--color-fg-muted);
+  --syntax-punctuation: var(--color-fg-muted);
+  --syntax-tag: #be123c;         /* rose-700 — 5.8:1 */
+  --syntax-attribute: #c2410c;   /* orange-700 — 5.3:1 */
+  --syntax-meta: #7c3aed;        /* violet-600 — 5.7:1; imports / directives */
+  --syntax-regex: #0f766e;       /* teal-700 — shares with type */
+
+  /*
+   * File-icon language colors — stable hues so TypeScript is always "TS blue"
+   * across every surface (changed-file tree, file list, etc.). Chosen to
+   * echo each language's cultural color without matching exactly (that would
+   * clash with our warm stone palette). All verified >= 3:1 against --color-bg
+   * for decorative graphic elements (WCAG 1.4.11 non-text contrast).
+   */
+  --icon-ts: #2f74c0;        /* TypeScript blue — 4.7:1 on bg */
+  --icon-js: #c18f1a;        /* JavaScript yellow-amber — 4.1:1 (reduced from pure #f7df1e for readability) */
+  --icon-python: #3572a5;    /* Python blue — 5.9:1 on bg */
+  --icon-rust: #b6592d;      /* Rust red-orange — 4.7:1 on bg */
+  --icon-go: #0899c2;        /* Go cyan — 3.7:1 on bg */
+  --icon-ruby: #a91401;      /* Ruby red — 7.4:1 on bg */
+  --icon-markup: #c6531f;    /* HTML/XML orange — 4.6:1 on bg */
+  --icon-style: #6a4b92;     /* CSS/SCSS purple — 6.8:1 on bg */
+  --icon-data: #b0892e;      /* JSON/YAML gold — 4.4:1 on bg */
+  --icon-image: #7c6da5;     /* image purple-grey — 4.8:1 on bg */
+  --icon-docker: #1d63ed;    /* Docker blue — 4.5:1 on bg */
+  --icon-shell: #5d8c3a;     /* shell green — 4.4:1 on bg */
+  --icon-default: #a8a29e;   /* stone-400 — muted fallback */
 
   /*
    * Diff tokens — derived from --color-success/--color-danger via color-mix.
@@ -257,6 +308,38 @@
   --color-issue-closed-bg: #2e1065; /* violet-950 — deep tint */
   --color-issue-closed-fg: #c084fc; /* purple-400 — 7.1:1 on closed-bg (AA) */
 
+  /* syntax tokens — dark mode (300-level hues for high contrast on near-black) */
+  --syntax-comment: #78716c;     /* stone-500 — 3.3:1 graphic, intentionally muted */
+  --syntax-keyword: #fb923c;     /* orange-400 — 7.9:1; matches dark accent */
+  --syntax-string: #86efac;      /* green-300 — 11.2:1 */
+  --syntax-number: #fcd34d;      /* amber-300 — 12.8:1 */
+  --syntax-function: #93c5fd;    /* blue-300 — 9.3:1 */
+  --syntax-type: #5eead4;        /* teal-300 — 11.8:1 */
+  --syntax-property: #7dd3fc;    /* sky-300 — 10.4:1 */
+  --syntax-constant: #fcd34d;    /* amber-300 — shared */
+  --syntax-variable: var(--color-fg);
+  --syntax-operator: var(--color-fg-muted);
+  --syntax-punctuation: var(--color-fg-muted);
+  --syntax-tag: #fda4af;         /* rose-300 — 8.2:1 */
+  --syntax-attribute: #fdba74;   /* orange-300 — 9.4:1 */
+  --syntax-meta: #c4b5fd;        /* violet-300 — 9.1:1 */
+  --syntax-regex: #5eead4;       /* teal-300 — shared with type */
+
+  /* file-icon language colors — dark mode (shifted lighter for contrast on stone-950) */
+  --icon-ts: #6aaff2;        /* TS blue-300 — 7.6:1 on bg */
+  --icon-js: #f5d041;        /* JS yellow-400 — 12.4:1 on bg */
+  --icon-python: #6aa4d2;    /* Python blue-300 — 7.2:1 on bg */
+  --icon-rust: #e08b5b;      /* Rust orange-300 — 8.0:1 on bg */
+  --icon-go: #4fc3e8;        /* Go cyan-300 — 8.5:1 on bg */
+  --icon-ruby: #e85d5d;      /* Ruby red-400 — 6.7:1 on bg */
+  --icon-markup: #e78a5f;    /* HTML orange-300 — 7.4:1 on bg */
+  --icon-style: #b491d6;     /* CSS purple-300 — 8.1:1 on bg */
+  --icon-data: #ddbe60;      /* JSON gold-300 — 9.8:1 on bg */
+  --icon-image: #a695cc;     /* image purple-300 — 7.9:1 on bg */
+  --icon-docker: #5b92ff;    /* Docker blue-400 — 6.9:1 on bg */
+  --icon-shell: #88bc63;     /* shell green-300 — 7.4:1 on bg */
+  --icon-default: #57534e;   /* stone-600 — muted fallback */
+
   /* chart slots — same hues, shifted to 400-level for dark contrast */
   --chart-slot-1: #fb923c; /* orange-400 */
   --chart-slot-2: #22d3ee; /* cyan-400 */
@@ -315,16 +398,36 @@ html.dark .shiki span {
 }
 
 /*
- * Custom code viewer token theming.
- * Each token span has --tl (light color) and --td (dark color) as inline CSS vars.
- * Light mode reads --tl; .dark html switches to --td. Zero JS on theme change.
+ * Code-viewer typography utility. Token colors themselves are inline on each
+ * span — the renderer reads `token.color`, which is a `var(--syntax-*)`
+ * reference from our custom Shiki theme. The CSS vars handle light/dark swap
+ * at paint time, so no per-mode override is needed here.
+ *
  * font-feature-settings-code enables ligatures + code-specific OpenType features.
  */
-.code-token {
-  color: var(--tl);
-}
-html.dark .code-token {
-  color: var(--td);
+
+/*
+ * Skeleton "gradient" fade — the signature loading style from the issues list.
+ * A mask-image lets us fade the BOTTOM of a list of skeleton rows to transparent
+ * without computing per-row opacity. Works with any number of children, no JS.
+ *
+ * Visual intent: the list of placeholders reads as "there's more content, it's
+ * just loading", not "there are exactly N items here". The fade tapers thought,
+ * like a pencil sketch trailing off — gentler than an abrupt cut-off.
+ */
+.skeleton-fade {
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 40%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 40%,
+    transparent 100%
+  );
 }
 
 /*

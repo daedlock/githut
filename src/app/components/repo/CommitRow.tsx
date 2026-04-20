@@ -1,0 +1,148 @@
+import { Link } from "@tanstack/react-router";
+import { Copy, GitCommit } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/app/components/ui/Button";
+import type { CommitSummary } from "@/app/hooks/useRepoCommits";
+import { cn } from "@/app/lib/cn";
+import { formatRelativeTime } from "@/app/lib/time";
+
+export type CommitRowProps = {
+  commit: CommitSummary;
+  owner: string;
+  repo: string;
+};
+
+/**
+ * One commit in a list: message title (+ optional expandable body), author,
+ * short SHA, relative time. Whole row is a link to the detail view; the SHA
+ * chip has its own copy button that doesn't trigger navigation.
+ */
+export function CommitRow({ commit, owner, repo }: CommitRowProps) {
+  const [bodyOpen, setBodyOpen] = useState(false);
+  const { title, body } = splitMessage(commit.commit.message);
+  const shortSha = commit.sha.slice(0, 7);
+
+  // Prefer the GitHub-mapped user (has login + avatar); fall back to the
+  // git-native author for unmatched emails (render name only, no avatar).
+  const displayAuthor = commit.author?.login ?? commit.commit.author.name;
+  const avatar = commit.author?.avatar_url;
+
+  return (
+    <div className="group flex items-start gap-3 border-b border-[var(--color-border)] px-4 py-3 last:border-b-0 transition-colors hover:bg-[var(--color-bg-subtle)]">
+      {/* Title + body */}
+      <div className="min-w-0 flex-1">
+        <Link
+          to="/$owner/$repo/commit/$sha"
+          params={{ owner, repo, sha: commit.sha }}
+          className="block"
+        >
+          <p className="truncate text-sm font-medium text-[var(--color-fg)] group-hover:text-[var(--color-accent)]">
+            {title}
+          </p>
+        </Link>
+
+        {body && (
+          <>
+            <button
+              type="button"
+              onClick={() => setBodyOpen((o) => !o)}
+              className={cn(
+                "mt-1 inline-flex items-center gap-1 rounded-[var(--radius-xs)] border border-[var(--color-border)] px-1.5 py-px",
+                "font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]",
+                "transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg-muted)]",
+              )}
+              aria-expanded={bodyOpen}
+            >
+              {bodyOpen ? "hide body" : "…"}
+            </button>
+            {bodyOpen && (
+              <pre className="mt-2 whitespace-pre-wrap rounded-[var(--radius-xs)] bg-[var(--color-bg-subtle)] p-3 font-mono text-[12px] leading-relaxed text-[var(--color-fg-muted)]">
+                {body}
+              </pre>
+            )}
+          </>
+        )}
+
+        {/* Author + time row */}
+        <div className="mt-1 flex items-center gap-2 text-xs text-[var(--color-fg-muted)]">
+          {avatar ? (
+            <img
+              src={avatar}
+              alt=""
+              className="h-4 w-4 flex-shrink-0 rounded-full border border-[var(--color-border)]"
+            />
+          ) : (
+            <GitCommit className="h-3 w-3 flex-shrink-0 text-[var(--color-fg-faint)]" />
+          )}
+          <span className="truncate font-medium text-[var(--color-fg)]">{displayAuthor}</span>
+          <span className="text-[var(--color-fg-faint)]">
+            committed {formatRelativeTime(commit.commit.author.date)}
+          </span>
+        </div>
+      </div>
+
+      {/* Right side: SHA chip */}
+      <ShaChip sha={commit.sha} shortSha={shortSha} owner={owner} repo={repo} />
+    </div>
+  );
+}
+
+function ShaChip({
+  sha,
+  shortSha,
+  owner,
+  repo,
+}: {
+  sha: string;
+  shortSha: string;
+  owner: string;
+  repo: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  function onCopy(e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    navigator.clipboard.writeText(sha).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    });
+  }
+
+  return (
+    <div className="flex flex-shrink-0 items-center gap-0.5">
+      <Link
+        to="/$owner/$repo/commit/$sha"
+        params={{ owner, repo, sha }}
+        className="rounded-[var(--radius-xs)] border border-[var(--color-border)] bg-[var(--color-bg)] px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-[var(--color-fg-muted)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg)]"
+        title={sha}
+      >
+        {shortSha}
+      </Link>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onCopy}
+        title={copied ? "Copied!" : "Copy full SHA"}
+        aria-label="Copy full SHA"
+      >
+        <Copy className="h-3 w-3" />
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Git commit messages are "title\n\n<body>" by convention — split on the first
+ * blank line so we can render the title prominent and hide the body behind a
+ * toggle. Trims safely for messages without a body.
+ */
+function splitMessage(message: string): { title: string; body: string } {
+  const trimmed = message.trim();
+  const splitIdx = trimmed.indexOf("\n\n");
+  if (splitIdx === -1) return { title: trimmed, body: "" };
+  return {
+    title: trimmed.slice(0, splitIdx).trim(),
+    body: trimmed.slice(splitIdx + 2).trim(),
+  };
+}

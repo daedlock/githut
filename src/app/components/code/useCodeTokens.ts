@@ -1,10 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-  bundledLanguages,
-  type BundledLanguage,
-  codeToTokensWithThemes,
-  isSpecialLang,
-} from "shiki";
+import { bundledLanguages, type BundledLanguage, codeToTokens, isSpecialLang } from "shiki";
+import { appSyntaxTheme } from "./appTheme";
 import type { CodeLine } from "./types";
 
 function djb2(s: string): number {
@@ -26,32 +22,29 @@ function resolveLang(lang: string): BundledLanguage | "text" {
 // grammar, malformed source, etc.). Content is preserved so the viewer still
 // shows something readable instead of spinning on a skeleton.
 function plainTokenize(code: string): CodeLine[] {
-  return code.split("\n").map((line) => (line ? [{ content: line, light: {}, dark: {} }] : []));
+  return code.split("\n").map((line) => (line ? [{ content: line }] : []));
 }
 
 export function useCodeTokens(code: string, lang: string) {
   return useQuery({
-    queryKey: ["shiki-tokens", lang, djb2(code)],
+    queryKey: ["shiki-tokens", "githut-theme-v1", lang, djb2(code)],
     staleTime: Infinity,
     gcTime: 10 * 60_000,
     queryFn: async (): Promise<CodeLine[]> => {
       const safeLang = resolveLang(lang);
       try {
-        const lines = await codeToTokensWithThemes(code, {
+        const { tokens } = await codeToTokens(code, {
           lang: safeLang,
-          themes: { light: "github-light-default", dark: "github-dark" },
+          // Custom theme emits `var(--syntax-*)` color strings. The browser
+          // resolves them against whichever palette is active on <html>, so
+          // light/dark swaps happen without re-tokenizing.
+          theme: appSyntaxTheme,
         });
-        return lines.map((lineTokens) =>
+        return tokens.map((lineTokens) =>
           lineTokens.map((token) => ({
             content: token.content,
-            light: {
-              color: token.variants.light?.color,
-              fontStyle: token.variants.light?.fontStyle,
-            },
-            dark: {
-              color: token.variants.dark?.color,
-              fontStyle: token.variants.dark?.fontStyle,
-            },
+            color: token.color,
+            fontStyle: token.fontStyle,
           })),
         );
       } catch {

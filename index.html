@@ -4,6 +4,39 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GitHut</title>
+    <!--
+      Pre-hydration theme apply. Reads persisted zustand state and sets
+      data-theme / .dark on <html> BEFORE React paints, so the app never
+      flashes in the wrong palette on reload. Intentionally tiny + fail-safe;
+      any parse error just falls through to stone-system.
+    -->
+    <script>
+      (function () {
+        try {
+          var raw = localStorage.getItem("githut.theme");
+          var palette = "stone";
+          var preference = "system";
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            var s = (parsed && parsed.state) || {};
+            if (s.palette) palette = s.palette;
+            if (s.preference) preference = s.preference;
+          }
+          var resolved = preference;
+          if (resolved === "system") {
+            resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          var dataTheme = null;
+          if (palette === "ember") dataTheme = resolved === "dark" ? "ember" : "ember-light";
+          else if (palette === "ember-soft") dataTheme = resolved === "dark" ? "ember-soft" : "ember-light";
+          var root = document.documentElement;
+          if (dataTheme) root.setAttribute("data-theme", dataTheme);
+          if (resolved === "dark") root.classList.add("dark");
+        } catch (_) {
+          /* ignore — theme store will re-apply on mount */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

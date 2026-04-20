@@ -2,6 +2,7 @@ import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { RepoRow } from "@/app/components/repo/RepoRow";
 import { Input } from "@/app/components/ui/Input";
+import { Skeleton } from "@/app/components/ui/Skeleton";
 import { Widget } from "@/app/components/ui/Widget";
 import { cn } from "@/app/lib/cn";
 import type { RepoSummary } from "@/shared/types";
@@ -61,7 +62,7 @@ export function RepoListWidget({ repos, isPending, onRepoClick }: RepoListWidget
       </div>
 
       {isPending ? (
-        <EmptyState label="Loading repositories…" />
+        <RepoRowsSkeleton />
       ) : filtered.length === 0 ? (
         <EmptyState label={query ? "No matches." : "No repositories."} />
       ) : groupMode === "flat" ? (
@@ -101,6 +102,29 @@ function EmptyState({ label }: { label: string }) {
   return (
     <div className="px-4 py-8 text-center font-mono text-ui text-[var(--color-fg-faint)]">
       {label}
+    </div>
+  );
+}
+
+function RepoRowsSkeleton() {
+  // Mirrors a real RepoRow's proportions so the shift when data arrives is
+  // near-zero. Widths vary per-row so the list feels organic.
+  const widths = [72, 58, 80, 46, 64, 70, 52, 66];
+  return (
+    <div className="skeleton-fade flex flex-col">
+      {widths.map((titleW, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-2.5 last:border-b-0"
+        >
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <Skeleton className="h-3.5" style={{ width: `${titleW}%` }} />
+            <Skeleton className="h-3" style={{ width: `${Math.min(90, titleW + 20)}%` }} />
+          </div>
+          <Skeleton className="hidden h-3 w-10 sm:block" />
+          <Skeleton className="hidden h-3 w-16 md:block" />
+        </div>
+      ))}
     </div>
   );
 }

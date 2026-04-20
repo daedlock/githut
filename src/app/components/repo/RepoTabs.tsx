@@ -25,7 +25,13 @@ export function RepoTabs({ tabs }: RepoTabsProps) {
             // biome-ignore lint/suspicious/noExplicitAny: dynamic route path is runtime-constructed
             to={tab.to as any}
             className={cn(
-              "group relative flex items-center gap-2 px-3 py-2.5 font-mono text-ui uppercase tracking-widest",
+              // Sans UI font for navigation — mono is reserved for eyebrows,
+              // code, and technical metadata. Navigation text should read as
+              // body/UI, same family as the rest of the app's readable copy.
+              // Weight is fixed (no 400→500 shift on active) so there's zero
+              // metric reflow when sliding between tabs; color + underline
+              // already signal active state clearly.
+              "group relative flex items-center gap-1.5 px-3 py-2 text-ui",
               "text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)]",
             )}
             activeProps={{
@@ -35,9 +41,7 @@ export function RepoTabs({ tabs }: RepoTabsProps) {
           >
             <span>{tab.label}</span>
             {tab.meta ? (
-              <span className="font-sans text-micro text-[var(--color-fg-faint)] normal-case tracking-normal">
-                {tab.meta}
-              </span>
+              <span className="text-micro text-[var(--color-fg-faint)]">{tab.meta}</span>
             ) : null}
           </Link>
         ))}

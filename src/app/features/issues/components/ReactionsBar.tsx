@@ -27,7 +27,7 @@ export function ReactionsBar({
   const hasAny = reactionsHaveAny(reactions);
 
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[var(--color-border)] pt-2.5">
+    <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-[var(--color-border)] pt-2.5">
       {REACTION_CONTENTS.filter((k) => (reactions[k] ?? 0) > 0).map((k) => {
         const mineId = myReactions.get(k);
         const mine = mineId != null;
@@ -39,14 +39,22 @@ export function ReactionsBar({
             aria-pressed={mine}
             title={mine ? "Remove your reaction" : `React with ${k}`}
             className={cn(
-              "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-caption transition-colors",
+              "inline-flex h-5 items-center gap-1 rounded-full border px-2 leading-none transition-colors",
               mine
                 ? "border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_12%,var(--color-bg))] text-[var(--color-accent)]"
                 : "border-[var(--color-border)] bg-[var(--color-bg-subtle)] text-[var(--color-fg-muted)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-sunken)]",
             )}
           >
-            <span>{REACTION_EMOJIS[k]}</span>
-            <span className={cn("font-mono tabular-nums", mine && "font-semibold")}>
+            {/* Explicit sizing — system emoji fonts ignore text-xs/text-caption
+                and render at their native metric. Pin both font-size and line-height
+                so the pill stays the same height regardless of emoji glyph. */}
+            <span className="text-[11px] leading-none">{REACTION_EMOJIS[k]}</span>
+            <span
+              className={cn(
+                "font-mono text-[10px] leading-none tabular-nums",
+                mine && "font-semibold",
+              )}
+            >
               {reactions[k]}
             </span>
           </button>
@@ -59,7 +67,7 @@ export function ReactionsBar({
           onClick={() => setPickerOpen((v) => !v)}
           title="Add reaction"
           className={cn(
-            "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-caption transition-colors",
+            "inline-flex h-5 items-center gap-1 rounded-full border px-2 leading-none transition-colors",
             hasAny
               ? "border-[var(--color-border)] text-[var(--color-fg-faint)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg-muted)]"
               : "border-dashed border-[var(--color-border)] text-[var(--color-fg-faint)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg-muted)]",
@@ -75,7 +83,7 @@ export function ReactionsBar({
               onClick={() => setPickerOpen(false)}
               role="presentation"
             />
-            <div className="absolute left-0 top-full z-20 mt-1.5 flex gap-1 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-bg)] p-1.5 shadow-lg">
+            <div className="absolute left-0 top-full z-20 mt-1.5 flex gap-0.5 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-bg)] p-1 shadow-lg">
               {REACTION_CONTENTS.map((k) => {
                 const mineId = myReactions.get(k);
                 const mine = mineId != null;
@@ -89,13 +97,13 @@ export function ReactionsBar({
                       setPickerOpen(false);
                     }}
                     className={cn(
-                      "flex h-7 w-7 items-center justify-center rounded text-body-lg transition-colors",
+                      "flex h-6 w-6 items-center justify-center rounded leading-none transition-colors",
                       mine
                         ? "bg-[color-mix(in_oklab,var(--color-accent)_14%,var(--color-bg))] ring-1 ring-[var(--color-accent)]"
                         : "hover:bg-[var(--color-bg-sunken)]",
                     )}
                   >
-                    {REACTION_EMOJIS[k]}
+                    <span className="text-[13px] leading-none">{REACTION_EMOJIS[k]}</span>
                   </button>
                 );
               })}

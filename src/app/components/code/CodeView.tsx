@@ -119,14 +119,12 @@ export function CodeView({ lines, decorations, startLine = 1, className }: CodeV
                   <span
                     key={i}
                     style={{
-                      "--tl": token.light.color,
-                      "--td": token.dark.color,
-                      // No color here — .code-token CSS rule owns it.
-                      // html.dark .code-token switches to --td via the stylesheet.
-                      // Inline color would override that rule and break dark mode.
-                      ...fontStyleToCSS(token.light.fontStyle),
-                    } as React.CSSProperties}
-                    className="code-token"
+                      // Token color is already a `var(--syntax-*)` reference
+                      // (see appTheme.ts) so light/dark swaps happen at paint
+                      // time via the <html>-level token palette — no JS needed.
+                      color: token.color,
+                      ...fontStyleToCSS(token.fontStyle),
+                    }}
                   >
                     {token.content}
                   </span>

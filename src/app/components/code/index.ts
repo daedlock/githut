@@ -1,4 +1,5 @@
 export { CodeView } from "./CodeView";
+export { DiffLayout, type DiffLayoutFile, type DiffLayoutProps } from "./DiffLayout";
 export { DiffView, type DiffMode, type DiffViewProps } from "./DiffView";
 export { FileDiff, type FileDiffProps, type FileStatus } from "./FileDiff";
 export { countChanges, parseUnifiedDiff, type DiffHunk } from "./parseDiff";

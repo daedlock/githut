@@ -4,10 +4,18 @@ export const FS_BOLD = 2;
 export const FS_UNDERLINE = 4;
 export const FS_STRIKETHROUGH = 8;
 
+/**
+ * A single Shiki-tokenized run of characters. Shape is intentionally
+ * single-theme: our custom theme emits CSS-variable references as color
+ * strings (var(--syntax-*)), so the browser handles the light/dark swap at
+ * paint time. That removes the prior --tl/--td inline dance.
+ */
 export type CodeToken = {
   content: string;
-  light: { color?: string; fontStyle?: number };
-  dark: { color?: string; fontStyle?: number };
+  /** CSS color string — typically `var(--syntax-*)` from the app theme. */
+  color?: string;
+  /** Shiki fontStyle bitmask — italic/bold/underline/strikethrough. */
+  fontStyle?: number;
 };
 
 export type CodeLine = CodeToken[];

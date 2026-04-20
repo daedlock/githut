@@ -115,7 +115,7 @@ export function FileList({
       </div>
 
       <table className="w-full text-body border-collapse">
-        <tbody>
+        <tbody className={isPending ? "skeleton-fade" : undefined}>
           {isPending ? (
             Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
           ) : (

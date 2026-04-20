@@ -285,8 +285,11 @@ export function useUpdateIssueState(owner: string, repo: string) {
     onMutate: async ({ issueNumber: n, nextState }) => {
       const iKey = issueKeys.detail(owner, repo, n);
       const listKey = issueKeys.all(owner, repo);
-      await queryClient.cancelQueries({ queryKey: iKey });
-      await queryClient.cancelQueries({ queryKey: listKey });
+
+      // Snapshot + optimistic write FIRST, synchronously. Do this before the
+      // `await cancelQueries` calls so React sees the new state in the same
+      // tick as the click — otherwise the awaits postpone the setQueryData
+      // to a microtask and the UI feels laggy.
       const prevIssue = queryClient.getQueryData<RepoIssue>(iKey);
       const prevList = queryClient.getQueryData<RepoIssue[]>(listKey);
       const nowIso = new Date().toISOString();
@@ -313,15 +316,27 @@ export function useUpdateIssueState(owner: string, repo: string) {
           ),
         );
       }
+
+      // Now cancel in-flight refetches so they can't clobber the optimistic write.
+      await queryClient.cancelQueries({ queryKey: iKey });
+      await queryClient.cancelQueries({ queryKey: listKey });
+
       return { prevIssue, prevList, iKey, listKey };
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prevIssue) queryClient.setQueryData(ctx.iKey, ctx.prevIssue);
       if (ctx?.prevList) queryClient.setQueryData(ctx.listKey, ctx.prevList);
     },
-    onSettled: (_data, _err, vars) => {
-      queryClient.invalidateQueries({ queryKey: issueKeys.all(owner, repo) });
-      queryClient.invalidateQueries({ queryKey: issueKeys.detail(owner, repo, vars.issueNumber) });
+    // Use the PATCH *response* to finalize the cache. We deliberately DO NOT
+    // run invalidateQueries for the detail key — GitHub's GET endpoint has brief
+    // read-after-write inconsistency after a state change, and a refetch can
+    // transiently return the old state, clobbering our optimistic flip. The
+    // PATCH response is always authoritative, so we write it directly.
+    onSuccess: (updated, vars) => {
+      queryClient.setQueryData(issueKeys.detail(owner, repo, vars.issueNumber), updated);
+      queryClient.setQueryData<RepoIssue[]>(issueKeys.all(owner, repo), (old) =>
+        old?.map((i) => (i.number === vars.issueNumber ? updated : i)),
+      );
     },
   });
 }

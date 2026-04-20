@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
-import { FileDiff } from "@/app/components/code";
+import { DiffLayout, type DiffLayoutFile } from "@/app/components/code";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 import { Button } from "@/app/components/ui/Button";
 import { Input } from "@/app/components/ui/Input";
@@ -135,36 +135,26 @@ function PlaygroundPage() {
           </div>
         </Section>
 
-        <Section title="Diff view" meta="unified + split, word-level emphasis, syntax-highlighted">
-          <div className="w-full space-y-4">
-            <FileDiff
-              filename="src/lib/auth.ts"
-              status="modified"
-              additions={4}
-              deletions={3}
-              patch={SAMPLE_TS_PATCH}
-              lang="typescript"
-            />
-            <FileDiff
-              filename="src/components/Card.tsx"
-              previousFilename="src/components/Panel.tsx"
-              status="renamed"
-              additions={2}
-              deletions={2}
-              patch={SAMPLE_TSX_PATCH}
-              lang="tsx"
-              defaultMode="split"
-            />
-            <FileDiff
-              filename="public/logo.png"
-              status="modified"
-              additions={0}
-              deletions={0}
-              patch={null}
-            />
-          </div>
-        </Section>
       </main>
+
+      {/*
+       * Diff layout preview — full viewport width, pinned height. DiffLayout
+       * owns both the tree sidebar and the stacked diffs + their own scroll
+       * container, so the tree stays anchored while diffs scroll. h-[80vh]
+       * is there just to give the demo a canvas; in a real PR route it would
+       * be flex-1 inside AppShell's main.
+       */}
+      <section className="w-full px-6 py-10">
+        <header className="mb-4 flex items-baseline gap-3 border-t border-[var(--color-border)] pt-8">
+          <h2 className="font-sans text-ui font-medium uppercase tracking-widest">Diff layout</h2>
+          <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
+            tree + stack · scroll-spy · j/k nav · [ toggle · global mode
+          </span>
+        </header>
+        <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border-strong)]">
+          <DiffLayout files={SAMPLE_DIFF_FILES} />
+        </div>
+      </section>
 
       <footer className="mx-auto max-w-3xl border-t border-[var(--color-border)] px-6 py-6 font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
         end of primitives
@@ -188,11 +178,10 @@ function Swatch({ label, value }: { label: string; value: string }) {
   );
 }
 
-// Sample unified-diff patches for the playground. Hand-authored to exercise:
-//   - context + adds + dels in one hunk
-//   - word-level intra-line changes (so the `.diff-word` path runs)
-//   - multiple hunks
-//   - both typescript and tsx syntax highlighting
+// Sample unified-diff patches for the playground — hand-authored to exercise
+// the tree (nested dirs, mixed statuses), word-level intra-line changes (so
+// `.diff-word` runs), multiple hunks, different languages, renames, and a
+// binary file with no patch.
 const SAMPLE_TS_PATCH = `@@ -12,7 +12,8 @@ export async function signIn(code: string) {
    const res = await fetch(\`\${API}/oauth/callback?code=\${code}\`);
    if (!res.ok) throw new Error("auth failed");
@@ -218,3 +207,91 @@ const SAMPLE_TSX_PATCH = `@@ -4,7 +4,7 @@ export function Panel({ title, childre
 +    </section>
    );
  }`;
+
+const SAMPLE_HOOK_PATCH = `@@ -1,8 +1,12 @@
+ import { useEffect, useState } from "react";
++import { z } from "zod";
++
++const TokenSchema = z.string().min(1);
+
+ export function useToken() {
+-  const [token, setToken] = useState<string | null>(null);
++  const [token, setToken] = useState<string | null>(() =>
++    TokenSchema.safeParse(sessionStorage.getItem("auth_token")).data ?? null,
++  );
+   useEffect(() => {
+     const cached = sessionStorage.getItem("auth_token");
+     if (cached) setToken(cached);`;
+
+const SAMPLE_CSS_PATCH = `@@ -18,8 +18,10 @@
+   --color-fg: #1c1917;
+   --color-fg-muted: #57534e;
+-  --color-accent: #f97316;
++  --color-accent: #ea580c;
++  --color-accent-hover: #c2410c;
+   --radius-md: 4px;
++  --radius-lg: 6px;
+ }`;
+
+const SAMPLE_README_PATCH = `@@ -1,6 +1,11 @@
+ # GitHut
+
+-A fast GitHub client.
++A fast, keyboard-first GitHub client. Built for engineers who live in issues,
++PRs, and diffs.
++
++## Features
++
++- Blazing fast diff viewer with split view, word-level highlighting, and a real file tree
+ `;
+
+const SAMPLE_DIFF_FILES: DiffLayoutFile[] = [
+  {
+    filename: "src/app/lib/auth.ts",
+    status: "modified",
+    additions: 3,
+    deletions: 2,
+    patch: SAMPLE_TS_PATCH,
+    lang: "typescript",
+  },
+  {
+    filename: "src/app/hooks/useToken.ts",
+    status: "added",
+    additions: 5,
+    deletions: 1,
+    patch: SAMPLE_HOOK_PATCH,
+    lang: "typescript",
+  },
+  {
+    filename: "src/app/components/Card.tsx",
+    previousFilename: "src/app/components/Panel.tsx",
+    status: "renamed",
+    additions: 2,
+    deletions: 2,
+    patch: SAMPLE_TSX_PATCH,
+    lang: "tsx",
+  },
+  {
+    filename: "src/app/styles/index.css",
+    status: "modified",
+    additions: 3,
+    deletions: 1,
+    patch: SAMPLE_CSS_PATCH,
+    lang: "css",
+  },
+  {
+    filename: "README.md",
+    status: "modified",
+    additions: 6,
+    deletions: 1,
+    patch: SAMPLE_README_PATCH,
+    lang: "markdown",
+  },
+  {
+    filename: "public/logo.png",
+    status: "modified",
+    additions: 0,
+    deletions: 0,
+    patch: null,
+  },
+];
