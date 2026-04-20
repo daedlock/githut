@@ -53,11 +53,18 @@ export function CodeView({ lines, decorations, startLine = 1, className }: CodeV
     <div
       ref={scrollRef}
       className={cn(
-        "overflow-auto bg-[var(--color-bg)] font-mono text-[13px] leading-[20px]",
+        "overflow-auto bg-[var(--color-bg)] text-[13px] leading-[20px]",
         "font-feature-settings-code",
         className,
       )}
-      style={{ height: containerH, maxHeight: MAX_H }}
+      style={{
+        height: containerH,
+        maxHeight: MAX_H,
+        // Force the mono token inline so Tailwind's @layer utilities cascade
+        // (which body's unlayered font-family: var(--font-sans) can outrank)
+        // can never steal the code viewer's font.
+        fontFamily: "var(--font-mono)",
+      }}
     >
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
         {virtualizer.getVirtualItems().map((item) => {

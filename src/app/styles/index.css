@@ -236,8 +236,8 @@ body {
 
 /*
  * Prose block for rendered README markdown.
- * Scoped via .readme-prose so we can diverge from body typography
- * (e.g. monospace headings to match the app's wordmark vibe).
+ * Scoped via .readme-prose. Body + headings use sans; only code spans and
+ * fenced blocks are monospace (inherits var(--font-mono) from their own rules below).
  */
 .readme-prose {
   color: var(--color-fg);
@@ -253,9 +253,8 @@ body {
 .readme-prose h4,
 .readme-prose h5,
 .readme-prose h6 {
-  font-family: var(--font-mono);
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   margin-top: 1.75em;
   margin-bottom: 0.6em;
   line-height: 1.25;
