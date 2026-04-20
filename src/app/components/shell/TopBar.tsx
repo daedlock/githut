@@ -1,6 +1,7 @@
 import { Link, useMatches } from "@tanstack/react-router";
 import { InboxPill } from "@/app/components/shell/InboxPill";
 import { UserMenu } from "@/app/components/shell/UserMenu";
+import { WorkspaceBar } from "@/app/components/shell/WorkspaceBar";
 import { WorkspaceSwitcher } from "@/app/components/shell/WorkspaceSwitcher";
 import { Container } from "@/app/components/ui/Container";
 import { useMe } from "@/app/hooks/useMe";
@@ -10,8 +11,8 @@ import { useCommandPalette } from "@/app/stores/commandPalette";
 
 export type TopBarProps = {
   /**
-   * Draw a hairline below the top bar. Turn OFF when a tab row follows so
-   * a single border closes the header assembly (no striped double lines).
+   * Draw a hairline below the entire header assembly (top bar + workspace bar).
+   * Turn OFF when a tab row (e.g. RepoTabs) follows immediately below.
    */
   bordered?: boolean;
   className?: string;
@@ -37,18 +38,18 @@ export function TopBar({ bordered = false, className }: TopBarProps) {
   const { owner, repo } = useOwnerRepo();
 
   return (
-    <header className={cn(bordered && "border-b border-[var(--color-border)]", className)}>
+    <header className={cn(bordered && "border-b border-border", className)}>
       <Container className="flex items-center gap-3 py-3">
         {/* Left cluster — brand, workspace, breadcrumb */}
         <Link
           to="/"
-          className="group inline-flex items-baseline gap-0 font-mono text-body font-medium tracking-tight text-[var(--color-fg)] select-none"
+          className="group inline-flex items-baseline gap-0 font-mono text-body font-medium tracking-tight text-foreground select-none"
           aria-label="Home"
         >
           GitHut
           <span
             aria-hidden
-            className="text-[var(--color-accent)] transition-opacity duration-150 group-hover:opacity-60"
+            className="text-primary transition-opacity duration-150 group-hover:opacity-60"
           >
             _
           </span>
@@ -61,16 +62,15 @@ export function TopBar({ bordered = false, className }: TopBarProps) {
             aria-label="Repository"
             className="flex min-w-0 items-baseline gap-1.5 text-ui truncate"
           >
-            {/* Sans per §6 — breadcrumb reads as UI label, not code.
-                Separator uses fg-faint for a quiet divider. */}
+            {/* Sans per §6 — breadcrumb reads as UI label, not code. */}
             <span className="text-[var(--color-fg-faint)]" aria-hidden>
               ⋮
             </span>
-            <span className="truncate text-[var(--color-fg-muted)]">{owner}</span>
+            <span className="truncate text-muted-foreground">{owner}</span>
             <span className="text-[var(--color-fg-faint)]" aria-hidden>
               /
             </span>
-            <span className="truncate font-medium text-[var(--color-fg)]">{repo}</span>
+            <span className="truncate font-medium text-foreground">{repo}</span>
           </nav>
         ) : null}
 
@@ -83,6 +83,7 @@ export function TopBar({ bordered = false, className }: TopBarProps) {
           {me ? <UserMenu login={me.login} avatarUrl={me.avatar_url} onSignOut={logout} /> : null}
         </div>
       </Container>
+      <WorkspaceBar bottomBorder={!bordered} />
     </header>
   );
 }
@@ -97,12 +98,13 @@ function PaletteTrigger({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       aria-label="Open command palette"
       title="Open command palette"
-      // h-7 + leading-none + centered flex so the glyphs sit in the middle
-      // instead of being clipped at the top by tight padding.
       className={cn(
-        "inline-flex h-7 items-center gap-1 rounded-[var(--radius-sm)] px-2",
-        "font-mono text-caption leading-none text-[var(--color-fg-muted)]",
-        "transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]",
+        "inline-flex h-7 items-center gap-1 rounded-md px-2",
+        "font-mono text-caption leading-none text-muted-foreground",
+        "outline-none transition-colors",
+        "hover:bg-muted hover:text-foreground",
+        "focus-visible:bg-muted focus-visible:text-foreground",
+        "focus-visible:ring-1 focus-visible:ring-foreground/15",
       )}
     >
       <span>{chord}</span>

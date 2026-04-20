@@ -382,7 +382,7 @@
   --chart-slot-4: #4ade80; /* green-400 */
   --chart-slot-5: #f472b6; /* pink-400 */
   --chart-slot-6: #facc15; /* yellow-400 */
-  --chart-other:  #57534e; /* stone-600 */ --background: oklch(0.145 0 0); --foreground: oklch(0.985 0 0); --card: oklch(0.205 0 0); --card-foreground: oklch(0.985 0 0); --popover: oklch(0.205 0 0); --popover-foreground: oklch(0.985 0 0); --primary: oklch(0.922 0 0); --primary-foreground: oklch(0.205 0 0); --secondary: oklch(0.269 0 0); --secondary-foreground: oklch(0.985 0 0); --muted: oklch(0.269 0 0); --muted-foreground: oklch(0.708 0 0); --accent: oklch(0.269 0 0); --accent-foreground: oklch(0.985 0 0); --destructive: oklch(0.704 0.191 22.216); --border: oklch(1 0 0 / 10%); --input: oklch(1 0 0 / 15%); --ring: oklch(0.556 0 0); --chart-1: oklch(0.87 0 0); --chart-2: oklch(0.556 0 0); --chart-3: oklch(0.439 0 0); --chart-4: oklch(0.371 0 0); --chart-5: oklch(0.269 0 0); --sidebar: oklch(0.205 0 0); --sidebar-foreground: oklch(0.985 0 0); --sidebar-primary: oklch(0.488 0.243 264.376); --sidebar-primary-foreground: oklch(0.985 0 0); --sidebar-accent: oklch(0.269 0 0); --sidebar-accent-foreground: oklch(0.985 0 0); --sidebar-border: oklch(1 0 0 / 10%); --sidebar-ring: oklch(0.556 0 0);
+  --chart-other:  #57534e; /* stone-600 */
 }
 
 html,
@@ -395,11 +395,21 @@ html {
   background-color: var(--color-bg);
   color: var(--color-fg);
   color-scheme: light;
+
+  /*
+   * Palette interaction surfaces — accent-tinted bg for hover/selected.
+   * color-mix against --color-focus (always the brand accent, never
+   * corrupted by the shadcn bridge) and --color-bg. Resolves at paint
+   * time so it adapts to every theme + light/dark automatically.
+   */
+  --palette-hover: color-mix(in oklch, var(--color-focus) 6%, var(--color-bg));
+  --palette-selected: color-mix(in oklch, var(--color-focus) 14%, var(--color-bg));
 }
 
 html.dark {
   color-scheme: dark;
 }
+
 
 /*
  * Shiki dual-theme switching.
@@ -538,10 +548,16 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-*:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
-}
+/*
+ * Focus indicators live on individual components (Button, Input, etc.) —
+ * each surface paints its own subtle `focus-visible` state (a neutral border
+ * shift or 1px foreground/15 ring). We don't want a global outline fallback
+ * because it overrides those component-level styles on specificity and
+ * reintroduces the loud brand-colored ring we deliberately moved away from.
+ *
+ * Elements without an explicit component style still get the browser-native
+ * :focus-visible indicator, which is sufficient for a11y on bare HTML.
+ */
 
 ::selection {
   background-color: var(--color-accent);

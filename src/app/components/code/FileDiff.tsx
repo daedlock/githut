@@ -53,9 +53,9 @@ export function FileDiff({
           type="button"
           onClick={() => setCollapsed((c) => !c)}
           className={cn(
-            "flex-shrink-0 rounded-sm p-0.5 text-[var(--color-fg-faint)]",
+            "shrink-0 rounded-sm p-0.5 text-fg-faint",
             "outline-none transition-colors",
-            "hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)]",
+            "hover:bg-(--color-bg-sunken) hover:text-(--color-fg)",
             "focus-visible:ring-1 focus-visible:ring-foreground/15",
           )}
           aria-label={collapsed ? "Expand diff" : "Collapse diff"}

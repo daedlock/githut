@@ -3,13 +3,16 @@ import {
   BookMarked,
   CheckCircle2,
   CircleDot,
+  Code2,
   Command as CommandIcon,
   FilePlus,
   GitPullRequest,
   Home,
   LogOut,
   type LucideIcon,
-  SunMoon,
+  Palette as PaletteIcon,
+  Settings,
+  Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -21,6 +24,7 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/app/components/ui/command";
+import { Kbd } from "@/app/components/ui/kbd";
 import {
   parsePaletteQuery,
   useCommandPaletteSearch,
@@ -30,30 +34,220 @@ import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { useRepos } from "@/app/hooks/useRepos";
 import { logout } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
-import { pushRecentItem, type RecentItem } from "@/app/lib/recentItems";
+import { clearRecentItems, pushRecentItem, type RecentItem } from "@/app/lib/recentItems";
 import { formatRelativeTime } from "@/app/lib/time";
 import { useCommandPalette, useCommandPaletteStore } from "@/app/stores/commandPalette";
-import { useThemeStore } from "@/app/stores/theme";
+import { type Palette, useThemeStore } from "@/app/stores/theme";
 
-/**
- * Command palette (`⌘K`).
- *
- * Composed on shadcn's <CommandDialog> — Dialog + cmdk wired together with
- * built-in animations (data-[state=open/closed]), focus management, and
- * semantic-token styling that inherits our theme bridge automatically.
- *
- * Sections (top→bottom): Recent · Actions · Repos · Issues & PRs.
- * Query-mode parsing lives in useCommandPaletteItems:
- *   ">" → Actions · "@" → Repos · "#N" / bare digits → jump-to-number.
- */
+// ─── Types ───────────────────────────────────────────────────────────────────
 
-type ActionItem = {
+type PaletteCommand = {
   id: string;
   label: string;
   icon: LucideIcon;
   keywords?: string[];
-  onRun: () => void;
+  shortcut?: string;
+  run: () => void;
 };
+
+type RepoContext = { owner: string; repo: string } | null;
+
+// ─── Theme definitions ───────────────────────────────────────────────────────
+// Mirrors ThemePicker CARDS — kept here to avoid coupling the palette to the
+// settings page. Each theme becomes its own command so you can type "lagoon"
+// or ">ember" and switch instantly.
+
+const THEME_DEFS: readonly {
+  id: string;
+  name: string;
+  palette: Palette;
+  preference: "light" | "dark";
+  keywords: string[];
+}[] = [
+  {
+    id: "stone-light",
+    name: "Stone Light",
+    palette: "stone",
+    preference: "light",
+    keywords: ["warm", "daylight", "default"],
+  },
+  {
+    id: "stone-dark",
+    name: "Stone Dark",
+    palette: "stone",
+    preference: "dark",
+    keywords: ["warm", "night", "default"],
+  },
+  {
+    id: "ember-light",
+    name: "Ember Light",
+    palette: "ember",
+    preference: "light",
+    keywords: ["parchment", "ivory"],
+  },
+  {
+    id: "ember",
+    name: "Ember",
+    palette: "ember",
+    preference: "dark",
+    keywords: ["coral", "graphite", "spark"],
+  },
+  {
+    id: "ember-soft",
+    name: "Ember Soft",
+    palette: "ember-soft",
+    preference: "dark",
+    keywords: ["coral", "soft", "lifted"],
+  },
+  {
+    id: "dune",
+    name: "Dune",
+    palette: "dune",
+    preference: "dark",
+    keywords: ["amber", "charcoal", "earth"],
+  },
+  {
+    id: "haze",
+    name: "Haze",
+    palette: "haze",
+    preference: "dark",
+    keywords: ["lavender", "mauve", "purple"],
+  },
+  {
+    id: "lagoon",
+    name: "Lagoon",
+    palette: "lagoon",
+    preference: "dark",
+    keywords: ["coral", "teal", "reef"],
+  },
+  {
+    id: "matrix",
+    name: "Matrix",
+    palette: "matrix",
+    preference: "dark",
+    keywords: ["green", "phosphor", "hacker"],
+  },
+  {
+    id: "moss",
+    name: "Moss",
+    palette: "moss",
+    preference: "dark",
+    keywords: ["forest", "earthy", "green"],
+  },
+  {
+    id: "sagecream",
+    name: "Sagecream",
+    palette: "sagecream",
+    preference: "dark",
+    keywords: ["sage", "cream", "neutral"],
+  },
+];
+
+// ─── Command builder ─────────────────────────────────────────────────────────
+// Returns a flat array of all available commands. cmdk handles the filtering.
+
+function buildCommands(
+  navigate: ReturnType<typeof useNavigate>,
+  close: () => void,
+  repoContext: RepoContext,
+): { actions: PaletteCommand[]; themes: PaletteCommand[] } {
+  const goTo = (path: string) => () => {
+    close();
+    navigate({ to: path });
+  };
+  const r = repoContext;
+  const base = r ? `/${r.owner}/${r.repo}` : null;
+  const repoKw = r ? [r.owner, r.repo] : [];
+
+  const actions: PaletteCommand[] = [
+    {
+      id: "nav:home",
+      label: "Go home",
+      icon: Home,
+      keywords: ["inbox", "notifications"],
+      shortcut: "g h",
+      run: goTo("/"),
+    },
+    {
+      id: "nav:settings",
+      label: "Settings",
+      icon: Settings,
+      keywords: ["preferences", "theme", "account"],
+      run: goTo("/settings"),
+    },
+    ...(r && base
+      ? [
+          {
+            id: "nav:issues",
+            label: "Issues",
+            icon: CircleDot,
+            keywords: ["bugs", ...repoKw],
+            shortcut: "g i",
+            run: goTo(`${base}/issues`),
+          },
+          {
+            id: "nav:pulls",
+            label: "Pull requests",
+            icon: GitPullRequest,
+            keywords: ["prs", "merge", ...repoKw],
+            shortcut: "g p",
+            run: goTo(`${base}/pulls`),
+          },
+          {
+            id: "nav:code",
+            label: "Code",
+            icon: Code2,
+            keywords: ["source", "files", "tree", ...repoKw],
+            shortcut: "g c",
+            run: goTo(`${base}/code`),
+          },
+          {
+            id: "action:new-issue",
+            label: `New issue in ${r.owner}/${r.repo}`,
+            icon: FilePlus,
+            keywords: ["create", "bug", "report"],
+            run: goTo(`${base}/issues?new=1`),
+          },
+        ]
+      : []),
+    {
+      id: "action:clear-recent",
+      label: "Clear recent items",
+      icon: Trash2,
+      keywords: ["history", "reset"],
+      run: () => {
+        void clearRecentItems();
+        close();
+      },
+    },
+    {
+      id: "action:sign-out",
+      label: "Sign out",
+      icon: LogOut,
+      keywords: ["logout", "exit"],
+      run: () => {
+        close();
+        logout();
+      },
+    },
+  ];
+
+  const themes: PaletteCommand[] = THEME_DEFS.map((t) => ({
+    id: `theme:${t.id}`,
+    label: t.name,
+    icon: PaletteIcon,
+    keywords: ["theme", "appearance", "color", ...t.keywords],
+    run: () => {
+      useThemeStore.getState().setPalette(t.palette);
+      useThemeStore.getState().setPreference(t.preference);
+      close();
+    },
+  }));
+
+  return { actions, themes };
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function CommandPalette() {
   const open = useCommandPaletteStore((s) => s.open);
@@ -71,31 +265,53 @@ export function CommandPalette() {
     }
   }, [pathname]);
 
-  // Parse repo context from URL — drives the "new issue" action + `#N` jump.
-  const repoContext = useMemo(() => {
+  // Repo context from URL
+  const repoContext = useMemo<RepoContext>(() => {
     const parts = pathname.split("/").filter(Boolean);
     if (parts.length < 2) return null;
     if (["login", "settings", "playground", "w"].includes(parts[0]!)) return null;
     return { owner: parts[0]!, repo: parts[1]! };
   }, [pathname]);
 
-  // Global ⌘K binding — useKeybindings skips dispatch when focus is inside
-  // an input/textarea, which is exactly the right behavior: cmdk owns the
-  // key once its input has focus (the palette toggles from outside it).
-  const shortcutMap = useMemo(() => ({ "⌘k": toggle }), [toggle]);
-  useKeybindings(shortcutMap);
+  // ⌘K + vim-style navigation shortcuts
+  const shortcuts = useMemo(
+    () => ({
+      "⌘k": toggle,
+      "g h": () => navigate({ to: "/" }),
+      "g i": () => {
+        if (repoContext) navigate({ to: `/${repoContext.owner}/${repoContext.repo}/issues` });
+      },
+      "g p": () => {
+        if (repoContext) navigate({ to: `/${repoContext.owner}/${repoContext.repo}/pulls` });
+      },
+      "g c": () => {
+        if (repoContext) navigate({ to: `/${repoContext.owner}/${repoContext.repo}/code` });
+      },
+    }),
+    [toggle, navigate, repoContext],
+  );
+  useKeybindings(shortcuts);
 
+  // Query + mode
   const [query, setQuery] = useState("");
   const mode = parsePaletteQuery(query);
+  const hasQuery = query.trim().length > 0;
+
+  // Data sources
   const recent = useRecentItems(5);
   const repos = useRepos();
   const search = useCommandPaletteSearch(mode.kind === "all" ? mode.query : "");
+  const { actions, themes } = useMemo(
+    () => buildCommands(navigate, close, repoContext),
+    [navigate, close, repoContext],
+  );
 
   // Reset query on close
   useEffect(() => {
     if (!open) setQuery("");
   }, [open]);
 
+  // Navigation helper — push to recents + navigate
   const go = useCallback(
     (item: Omit<RecentItem, "visitedAt">) => {
       void pushRecentItem(item);
@@ -103,21 +319,6 @@ export function CommandPalette() {
       navigate({ to: item.href });
     },
     [close, navigate],
-  );
-
-  const runAction = useCallback(
-    (action: ActionItem) => {
-      void pushRecentItem({
-        id: `action:${action.id}`,
-        kind: "action",
-        label: action.label,
-        href: "#action",
-        meta: "Action",
-      });
-      close();
-      action.onRun();
-    },
-    [close],
   );
 
   const jumpToNumber = useCallback(
@@ -134,50 +335,13 @@ export function CommandPalette() {
     [repoContext, go],
   );
 
-  const actions = useMemo<ActionItem[]>(() => {
-    const base: ActionItem[] = [
-      {
-        id: "toggle-theme",
-        label: "Toggle theme",
-        icon: SunMoon,
-        keywords: ["dark", "light", "appearance", "mode"],
-        onRun: () => useThemeStore.getState().cyclePreference(),
-      },
-      {
-        id: "open-inbox",
-        label: "Open inbox",
-        icon: Home,
-        keywords: ["home", "notifications", "triage"],
-        onRun: () => navigate({ to: "/" }),
-      },
-      {
-        id: "sign-out",
-        label: "Sign out",
-        icon: LogOut,
-        keywords: ["logout", "exit"],
-        onRun: () => logout(),
-      },
-    ];
-    if (repoContext) {
-      base.push({
-        id: "new-issue",
-        label: `New issue in ${repoContext.owner}/${repoContext.repo}`,
-        icon: FilePlus,
-        keywords: ["create", "bug", "report"],
-        onRun: () =>
-          navigate({
-            to: `/${repoContext.owner}/${repoContext.repo}/issues?new=1`,
-          }),
-      });
-    }
-    return base;
-  }, [navigate, repoContext]);
-
-  const showRecent = mode.kind === "all" && recent.length > 0;
-  const showActions = mode.kind === "all" || mode.kind === "actions";
+  // Section visibility
+  const numberMode = mode.kind === "number";
+  const showRecent = mode.kind === "all" && recent.length > 0 && !hasQuery;
+  const showCommands = mode.kind === "all" || mode.kind === "actions";
+  const showThemes = mode.kind === "actions" || (mode.kind === "all" && hasQuery);
   const showRepos = mode.kind === "all" || mode.kind === "repos";
   const showSearch = mode.kind === "all" && mode.query.length >= 2;
-  const numberMode = mode.kind === "number";
 
   return (
     <CommandDialog
@@ -185,10 +349,9 @@ export function CommandPalette() {
       onOpenChange={setOpen}
       title="Command palette"
       description="Search, navigate, or run a command"
-      className="max-w-[min(640px,calc(100vw-2rem))]"
     >
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: cmdk owns focus; we intercept Enter for number-mode jump */}
       <div
-        // Reserve ⌘Enter for peek (P2.G4); number-mode takes Enter itself.
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
@@ -205,8 +368,8 @@ export function CommandPalette() {
           onValueChange={setQuery}
           placeholder={
             repoContext
-              ? "Search, > actions, @ repos, # issue number…"
-              : "Search, > actions, @ repos…"
+              ? "Search, > commands, @ repos, #123 issue…"
+              : "Search, > commands, @ repos…"
           }
         />
 
@@ -214,11 +377,12 @@ export function CommandPalette() {
           <CommandEmpty>
             {numberMode
               ? repoContext
-                ? `↵ to open #${mode.number} in ${repoContext.owner}/${repoContext.repo}`
+                ? `Press ↵ to open #${mode.number} in ${repoContext.owner}/${repoContext.repo}`
                 : "Open a repo first to jump to an issue number."
-              : "No results."}
+              : "No results found."}
           </CommandEmpty>
 
+          {/* ── Recent ── */}
           {showRecent && (
             <CommandGroup heading="Recent">
               {recent.map((item) => (
@@ -245,24 +409,25 @@ export function CommandPalette() {
             </CommandGroup>
           )}
 
-          {showActions && (
-            <CommandGroup heading="Actions">
-              {actions.map((a) => {
-                const Icon = a.icon;
-                return (
-                  <CommandItem
-                    key={a.id}
-                    value={`> ${a.label} ${a.keywords?.join(" ") ?? ""}`}
-                    onSelect={() => runAction(a)}
-                  >
-                    <Icon />
-                    <span className="flex-1 truncate">{a.label}</span>
-                  </CommandItem>
-                );
-              })}
+          {/* ── Commands ── */}
+          {showCommands && (
+            <CommandGroup heading="Commands">
+              {actions.map((cmd) => (
+                <CommandRow key={cmd.id} cmd={cmd} />
+              ))}
             </CommandGroup>
           )}
 
+          {/* ── Themes — only with a query or in > mode ── */}
+          {showThemes && (
+            <CommandGroup heading="Themes">
+              {themes.map((cmd) => (
+                <CommandRow key={cmd.id} cmd={cmd} />
+              ))}
+            </CommandGroup>
+          )}
+
+          {/* ── Repos ── */}
           {showRepos && repos.data && repos.data.length > 0 && (
             <CommandGroup heading="Repos">
               {repos.data.slice(0, 50).map((r) => (
@@ -283,21 +448,20 @@ export function CommandPalette() {
                   <span className="min-w-0 flex-1 truncate font-mono tabular-nums">
                     {r.fullName}
                   </span>
-                  <CommandShortcut>
-                    {r.language ?? formatRelativeTime(r.pushedAt)}
-                  </CommandShortcut>
+                  <CommandShortcut>{r.language ?? formatRelativeTime(r.pushedAt)}</CommandShortcut>
                 </CommandItem>
               ))}
             </CommandGroup>
           )}
 
+          {/* ── Search results ── */}
           {showSearch && (
             <CommandGroup
               heading={
                 <span className="flex items-center justify-between">
                   <span>Issues & PRs</span>
                   {search.isFetching && (
-                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                    <span className="animate-pulse text-micro uppercase tracking-widest text-muted-foreground">
                       searching…
                     </span>
                   )}
@@ -330,7 +494,7 @@ export function CommandPalette() {
                         hit.state === "open" ? "text-success" : "text-muted-foreground",
                       )}
                     />
-                    <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                    <span className="font-mono text-caption tabular-nums text-muted-foreground">
                       #{hit.number}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{hit.title}</span>
@@ -341,15 +505,71 @@ export function CommandPalette() {
             </CommandGroup>
           )}
         </CommandList>
+
+        {/* ── Footer ── */}
+        <div className="flex items-center gap-3 border-t border-border px-3 py-2">
+          <FooterHint keys={["↵"]} label="select" />
+          <FooterHint keys={["↑", "↓"]} label="navigate" />
+          <span className="flex-1" />
+          <FooterHint keys={[">"]} label="commands" />
+          <FooterHint keys={["@"]} label="repos" />
+          {repoContext && <FooterHint keys={["#"]} label="issue" />}
+          <FooterHint keys={["esc"]} label="close" />
+        </div>
       </div>
     </CommandDialog>
   );
 }
 
+// ─── Subcomponents ───────────────────────────────────────────────────────────
+
+function CommandRow({ cmd }: { cmd: PaletteCommand }) {
+  const Icon = cmd.icon;
+  return (
+    <CommandItem
+      value={`> ${cmd.label} ${cmd.keywords?.join(" ") ?? ""}`}
+      onSelect={() => cmd.run()}
+    >
+      <Icon />
+      <span className="min-w-0 flex-1 truncate">{cmd.label}</span>
+      {cmd.shortcut && (
+        <CommandShortcut>
+          <ShortcutKeys chord={cmd.shortcut} />
+        </CommandShortcut>
+      )}
+    </CommandItem>
+  );
+}
+
+const RECENT_ICONS: Record<string, LucideIcon> = {
+  pr: GitPullRequest,
+  issue: CircleDot,
+  action: CommandIcon,
+  repo: BookMarked,
+};
+
 function RecentIcon({ kind }: { kind: RecentItem["kind"] }) {
-  if (kind === "pr") return <GitPullRequest />;
-  if (kind === "issue") return <CircleDot />;
-  if (kind === "action") return <CommandIcon />;
-  if (kind === "repo") return <BookMarked />;
-  return <CommandIcon />;
+  const Icon = RECENT_ICONS[kind] ?? CommandIcon;
+  return <Icon />;
+}
+
+function ShortcutKeys({ chord }: { chord: string }) {
+  return (
+    <span className="inline-flex items-center gap-0.75">
+      {chord.split(" ").map((k) => (
+        <Kbd key={k}>{k}</Kbd>
+      ))}
+    </span>
+  );
+}
+
+function FooterHint({ keys, label }: { keys: string[]; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-muted-foreground">
+      {keys.map((k) => (
+        <Kbd key={k}>{k}</Kbd>
+      ))}
+      <span className="text-micro">{label}</span>
+    </span>
+  );
 }
