@@ -30,6 +30,7 @@
     "wrangler": "^4.83.0"
   },
   "dependencies": {
+    "@floating-ui/react": "^0.27.19",
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/ibm-plex-sans": "^5.2.8",
     "@octokit/core": "^7.0.6",

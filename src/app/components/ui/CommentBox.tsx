@@ -1,13 +1,21 @@
-import { useQuery } from "@tanstack/react-query";
+import {
+  autoUpdate,
+  flip,
+  FloatingPortal,
+  offset,
+  shift,
+  size,
+  useFloating,
+} from "@floating-ui/react";
 import { CheckCircle2, CircleDot, Eye, GitPullRequest, Pencil } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { z } from "zod";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
+import { Skeleton } from "@/app/components/ui/Skeleton";
+import { useDebouncedValue } from "@/app/hooks/useDebouncedValue";
+import { type MentionItem, useMentionSearch } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
-import { getGitHubClient } from "@/app/lib/github/client";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Trigger detection ───────────────────────────────────────────────────────
 
 type Trigger = {
   type: "@" | "#";
@@ -15,79 +23,9 @@ type Trigger = {
   startIndex: number;
 };
 
-type MentionItem = {
-  kind: "@";
-  id: string;
-  login: string;
-  avatar: string;
-};
-
-type RefItem = {
-  kind: "#";
-  id: string;
-  number: number;
-  title: string;
-  state: "open" | "closed";
-  isPR: boolean;
-};
-
-type DropdownItem = MentionItem | RefItem;
-
-// ─── Data hooks ──────────────────────────────────────────────────────────────
-
-const AssigneeSchema = z.array(z.object({ login: z.string(), avatar_url: z.string() }));
-
-const IssueRefSchema = z.array(
-  z.object({
-    number: z.number(),
-    title: z.string(),
-    state: z.enum(["open", "closed"]),
-    pull_request: z.object({}).optional(),
-  }),
-);
-
-function useAssignees(owner: string, repo: string, enabled: boolean) {
-  return useQuery({
-    queryKey: ["repo-assignees", owner, repo],
-    enabled,
-    staleTime: 5 * 60_000,
-    queryFn: async () => {
-      const client = getGitHubClient();
-      const res = await client.request("GET /repos/{owner}/{repo}/assignees", {
-        owner,
-        repo,
-        per_page: 50,
-      });
-      return AssigneeSchema.parse(res.data);
-    },
-  });
-}
-
-function useIssueRefs(owner: string, repo: string, enabled: boolean) {
-  return useQuery({
-    queryKey: ["repo-issue-refs", owner, repo],
-    enabled,
-    staleTime: 60_000,
-    queryFn: async () => {
-      const client = getGitHubClient();
-      const res = await client.request("GET /repos/{owner}/{repo}/issues", {
-        owner,
-        repo,
-        state: "all",
-        per_page: 100,
-        sort: "updated",
-      });
-      return IssueRefSchema.parse(res.data);
-    },
-  });
-}
-
-// ─── Trigger detection ───────────────────────────────────────────────────────
-
 function detectTrigger(text: string, cursorPos: number): Trigger | null {
-  // Walk back from cursor to find the start of the current word
   let i = cursorPos - 1;
-  while (i >= 0 && !/[\s\n]/.test(text[i] ?? " ")) i--;
+  while (i >= 0 && !/[\s\n]/.test(text[i] ?? "")) i--;
   const wordStart = i + 1;
   const word = text.slice(wordStart, cursorPos);
   if (word.startsWith("@")) return { type: "@", query: word.slice(1), startIndex: wordStart };
@@ -95,92 +33,185 @@ function detectTrigger(text: string, cursorPos: number): Trigger | null {
   return null;
 }
 
-// ─── Dropdown (portal) ───────────────────────────────────────────────────────
+// ─── Dropdown ────────────────────────────────────────────────────────────────
 
 function Dropdown({
-  anchorRef,
+  anchor,
   items,
+  isPending,
   selectedIdx,
   onSelect,
 }: {
-  anchorRef: React.RefObject<HTMLTextAreaElement | null>;
-  items: DropdownItem[];
+  anchor: HTMLTextAreaElement | null;
+  items: MentionItem[];
+  isPending: boolean;
   selectedIdx: number;
-  onSelect: (item: DropdownItem) => void;
+  onSelect: (item: MentionItem) => void;
 }) {
-  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
-
-  // Recompute position on each render while visible
-  useEffect(() => {
-    if (!anchorRef.current) return;
-    const r = anchorRef.current.getBoundingClientRect();
-    setPos({ top: r.bottom + 6, left: r.left, width: Math.min(r.width, 380) });
+  const { refs, floatingStyles, placement } = useFloating({
+    placement: "bottom-start",
+    strategy: "fixed",
+    whileElementsMounted: autoUpdate,
+    middleware: [
+      offset(6),
+      // Flip to top-start when bottom is clipped. We keep the fallback set small
+      // and aligned to the same horizontal anchor so the dropdown feels stable.
+      flip({ fallbackPlacements: ["top-start"], padding: 8 }),
+      shift({ padding: 8, crossAxis: true }),
+      size({
+        padding: 8,
+        apply({ rects, availableHeight, elements }) {
+          Object.assign(elements.floating.style, {
+            width: `${Math.max(260, Math.min(rects.reference.width, 440))}px`,
+            maxHeight: `${Math.min(availableHeight, 300)}px`,
+          });
+        },
+      }),
+    ],
   });
 
-  if (!pos) return null;
+  useEffect(() => {
+    refs.setReference(anchor);
+  }, [anchor, refs]);
 
-  return createPortal(
-    <div
-      style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }}
-      className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-bg)] shadow-xl"
-    >
-      {items.map((item, i) => (
-        <button
-          key={item.id}
-          type="button"
-          // mousedown fires before blur, so we can intercept before focus leaves textarea
-          onMouseDown={(e) => {
-            e.preventDefault();
-            onSelect(item);
-          }}
-          className={cn(
-            "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors",
-            i === selectedIdx
-              ? "bg-[var(--color-bg-sunken)]"
-              : "hover:bg-[var(--color-bg-subtle)]",
-          )}
-        >
-          {item.kind === "@" ? (
-            <>
-              <img
-                src={item.avatar}
-                alt={item.login}
-                className="h-5 w-5 flex-shrink-0 rounded-full border border-[var(--color-border)]"
-              />
-              <span className="font-medium text-[var(--color-fg)]">{item.login}</span>
-              <span className="ml-auto text-[11px] text-[var(--color-fg-faint)]">member</span>
-            </>
-          ) : (
-            <>
-              {item.isPR ? (
-                <GitPullRequest
-                  className={cn(
-                    "h-3.5 w-3.5 flex-shrink-0",
-                    item.state === "open"
-                      ? "text-[var(--color-success)]"
-                      : "text-[var(--color-fg-faint)]",
-                  )}
-                />
-              ) : item.state === "open" ? (
-                <CircleDot className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-success)]" />
-              ) : (
-                <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-fg-faint)]" />
-              )}
-              <span className="font-mono text-xs text-[var(--color-fg-faint)]">
-                #{item.number}
+  const showSkeleton = isPending && items.length === 0;
+  const showEmpty = !isPending && items.length === 0;
+
+  return (
+    <FloatingPortal>
+      <div
+        ref={refs.setFloating}
+        style={{ ...floatingStyles, zIndex: 9999 }}
+        data-placement={placement}
+        className={cn(
+          "popover-enter",
+          "overflow-hidden rounded-[var(--radius-md)]",
+          "border border-[var(--color-border-strong)] bg-[var(--color-bg)]",
+          // Crisp 2-layer shadow — a tight ring + a softer drop.
+          // Avoids the generic shadow-xl look; feels more deliberate.
+          "shadow-[0_1px_0_rgba(0,0,0,0.04),0_8px_24px_-8px_rgba(0,0,0,0.18)]",
+        )}
+      >
+        <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-3 py-1.5">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]">
+            {items[0]?.kind === "@" || (showSkeleton && selectedIdx === 0)
+              ? "Mention a user"
+              : "Reference an issue or PR"}
+          </span>
+          {isPending && items.length > 0 && (
+            <span className="ml-auto flex items-center gap-1">
+              <span className="h-1 w-1 rounded-full bg-[var(--color-accent)] animate-pulse" />
+              <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]">
+                searching
               </span>
-              <span className="min-w-0 flex-1 truncate text-[var(--color-fg)]">{item.title}</span>
-              {item.isPR && (
-                <span className="ml-auto flex-shrink-0 rounded border border-[var(--color-border)] px-1 py-px font-mono text-[9px] uppercase tracking-wider text-[var(--color-fg-faint)]">
-                  PR
-                </span>
-              )}
-            </>
+            </span>
           )}
-        </button>
-      ))}
-    </div>,
-    document.body,
+        </div>
+
+        <div className="max-h-[260px] overflow-auto">
+          {showSkeleton ? (
+            <div className="flex flex-col py-1">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-2.5 px-3 py-2">
+                  <Skeleton className="h-5 w-5 rounded-full" />
+                  <Skeleton className="h-3.5 flex-1 max-w-[60%]" />
+                </div>
+              ))}
+            </div>
+          ) : showEmpty ? (
+            <div className="px-3 py-3 font-mono text-xs text-[var(--color-fg-faint)]">
+              No matches
+            </div>
+          ) : (
+            items.map((item, i) => (
+              <Row
+                key={item.id}
+                item={item}
+                selected={i === selectedIdx}
+                onSelect={onSelect}
+              />
+            ))
+          )}
+        </div>
+      </div>
+    </FloatingPortal>
+  );
+}
+
+function Row({
+  item,
+  selected,
+  onSelect,
+}: {
+  item: MentionItem;
+  selected: boolean;
+  onSelect: (item: MentionItem) => void;
+}) {
+  return (
+    <button
+      type="button"
+      // mousedown fires before blur, so we can intercept before focus leaves textarea
+      onMouseDown={(e) => {
+        e.preventDefault();
+        onSelect(item);
+      }}
+      className={cn(
+        "group relative flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm",
+        "transition-[background-color,transform] duration-75",
+        selected
+          ? "bg-[var(--color-bg-sunken)]"
+          : "hover:bg-[var(--color-bg-subtle)] active:translate-x-px",
+      )}
+    >
+      {/* Selected indicator — sharp accent bar on the left edge */}
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-y-1 left-0 w-[2px] rounded-full transition-opacity duration-75",
+          selected ? "bg-[var(--color-accent)] opacity-100" : "opacity-0",
+        )}
+      />
+
+      {item.kind === "@" ? (
+        <>
+          <img
+            src={item.avatar}
+            alt=""
+            className="h-5 w-5 flex-shrink-0 rounded-full border border-[var(--color-border)]"
+          />
+          <span className="truncate font-medium text-[var(--color-fg)]">{item.login}</span>
+          <span className="ml-auto shrink-0 font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]">
+            member
+          </span>
+        </>
+      ) : (
+        <>
+          {item.isPR ? (
+            <GitPullRequest
+              className={cn(
+                "h-3.5 w-3.5 flex-shrink-0",
+                item.state === "open"
+                  ? "text-[var(--color-success)]"
+                  : "text-[var(--color-fg-faint)]",
+              )}
+            />
+          ) : item.state === "open" ? (
+            <CircleDot className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-success)]" />
+          ) : (
+            <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-fg-faint)]" />
+          )}
+          <span className="font-mono text-xs text-[var(--color-fg-faint)] tabular-nums">
+            #{item.number}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-[var(--color-fg)]">{item.title}</span>
+          {item.isPR && (
+            <span className="ml-auto shrink-0 rounded border border-[var(--color-border)] px-1 py-px font-mono text-[9px] uppercase tracking-wider text-[var(--color-fg-faint)]">
+              PR
+            </span>
+          )}
+        </>
+      )}
+    </button>
   );
 }
 
@@ -214,49 +245,28 @@ export function CommentBox({
   const [selectedIdx, setSelectedIdx] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Prefetch data as soon as the box mounts (staleTime ensures single request)
-  const { data: assignees } = useAssignees(owner, repo, true);
-  const { data: issueRefs } = useIssueRefs(owner, repo, true);
+  // Debounce the search query — 180ms of quiet before hitting GraphQL.
+  // Keeps typing snappy (no fetch per keystroke) while still feeling live.
+  const debouncedQuery = useDebouncedValue(trigger?.query ?? "", 180);
 
-  const dropdownItems = useMemo((): DropdownItem[] => {
-    if (!trigger) return [];
+  const { data: items, isFetching } = useMentionSearch(
+    owner,
+    repo,
+    trigger?.type ?? null,
+    debouncedQuery,
+  );
 
-    if (trigger.type === "@") {
-      const q = trigger.query.toLowerCase();
-      return (assignees ?? [])
-        .filter((a) => !q || a.login.toLowerCase().includes(q))
-        .slice(0, 7)
-        .map((a) => ({ kind: "@" as const, id: a.login, login: a.login, avatar: a.avatar_url }));
-    }
+  const dropdownItems = items ?? [];
 
-    const q = trigger.query.toLowerCase();
-    const all = issueRefs ?? [];
-    const filtered = q
-      ? all.filter(
-          (i) => String(i.number).startsWith(q) || i.title.toLowerCase().includes(q),
-        )
-      : all;
-    return filtered.slice(0, 7).map((i) => ({
-      kind: "#" as const,
-      id: String(i.number),
-      number: i.number,
-      title: i.title,
-      state: i.state,
-      isPR: !!i.pull_request,
-    }));
-  }, [trigger, assignees, issueRefs]);
-
-  // Reset selection when items change
   useEffect(() => setSelectedIdx(0), [dropdownItems]);
 
   const insertCompletion = useCallback(
-    (item: DropdownItem) => {
+    (item: MentionItem) => {
       if (!textareaRef.current || !trigger) return;
       const cursorPos = textareaRef.current.selectionStart ?? value.length;
       const before = value.slice(0, trigger.startIndex);
       const after = value.slice(cursorPos);
-      const insertion =
-        item.kind === "@" ? `@${item.login} ` : `#${item.number} `;
+      const insertion = item.kind === "@" ? `@${item.login} ` : `#${item.number} `;
       const next = before + insertion + after;
       onChange(next);
       setTrigger(null);
@@ -277,7 +287,13 @@ export function CommentBox({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (!trigger || dropdownItems.length === 0) return;
+    if (!trigger) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setTrigger(null);
+      return;
+    }
+    if (dropdownItems.length === 0) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelectedIdx((i) => (i + 1) % dropdownItems.length);
@@ -289,26 +305,27 @@ export function CommentBox({
       if (!item) return;
       e.preventDefault();
       insertCompletion(item);
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      setTrigger(null);
     }
   }
 
-  // Re-detect trigger when cursor moves (click, keyboard navigation)
   function handleSelect(e: React.SyntheticEvent<HTMLTextAreaElement>) {
     const el = e.currentTarget;
     setTrigger(detectTrigger(el.value, el.selectionStart ?? el.value.length));
   }
 
   function handleBlur() {
-    // Slight delay so onMouseDown in dropdown fires first
+    // Delay so onMouseDown in dropdown can fire first and intercept selection
     setTimeout(() => setTrigger(null), 150);
   }
 
+  const isSearching =
+    isFetching &&
+    // Only show "searching" indicator when a query is pending but we have prior results.
+    // If there are no prior results, the skeleton state handles visual feedback.
+    dropdownItems.length > 0;
+
   return (
     <div className={cn("flex flex-col", className)}>
-      {/* Tab bar */}
       <div className="flex items-center border-b border-[var(--color-border)]">
         <TabBtn active={mode === "write"} onClick={() => setMode("write")}>
           <Pencil className="h-3 w-3" />
@@ -327,7 +344,6 @@ export function CommentBox({
         </span>
       </div>
 
-      {/* Write mode */}
       {mode === "write" && (
         <>
           <textarea
@@ -344,10 +360,11 @@ export function CommentBox({
             className="w-full resize-y bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-fg)] placeholder:text-[var(--color-fg-faint)] focus:outline-none disabled:opacity-50"
           />
 
-          {trigger && dropdownItems.length > 0 && (
+          {trigger && (
             <Dropdown
-              anchorRef={textareaRef}
+              anchor={textareaRef.current}
               items={dropdownItems}
+              isPending={isFetching || isSearching}
               selectedIdx={selectedIdx}
               onSelect={insertCompletion}
             />
@@ -355,7 +372,6 @@ export function CommentBox({
         </>
       )}
 
-      {/* Preview mode */}
       {mode === "preview" && (
         <div className="min-h-[80px] px-3 py-2.5">
           {value.trim() ? (

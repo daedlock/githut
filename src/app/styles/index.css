@@ -217,6 +217,28 @@ html.dark .code-token {
   text-rendering: optimizeLegibility;
 }
 
+/*
+ * Popover entrance — fast, quiet slide + scale. Matches the app's industrial
+ * utilitarian tone: no bounce, no glow, just a crisp settle. 120ms with a
+ * gentle exponential ease so it decelerates naturally into place.
+ */
+@keyframes popover-in {
+  from { opacity: 0; transform: translateY(-3px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0)     scale(1); }
+}
+.popover-enter {
+  animation: popover-in 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top left;
+}
+.popover-enter[data-placement^="top"] {
+  transform-origin: bottom left;
+  animation-name: popover-in-up;
+}
+@keyframes popover-in-up {
+  from { opacity: 0; transform: translateY(3px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
 body {
   font-family: var(--font-sans);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
