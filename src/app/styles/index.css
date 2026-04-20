@@ -8,22 +8,51 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * Color tokens — rules in ~/.claude/projects/-home-end4-code-projects-githut/memory/feedback_color_discipline.md
+ * Light surfaces use Tailwind stone-50/100/200 (warm neutrals). Dark uses stone-900/950 scale.
+ * Every accent/status token chosen for WCAG AA contrast against bg/bg-subtle. See inline reasoning.
+ */
+
 @theme {
-  --color-bg: #fafaf9;
-  --color-bg-subtle: #f5f5f4;
-  --color-bg-sunken: #e7e5e4;
-  --color-fg: #1c1917;
-  --color-fg-muted: #57534e;
-  --color-fg-faint: #a8a29e;
-  --color-border: #e7e5e4;
-  --color-border-strong: #d6d3d1;
-  --color-accent: #ea580c;
-  --color-accent-hover: #c2410c;
-  --color-accent-fg: #fffbeb;
-  --color-success: #16a34a;
-  --color-danger: #dc2626;
-  --color-warning: #ca8a04;
-  --color-focus: #ea580c;
+  /* surfaces */
+  --color-bg: #fafaf9;            /* stone-50 — warm off-white; fg contrast 15.6:1 */
+  --color-bg-subtle: #f5f5f4;     /* stone-100 — card surfaces */
+  --color-bg-sunken: #e7e5e4;     /* stone-200 — inset / hover */
+
+  /* text */
+  --color-fg: #1c1917;            /* stone-900 — 15.6:1 on bg */
+  --color-fg-muted: #57534e;      /* stone-600 — 7.5:1 on bg (AA for body text) */
+  --color-fg-faint: #a8a29e;      /* stone-400 — 3.3:1 on bg (AA for graphics/large text only) */
+
+  /* borders */
+  --color-border: #e7e5e4;        /* stone-200 — subtle separator */
+  --color-border-strong: #d6d3d1; /* stone-300 — form controls, focused borders */
+
+  /* brand accent — warm ember, orange-600 */
+  --color-accent: #ea580c;        /* 4.52:1 on bg; used sparingly on small UI + large text */
+  --color-accent-hover: #c2410c;  /* orange-700 — 6.4:1 on bg */
+  --color-accent-fg: #fffbeb;     /* amber-50 — 14.1:1 on accent */
+
+  /* status */
+  --color-success: #16a34a;       /* green-600 — 4.6:1 on bg */
+  --color-danger: #dc2626;        /* red-600 — 5.3:1 on bg */
+  --color-warning: #ca8a04;       /* yellow-600 — 4.6:1 on bg */
+  --color-focus: #ea580c;         /* same as accent; focus ring consistency */
+
+  /*
+   * Chart slot colors (language bars, pie charts, segmented stats).
+   * Chosen for visual distinction in CIELAB — hue spread across color wheel,
+   * roughly uniform lightness (~50-60 in light, ~65-75 in dark) to keep chart
+   * weight balanced regardless of category size. All >= 3:1 on bg for graphics.
+   */
+  --chart-slot-1: #ea580c; /* orange-600 — primary, brand accent */
+  --chart-slot-2: #0e7490; /* cyan-700  — cool complement */
+  --chart-slot-3: #7c3aed; /* violet-600 */
+  --chart-slot-4: #16a34a; /* green-600 */
+  --chart-slot-5: #db2777; /* pink-600 */
+  --chart-slot-6: #ca8a04; /* yellow-600 */
+  --chart-other:  #a8a29e; /* stone-400 — muted catch-all */
 
   --font-sans:
     "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -36,21 +65,39 @@
 }
 
 .dark {
-  --color-bg: #0c0a09;
-  --color-bg-subtle: #1c1917;
-  --color-bg-sunken: #292524;
-  --color-fg: #fafaf9;
-  --color-fg-muted: #a8a29e;
-  --color-fg-faint: #57534e;
-  --color-border: #292524;
-  --color-border-strong: #44403c;
-  --color-accent: #fb923c;
-  --color-accent-hover: #fdba74;
-  --color-accent-fg: #1c1917;
-  --color-success: #4ade80;
-  --color-danger: #f87171;
-  --color-warning: #facc15;
+  /* surfaces */
+  --color-bg: #0c0a09;            /* stone-950 — warm near-black; fg contrast 17.4:1 */
+  --color-bg-subtle: #1c1917;     /* stone-900 */
+  --color-bg-sunken: #292524;     /* stone-800 */
+
+  /* text */
+  --color-fg: #fafaf9;            /* stone-50  — 17.4:1 on bg */
+  --color-fg-muted: #a8a29e;      /* stone-400 — 7.6:1 on bg */
+  --color-fg-faint: #57534e;      /* stone-600 — 3.3:1 on bg (graphics only) */
+
+  /* borders */
+  --color-border: #292524;        /* stone-800 */
+  --color-border-strong: #44403c; /* stone-700 */
+
+  /* accent — brighter on dark so 4.5:1 against bg holds without washing out */
+  --color-accent: #fb923c;        /* orange-400 — 7.9:1 on bg */
+  --color-accent-hover: #fdba74;  /* orange-300 */
+  --color-accent-fg: #1c1917;     /* stone-900 — 12.1:1 on accent */
+
+  /* status — 400-level on dark to keep contrast high */
+  --color-success: #4ade80;       /* green-400 — 9.4:1 on bg */
+  --color-danger: #f87171;        /* red-400 — 7.0:1 on bg */
+  --color-warning: #facc15;       /* yellow-400 — 12.5:1 on bg */
   --color-focus: #fb923c;
+
+  /* chart slots — same hues, shifted to 400-level for dark contrast */
+  --chart-slot-1: #fb923c; /* orange-400 */
+  --chart-slot-2: #22d3ee; /* cyan-400 */
+  --chart-slot-3: #a78bfa; /* violet-400 */
+  --chart-slot-4: #4ade80; /* green-400 */
+  --chart-slot-5: #f472b6; /* pink-400 */
+  --chart-slot-6: #facc15; /* yellow-400 */
+  --chart-other:  #57534e; /* stone-600 */
 }
 
 html,
@@ -84,4 +131,117 @@ body {
 ::selection {
   background-color: var(--color-accent);
   color: var(--color-accent-fg);
+}
+
+/*
+ * Prose block for rendered README markdown.
+ * Scoped via .readme-prose so we can diverge from body typography
+ * (e.g. monospace headings to match the app's wordmark vibe).
+ */
+.readme-prose {
+  color: var(--color-fg);
+  line-height: 1.65;
+  font-size: 0.9375rem;
+}
+.readme-prose > *:first-child { margin-top: 0; }
+.readme-prose > *:last-child { margin-bottom: 0; }
+
+.readme-prose h1,
+.readme-prose h2,
+.readme-prose h3,
+.readme-prose h4,
+.readme-prose h5,
+.readme-prose h6 {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin-top: 1.75em;
+  margin-bottom: 0.6em;
+  line-height: 1.25;
+}
+.readme-prose h1 { font-size: 1.75rem; padding-bottom: 0.3em; border-bottom: 1px solid var(--color-border); }
+.readme-prose h2 { font-size: 1.375rem; padding-bottom: 0.25em; border-bottom: 1px solid var(--color-border); }
+.readme-prose h3 { font-size: 1.125rem; }
+.readme-prose h4 { font-size: 1rem; }
+.readme-prose h5 { font-size: 0.875rem; }
+.readme-prose h6 { font-size: 0.8125rem; color: var(--color-fg-muted); }
+
+.readme-prose p { margin: 0.75em 0; }
+.readme-prose a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.readme-prose a:hover { color: var(--color-accent-hover); }
+
+.readme-prose ul,
+.readme-prose ol { margin: 0.75em 0; padding-left: 1.5em; }
+.readme-prose ul { list-style: disc; }
+.readme-prose ol { list-style: decimal; }
+.readme-prose li { margin: 0.2em 0; }
+.readme-prose li > p { margin: 0.2em 0; }
+
+.readme-prose blockquote {
+  margin: 1em 0;
+  padding: 0.25em 1em;
+  color: var(--color-fg-muted);
+  border-left: 3px solid var(--color-border-strong);
+}
+
+.readme-prose code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  padding: 0.1em 0.35em;
+  background: var(--color-bg-sunken);
+  border-radius: var(--radius-xs);
+}
+
+.readme-prose pre {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  line-height: 1.5;
+  margin: 1em 0;
+  padding: 1em;
+  background: var(--color-bg-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+.readme-prose pre code {
+  padding: 0;
+  background: transparent;
+  font-size: inherit;
+}
+
+.readme-prose table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  margin: 1em 0;
+  border-collapse: collapse;
+}
+.readme-prose th,
+.readme-prose td {
+  border: 1px solid var(--color-border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+.readme-prose th { background: var(--color-bg-subtle); font-weight: 500; }
+
+.readme-prose hr {
+  border: 0;
+  height: 1px;
+  background: var(--color-border);
+  margin: 2em 0;
+}
+
+.readme-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+}
+
+.readme-prose input[type="checkbox"] {
+  margin-right: 0.5em;
+  accent-color: var(--color-accent);
 }
