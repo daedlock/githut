@@ -37,7 +37,7 @@ export function Breadcrumb({
       <button
         type="button"
         onClick={() => onNavigate("")}
-        className="text-primary hover:underline truncate outline-none rounded-sm focus-visible:ring-1 focus-visible:ring-ring/20"
+        className="text-primary hover:underline truncate outline-none rounded-sm focus-visible:ring-1 focus-visible:ring-foreground/15"
       >
         {repo}
       </button>
@@ -53,7 +53,7 @@ export function Breadcrumb({
               <button
                 type="button"
                 onClick={() => onNavigate(segPath)}
-                className="text-primary hover:underline truncate outline-none rounded-sm focus-visible:ring-1 focus-visible:ring-ring/20"
+                className="text-primary hover:underline truncate outline-none rounded-sm focus-visible:ring-1 focus-visible:ring-foreground/15"
               >
                 {part}
               </button>

@@ -47,7 +47,7 @@ function CommitDetailPage() {
           className={cn(
             "mb-2 inline-flex items-center gap-1.5 rounded-sm px-1 py-0.5 -ml-1",
             "text-ui text-muted-foreground outline-none transition-colors",
-            "hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/20",
+            "hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15",
           )}
         >
           <ArrowLeft className="size-3" />
@@ -150,7 +150,7 @@ function CommitHeader({
                       "text-muted-foreground outline-none",
                       "underline decoration-input decoration-1 underline-offset-2 transition-colors",
                       "hover:text-foreground hover:decoration-muted-foreground",
-                      "focus-visible:ring-1 focus-visible:ring-ring/20",
+                      "focus-visible:ring-1 focus-visible:ring-foreground/15",
                     )}
                   >
                     {p.sha.slice(0, 7)}
@@ -189,7 +189,7 @@ function ShaChip({ sha }: { sha: string }) {
         "font-mono text-caption tabular-nums text-muted-foreground",
         "outline-none transition-colors",
         "hover:border-input hover:text-foreground",
-        "focus-visible:ring-1 focus-visible:ring-ring/20",
+        "focus-visible:ring-1 focus-visible:ring-foreground/15",
       )}
     >
       <span>{sha.slice(0, 7)}</span>

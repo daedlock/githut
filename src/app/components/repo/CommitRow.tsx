@@ -34,7 +34,7 @@ export function CommitRow({ commit, owner, repo }: CommitRowProps) {
         <Link
           to="/$owner/$repo/commit/$sha"
           params={{ owner, repo, sha: commit.sha }}
-          className="block outline-none rounded-sm focus-visible:ring-1 focus-visible:ring-ring/20"
+          className="block outline-none rounded-sm focus-visible:ring-1 focus-visible:ring-foreground/15"
         >
           <p className="truncate text-sm font-medium text-foreground group-hover:text-primary">
             {title}
@@ -51,7 +51,7 @@ export function CommitRow({ commit, owner, repo }: CommitRowProps) {
                 "font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]",
                 "outline-none transition-colors",
                 "hover:border-input hover:text-muted-foreground",
-                "focus-visible:ring-1 focus-visible:ring-ring/20",
+                "focus-visible:ring-1 focus-visible:ring-foreground/15",
               )}
               aria-expanded={bodyOpen}
             >
@@ -121,7 +121,7 @@ function ShaChip({
           "font-mono text-caption tabular-nums text-muted-foreground",
           "outline-none transition-colors",
           "hover:border-input hover:text-foreground",
-          "focus-visible:ring-1 focus-visible:ring-ring/20",
+          "focus-visible:ring-1 focus-visible:ring-foreground/15",
         )}
         title={sha}
       >

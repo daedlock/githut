@@ -180,7 +180,7 @@ function PreviewCard({
         "group relative block overflow-hidden rounded-md",
         "border bg-background text-foreground text-left",
         "outline-none transition-[border-color,transform] duration-150",
-        "focus-visible:ring-1 focus-visible:ring-ring/20",
+        "focus-visible:ring-1 focus-visible:ring-foreground/15",
         active
           ? "border-primary ring-1 ring-primary/40"
           : "border-border hover:border-input",
@@ -374,9 +374,9 @@ function PreferenceToggle({
             className={cn(
               "rounded-sm px-3 py-1 font-mono text-micro",
               "outline-none transition-colors",
-              "focus-visible:ring-1 focus-visible:ring-ring/20",
+              "focus-visible:ring-1 focus-visible:ring-foreground/15",
               current === o.value
-                ? "bg-accent text-accent-foreground"
+                ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >

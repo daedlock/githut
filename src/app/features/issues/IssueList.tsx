@@ -72,8 +72,8 @@ export function IssueList({
                 className={cn(
                   "ml-auto rounded-sm p-1 text-[var(--color-fg-faint)]",
                   "outline-none transition-colors",
-                  "hover:bg-accent hover:text-foreground",
-                  "focus-visible:ring-1 focus-visible:ring-ring/20",
+                  "hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)]",
+                  "focus-visible:ring-1 focus-visible:ring-foreground/15",
                 )}
               >
                 <X className="size-3.5" />
@@ -87,7 +87,7 @@ export function IssueList({
                 className="h-9 text-body font-medium"
                 autoFocus
               />
-              <div className="overflow-hidden rounded-md border border-input focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/20">
+              <div className="overflow-hidden rounded-md border border-input focus-within:border-[var(--color-fg-muted)] focus-within:ring-1 focus-within:ring-foreground/15">
                 <CommentBox
                   owner={owner}
                   repo={repo}

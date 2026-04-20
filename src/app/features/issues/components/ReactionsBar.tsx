@@ -41,10 +41,10 @@ export function ReactionsBar({
             className={cn(
               "inline-flex h-5 items-center gap-1 rounded-full border px-2 leading-none",
               "outline-none transition-colors",
-              "focus-visible:ring-1 focus-visible:ring-ring/20",
+              "focus-visible:ring-1 focus-visible:ring-foreground/15",
               mine
                 ? "border-primary bg-[color-mix(in_oklab,var(--color-primary)_12%,var(--color-bg))] text-primary"
-                : "border-border bg-muted text-muted-foreground hover:border-input hover:bg-accent",
+                : "border-border bg-muted text-muted-foreground hover:border-input hover:bg-[var(--color-bg-sunken)]",
             )}
           >
             {/* Explicit sizing — system emoji fonts ignore text-xs/text-caption
@@ -72,7 +72,7 @@ export function ReactionsBar({
           className={cn(
             "inline-flex h-5 items-center gap-1 rounded-full border px-2 leading-none",
             "outline-none transition-colors",
-            "focus-visible:ring-1 focus-visible:ring-ring/20",
+            "focus-visible:ring-1 focus-visible:ring-foreground/15",
             "text-[var(--color-fg-faint)] hover:text-muted-foreground hover:border-input",
             hasAny ? "border-border" : "border-dashed border-border",
           )}
@@ -103,10 +103,10 @@ export function ReactionsBar({
                     className={cn(
                       "flex size-6 items-center justify-center rounded-sm leading-none",
                       "outline-none transition-colors",
-                      "focus-visible:ring-1 focus-visible:ring-ring/20",
+                      "focus-visible:ring-1 focus-visible:ring-foreground/15",
                       mine
                         ? "bg-[color-mix(in_oklab,var(--color-primary)_14%,var(--color-bg))] ring-1 ring-primary"
-                        : "hover:bg-accent",
+                        : "hover:bg-[var(--color-bg-sunken)]",
                     )}
                   >
                     <span className="text-[13px] leading-none">{REACTION_EMOJIS[k]}</span>

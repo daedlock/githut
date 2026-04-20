@@ -89,7 +89,7 @@ export function RepoListWidget({ repos, isPending, onRepoClick }: RepoListWidget
 
 function OwnerHeader({ owner, count }: { owner: string; count: number }) {
   return (
-    <div className="flex items-baseline gap-2 bg-accent/50 px-4 py-1.5 font-mono text-micro uppercase tracking-widest text-muted-foreground">
+    <div className="flex items-baseline gap-2 bg-[var(--color-bg-sunken)]/50 px-4 py-1.5 font-mono text-micro uppercase tracking-widest text-muted-foreground">
       <span>{owner}</span>
       <span className="text-[var(--color-fg-faint)]">
         {count} {count === 1 ? "repo" : "repos"}
@@ -147,7 +147,7 @@ function GroupToggle({
             "h-5 px-2 rounded-sm font-mono text-micro uppercase tracking-widest",
             "outline-none transition-colors",
             value === mode
-              ? "bg-foreground text-background"
+              ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
               : "text-muted-foreground hover:text-foreground",
           )}
         >

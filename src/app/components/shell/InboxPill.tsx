@@ -35,7 +35,7 @@ export function InboxPill({ count = 0, onClick }: InboxPillProps) {
         "outline-none transition-colors",
         "hover:bg-muted hover:text-foreground",
         "focus-visible:bg-muted focus-visible:text-foreground",
-        "focus-visible:ring-1 focus-visible:ring-ring/20",
+        "focus-visible:ring-1 focus-visible:ring-foreground/15",
       )}
     >
       <span

@@ -147,7 +147,7 @@ export function ChangedFileTree({
                 <button
                   type="button"
                   onClick={() => setQuery("")}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-[var(--color-fg-faint)] outline-none hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/20"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-[var(--color-fg-faint)] outline-none hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)] focus-visible:ring-1 focus-visible:ring-foreground/15"
                   aria-label="Clear filter"
                 >
                   <X className="size-3" />
@@ -265,7 +265,7 @@ function DirRow({
     <button
       type="button"
       onClick={onToggle}
-      className="flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-1 focus-visible:ring-ring/20"
+      className="flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-1 focus-visible:ring-foreground/15"
       style={{ paddingLeft: `${depth * 12 + 8}px` }}
     >
       {isOpen ? (
@@ -295,9 +295,9 @@ function FileRow({
       onClick={() => onClick?.(file.filename)}
       className={cn(
         "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left outline-none transition-colors",
-        "focus-visible:ring-1 focus-visible:ring-ring/20",
+        "focus-visible:ring-1 focus-visible:ring-foreground/15",
         isActive
-          ? "bg-accent text-accent-foreground"
+          ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
           : "text-foreground hover:bg-muted",
       )}
       style={{ paddingLeft: `${depth * 12 + 8}px` }}
@@ -332,7 +332,7 @@ function IconBtn({
         "inline-flex size-6 items-center justify-center rounded-sm",
         "text-[var(--color-fg-faint)] outline-none transition-colors",
         "hover:bg-muted hover:text-foreground",
-        "focus-visible:ring-1 focus-visible:ring-ring/20",
+        "focus-visible:ring-1 focus-visible:ring-foreground/15",
         "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[var(--color-fg-faint)]",
       )}
     >

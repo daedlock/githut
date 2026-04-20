@@ -79,7 +79,7 @@ export function IssueDetail({
           className={cn(
             "inline-flex items-center gap-1.5 rounded-sm px-1 py-0.5 -ml-1",
             "text-body text-muted-foreground outline-none transition-colors",
-            "hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring/20",
+            "hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15",
           )}
         >
           <X className="size-3.5" />

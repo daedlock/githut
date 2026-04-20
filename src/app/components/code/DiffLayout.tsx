@@ -157,8 +157,8 @@ export function DiffLayout({
           className={cn(
             "inline-flex size-7 flex-shrink-0 items-center justify-center rounded-sm",
             "text-muted-foreground outline-none transition-colors",
-            "hover:bg-accent hover:text-foreground",
-            "focus-visible:ring-1 focus-visible:ring-ring/20",
+            "hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)]",
+            "focus-visible:ring-1 focus-visible:ring-foreground/15",
           )}
           title={sidebarOpen ? "Hide file tree  [" : "Show file tree  ["}
           aria-label={sidebarOpen ? "Hide file tree" : "Show file tree"}
@@ -283,9 +283,9 @@ function ModeBtn({
       className={cn(
         "inline-flex h-6 items-center gap-1.5 rounded-sm px-2 text-caption",
         "outline-none transition-colors",
-        "focus-visible:ring-1 focus-visible:ring-ring/20",
+        "focus-visible:ring-1 focus-visible:ring-foreground/15",
         active
-          ? "bg-accent text-accent-foreground"
+          ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
           : "text-muted-foreground hover:text-foreground",
       )}
     >

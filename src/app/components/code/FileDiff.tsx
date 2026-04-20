@@ -55,8 +55,8 @@ export function FileDiff({
           className={cn(
             "flex-shrink-0 rounded-sm p-0.5 text-[var(--color-fg-faint)]",
             "outline-none transition-colors",
-            "hover:bg-accent hover:text-foreground",
-            "focus-visible:ring-1 focus-visible:ring-ring/20",
+            "hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)]",
+            "focus-visible:ring-1 focus-visible:ring-foreground/15",
           )}
           aria-label={collapsed ? "Expand diff" : "Collapse diff"}
         >
@@ -122,7 +122,7 @@ function StatusBadge({ status }: { status: FileStatus }) {
       ? "bg-[var(--diff-add-gutter)] text-[var(--diff-add-marker)]"
       : status === "removed"
         ? "bg-[var(--diff-del-gutter)] text-[var(--diff-del-marker)]"
-        : "bg-accent text-muted-foreground";
+        : "bg-[var(--color-bg-sunken)] text-muted-foreground";
   return (
     <span
       className={cn(
@@ -195,7 +195,7 @@ function ChangeStats({ additions, deletions }: { additions: number; deletions: n
               "size-2 rounded-[1px]",
               kind === "add" && "bg-[var(--diff-add-marker)]",
               kind === "del" && "bg-[var(--diff-del-marker)]",
-              kind === "empty" && "bg-accent",
+              kind === "empty" && "bg-[var(--color-bg-sunken)]",
             )}
           />
         ))}
@@ -223,9 +223,9 @@ function ModeBtn({
       className={cn(
         "inline-flex size-5 items-center justify-center rounded-sm",
         "outline-none transition-colors",
-        "focus-visible:ring-1 focus-visible:ring-ring/20",
+        "focus-visible:ring-1 focus-visible:ring-foreground/15",
         active
-          ? "bg-accent text-accent-foreground"
+          ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
           : "text-[var(--color-fg-faint)] hover:text-foreground",
       )}
     >

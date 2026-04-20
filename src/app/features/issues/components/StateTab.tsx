@@ -21,7 +21,7 @@ export function StateTab({
       className={cn(
         "inline-flex items-center gap-1.5 px-3 py-2 text-body rounded-sm",
         "outline-none transition-colors",
-        "focus-visible:ring-1 focus-visible:ring-ring/20",
+        "focus-visible:ring-1 focus-visible:ring-foreground/15",
         isActive
           ? "font-semibold text-foreground"
           : "text-muted-foreground hover:text-foreground",

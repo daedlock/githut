@@ -124,7 +124,7 @@ function Row({
       className={cn(
         "group relative flex w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-hidden select-none",
         "transition-colors duration-75",
-        selected ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground",
+        selected ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]" : "hover:bg-[var(--color-bg-sunken)]",
       )}
     >
       <span

@@ -14,7 +14,7 @@ export function WorkspaceSwitcher() {
             "font-mono text-ui text-foreground",
             "outline-none transition-colors",
             "hover:bg-muted data-[state=open]:bg-muted",
-            "focus-visible:bg-muted focus-visible:ring-1 focus-visible:ring-ring/20",
+            "focus-visible:bg-muted focus-visible:ring-1 focus-visible:ring-foreground/15",
           )}
         >
           <span>All repos</span>
@@ -33,7 +33,7 @@ export function WorkspaceSwitcher() {
           aria-current="true"
           className={cn(
             "flex items-center justify-between rounded-sm px-2.5 py-1.5",
-            "font-mono text-ui text-foreground bg-accent",
+            "font-mono text-ui text-foreground bg-[var(--color-bg-sunken)]",
           )}
         >
           <span>All repos</span>
