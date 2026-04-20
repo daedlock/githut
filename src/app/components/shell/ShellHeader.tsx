@@ -3,6 +3,11 @@ import type { ReactNode } from "react";
 import { Container } from "@/app/components/ui/Container";
 import { cn } from "@/app/lib/cn";
 
+/**
+ * @deprecated New surfaces should render `<TopBar />` directly. This legacy
+ * header stays for the `subtitle`/`right` composition used by `/login` and
+ * `/settings`; new routes skip the slot shape and let `TopBar` compose itself.
+ */
 export type ShellHeaderProps = {
   /** Context slot — typically the owner/repo breadcrumb. Sits right of the wordmark. */
   subtitle?: ReactNode;

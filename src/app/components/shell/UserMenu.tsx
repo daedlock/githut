@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { LogOut, Settings } from "lucide-react";
+import { ThemeToggle } from "@/app/components/ThemeToggle";
 import { Avatar } from "@/app/components/ui/Avatar";
 import { Button } from "@/app/components/ui/Button";
 
@@ -13,6 +14,11 @@ export function UserMenu({ login, avatarUrl, onSignOut }: UserMenuProps) {
   return (
     <>
       {avatarUrl ? <Avatar login={login ?? "User avatar"} avatarUrl={avatarUrl} size="lg" /> : null}
+      {/*
+       * Theme toggle lives in the user menu per §3 — it's a preference,
+       * not primary navigation, so it doesn't belong in the top-bar action row.
+       */}
+      <ThemeToggle />
       <Link
         to="/settings"
         aria-label="Settings"

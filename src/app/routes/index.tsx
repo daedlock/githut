@@ -2,13 +2,9 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { RepoListWidget } from "@/app/components/repo/RepoListWidget";
 import { AppShell } from "@/app/components/shell/AppShell";
 import { ShellFooter } from "@/app/components/shell/ShellFooter";
-import { ShellHeader } from "@/app/components/shell/ShellHeader";
-import { UserMenu } from "@/app/components/shell/UserMenu";
-import { ThemeToggle } from "@/app/components/ThemeToggle";
+import { TopBar } from "@/app/components/shell/TopBar";
 import { Container } from "@/app/components/ui/Container";
-import { useMe } from "@/app/hooks/useMe";
 import { useRepos } from "@/app/hooks/useRepos";
-import { logout } from "@/app/lib/auth";
 import { useAuthStore } from "@/app/stores/auth";
 
 export const Route = createFileRoute("/")({
@@ -19,24 +15,12 @@ export const Route = createFileRoute("/")({
 });
 
 function IndexPage() {
-  const { data: me } = useMe();
   const repos = useRepos();
   const navigate = useNavigate();
 
   return (
     <AppShell
-      header={
-        <ShellHeader
-          bordered
-          subtitle={me ? `@${me.login}` : undefined}
-          right={
-            <>
-              <ThemeToggle />
-              <UserMenu login={me?.login} avatarUrl={me?.avatar_url} onSignOut={logout} />
-            </>
-          }
-        />
-      }
+      header={<TopBar bordered />}
       footer={<ShellFooter bordered origin="localhost:5173" />}
     >
       <Container className="py-6">
