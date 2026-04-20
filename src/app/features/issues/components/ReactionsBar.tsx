@@ -1,32 +1,57 @@
 import { Smile } from "lucide-react";
 import { useState } from "react";
-import type { ReactionContent, ReactionsMap } from "@/app/features/issues/schemas";
+import type { MyReactionsMap, ReactionContent, ReactionsMap } from "@/app/features/issues/schemas";
 import { REACTION_CONTENTS, REACTION_EMOJIS, reactionsHaveAny } from "@/app/features/issues/utils";
 import { cn } from "@/app/lib/cn";
 
+/**
+ * ReactionsBar — emoji pills + a picker. Pills are toggle buttons: clicking a
+ * pill the viewer has already reacted to removes the reaction (DELETE by the
+ * stored reaction id); clicking an unreacted emoji adds one (POST).
+ *
+ * The "I reacted" state comes from `myReactions` (content → reactionId map).
+ * A non-positive id is an optimistic placeholder while a POST is in flight —
+ * the UI still renders as "reacted" but the eventual real id comes back on
+ * success and is used for future toggles.
+ */
 export function ReactionsBar({
   reactions,
-  onAdd,
+  myReactions,
+  onToggle,
 }: {
   reactions: ReactionsMap;
-  onAdd: (content: ReactionContent) => void;
+  myReactions: MyReactionsMap;
+  onToggle: (content: ReactionContent, existingReactionId?: number) => void;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const hasAny = reactionsHaveAny(reactions);
 
   return (
     <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-[var(--color-border)] pt-2.5">
-      {REACTION_CONTENTS.filter((k) => (reactions[k] ?? 0) > 0).map((k) => (
-        <button
-          key={k}
-          type="button"
-          onClick={() => onAdd(k)}
-          className="inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-2.5 py-0.5 text-xs transition-colors hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-sunken)]"
-        >
-          <span>{REACTION_EMOJIS[k]}</span>
-          <span className="font-mono text-[var(--color-fg-muted)]">{reactions[k]}</span>
-        </button>
-      ))}
+      {REACTION_CONTENTS.filter((k) => (reactions[k] ?? 0) > 0).map((k) => {
+        const mineId = myReactions.get(k);
+        const mine = mineId != null;
+        return (
+          <button
+            key={k}
+            type="button"
+            onClick={() => onToggle(k, mineId)}
+            aria-pressed={mine}
+            title={mine ? "Remove your reaction" : `React with ${k}`}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-caption transition-colors",
+              mine
+                ? "border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_12%,var(--color-bg))] text-[var(--color-accent)]"
+                : "border-[var(--color-border)] bg-[var(--color-bg-subtle)] text-[var(--color-fg-muted)] hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-sunken)]",
+            )}
+          >
+            <span>{REACTION_EMOJIS[k]}</span>
+            <span className={cn("font-mono tabular-nums", mine && "font-semibold")}>
+              {reactions[k]}
+            </span>
+          </button>
+        );
+      })}
 
       <div className="relative">
         <button
@@ -34,7 +59,7 @@ export function ReactionsBar({
           onClick={() => setPickerOpen((v) => !v)}
           title="Add reaction"
           className={cn(
-            "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors",
+            "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-caption transition-colors",
             hasAny
               ? "border-[var(--color-border)] text-[var(--color-fg-faint)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg-muted)]"
               : "border-dashed border-[var(--color-border)] text-[var(--color-fg-faint)] hover:border-[var(--color-border-strong)] hover:text-[var(--color-fg-muted)]",
@@ -45,22 +70,35 @@ export function ReactionsBar({
 
         {pickerOpen && (
           <>
-            <div className="fixed inset-0 z-10" onClick={() => setPickerOpen(false)} />
+            <div
+              className="fixed inset-0 z-10"
+              onClick={() => setPickerOpen(false)}
+              role="presentation"
+            />
             <div className="absolute left-0 top-full z-20 mt-1.5 flex gap-1 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-[var(--color-bg)] p-1.5 shadow-lg">
-              {REACTION_CONTENTS.map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  title={k}
-                  onClick={() => {
-                    onAdd(k);
-                    setPickerOpen(false);
-                  }}
-                  className="flex h-7 w-7 items-center justify-center rounded text-base transition-colors hover:bg-[var(--color-bg-sunken)]"
-                >
-                  {REACTION_EMOJIS[k]}
-                </button>
-              ))}
+              {REACTION_CONTENTS.map((k) => {
+                const mineId = myReactions.get(k);
+                const mine = mineId != null;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    title={mine ? `Remove ${k}` : k}
+                    onClick={() => {
+                      onToggle(k, mineId);
+                      setPickerOpen(false);
+                    }}
+                    className={cn(
+                      "flex h-7 w-7 items-center justify-center rounded text-body-lg transition-colors",
+                      mine
+                        ? "bg-[color-mix(in_oklab,var(--color-accent)_14%,var(--color-bg))] ring-1 ring-[var(--color-accent)]"
+                        : "hover:bg-[var(--color-bg-sunken)]",
+                    )}
+                  >
+                    {REACTION_EMOJIS[k]}
+                  </button>
+                );
+              })}
             </div>
           </>
         )}

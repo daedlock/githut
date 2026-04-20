@@ -5,7 +5,7 @@ export function IssueStatePill({ state }: { state: "open" | "closed" }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-ui font-semibold",
         state === "open"
           ? "bg-[var(--color-issue-open-bg)] text-[var(--color-issue-open-fg)]"
           : "bg-[var(--color-issue-closed-bg)] text-[var(--color-issue-closed-fg)]",

@@ -77,6 +77,22 @@ export type ReactionContent =
 
 export type ReactionsMap = z.infer<typeof ReactionsSchema>;
 
+/**
+ * Map of reactions the current viewer has added, keyed by content,
+ * valued with the GitHub-assigned reaction id needed for DELETE toggle.
+ * A negative id is a client-side placeholder while a POST is in flight.
+ */
+export type MyReactionsMap = Map<ReactionContent, number>;
+export const EMPTY_MY_REACTIONS: MyReactionsMap = new Map();
+
+/** Schema for the reactions list endpoint — used to build MyReactionsMap. */
+export const ReactionListItemSchema = z.object({
+  id: z.number(),
+  content: z.enum(["+1", "-1", "laugh", "hooray", "confused", "heart", "rocket", "eyes"]),
+  user: z.object({ id: z.number() }).nullable(),
+});
+export const ReactionListSchema = z.array(ReactionListItemSchema);
+
 // ─── Issues ─────────────────────────────────────────────────────────────────
 
 export const IssueListItemSchema = z.object({

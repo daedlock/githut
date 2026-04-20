@@ -21,12 +21,12 @@ export function IssueRow({ issue, onClick }: { issue: RepoIssue; onClick: () => 
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span className="text-sm font-medium text-[var(--color-fg)]">{issue.title}</span>
+          <span className="text-body font-medium text-[var(--color-fg)]">{issue.title}</span>
           {issue.labels.map((label) => (
             <LabelPill key={label.id} label={label} size="xs" />
           ))}
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-[var(--color-fg-faint)]">
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-caption text-[var(--color-fg-faint)]">
           <span>
             <span className="font-mono">#{issue.number}</span>
             {" · "}
@@ -48,7 +48,7 @@ export function IssueRow({ issue, onClick }: { issue: RepoIssue; onClick: () => 
               {REACTION_CONTENTS.filter((k) => (issue.reactions[k] ?? 0) > 0)
                 .slice(0, 3)
                 .map((k) => (
-                  <span key={k} className="text-[11px]">
+                  <span key={k} className="text-caption">
                     {REACTION_EMOJIS[k]}
                     <span className="ml-0.5">{issue.reactions[k]}</span>
                   </span>

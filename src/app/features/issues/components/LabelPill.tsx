@@ -21,7 +21,7 @@ export function LabelPill({
     <span
       className={cn(
         "rounded-full font-medium",
-        size === "xs" ? "px-2 py-px text-[10px] leading-5" : "px-2 py-0.5 text-[11px]",
+        size === "xs" ? "px-2 py-px text-micro leading-5" : "px-2 py-0.5 text-caption",
         className,
       )}
       style={labelStyle(label.color)}

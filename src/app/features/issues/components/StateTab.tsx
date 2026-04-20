@@ -19,7 +19,7 @@ export function StateTab({
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 px-3 py-2 text-sm transition-colors",
+        "inline-flex items-center gap-1.5 px-3 py-2 text-body transition-colors",
         isActive
           ? "font-semibold text-[var(--color-fg)]"
           : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",

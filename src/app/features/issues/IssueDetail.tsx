@@ -5,12 +5,19 @@ import { Avatar } from "@/app/components/ui/Avatar";
 import { Button } from "@/app/components/ui/Button";
 import { Card, CardBody, CardFooter, CardHeader } from "@/app/components/ui/Card";
 import { CommentBox } from "@/app/components/ui/CommentBox";
+import { Container } from "@/app/components/ui/Container";
 import { AssigneeList } from "@/app/features/issues/components/AssigneeList";
 import { CommentCard } from "@/app/features/issues/components/CommentCard";
 import { IssueStatePill } from "@/app/features/issues/components/IssueStatePill";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import { SidebarSection } from "@/app/features/issues/components/SidebarSection";
-import type { ReactionContent, RepoIssue, RepoIssueComment } from "@/app/features/issues/schemas";
+import { useMyCommentReactions, useMyIssueReactions } from "@/app/features/issues/hooks";
+import {
+  EMPTY_MY_REACTIONS,
+  type ReactionContent,
+  type RepoIssue,
+  type RepoIssueComment,
+} from "@/app/features/issues/schemas";
 import { formatRelativeTime } from "@/app/lib/time";
 
 export type IssueDetailProps = {
@@ -28,9 +35,13 @@ export type IssueDetailProps = {
   onToggleState: () => void;
   isTogglingState: boolean;
   isPostingComment: boolean;
-  onAddIssueReaction: (content: ReactionContent) => void;
-  onAddCommentReaction: (commentId: number, content: ReactionContent) => void;
-  me: { login: string; avatar_url: string } | undefined;
+  onToggleIssueReaction: (content: ReactionContent, existingReactionId?: number) => void;
+  onToggleCommentReaction: (
+    commentId: number,
+    content: ReactionContent,
+    existingReactionId?: number,
+  ) => void;
+  me: { id: number; login: string; avatar_url: string } | undefined;
   onBack: () => void;
 };
 
@@ -49,18 +60,22 @@ export function IssueDetail({
   onToggleState,
   isTogglingState,
   isPostingComment,
-  onAddIssueReaction,
-  onAddCommentReaction,
+  onToggleIssueReaction,
+  onToggleCommentReaction,
   me,
   onBack,
 }: IssueDetailProps) {
+  // My reactions for the issue body itself. Per-comment fetches live inside
+  // CommentCardWithReactions so each comment has an independently-keyed cache.
+  const { data: myIssueReactions } = useMyIssueReactions(owner, repo, issue?.number, me?.id);
+
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 sm:py-6">
+    <Container className="py-5 sm:py-6">
       <div className="mb-4 flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-sm text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)]"
+          className="inline-flex items-center gap-1.5 text-body text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)]"
         >
           <X className="h-3.5 w-3.5" />
           Back to issues
@@ -98,11 +113,11 @@ export function IssueDetail({
           <div className="mb-5">
             <h1 className="text-xl font-semibold leading-snug tracking-tight text-[var(--color-fg)] sm:text-2xl">
               {issue.title}{" "}
-              <span className="font-mono text-lg font-normal text-[var(--color-fg-faint)]">
+              <span className="font-mono text-title font-normal text-[var(--color-fg-faint)]">
                 #{issue.number}
               </span>
             </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[var(--color-fg-muted)]">
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-body text-[var(--color-fg-muted)]">
               <IssueStatePill state={issue.state} />
               <span>
                 <span className="font-medium text-[var(--color-fg)]">{issue.user.login}</span>
@@ -125,14 +140,15 @@ export function IssueDetail({
                 date={issue.created_at}
                 isAuthor
                 reactions={issue.reactions}
-                onAddReaction={onAddIssueReaction}
+                myReactions={myIssueReactions ?? EMPTY_MY_REACTIONS}
+                onToggleReaction={onToggleIssueReaction}
               >
                 {issue.body?.trim() ? (
-                  <div className="readme-prose max-w-none text-sm">
+                  <div className="readme-prose max-w-none text-body">
                     <GithubMarkdown>{issue.body}</GithubMarkdown>
                   </div>
                 ) : (
-                  <p className="text-sm italic text-[var(--color-fg-faint)]">
+                  <p className="text-body italic text-[var(--color-fg-faint)]">
                     No description provided.
                   </p>
                 )}
@@ -144,18 +160,14 @@ export function IssueDetail({
                 <StatusMessage tone="danger">Could not load comments.</StatusMessage>
               ) : (
                 comments.map((c) => (
-                  <CommentCard
+                  <CommentCardWithReactions
                     key={c.id}
-                    login={c.user.login}
-                    avatarUrl={c.user.avatar_url}
-                    date={c.created_at}
-                    reactions={c.reactions}
-                    onAddReaction={(content) => onAddCommentReaction(c.id, content)}
-                  >
-                    <div className="readme-prose max-w-none text-sm">
-                      <GithubMarkdown>{c.body}</GithubMarkdown>
-                    </div>
-                  </CommentCard>
+                    owner={owner}
+                    repo={repo}
+                    meId={me?.id}
+                    comment={c}
+                    onToggleReaction={onToggleCommentReaction}
+                  />
                 ))
               )}
 
@@ -165,7 +177,7 @@ export function IssueDetail({
                     {me?.avatar_url && (
                       <Avatar login={me.login} avatarUrl={me.avatar_url} size="sm" />
                     )}
-                    <span className="text-sm font-medium text-[var(--color-fg)]">
+                    <span className="text-body font-medium text-[var(--color-fg)]">
                       Add a comment
                     </span>
                   </CardHeader>
@@ -203,7 +215,7 @@ export function IssueDetail({
                       ))}
                     </div>
                   ) : (
-                    <span className="text-xs text-[var(--color-fg-faint)]">None yet</span>
+                    <span className="text-caption text-[var(--color-fg-faint)]">None yet</span>
                   )}
                 </SidebarSection>
 
@@ -215,6 +227,47 @@ export function IssueDetail({
           </div>
         </>
       )}
-    </div>
+    </Container>
+  );
+}
+
+/**
+ * Per-comment wrapper that owns its own my-reactions fetch. Each card has an
+ * independently-keyed React Query entry so toggles don't thrash neighbors and
+ * optimistic temp comments (negative ids) skip the network until promoted.
+ */
+function CommentCardWithReactions({
+  owner,
+  repo,
+  meId,
+  comment,
+  onToggleReaction,
+}: {
+  owner: string;
+  repo: string;
+  meId: number | undefined;
+  comment: RepoIssueComment;
+  onToggleReaction: (
+    commentId: number,
+    content: ReactionContent,
+    existingReactionId?: number,
+  ) => void;
+}) {
+  const { data: myReactions } = useMyCommentReactions(owner, repo, comment.id, meId);
+  return (
+    <CommentCard
+      login={comment.user.login}
+      avatarUrl={comment.user.avatar_url}
+      date={comment.created_at}
+      reactions={comment.reactions}
+      myReactions={myReactions ?? EMPTY_MY_REACTIONS}
+      onToggleReaction={(content, existingReactionId) =>
+        onToggleReaction(comment.id, content, existingReactionId)
+      }
+    >
+      <div className="readme-prose max-w-none text-body">
+        <GithubMarkdown>{comment.body}</GithubMarkdown>
+      </div>
+    </CommentCard>
   );
 }

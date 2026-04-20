@@ -19,7 +19,7 @@ export function AssigneeList({
 }) {
   if (assignees.length === 0) {
     if (variant === "stack") return null;
-    return <span className="text-xs text-[var(--color-fg-faint)]">No one assigned</span>;
+    return <span className="text-caption text-[var(--color-fg-faint)]">No one assigned</span>;
   }
 
   if (variant === "stack") {
@@ -37,7 +37,7 @@ export function AssigneeList({
       {assignees.map((a) => (
         <div key={a.login} className="flex items-center gap-2">
           <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
-          <span className="text-xs text-[var(--color-fg-muted)]">{a.login}</span>
+          <span className="text-caption text-[var(--color-fg-muted)]">{a.login}</span>
         </div>
       ))}
     </div>

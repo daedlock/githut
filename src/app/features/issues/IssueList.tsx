@@ -2,6 +2,7 @@ import { AlertCircle, CheckCircle2, CircleDot, Plus, Search, X } from "lucide-re
 import { Button } from "@/app/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/app/components/ui/Card";
 import { CommentBox } from "@/app/components/ui/CommentBox";
+import { Container } from "@/app/components/ui/Container";
 import { Input } from "@/app/components/ui/Input";
 import { IssueListSkeleton } from "@/app/features/issues/components/IssueListSkeleton";
 import { IssueRow } from "@/app/features/issues/components/IssueRow";
@@ -54,13 +55,13 @@ export function IssueList({
   onOpenIssue,
 }: IssueListProps) {
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 sm:py-6">
+    <Container className="py-5 sm:py-6">
       {isComposing && (
         <Card as="div" radius="lg" tone="default" border="strong" className="mb-4">
           {/* New-issue compose form. Uses a plain form inside so onSubmit wires up. */}
           <form onSubmit={onSubmitIssue}>
             <CardHeader>
-              <span className="font-mono text-xs font-medium uppercase tracking-widest text-[var(--color-fg-muted)]">
+              <span className="font-mono text-micro font-medium uppercase tracking-widest text-[var(--color-fg-muted)]">
                 New issue
               </span>
               <button
@@ -76,7 +77,7 @@ export function IssueList({
                 value={newIssueTitle}
                 onChange={(e) => onNewIssueTitleChange(e.target.value)}
                 placeholder="Issue title"
-                className="h-9 text-sm font-medium"
+                className="h-9 text-body font-medium"
                 autoFocus
               />
               <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border-strong)] focus-within:border-[var(--color-focus)] focus-within:ring-2 focus-within:ring-[var(--color-focus)]/20">
@@ -130,7 +131,7 @@ export function IssueList({
                   value={searchText}
                   onChange={(e) => onSearch(e.target.value)}
                   placeholder="Search issues…"
-                  className="h-8 w-52 pl-8 text-xs"
+                  className="h-8 w-52 pl-8 text-ui"
                 />
               </div>
               <Button size="sm" onClick={onToggleCompose}>
@@ -150,7 +151,7 @@ export function IssueList({
           ) : isError ? (
             <div className="px-5 py-10 text-center">
               <AlertCircle className="mx-auto mb-2 h-5 w-5 text-[var(--color-danger)]" />
-              <p className="text-sm text-[var(--color-fg-muted)]">Could not load issues.</p>
+              <p className="text-body text-[var(--color-fg-muted)]">Could not load issues.</p>
             </div>
           ) : issues.length === 0 ? (
             <div className="px-5 py-12 text-center">
@@ -159,7 +160,7 @@ export function IssueList({
               ) : (
                 <CheckCircle2 className="mx-auto mb-3 h-6 w-6 text-[var(--color-fg-faint)]" />
               )}
-              <p className="text-sm font-medium text-[var(--color-fg-muted)]">
+              <p className="text-body font-medium text-[var(--color-fg-muted)]">
                 {searchText ? "No issues match your search." : `No ${stateFilter} issues.`}
               </p>
             </div>
@@ -170,6 +171,6 @@ export function IssueList({
           )}
         </CardBody>
       </Card>
-    </div>
+    </Container>
   );
 }
