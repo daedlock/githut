@@ -34,7 +34,7 @@ export function RepoRow({ repo, showOwner = false, onClick }: RepoRowProps) {
       className="group flex w-full items-center gap-3 border-b border-[var(--color-border)] px-4 py-2.5 text-left transition-colors last:border-b-0 hover:bg-[var(--color-bg-sunken)] focus-visible:bg-[var(--color-bg-sunken)] focus-visible:outline-none"
     >
       <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex items-center gap-2 font-mono text-sm leading-none">
+        <div className="flex items-center gap-2 font-mono text-body leading-none">
           {showOwner ? (
             <span className="text-[var(--color-fg-muted)]">{repo.owner.login}/</span>
           ) : null}
@@ -47,13 +47,13 @@ export function RepoRow({ repo, showOwner = false, onClick }: RepoRowProps) {
           ) : null}
         </div>
         {repo.description ? (
-          <p className="truncate text-xs text-[var(--color-fg-muted)]">{repo.description}</p>
+          <p className="truncate text-ui text-[var(--color-fg-muted)]">{repo.description}</p>
         ) : (
-          <p className="truncate text-xs text-[var(--color-fg-faint)] italic">No description</p>
+          <p className="truncate text-ui text-[var(--color-fg-faint)] italic">No description</p>
         )}
       </div>
 
-      <div className="flex flex-shrink-0 items-center gap-3 font-mono text-[11px] text-[var(--color-fg-muted)]">
+      <div className="flex flex-shrink-0 items-center gap-3 font-mono text-caption text-[var(--color-fg-muted)]">
         {repo.language ? <span className="hidden sm:inline">{repo.language}</span> : null}
         {repo.stars > 0 ? (
           <span className="hidden items-center gap-1 sm:inline-flex">

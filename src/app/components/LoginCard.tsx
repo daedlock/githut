@@ -21,15 +21,15 @@ export function LoginCard({ errorMessage, onLogin }: LoginCardProps) {
   return (
     <div className="w-full max-w-[360px]">
       <div className="mb-10 space-y-3">
-        <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-[var(--color-fg-faint)]">
+        <div className="inline-flex items-center gap-2 font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]">
           <span className="h-px w-6 bg-[var(--color-border-strong)]" />
           <span>v0.1 — dev</span>
         </div>
-        <h1 className="font-mono text-3xl font-medium leading-tight tracking-tight">
+        <h1 className="font-mono text-display font-medium">
           Sign&nbsp;in
           <span className="text-[var(--color-accent)]">_</span>
         </h1>
-        <p className="text-sm leading-relaxed text-[var(--color-fg-muted)]">
+        <p className="text-body text-[var(--color-fg-muted)]">
           A faster read-path for GitHub. Built for engineers who live in issues, PRs, and diffs.
         </p>
       </div>
@@ -37,7 +37,7 @@ export function LoginCard({ errorMessage, onLogin }: LoginCardProps) {
       {errorMessage ? (
         <div
           role="alert"
-          className="mb-4 rounded-[var(--radius-md)] border border-[var(--color-danger)]/40 bg-[var(--color-danger)]/10 px-3 py-2 font-mono text-xs text-[var(--color-danger)]"
+          className="mb-4 rounded-[var(--radius-md)] border border-[var(--color-danger)]/40 bg-[var(--color-danger)]/10 px-3 py-2 font-mono text-ui text-[var(--color-danger)]"
         >
           {errorMessage}
         </div>
@@ -49,13 +49,13 @@ export function LoginCard({ errorMessage, onLogin }: LoginCardProps) {
           Continue with GitHub
         </Button>
 
-        <p className="flex items-center justify-center gap-1.5 pt-1 text-center text-xs text-[var(--color-fg-faint)]">
+        <p className="flex items-center justify-center gap-1.5 pt-1 text-center text-ui text-[var(--color-fg-faint)]">
           <span>No password.</span>
           <span>No server-held tokens.</span>
         </p>
       </div>
 
-      <div className="mt-16 flex items-center gap-3 border-t border-[var(--color-border)] pt-5 text-[11px] text-[var(--color-fg-faint)]">
+      <div className="mt-16 flex items-center gap-3 border-t border-[var(--color-border)] pt-5 text-caption text-[var(--color-fg-faint)]">
         <span className="font-mono uppercase tracking-widest">Shortcuts</span>
         <div className="ml-auto flex items-center gap-1.5">
           <Kbd>?</Kbd>

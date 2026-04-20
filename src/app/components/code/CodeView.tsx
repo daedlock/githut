@@ -53,7 +53,7 @@ export function CodeView({ lines, decorations, startLine = 1, className }: CodeV
     <div
       ref={scrollRef}
       className={cn(
-        "overflow-auto bg-[var(--color-bg)] text-[13px] leading-[20px]",
+        "overflow-auto bg-[var(--color-bg)] text-code",
         "font-feature-settings-code",
         className,
       )}

@@ -88,7 +88,7 @@ export function RepoListWidget({ repos, isPending, onRepoClick }: RepoListWidget
 
 function OwnerHeader({ owner, count }: { owner: string; count: number }) {
   return (
-    <div className="flex items-baseline gap-2 bg-[var(--color-bg-sunken)]/50 px-4 py-1.5 font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-muted)]">
+    <div className="flex items-baseline gap-2 bg-[var(--color-bg-sunken)]/50 px-4 py-1.5 font-mono text-micro uppercase tracking-widest text-[var(--color-fg-muted)]">
       <span>{owner}</span>
       <span className="text-[var(--color-fg-faint)]">
         {count} {count === 1 ? "repo" : "repos"}
@@ -99,7 +99,7 @@ function OwnerHeader({ owner, count }: { owner: string; count: number }) {
 
 function EmptyState({ label }: { label: string }) {
   return (
-    <div className="px-4 py-8 text-center font-mono text-xs text-[var(--color-fg-faint)]">
+    <div className="px-4 py-8 text-center font-mono text-ui text-[var(--color-fg-faint)]">
       {label}
     </div>
   );
@@ -120,7 +120,7 @@ function GroupToggle({
           type="button"
           onClick={() => onChange(mode)}
           className={cn(
-            "h-5 px-2 font-mono text-[10px] uppercase tracking-widest transition-colors",
+            "h-5 px-2 font-mono text-micro uppercase tracking-widest transition-colors",
             value === mode
               ? "bg-[var(--color-fg)] text-[var(--color-bg)]"
               : "text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]",

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
+import { FileDiff } from "@/app/components/code";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 import { Button } from "@/app/components/ui/Button";
 import { Input } from "@/app/components/ui/Input";
@@ -24,9 +25,9 @@ function Section({
   return (
     <section className="space-y-4 border-t border-[var(--color-border)] pt-8">
       <header className="flex items-baseline gap-3">
-        <h2 className="font-mono text-xs font-medium uppercase tracking-widest">{title}</h2>
+        <h2 className="font-mono text-ui font-medium uppercase tracking-widest">{title}</h2>
         {meta ? (
-          <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]">
+          <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
             {meta}
           </span>
         ) : null}
@@ -41,8 +42,8 @@ function PlaygroundPage() {
     <div className="min-h-full">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-bg)]/80 px-6 py-4 backdrop-blur">
         <div className="flex items-baseline gap-3">
-          <span className="font-mono text-sm font-medium tracking-tight">GitHut</span>
-          <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]">
+          <span className="font-mono text-body font-medium tracking-tight">GitHut</span>
+          <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
             / playground
           </span>
         </div>
@@ -51,10 +52,10 @@ function PlaygroundPage() {
 
       <main className="mx-auto max-w-3xl space-y-10 px-6 py-10">
         <div className="space-y-2">
-          <h1 className="font-mono text-2xl font-medium tracking-tight">
+          <h1 className="font-mono text-heading font-medium">
             UI primitives<span className="text-[var(--color-accent)]">_</span>
           </h1>
-          <p className="text-sm text-[var(--color-fg-muted)]">
+          <p className="text-body text-[var(--color-fg-muted)]">
             Dev-only reference. Each primitive variant rendered against the current theme. Toggle
             theme in the top-right to verify both look right.
           </p>
@@ -127,15 +128,45 @@ function PlaygroundPage() {
 
         <Section title="Typography">
           <div className="space-y-3">
-            <p className="font-sans text-sm">
+            <p className="font-sans text-body">
               Sans — IBM Plex Sans. The quick brown fox jumps over the lazy dog.
             </p>
-            <p className="font-mono text-sm">Mono — IBM Plex Mono. const hash = "9f2c4b8e1a7d0"</p>
+            <p className="font-mono text-body">Mono — IBM Plex Mono. const hash = "9f2c4b8e1a7d0"</p>
+          </div>
+        </Section>
+
+        <Section title="Diff view" meta="unified + split, word-level emphasis, syntax-highlighted">
+          <div className="w-full space-y-4">
+            <FileDiff
+              filename="src/lib/auth.ts"
+              status="modified"
+              additions={4}
+              deletions={3}
+              patch={SAMPLE_TS_PATCH}
+              lang="typescript"
+            />
+            <FileDiff
+              filename="src/components/Card.tsx"
+              previousFilename="src/components/Panel.tsx"
+              status="renamed"
+              additions={2}
+              deletions={2}
+              patch={SAMPLE_TSX_PATCH}
+              lang="tsx"
+              defaultMode="split"
+            />
+            <FileDiff
+              filename="public/logo.png"
+              status="modified"
+              additions={0}
+              deletions={0}
+              patch={null}
+            />
           </div>
         </Section>
       </main>
 
-      <footer className="mx-auto max-w-3xl border-t border-[var(--color-border)] px-6 py-6 font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]">
+      <footer className="mx-auto max-w-3xl border-t border-[var(--color-border)] px-6 py-6 font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
         end of primitives
       </footer>
     </div>
@@ -150,9 +181,40 @@ function Swatch({ label, value }: { label: string; value: string }) {
         style={{ backgroundColor: `var(${value})` }}
       />
       <div className="flex flex-col leading-tight">
-        <span className="font-mono text-xs">{label}</span>
+        <span className="font-mono text-ui">{label}</span>
         <span className="font-mono text-[10px] text-[var(--color-fg-faint)]">{value}</span>
       </div>
     </div>
   );
 }
+
+// Sample unified-diff patches for the playground. Hand-authored to exercise:
+//   - context + adds + dels in one hunk
+//   - word-level intra-line changes (so the `.diff-word` path runs)
+//   - multiple hunks
+//   - both typescript and tsx syntax highlighting
+const SAMPLE_TS_PATCH = `@@ -12,7 +12,8 @@ export async function signIn(code: string) {
+   const res = await fetch(\`\${API}/oauth/callback?code=\${code}\`);
+   if (!res.ok) throw new Error("auth failed");
+   const { token } = await res.json();
+-  localStorage.setItem("auth_token", token);
++  sessionStorage.setItem("auth_token", token);
++  setCookie("session", token, { sameSite: "lax" });
+   return token;
+ }
+@@ -28,5 +29,5 @@ export function getToken(): string | null {
+-  return localStorage.getItem("auth_token");
++  return sessionStorage.getItem("auth_token");
+ }`;
+
+const SAMPLE_TSX_PATCH = `@@ -4,7 +4,7 @@ export function Panel({ title, children }: Props) {
+   return (
+-    <div className="panel panel--bordered">
+-      <h3 className="panel__title">{title}</h3>
++    <section className="card card--bordered">
++      <h3 className="card__title">{title}</h3>
+       <div>{children}</div>
+-    </div>
++    </section>
+   );
+ }`;

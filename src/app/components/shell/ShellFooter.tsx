@@ -18,7 +18,7 @@ export function ShellFooter({
   return (
     <footer
       className={cn(
-        "font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]",
+        "font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]",
         bordered && "border-t border-[var(--color-border)]",
         className,
       )}
@@ -28,7 +28,7 @@ export function ShellFooter({
         {showHelpHint ? (
           <div className="flex items-center gap-1.5">
             <Kbd>?</Kbd>
-            <span className="text-[11px] normal-case tracking-normal">for shortcuts</span>
+            <span className="text-caption normal-case tracking-normal">for shortcuts</span>
           </div>
         ) : null}
       </Container>

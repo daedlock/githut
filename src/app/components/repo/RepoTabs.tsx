@@ -25,7 +25,7 @@ export function RepoTabs({ tabs }: RepoTabsProps) {
             // biome-ignore lint/suspicious/noExplicitAny: dynamic route path is runtime-constructed
             to={tab.to as any}
             className={cn(
-              "group relative flex items-center gap-2 px-3 py-2.5 font-mono text-xs uppercase tracking-widest",
+              "group relative flex items-center gap-2 px-3 py-2.5 font-mono text-ui uppercase tracking-widest",
               "text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)]",
             )}
             activeProps={{
@@ -35,7 +35,7 @@ export function RepoTabs({ tabs }: RepoTabsProps) {
           >
             <span>{tab.label}</span>
             {tab.meta ? (
-              <span className="font-sans text-[10px] text-[var(--color-fg-faint)] normal-case tracking-normal">
+              <span className="font-sans text-micro text-[var(--color-fg-faint)] normal-case tracking-normal">
                 {tab.meta}
               </span>
             ) : null}

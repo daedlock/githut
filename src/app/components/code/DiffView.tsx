@@ -1,119 +1,602 @@
+import { Fragment, useMemo } from "react";
+import { cn } from "@/app/lib/cn";
 import { Skeleton } from "@/app/components/ui/Skeleton";
-import { CodeView } from "./CodeView";
-import type { DiffLine } from "./types";
+import { countChanges, type DiffHunk, type DiffLine, parseUnifiedDiff } from "./parseDiff";
+import { FS_BOLD, FS_ITALIC, FS_STRIKETHROUGH, FS_UNDERLINE } from "./types";
+import type { CodeLine, CodeToken } from "./types";
 import { useCodeTokens } from "./useCodeTokens";
-
-// ── LCS-based line diff ──────────────────────────────────────────────────────
-
-function computeDiff(oldLines: string[], newLines: string[]): DiffLine[] {
-  const m = oldLines.length;
-  const n = newLines.length;
-
-  // DP LCS table (bottom-up)
-  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-  for (let i = m - 1; i >= 0; i--) {
-    for (let j = n - 1; j >= 0; j--) {
-      const row = dp[i];
-      if (!row) continue;
-      const match = oldLines[i] === newLines[j];
-      row[j] = match
-        ? (dp[i + 1]?.[j + 1] ?? 0) + 1
-        : Math.max(dp[i + 1]?.[j] ?? 0, dp[i]?.[j + 1] ?? 0);
-    }
-  }
-
-  const result: DiffLine[] = [];
-  let i = 0;
-  let j = 0;
-  let oldNum = 1;
-  let newNum = 1;
-
-  while (i < m || j < n) {
-    if (i < m && j < n && oldLines[i] === newLines[j]) {
-      result.push({ kind: "context", oldNum, newNum, content: oldLines[i] ?? "" });
-      i++;
-      j++;
-      oldNum++;
-      newNum++;
-    } else if (i >= m) {
-      result.push({ kind: "added", newNum, content: newLines[j] ?? "" });
-      j++;
-      newNum++;
-    } else if (j >= n) {
-      result.push({ kind: "removed", oldNum, content: oldLines[i] ?? "" });
-      i++;
-      oldNum++;
-    } else if ((dp[i + 1]?.[j] ?? 0) >= (dp[i]?.[j + 1] ?? 0)) {
-      result.push({ kind: "removed", oldNum, content: oldLines[i] ?? "" });
-      i++;
-      oldNum++;
-    } else {
-      result.push({ kind: "added", newNum, content: newLines[j] ?? "" });
-      j++;
-      newNum++;
-    }
-  }
-
-  return result;
-}
+import { computeLinePairs, wordDiff, type WordSegment } from "./wordDiff";
 
 // ── Component ────────────────────────────────────────────────────────────────
 
+export type DiffMode = "unified" | "split";
+
 export type DiffViewProps = {
-  oldCode: string;
-  newCode: string;
-  lang: string;
+  /** The unified-diff text — typically the `patch` field from GitHub's files API. */
+  patch: string | null | undefined;
+  /** Language hint for syntax highlighting. Omit to render plain. */
+  lang?: string;
+  /** "unified" stacks +/- inline; "split" is side-by-side with aligned rows. */
+  mode?: DiffMode;
   className?: string;
 };
 
-export function DiffView({ oldCode, newCode, lang, className }: DiffViewProps) {
-  const { data: oldTokens, isPending: oldPending } = useCodeTokens(oldCode, lang);
-  const { data: newTokens, isPending: newPending } = useCodeTokens(newCode, lang);
+export function DiffView({ patch, lang = "text", mode = "unified", className }: DiffViewProps) {
+  const hunks = useMemo(() => parseUnifiedDiff(patch), [patch]);
 
-  if (oldPending || newPending || !oldTokens || !newTokens) {
+  // Build the two "virtual" source files from the patch: old (context + dels)
+  // and new (context + adds). We feed each to Shiki in one go so token
+  // highlighting has full multi-line context (strings, block comments, etc.)
+  // rather than getting each line tokenized in isolation.
+  const { oldSource, newSource, oldLineMap, newLineMap } = useMemo(
+    () => buildSources(hunks),
+    [hunks],
+  );
+
+  const { data: oldTokens, isPending: oldPending } = useCodeTokens(oldSource, lang);
+  const { data: newTokens, isPending: newPending } = useCodeTokens(newSource, lang);
+
+  if (!patch) return null;
+  if (hunks.length === 0) {
     return (
-      <div className="flex flex-col gap-1.5 p-4">
-        {Array.from({ length: 10 }).map((_, i) => (
-          <Skeleton key={i} className="h-5" style={{ width: `${50 + (i * 13) % 45}%` }} />
-        ))}
+      <div className="px-4 py-6 text-center font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]">
+        No changes to display
       </div>
     );
   }
 
-  const oldLines = oldCode.split("\n");
-  const newLines = newCode.split("\n");
-  const diff = computeDiff(oldLines, newLines);
-
-  // Build the merged token line array and decorations in lockstep with the diff
-  const mergedLines: (typeof oldTokens)[number][] = [];
-  const decorations: { kind: "context" | "added" | "removed"; oldNum?: number; newNum?: number }[] =
-    [];
-
-  let oldIdx = 0;
-  let newIdx = 0;
-
-  for (const d of diff) {
-    if (d.kind === "removed") {
-      mergedLines.push(oldTokens[oldIdx] ?? []);
-      decorations.push({ kind: "removed", oldNum: d.oldNum });
-      oldIdx++;
-    } else if (d.kind === "added") {
-      mergedLines.push(newTokens[newIdx] ?? []);
-      decorations.push({ kind: "added", newNum: d.newNum });
-      newIdx++;
-    } else {
-      mergedLines.push(newTokens[newIdx] ?? []);
-      decorations.push({ kind: "context", oldNum: d.oldNum, newNum: d.newNum });
-      oldIdx++;
-      newIdx++;
-    }
+  if (oldPending || newPending || !oldTokens || !newTokens) {
+    return <DiffSkeleton />;
   }
 
   return (
-    <CodeView
-      lines={mergedLines}
-      decorations={decorations}
-      className={className}
-    />
+    <div
+      className={cn(
+        "overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg)]",
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          "overflow-x-auto font-mono text-code font-feature-settings-code",
+        )}
+      >
+        {hunks.map((hunk, hIdx) => (
+          <Fragment key={hIdx}>
+            {hIdx > 0 && <div className="h-px bg-[var(--color-border)]" />}
+            <HunkHeader hunk={hunk} />
+            {mode === "unified" ? (
+              <UnifiedHunk
+                hunk={hunk}
+                oldTokens={oldTokens}
+                newTokens={newTokens}
+                oldLineMap={oldLineMap}
+                newLineMap={newLineMap}
+              />
+            ) : (
+              <SplitHunk
+                hunk={hunk}
+                oldTokens={oldTokens}
+                newTokens={newTokens}
+                oldLineMap={oldLineMap}
+                newLineMap={newLineMap}
+              />
+            )}
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Exports for composition ─────────────────────────────────────────────────
+
+export { countChanges, parseUnifiedDiff };
+export type { DiffHunk, DiffLine };
+
+// ── Hunk header ─────────────────────────────────────────────────────────────
+
+function HunkHeader({ hunk }: { hunk: DiffHunk }) {
+  return (
+    <div className="flex items-center gap-3 border-b border-[var(--diff-hunk-border)] bg-[var(--diff-hunk-bg)] px-3 py-1">
+      <span className="font-mono text-caption tabular-nums text-[var(--diff-hunk-fg)]">
+        @@ -{hunk.oldStart},{hunk.oldLines} +{hunk.newStart},{hunk.newLines} @@
+      </span>
+      {hunk.header && (
+        <span className="truncate text-caption text-[var(--color-fg-faint)]">{hunk.header}</span>
+      )}
+    </div>
+  );
+}
+
+// ── Unified view ────────────────────────────────────────────────────────────
+
+function UnifiedHunk({
+  hunk,
+  oldTokens,
+  newTokens,
+  oldLineMap,
+  newLineMap,
+}: {
+  hunk: DiffHunk;
+  oldTokens: CodeLine[];
+  newTokens: CodeLine[];
+  oldLineMap: Map<number, number>;
+  newLineMap: Map<number, number>;
+}) {
+  const pairs = useMemo(() => computeLinePairs(hunk.lines), [hunk]);
+  const inversePairs = useMemo(() => {
+    const inv = new Map<number, number>();
+    for (const [d, a] of pairs) inv.set(a, d);
+    return inv;
+  }, [pairs]);
+
+  // Pre-compute word diffs for each paired line
+  const wordDiffs = useMemo(() => {
+    const map = new Map<number, { oldSegs: WordSegment[]; newSegs: WordSegment[] }>();
+    for (const [delIdx, addIdx] of pairs) {
+      const delLine = hunk.lines[delIdx];
+      const addLine = hunk.lines[addIdx];
+      if (!delLine || !addLine) continue;
+      const { oldSegments, newSegments } = wordDiff(delLine.content, addLine.content);
+      map.set(delIdx, { oldSegs: oldSegments, newSegs: [] });
+      map.set(addIdx, { oldSegs: [], newSegs: newSegments });
+    }
+    return map;
+  }, [hunk, pairs]);
+
+  return (
+    <div>
+      {hunk.lines.map((line, idx) => {
+        const emphasis = wordDiffs.get(idx);
+        const segments =
+          line.kind === "del"
+            ? emphasis?.oldSegs
+            : line.kind === "add"
+              ? emphasis?.newSegs
+              : undefined;
+        const tokens =
+          line.kind === "del"
+            ? tokensForOld(line, oldTokens, oldLineMap)
+            : tokensForNew(line, newTokens, newLineMap);
+        // Un-paired add/del: don't show word emphasis (would be misleading)
+        const showEmphasis =
+          segments != null &&
+          (line.kind === "del" ? pairs.has(idx) : inversePairs.has(idx));
+
+        return (
+          <DiffRow
+            key={idx}
+            kind={line.kind}
+            oldNum={line.oldNum}
+            newNum={line.newNum}
+            tokens={tokens}
+            rawText={line.content}
+            emphasis={showEmphasis ? segments : undefined}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function DiffRow({
+  kind,
+  oldNum,
+  newNum,
+  tokens,
+  rawText,
+  emphasis,
+}: {
+  kind: DiffLine["kind"];
+  oldNum?: number;
+  newNum?: number;
+  tokens: CodeLine;
+  rawText: string;
+  emphasis?: WordSegment[];
+}) {
+  const lineClass =
+    kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
+  return (
+    <div className={cn("flex items-stretch", lineClass)}>
+      <div className="diff-gutter flex flex-shrink-0 select-none font-mono tabular-nums text-[var(--color-fg-faint)]">
+        <span className="w-10 px-1 text-right">{oldNum ?? ""}</span>
+        <span className="w-10 px-1 text-right">{newNum ?? ""}</span>
+      </div>
+      <span
+        className={cn(
+          "w-5 flex-shrink-0 select-none text-center",
+          kind === "add" && "text-[var(--diff-add-marker)]",
+          kind === "del" && "text-[var(--diff-del-marker)]",
+          kind === "context" && "text-[var(--color-fg-faint)] opacity-60",
+        )}
+      >
+        {kind === "add" ? "+" : kind === "del" ? "−" : " "}
+      </span>
+      <span className="min-w-0 flex-1 overflow-x-auto whitespace-pre pr-3">
+        <RenderedLine tokens={tokens} rawText={rawText} emphasis={emphasis} />
+      </span>
+    </div>
+  );
+}
+
+// ── Split view ──────────────────────────────────────────────────────────────
+
+function SplitHunk({
+  hunk,
+  oldTokens,
+  newTokens,
+  oldLineMap,
+  newLineMap,
+}: {
+  hunk: DiffHunk;
+  oldTokens: CodeLine[];
+  newTokens: CodeLine[];
+  oldLineMap: Map<number, number>;
+  newLineMap: Map<number, number>;
+}) {
+  // Build paired rows: each row has an optional left (del/context) and optional right (add/context)
+  const pairs = useMemo(() => computeLinePairs(hunk.lines), [hunk]);
+  const inversePairs = useMemo(() => {
+    const inv = new Map<number, number>();
+    for (const [d, a] of pairs) inv.set(a, d);
+    return inv;
+  }, [pairs]);
+
+  const wordDiffs = useMemo(() => {
+    const map = new Map<number, WordSegment[]>();
+    for (const [delIdx, addIdx] of pairs) {
+      const delLine = hunk.lines[delIdx];
+      const addLine = hunk.lines[addIdx];
+      if (!delLine || !addLine) continue;
+      const { oldSegments, newSegments } = wordDiff(delLine.content, addLine.content);
+      map.set(delIdx, oldSegments);
+      map.set(addIdx, newSegments);
+    }
+    return map;
+  }, [hunk, pairs]);
+
+  type SplitRow = { left?: { idx: number; line: DiffLine }; right?: { idx: number; line: DiffLine } };
+  const rows = useMemo<SplitRow[]>(() => {
+    const out: SplitRow[] = [];
+    let i = 0;
+    while (i < hunk.lines.length) {
+      const line = hunk.lines[i];
+      if (!line) {
+        i++;
+        continue;
+      }
+
+      if (line.kind === "context") {
+        out.push({ left: { idx: i, line }, right: { idx: i, line } });
+        i++;
+        continue;
+      }
+
+      // Collect consecutive del/add block
+      const delStart = i;
+      while (i < hunk.lines.length && hunk.lines[i]?.kind === "del") i++;
+      const delEnd = i;
+      while (i < hunk.lines.length && hunk.lines[i]?.kind === "add") i++;
+      const addEnd = i;
+
+      const delCount = delEnd - delStart;
+      const addCount = addEnd - delEnd;
+      const max = Math.max(delCount, addCount);
+
+      for (let k = 0; k < max; k++) {
+        const leftIdx = delStart + k;
+        const rightIdx = delEnd + k;
+        const leftLine = k < delCount ? hunk.lines[leftIdx] : undefined;
+        const rightLine = k < addCount ? hunk.lines[rightIdx] : undefined;
+        out.push({
+          left: leftLine ? { idx: leftIdx, line: leftLine } : undefined,
+          right: rightLine ? { idx: rightIdx, line: rightLine } : undefined,
+        });
+      }
+    }
+    return out;
+  }, [hunk]);
+
+  return (
+    <div className="grid grid-cols-2 divide-x divide-[var(--color-border)]">
+      <div>
+        {rows.map((row, rIdx) => {
+          if (!row.left) return <SplitPadRow key={`l-${rIdx}`} />;
+          const { idx, line } = row.left;
+          const tokens = tokensForOld(line, oldTokens, oldLineMap);
+          const emphasis =
+            line.kind === "del" && pairs.has(idx) ? wordDiffs.get(idx) : undefined;
+          return (
+            <SplitRow
+              key={`l-${rIdx}`}
+              side="old"
+              kind={line.kind}
+              num={line.oldNum}
+              tokens={tokens}
+              rawText={line.content}
+              emphasis={emphasis}
+            />
+          );
+        })}
+      </div>
+      <div>
+        {rows.map((row, rIdx) => {
+          if (!row.right) return <SplitPadRow key={`r-${rIdx}`} />;
+          const { idx, line } = row.right;
+          const tokens = tokensForNew(line, newTokens, newLineMap);
+          const emphasis =
+            line.kind === "add" && inversePairs.has(idx) ? wordDiffs.get(idx) : undefined;
+          return (
+            <SplitRow
+              key={`r-${rIdx}`}
+              side="new"
+              kind={line.kind}
+              num={line.newNum}
+              tokens={tokens}
+              rawText={line.content}
+              emphasis={emphasis}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SplitRow({
+  kind,
+  num,
+  tokens,
+  rawText,
+  emphasis,
+}: {
+  side: "old" | "new";
+  kind: DiffLine["kind"];
+  num?: number;
+  tokens: CodeLine;
+  rawText: string;
+  emphasis?: WordSegment[];
+}) {
+  const lineClass =
+    kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
+  return (
+    <div className={cn("flex items-stretch", lineClass)}>
+      <span className="diff-gutter w-10 flex-shrink-0 select-none px-1 text-right font-mono tabular-nums text-[var(--color-fg-faint)]">
+        {num ?? ""}
+      </span>
+      <span
+        className={cn(
+          "w-5 flex-shrink-0 select-none text-center",
+          kind === "add" && "text-[var(--diff-add-marker)]",
+          kind === "del" && "text-[var(--diff-del-marker)]",
+          kind === "context" && "text-[var(--color-fg-faint)] opacity-60",
+        )}
+      >
+        {kind === "add" ? "+" : kind === "del" ? "−" : " "}
+      </span>
+      <span className="min-w-0 flex-1 overflow-x-auto whitespace-pre pr-3">
+        <RenderedLine tokens={tokens} rawText={rawText} emphasis={emphasis} />
+      </span>
+    </div>
+  );
+}
+
+function SplitPadRow() {
+  // Empty counterpart on the other side of a split — tinted with bg-subtle so
+  // the viewer reads the asymmetry at a glance. No gutter digit, no marker.
+  return (
+    <div className="flex h-[20px] items-stretch bg-[var(--color-bg-subtle)]/60">
+      <span className="w-10 flex-shrink-0" />
+      <span className="w-5 flex-shrink-0" />
+      <span className="flex-1" />
+    </div>
+  );
+}
+
+// ── Line renderer: Shiki tokens with optional word-level emphasis overlay ──
+
+function RenderedLine({
+  tokens,
+  rawText,
+  emphasis,
+}: {
+  tokens: CodeLine;
+  rawText: string;
+  emphasis?: WordSegment[];
+}) {
+  // Fast path: no emphasis → just emit token spans
+  if (!emphasis || emphasis.length === 0) {
+    return (
+      <>
+        {tokens.map((t, i) => (
+          <TokenSpan key={i} token={t} />
+        ))}
+      </>
+    );
+  }
+
+  // Emphasis path: walk tokens AND segments together, splitting tokens at
+  // segment boundaries so we can add `.diff-word` to the exact changed ranges.
+  const pieces = buildEmphasizedPieces(tokens, rawText, emphasis);
+  return (
+    <>
+      {pieces.map((p, i) => (
+        <TokenSpan key={i} token={p.token} emphasis={p.emphasis} />
+      ))}
+    </>
+  );
+}
+
+function TokenSpan({ token, emphasis }: { token: CodeToken; emphasis?: boolean }) {
+  return (
+    <span
+      className={cn("code-token", emphasis && "diff-word")}
+      style={
+        {
+          "--tl": token.light.color,
+          "--td": token.dark.color,
+          ...fontStyleToCSS(token.light.fontStyle),
+        } as React.CSSProperties
+      }
+    >
+      {token.content}
+    </span>
+  );
+}
+
+function fontStyleToCSS(fs: number | undefined): React.CSSProperties {
+  if (!fs || fs <= 0) return {};
+  return {
+    fontStyle: fs & FS_ITALIC ? "italic" : undefined,
+    fontWeight: fs & FS_BOLD ? "bold" : undefined,
+    textDecoration:
+      [fs & FS_UNDERLINE ? "underline" : "", fs & FS_STRIKETHROUGH ? "line-through" : ""]
+        .filter(Boolean)
+        .join(" ") || undefined,
+  };
+}
+
+// Split tokens at word-diff segment boundaries so we can apply `.diff-word`
+// to the exact char ranges without losing syntax highlighting.
+function buildEmphasizedPieces(
+  tokens: CodeLine,
+  rawText: string,
+  segments: WordSegment[],
+): Array<{ token: CodeToken; emphasis: boolean }> {
+  // Build a flat list of "cut points" — every position where emphasis state changes
+  const cuts = new Set<number>([0, rawText.length]);
+  for (const s of segments) {
+    if (s.kind === "changed") {
+      cuts.add(s.start);
+      cuts.add(s.end);
+    }
+  }
+
+  const pieces: Array<{ token: CodeToken; emphasis: boolean }> = [];
+  let charPos = 0;
+
+  for (const token of tokens) {
+    const tokStart = charPos;
+    const tokEnd = charPos + token.content.length;
+
+    // Collect cuts inside this token
+    const localCuts = [...cuts]
+      .filter((c) => c > tokStart && c < tokEnd)
+      .sort((a, b) => a - b);
+    const bounds = [tokStart, ...localCuts, tokEnd];
+
+    for (let i = 0; i < bounds.length - 1; i++) {
+      const segStart = bounds[i] ?? tokStart;
+      const segEnd = bounds[i + 1] ?? tokEnd;
+      const mid = (segStart + segEnd) / 2;
+      const isEmphasis = segments.some(
+        (s) => s.kind === "changed" && s.start <= mid && s.end >= mid,
+      );
+      pieces.push({
+        token: {
+          content: token.content.slice(segStart - tokStart, segEnd - tokStart),
+          light: token.light,
+          dark: token.dark,
+        },
+        emphasis: isEmphasis,
+      });
+    }
+
+    charPos = tokEnd;
+  }
+
+  return pieces;
+}
+
+// ── Source assembly: collapse hunks into per-side virtual files ─────────────
+
+function buildSources(hunks: DiffHunk[]) {
+  // The trick: Shiki is a stateful lexer (string literals, block comments span
+  // lines), so tokenizing line-by-line gives wrong highlighting. We reconstruct
+  // a virtual "old file" that contains only the old lines of each hunk (context
+  // + dels), and a "new file" for the adds. We track where each source line
+  // ended up so the renderer can look up tokens by the hunk-line's old/new num.
+  const oldParts: string[] = [];
+  const newParts: string[] = [];
+  const oldLineMap = new Map<number, number>(); // old file line num → index in oldSource lines
+  const newLineMap = new Map<number, number>();
+
+  let oldRow = 0;
+  let newRow = 0;
+  let lastOldEnd = 0;
+  let lastNewEnd = 0;
+
+  for (const hunk of hunks) {
+    // Gap marker between hunks keeps Shiki's per-line indexing consistent —
+    // any "missing" rows between hunks get filled with blank lines.
+    if (hunk.oldStart > lastOldEnd + 1) {
+      const gap = hunk.oldStart - lastOldEnd - 1;
+      for (let k = 0; k < gap; k++) oldParts.push("");
+      oldRow += gap;
+    }
+    if (hunk.newStart > lastNewEnd + 1) {
+      const gap = hunk.newStart - lastNewEnd - 1;
+      for (let k = 0; k < gap; k++) newParts.push("");
+      newRow += gap;
+    }
+
+    for (const line of hunk.lines) {
+      if (line.kind === "del" || line.kind === "context") {
+        oldParts.push(line.content);
+        if (line.oldNum != null) oldLineMap.set(line.oldNum, oldRow);
+        oldRow++;
+      }
+      if (line.kind === "add" || line.kind === "context") {
+        newParts.push(line.content);
+        if (line.newNum != null) newLineMap.set(line.newNum, newRow);
+        newRow++;
+      }
+    }
+
+    lastOldEnd = hunk.oldStart + hunk.oldLines - 1;
+    lastNewEnd = hunk.newStart + hunk.newLines - 1;
+  }
+
+  return {
+    oldSource: oldParts.join("\n"),
+    newSource: newParts.join("\n"),
+    oldLineMap,
+    newLineMap,
+  };
+}
+
+function tokensForOld(line: DiffLine, oldTokens: CodeLine[], map: Map<number, number>): CodeLine {
+  if (line.oldNum == null) return plainTokens(line.content);
+  const idx = map.get(line.oldNum);
+  if (idx == null) return plainTokens(line.content);
+  return oldTokens[idx] ?? plainTokens(line.content);
+}
+
+function tokensForNew(line: DiffLine, newTokens: CodeLine[], map: Map<number, number>): CodeLine {
+  if (line.newNum == null) return plainTokens(line.content);
+  const idx = map.get(line.newNum);
+  if (idx == null) return plainTokens(line.content);
+  return newTokens[idx] ?? plainTokens(line.content);
+}
+
+function plainTokens(content: string): CodeLine {
+  return [{ content, light: {}, dark: {} }];
+}
+
+// ── Skeleton ────────────────────────────────────────────────────────────────
+
+function DiffSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg)]">
+      <div className="border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-3 py-1.5">
+        <Skeleton className="h-3 w-48" />
+      </div>
+      <div className="space-y-1 p-3">
+        {Array.from({ length: 10 }).map((_, i) => (
+          <Skeleton key={i} className="h-4" style={{ width: `${50 + (i * 17) % 40}%` }} />
+        ))}
+      </div>
+    </div>
   );
 }

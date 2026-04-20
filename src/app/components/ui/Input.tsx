@@ -19,9 +19,9 @@ const inputVariants = cva(
         mono: "font-mono tracking-tight",
       },
       size: {
-        sm: "h-7 px-2 text-xs",
-        md: "h-9 px-3 text-sm",
-        lg: "h-11 px-4 text-sm",
+        sm: "h-7 px-2 text-ui",
+        md: "h-9 px-3 text-body",
+        lg: "h-11 px-4 text-body",
       },
     },
     defaultVariants: {

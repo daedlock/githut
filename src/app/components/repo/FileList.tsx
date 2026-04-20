@@ -33,7 +33,7 @@ export function Breadcrumb({
   const parts = path ? path.split("/") : [];
 
   return (
-    <nav className="flex items-center gap-1 font-mono text-sm min-w-0">
+    <nav className="flex items-center gap-1 font-mono text-body min-w-0">
       <button
         type="button"
         onClick={() => onNavigate("")}
@@ -61,7 +61,7 @@ export function Breadcrumb({
           </span>
         );
       })}
-      <span className="ml-1 text-[var(--color-fg-faint)] text-xs flex-shrink-0">
+      <span className="ml-1 text-[var(--color-fg-faint)] text-ui flex-shrink-0">
         @ {branch}
       </span>
     </nav>
@@ -101,20 +101,20 @@ export function FileList({
           <Skeleton className="h-3.5 w-64" />
         ) : commit ? (
           <>
-            <span className="text-xs text-[var(--color-fg)] truncate min-w-0">
+            <span className="text-ui text-[var(--color-fg)] truncate min-w-0">
               {commit.message}
             </span>
-            <span className="ml-auto text-[11px] font-mono text-[var(--color-fg-faint)] flex-shrink-0 flex items-center gap-2">
+            <span className="ml-auto text-caption font-mono text-[var(--color-fg-faint)] flex-shrink-0 flex items-center gap-2">
               <span>{commit.authorName}</span>
               <span title={commit.date}>{relativeTime(commit.date)}</span>
             </span>
           </>
         ) : (
-          <span className="text-xs text-[var(--color-fg-faint)]">No commits found</span>
+          <span className="text-ui text-[var(--color-fg-faint)]">No commits found</span>
         )}
       </div>
 
-      <table className="w-full text-sm border-collapse">
+      <table className="w-full text-body border-collapse">
         <tbody>
           {isPending ? (
             Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)
@@ -144,7 +144,7 @@ function ParentRow({ onNavigate }: { onNavigate: () => void }) {
         <Folder className="h-4 w-4 text-[var(--color-fg-faint)] flex-shrink-0" />
       </td>
       <td className="pr-4 py-2">
-        <span className="font-mono text-[13px] text-[var(--color-fg-muted)] group-hover:text-[var(--color-fg)] transition-colors duration-75">
+        <span className="font-mono text-code text-[var(--color-fg-muted)] group-hover:text-[var(--color-fg)] transition-colors duration-75">
           ..
         </span>
       </td>
@@ -180,7 +180,7 @@ function FileRow({
       <td className="pr-4 py-2 w-full">
         <span
           className={cn(
-            "font-mono text-[13px] leading-none",
+            "font-mono text-code leading-none",
             isDir
               ? "text-[var(--color-fg)] group-hover:text-[var(--color-accent)]"
               : "text-[var(--color-fg-muted)] group-hover:text-[var(--color-fg)]",

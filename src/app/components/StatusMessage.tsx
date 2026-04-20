@@ -2,7 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import type { ReactNode } from "react";
 import { cn } from "@/app/lib/cn";
 
-const statusVariants = cva("font-mono text-sm", {
+const statusVariants = cva("font-mono text-body", {
   variants: {
     tone: {
       muted: "text-[var(--color-fg-muted)]",

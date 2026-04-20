@@ -12,15 +12,6 @@ export type CodeToken = {
 
 export type CodeLine = CodeToken[];
 
-/** Decoration applied to a single line in CodeView */
+/** Decoration applied to a single line in CodeView. Distinct from parseDiff's
+ *  DiffLineKind ("add"/"del") — CodeView is older and uses the verbose forms. */
 export type LineKind = "context" | "added" | "removed";
-
-/** A single line in a unified diff */
-export type DiffLine = {
-  kind: LineKind;
-  /** 1-indexed line number in the old file (undefined for pure additions) */
-  oldNum?: number;
-  /** 1-indexed line number in the new file (undefined for pure removals) */
-  newNum?: number;
-  content: string;
-};

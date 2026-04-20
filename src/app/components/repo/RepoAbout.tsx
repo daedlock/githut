@@ -17,14 +17,14 @@ export function RepoAbout({
   return (
     <aside className="flex flex-col gap-5">
       <div className="flex flex-col gap-3">
-        <h3 className="font-mono text-xs font-medium uppercase tracking-widest text-[var(--color-fg-muted)]">
+        <h3 className="font-mono text-ui font-medium uppercase tracking-widest text-[var(--color-fg-muted)]">
           About
         </h3>
 
         {repo ? (
           <>
             {repo.description && (
-              <p className="text-sm text-[var(--color-fg)] leading-relaxed">{repo.description}</p>
+              <p className="text-body text-[var(--color-fg)] leading-relaxed">{repo.description}</p>
             )}
 
             {repo.homepage && (
@@ -32,7 +32,7 @@ export function RepoAbout({
                 href={repo.homepage}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors duration-75"
+                className="inline-flex items-center gap-1.5 text-body text-[var(--color-accent)] hover:text-[var(--color-accent-hover)] transition-colors duration-75"
               >
                 <Globe className="h-3.5 w-3.5 flex-shrink-0" />
                 <span className="truncate">{repo.homepage.replace(/^https?:\/\//, "")}</span>
@@ -78,7 +78,7 @@ export function RepoAbout({
 
       {(languages && languages.length > 0) || languagesPending ? (
         <div className="border-t border-[var(--color-border)] pt-4 flex flex-col gap-2">
-          <h3 className="font-mono text-xs font-medium uppercase tracking-widest text-[var(--color-fg-muted)]">
+          <h3 className="font-mono text-ui font-medium uppercase tracking-widest text-[var(--color-fg-muted)]">
             Languages
           </h3>
           {languagesPending || !languages ? (
@@ -109,12 +109,12 @@ function StatRow({
   value: string | undefined;
 }) {
   return (
-    <div className="flex items-center gap-2 text-sm text-[var(--color-fg-muted)]">
+    <div className="flex items-center gap-2 text-body text-[var(--color-fg-muted)]">
       <span className="text-[var(--color-fg-faint)]">{icon}</span>
       {value !== undefined ? (
         <>
-          <span className="font-mono text-[var(--color-fg)] text-xs tabular-nums">{value}</span>
-          <span className="text-xs">{label}</span>
+          <span className="font-mono text-[var(--color-fg)] text-ui tabular-nums">{value}</span>
+          <span className="text-ui">{label}</span>
         </>
       ) : (
         <Skeleton className="h-3.5 w-16" />

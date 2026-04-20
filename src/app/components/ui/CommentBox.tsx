@@ -183,13 +183,13 @@ function Dropdown({
         )}
       >
         <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-3 py-1.5">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]">
+          <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
             {triggerType === "@" ? "Mention a user" : "Reference an issue or PR"}
           </span>
           {isPending && items.length > 0 && (
             <span className="ml-auto flex items-center gap-1">
               <span className="h-1 w-1 rounded-full bg-[var(--color-accent)] animate-pulse" />
-              <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]">
+              <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
                 searching
               </span>
             </span>
@@ -207,7 +207,7 @@ function Dropdown({
               ))}
             </div>
           ) : showEmpty ? (
-            <div className="px-3 py-3 font-mono text-xs text-[var(--color-fg-faint)]">
+            <div className="px-3 py-3 font-mono text-ui text-[var(--color-fg-faint)]">
               No matches
             </div>
           ) : (
@@ -244,7 +244,7 @@ function Row({
         onSelect(item);
       }}
       className={cn(
-        "group relative flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm",
+        "group relative flex w-full items-center gap-2.5 px-3 py-2 text-left text-body",
         "transition-[background-color,transform] duration-75",
         selected
           ? "bg-[var(--color-bg-sunken)]"
@@ -268,7 +268,7 @@ function Row({
             className="h-5 w-5 flex-shrink-0 rounded-full border border-[var(--color-border)]"
           />
           <span className="truncate font-medium text-[var(--color-fg)]">{item.login}</span>
-          <span className="ml-auto shrink-0 font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]">
+          <span className="ml-auto shrink-0 font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
             member
           </span>
         </>
@@ -288,12 +288,12 @@ function Row({
           ) : (
             <CheckCircle2 className="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-fg-faint)]" />
           )}
-          <span className="font-mono text-xs text-[var(--color-fg-faint)] tabular-nums">
+          <span className="font-mono text-ui text-[var(--color-fg-faint)] tabular-nums">
             #{item.number}
           </span>
           <span className="min-w-0 flex-1 truncate text-[var(--color-fg)]">{item.title}</span>
           {item.isPR && (
-            <span className="ml-auto shrink-0 rounded border border-[var(--color-border)] px-1 py-px font-mono text-[9px] uppercase tracking-wider text-[var(--color-fg-faint)]">
+            <span className="ml-auto shrink-0 rounded border border-[var(--color-border)] px-1 py-px font-mono text-micro uppercase tracking-wider text-[var(--color-fg-faint)]">
               PR
             </span>
           )}
@@ -427,7 +427,7 @@ export function CommentBox({
           <Eye className="h-3 w-3" />
           Preview
         </TabBtn>
-        <span className="ml-auto select-none pr-3 font-mono text-[10px] text-[var(--color-fg-faint)]">
+        <span className="ml-auto select-none pr-3 font-mono text-micro text-[var(--color-fg-faint)]">
           @ mention &nbsp;·&nbsp; # reference
         </span>
       </div>
@@ -445,7 +445,7 @@ export function CommentBox({
             rows={rows}
             disabled={disabled}
             autoFocus={autoFocus}
-            className="w-full resize-y bg-[var(--color-bg)] px-3 py-2.5 text-sm text-[var(--color-fg)] placeholder:text-[var(--color-fg-faint)] focus:outline-none disabled:opacity-50"
+            className="w-full resize-y bg-[var(--color-bg)] px-3 py-2.5 text-body text-[var(--color-fg)] placeholder:text-[var(--color-fg-faint)] focus:outline-none disabled:opacity-50"
           />
 
           {trigger && (
@@ -465,11 +465,11 @@ export function CommentBox({
       {mode === "preview" && (
         <div className="min-h-[80px] px-3 py-2.5">
           {value.trim() ? (
-            <div className="readme-prose max-w-none text-sm">
+            <div className="readme-prose max-w-none text-body">
               <GithubMarkdown>{value}</GithubMarkdown>
             </div>
           ) : (
-            <p className="text-sm italic text-[var(--color-fg-faint)]">Nothing to preview.</p>
+            <p className="text-body italic text-[var(--color-fg-faint)]">Nothing to preview.</p>
           )}
         </div>
       )}
@@ -496,7 +496,7 @@ function TabBtn({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors",
+        "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-ui font-medium transition-colors",
         active
           ? "border-[var(--color-accent)] text-[var(--color-fg)]"
           : "border-transparent text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] disabled:cursor-not-allowed disabled:opacity-40",
