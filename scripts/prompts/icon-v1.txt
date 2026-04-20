@@ -1,0 +1,14 @@
+SCENE
+A premium, modern iOS app icon on a 1024x1024 square canvas — flat design, vector-clean, in the visual family of Linear, Raycast, Arc Browser, and Things 3. Background is a warm near-black canvas with a gentle diagonal linear gradient from #1c1917 (warm charcoal, upper-left) to #0c0a09 (near-black, lower-right). A barely-visible 3% radial vignette darkens the corners. No sky, no ground, no horizon, no decorative elements — the background exists only to make the glyph sing.
+
+SUBJECT
+At the center, a single minimalist geometric hut: a pentagonal silhouette made of a symmetrical triangular pitched roof (roof angle ~50 degrees from horizontal) meeting two vertical walls and a flat base. Wall height equals roughly half the roof height. The glyph occupies about 62% of the canvas width, vertically centered with 17% safe-area padding on all sides so it survives iOS's squircle mask. There is no chimney, no door, no window frame with panes, no texture on the walls — just a clean filled shape.
+
+DETAILS
+The hut is filled with a smooth linear gradient running from upper-left (#fdba74, warm amber) to lower-right (#ea580c, deep burnt orange). One narrow vertical slit — a terminal cursor window — is positioned slightly left of the hut's horizontal center and in the lower third of the wall. This window is filled with a warm off-white (#fffbeb) and emits a soft golden inner glow that radiates smoothly onto the surrounding hut face within about a 40px radius. An implied key light from the upper-right at 45 degrees produces a very subtle lighter band along the top-right edge of the roof. The hut sits flat against the canvas — no drop shadow, no skeuomorphic bevel, no inner shadow halo.
+
+TECHNICAL
+Head-on orthographic projection with zero perspective distortion. Crisp pixel-aligned edges, smooth anti-aliased curves, consistent stroke weight, zero gradient banding, zero noise, zero grain, zero texture. Output as a full 1024x1024 square with hard corners — do not pre-round the corners, iOS applies its own squircle mask.
+
+CONSTRAINTS
+No text, no letters, no words, no typography, no wordmark, no watermark, no signature. No photograph, no realistic 3D ray-traced render. No materials: no brick, wood grain, thatch, shingles, stone, or stucco. No chimney, no door, no framed window with panes, no smoke, no sky, no ground, no trees, no environment. No phone mockup, no icon grid, no multiple icons in one image. No bevels, no skeuomorphic gloss, no drop shadow, no inner shadow halo, no sparkles, no particles. No border, no frame, no banner. No muddy colors, no desaturated wash, no low contrast.

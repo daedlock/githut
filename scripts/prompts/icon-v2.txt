@@ -1,0 +1,36 @@
+IMPORTANT GLOBAL CONSTRAINT
+The ENTIRE 1024x1024 canvas is filled edge-to-edge with a dark charcoal background. There is NO white space, NO transparent area, NO negative space outside the glyph. Every pixel of the canvas is colored. Do not produce a standalone glyph on white. This is an iOS app icon — the background IS part of the icon.
+
+CANVAS AND BACKGROUND
+A 1024x1024 square canvas, filled completely and edge-to-edge with a smooth diagonal linear gradient running from #1c1917 (warm charcoal, upper-left corner) to #0c0a09 (near-black, lower-right corner). A barely-visible 3% radial vignette darkens the four corners very subtly. The background has no sky, no ground, no horizon, no decorative elements. It is a flat filled color field — the dark stage on which the glyph sits.
+
+CENTERED GLYPH — GEOMETRIC HUT
+At the center of this dark canvas, a single minimalist geometric hut silhouette: a pentagonal shape consisting of a symmetrical triangular pitched roof (roof angle approximately 50 degrees from horizontal) on top of two vertical walls meeting a flat base. Wall height equals roughly half the roof height. The hut occupies about 62% of the canvas width, vertically centered, with 17% safe-area padding on all sides. The hut is filled with a smooth linear gradient running from upper-left (#fdba74, warm amber) to lower-right (#ea580c, deep burnt orange). No chimney, no door, no texture on the walls — a clean vector-filled shape.
+
+CAT PEEKING THROUGH A PORTHOLE WINDOW
+Set into the upper third of the hut's front face is a single large circular porthole window. The porthole is roughly 38% of the hut's width in diameter, horizontally centered on the hut face. The porthole is filled with solid warm off-white (#fffbeb) — a warm cream color.
+
+Framed inside this circular porthole is a simplified, stylized cat face peeking out. The cat face is rendered in the same warm cream (#fffbeb) as the porthole background but DARKER orange silhouette so it reads clearly — or rather: the cat's FEATURES (eyes, nose) are rendered in solid near-black (#1c1917), and the cat's HEAD SHAPE is a slightly warmer cream that subtly lifts off the porthole background via a hair-thin outer edge in pale amber.
+
+The cat has:
+- A round, slightly squat head shape filling about 80% of the porthole diameter, centered
+- Two small triangular ears poking just above the top rim of the porthole (breaking the circular boundary — the ears overlap and extend slightly above the porthole's top edge onto the hut face, maintaining the warm cream color)
+- Two solid round dark eyes (#1c1917), small and friendly, set symmetrically
+- A tiny triangular dark nose (#1c1917) between and just below the eyes
+- No mouth (cleaner silhouette)
+- No whiskers
+- No paws or body — only the head is visible through the porthole
+
+The cat's expression is quiet, curious, friendly. It does NOT resemble any specific trademarked logo — it is a generic minimalist cat silhouette in the abstract style of modern app icons.
+
+LIGHTING AND FINISH
+Flat vector finish. An implied soft key light from the upper-right at 45 degrees produces a very subtle lighter band along the top-right edge of the hut's roof. No drop shadow beneath the hut. No inner shadow halo inside the porthole. No skeuomorphic gloss or bevel. The hut sits flat against the dark canvas.
+
+TECHNICAL
+Head-on orthographic projection with zero perspective distortion. Crisp pixel-aligned edges, smooth anti-aliased curves, consistent stroke weight, zero gradient banding, zero noise, zero grain, zero texture. Output as a full 1024x1024 square with hard corners — do not pre-round the canvas corners, iOS applies its own squircle mask.
+
+STYLE REFERENCE
+The overall aesthetic is premium, warm, editorial, developer-first — in the visual family of Linear, Raycast, Arc Browser, and Things 3. Think "a cozy developer tool" rendered as a minimalist app icon.
+
+CONSTRAINTS — DO NOT INCLUDE
+No text, no letters, no words, no typography, no wordmark, no watermark, no signature. No photograph, no 3D ray-traced render. No materials: no brick, wood grain, thatch, shingles, stone, or stucco. No chimney, no door, no rectangular window frames, no smoke, no sky, no ground, no trees, no outdoor environment. No phone mockup, no icon grid, no multiple icons in one image. No bevels, no skeuomorphic gloss, no drop shadow beneath the hut, no inner shadow halo, no sparkles, no particles, no motion blur. No border, no frame, no banner, no hashtag, no emoji. No muddy colors, no desaturated wash, no low contrast. The cat must NOT resemble the actual GitHub Octocat trademark — it is an original, generic, simplified minimalist cat face.

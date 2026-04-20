@@ -1,0 +1,10 @@
+# Copy this file to `.dev.vars` (gitignored) and fill in real values.
+# Wrangler reads .dev.vars and injects these as worker bindings in local dev.
+# In production, set via `bunx wrangler secret put <NAME>`.
+
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+
+# 32-byte random hex; sign CSRF state on OAuth login. Generate:
+#   openssl rand -hex 32
+OAUTH_STATE_SECRET=

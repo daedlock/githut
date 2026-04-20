@@ -1,0 +1,50 @@
+IMPORTANT GLOBAL CONSTRAINT
+The ENTIRE 1024x1024 canvas is filled edge-to-edge with a dark charcoal background. There is NO white space, NO transparent area. Every pixel of the canvas is colored. This is an iOS app icon — the background IS part of the icon.
+
+CANVAS AND BACKGROUND
+A 1024x1024 square canvas, filled completely edge-to-edge with a smooth diagonal linear gradient from #1c1917 (warm charcoal, upper-left) to #0c0a09 (near-black, lower-right). A barely-visible 3% radial vignette darkens the corners very subtly.
+
+CENTERED GLYPH — ROUNDED GEOMETRIC HUT
+At the center, a single geometric hut silhouette with SOFTLY ROUNDED EDGES on every corner and every transition. The hut is a pentagonal shape made of:
+- A symmetrical triangular pitched roof (roof angle approximately 50 degrees from horizontal)
+- Two vertical walls
+- A flat base
+
+Crucially, every edge and corner of the hut is rounded with a generous corner radius — approximately 28px radius on the base corners, 24px radius on the two roof-to-wall seams, and the roof peak itself is rounded into a smooth apex (not a sharp point). The silhouette reads as pillowy, friendly, tactile — like a rounded iOS app glyph, not a hard-edged geometric shape. Overall the hut occupies about 62% of the canvas width, vertically centered, with 17% safe-area padding on all sides.
+
+The hut is filled with a rich warm gradient that has more variation than a simple two-stop. The base color is a warm burnt orange (#ea580c) transitioning up into warm amber (#fdba74) near the top-right, and deepening into a darker orange-red (#c2410c) near the bottom-left and along the shadowed left wall. This creates a sense of dimensional lighting — as if the hut is a real 3D form illuminated from the upper-right, even though the form itself stays flat and vector-clean. No chimney, no door, no wall texture.
+
+CIRCULAR PORTHOLE WINDOW WITH WARM INTERIOR LIGHT
+Set into the upper-third center of the hut's front face is a perfectly round porthole window, approximately 38% of the hut's width in diameter, horizontally centered. The porthole has a subtle cream-colored inner rim frame about 8px thick (#fde6b8), giving it depth as if the window is set into the wall.
+
+Inside the porthole, the interior of the hut glows with warm light — a radial gradient from a bright warm center (#fffbeb, warm cream, at the lower-center of the porthole) fading outward into a warmer ochre (#fbbf24, golden honey, near the rim) and into a soft amber-to-brown shadow (#92400e) near the very top-left of the porthole interior. This creates the unmistakable feeling of a cozy, lit room seen from outside on a dark evening.
+
+The warm light from the porthole spills outward onto the surrounding hut face as a soft glow halo: the hut surface within roughly 60px of the porthole rim is brightened by warm light, creating a gentle amber aura that falls off smoothly. This is the icon's signature storytelling beat — warmth leaking out of a cozy home.
+
+THE CAT IN THE WINDOW
+Inside the porthole, framed by its warm interior glow, a simplified stylized cat face peeks out. The cat is visible from the chest up, as if it is standing inside the hut and looking out the window at you. Render details:
+- A round cream-colored head (#fefce8, slightly warmer than the porthole cream so it reads) with a subtle darker top-of-head patch in warm brown (#78350f) suggesting a little tuft of fur
+- Two small triangular ears poking just above the top rim of the porthole, breaking the circular boundary slightly (the ears overlap onto the hut face above the porthole)
+- Two solid round friendly dark eyes (#1c1917) with a single tiny soft white catchlight highlight (#ffffff) in each eye for liveliness
+- A tiny triangular dark-brown nose (#78350f) between the eyes
+- No mouth
+- The cat's chin rests at about the lower-middle of the porthole, and its small cream chest/shoulders fill the bottom quarter of the porthole
+- A very soft shadow falls on the UPPER portion of the cat's face and head from the top rim of the porthole, as if the window's upper frame casts a subtle shadow on the cat — this shadow is a slightly darker cream (#e7d7b0) blended softly, no hard edge
+
+The cat is curious, quiet, friendly. The whole composition tells a story: a cozy lit hut, a cat standing at the window, looking out into the dark night.
+
+LIGHTING, DEPTH AND FINISH
+An implied warm key light from the upper-right at 45 degrees falls on the hut, producing a subtle highlight band along the top-right roof edge (a hair-thin lighter amber line). The left side of the hut receives slightly less light, producing a gentle vertical gradient from brighter right to slightly darker left on the front face.
+
+Around the porthole, the warm interior glow creates a halo of amber bloom extending about 80-100px into the hut face, soft and non-distracting.
+
+No harsh drop shadow beneath the hut (the hut sits flat against the canvas). No skeuomorphic bevel. No glossy reflections on the wall. The depth comes from the thoughtful gradient work and the internal porthole glow — not from 3D rendering tricks.
+
+TECHNICAL
+Head-on orthographic projection with zero perspective distortion. Crisp pixel-aligned edges, smooth anti-aliased curves on all rounded corners, consistent stroke weight, zero gradient banding, zero noise, zero grain, zero texture. Output as a full 1024x1024 square with hard canvas corners — do not pre-round the canvas itself, iOS applies its own squircle mask.
+
+STYLE REFERENCE
+The overall aesthetic is premium, warm, editorial, storytelling — in the visual family of Linear, Raycast, Arc Browser, Things 3, and Apple's "Journal" app icon. Think "a cozy developer tool at night" rendered as a minimalist but atmospheric app icon.
+
+CONSTRAINTS — DO NOT INCLUDE
+No text, no letters, no words, no typography, no wordmark, no watermark, no signature. No photograph, no 3D ray-traced render with hard shadows. No materials: no brick, wood grain, thatch, shingles, stone, or stucco. No chimney, no door, no rectangular window frames, no smoke, no sky, no ground, no trees, no outdoor environment beyond the dark canvas. No phone mockup, no icon grid, no multiple icons in one image. No bevels, no skeuomorphic gloss, no glossy reflections, no drop shadow beneath the hut, no sparkles, no particles, no motion blur, no lens flare. No border, no frame, no banner. No muddy colors, no desaturated wash, no low contrast. The cat must NOT resemble the actual GitHub Octocat trademark — it is an original, generic, simplified minimalist cat face. No sharp angular corners anywhere on the hut — every edge is soft.
