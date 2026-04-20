@@ -40,6 +40,12 @@
   --color-warning: #ca8a04;       /* yellow-600 — 4.6:1 on bg */
   --color-focus: #ea580c;         /* same as accent; focus ring consistency */
 
+  /* issue state pills — GitHub-style colored badges */
+  --color-issue-open-bg: #dcfce7;  /* green-100 — warm tint for open state */
+  --color-issue-open-fg: #15803d;  /* green-700 — 5.9:1 on open-bg (AA large) */
+  --color-issue-closed-bg: #f3e8ff; /* purple-100 — soft tint for closed state */
+  --color-issue-closed-fg: #7c3aed; /* violet-600 — 4.7:1 on closed-bg (AA) */
+
   /*
    * Chart slot colors (language bars, pie charts, segmented stats).
    * Chosen for visual distinction in CIELAB — hue spread across color wheel,
@@ -90,6 +96,12 @@
   --color-warning: #facc15;       /* yellow-400 — 12.5:1 on bg */
   --color-focus: #fb923c;
 
+  /* issue state pills — dark mode */
+  --color-issue-open-bg: #052e16;  /* green-950 — deep tint on near-black bg */
+  --color-issue-open-fg: #4ade80;  /* green-400 — 9.4:1 on open-bg (AAA) */
+  --color-issue-closed-bg: #2e1065; /* violet-950 — deep tint */
+  --color-issue-closed-fg: #c084fc; /* purple-400 — 7.1:1 on closed-bg (AA) */
+
   /* chart slots — same hues, shifted to 400-level for dark contrast */
   --chart-slot-1: #fb923c; /* orange-400 */
   --chart-slot-2: #22d3ee; /* cyan-400 */
@@ -122,21 +134,47 @@ html.dark {
  * which emits --shiki-light / --shiki-dark inline vars on each span.
  * We activate the appropriate set via the .dark class on <html>.
  */
-.shiki,
+/*
+ * Shiki dual-theme: background only on the container, NOT on spans.
+ * CSS custom properties inherit — setting bg on spans makes every token
+ * inherit the container's --shiki-*-bg, producing full-row colored bars.
+ * We own the bg via our surface tokens; Shiki only controls token colors.
+ */
+.shiki {
+  background-color: var(--color-bg) !important;
+}
+html.dark .shiki {
+  background-color: var(--color-bg) !important;
+}
 .shiki span {
   color: var(--shiki-light);
-  background-color: var(--shiki-light-bg);
   font-style: var(--shiki-light-font-style);
   font-weight: var(--shiki-light-font-weight);
   text-decoration: var(--shiki-light-text-decoration);
 }
-html.dark .shiki,
 html.dark .shiki span {
   color: var(--shiki-dark);
-  background-color: var(--shiki-dark-bg);
   font-style: var(--shiki-dark-font-style);
   font-weight: var(--shiki-dark-font-weight);
   text-decoration: var(--shiki-dark-text-decoration);
+}
+
+/*
+ * Custom code viewer token theming.
+ * Each token span has --tl (light color) and --td (dark color) as inline CSS vars.
+ * Light mode reads --tl; .dark html switches to --td. Zero JS on theme change.
+ * font-feature-settings-code enables ligatures + code-specific OpenType features.
+ */
+.code-token {
+  color: var(--tl);
+}
+html.dark .code-token {
+  color: var(--td);
+}
+.font-feature-settings-code {
+  font-feature-settings: "liga" 1, "calt" 1, "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body {
