@@ -1,3 +1,4 @@
+import { Container } from "@/app/components/ui/Container";
 import { Kbd } from "@/app/components/ui/Kbd";
 import { cn } from "@/app/lib/cn";
 
@@ -17,18 +18,20 @@ export function ShellFooter({
   return (
     <footer
       className={cn(
-        "flex items-center justify-between px-6 py-3 font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]",
+        "font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]",
         bordered && "border-t border-[var(--color-border)]",
         className,
       )}
     >
-      <span>{origin ?? "\u00a0"}</span>
-      {showHelpHint ? (
-        <div className="flex items-center gap-1.5">
-          <Kbd>?</Kbd>
-          <span className="text-[11px] normal-case tracking-normal">for shortcuts</span>
-        </div>
-      ) : null}
+      <Container className="flex items-center justify-between py-3">
+        <span>{origin ?? "\u00a0"}</span>
+        {showHelpHint ? (
+          <div className="flex items-center gap-1.5">
+            <Kbd>?</Kbd>
+            <span className="text-[11px] normal-case tracking-normal">for shortcuts</span>
+          </div>
+        ) : null}
+      </Container>
     </footer>
   );
 }

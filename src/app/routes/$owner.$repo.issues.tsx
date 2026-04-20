@@ -18,6 +18,7 @@ import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Button } from "@/app/components/ui/Button";
 import { CommentBox } from "@/app/components/ui/CommentBox";
+import { Container } from "@/app/components/ui/Container";
 import { Input } from "@/app/components/ui/Input";
 import { useMe } from "@/app/hooks/useMe";
 import { cn } from "@/app/lib/cn";
@@ -488,7 +489,7 @@ function IssueList({
   onOpenIssue: (n: number) => void;
 }) {
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 sm:py-6">
+    <Container className="py-5 sm:py-6">
       {isComposing && (
         <form
           onSubmit={onSubmitIssue}
@@ -597,7 +598,7 @@ function IssueList({
           )}
         </div>
       </section>
-    </div>
+    </Container>
   );
 }
 
@@ -779,7 +780,7 @@ function IssueDetail({
   onBack: () => void;
 }) {
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 sm:py-6">
+    <Container className="py-5 sm:py-6">
       <div className="mb-4 flex items-center justify-between gap-3">
         <button
           type="button"
@@ -954,7 +955,7 @@ function IssueDetail({
           </div>
         </>
       )}
-    </div>
+    </Container>
   );
 }
 

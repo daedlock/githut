@@ -33,36 +33,117 @@ function detectTrigger(text: string, cursorPos: number): Trigger | null {
   return null;
 }
 
+// ─── Caret pixel coords (mirror-div technique) ───────────────────────────────
+// Textareas don't expose a native "where is the caret in screen space" API.
+// We create an off-screen div with the textarea's computed text styles,
+// fill it with the text up to the caret, drop a marker span, and read the
+// marker's bounding rect. This is the standard approach (same idea as
+// textarea-caret-position npm pkg) and handles line wrapping correctly.
+
+const CARET_STYLE_PROPS = [
+  "boxSizing",
+  "fontFamily",
+  "fontSize",
+  "fontStyle",
+  "fontVariant",
+  "fontWeight",
+  "letterSpacing",
+  "wordSpacing",
+  "lineHeight",
+  "textTransform",
+  "textIndent",
+  "paddingTop",
+  "paddingRight",
+  "paddingBottom",
+  "paddingLeft",
+  "borderTopWidth",
+  "borderRightWidth",
+  "borderBottomWidth",
+  "borderLeftWidth",
+] as const;
+
+function getCaretCoords(textarea: HTMLTextAreaElement, position: number): DOMRect {
+  const computed = window.getComputedStyle(textarea);
+  const mirror = document.createElement("div");
+
+  // CSSStyleDeclaration's index type includes read-only keys (length, parentRule),
+  // so TS refuses a direct assignment loop. Cast and iterate.
+  const target = mirror.style as unknown as Record<string, string>;
+  for (const prop of CARET_STYLE_PROPS) {
+    target[prop] = computed[prop];
+  }
+  Object.assign(mirror.style, {
+    position: "fixed",
+    visibility: "hidden",
+    top: "0",
+    left: "-9999px",
+    whiteSpace: "pre-wrap",
+    wordWrap: "break-word",
+    overflowWrap: "break-word",
+    overflow: "hidden",
+    width: `${textarea.clientWidth}px`,
+    height: "auto",
+  });
+
+  document.body.appendChild(mirror);
+  mirror.textContent = textarea.value.slice(0, position);
+
+  const marker = document.createElement("span");
+  marker.textContent = "\u200b"; // zero-width space — occupies a position w/o visual width
+  mirror.appendChild(marker);
+
+  const markerRect = marker.getBoundingClientRect();
+  const mirrorRect = mirror.getBoundingClientRect();
+  const textareaRect = textarea.getBoundingClientRect();
+
+  const offsetTop = markerRect.top - mirrorRect.top;
+  const offsetLeft = markerRect.left - mirrorRect.left;
+  const lineHeight = Number.parseFloat(computed.lineHeight) || Number.parseFloat(computed.fontSize) * 1.4;
+
+  document.body.removeChild(mirror);
+
+  return new DOMRect(
+    textareaRect.left + offsetLeft,
+    textareaRect.top + offsetTop - textarea.scrollTop,
+    1,
+    lineHeight,
+  );
+}
+
 // ─── Dropdown ────────────────────────────────────────────────────────────────
 
 function Dropdown({
   anchor,
+  triggerType,
+  triggerStart,
   items,
   isPending,
   selectedIdx,
   onSelect,
 }: {
   anchor: HTMLTextAreaElement | null;
+  triggerType: "@" | "#";
+  triggerStart: number;
   items: MentionItem[];
   isPending: boolean;
   selectedIdx: number;
   onSelect: (item: MentionItem) => void;
 }) {
-  const { refs, floatingStyles, placement } = useFloating({
+  const { refs, floatingStyles, placement, update } = useFloating({
     placement: "bottom-start",
     strategy: "fixed",
     whileElementsMounted: autoUpdate,
     middleware: [
-      offset(6),
+      offset(4),
       // Flip to top-start when bottom is clipped. We keep the fallback set small
       // and aligned to the same horizontal anchor so the dropdown feels stable.
       flip({ fallbackPlacements: ["top-start"], padding: 8 }),
-      shift({ padding: 8, crossAxis: true }),
+      shift({ padding: 8, crossAxis: false }),
       size({
         padding: 8,
-        apply({ rects, availableHeight, elements }) {
+        apply({ availableHeight, elements }) {
           Object.assign(elements.floating.style, {
-            width: `${Math.max(260, Math.min(rects.reference.width, 440))}px`,
+            width: "320px",
             maxHeight: `${Math.min(availableHeight, 300)}px`,
           });
         },
@@ -70,9 +151,18 @@ function Dropdown({
     ],
   });
 
+  // Virtual reference that returns the caret's screen rect. Floating UI
+  // reads .getBoundingClientRect() each positioning pass, so the dropdown
+  // stays under the caret across typing, wrapping, and textarea scroll.
   useEffect(() => {
-    refs.setReference(anchor);
-  }, [anchor, refs]);
+    if (!anchor) return;
+    refs.setPositionReference({
+      getBoundingClientRect: () => getCaretCoords(anchor, triggerStart),
+      contextElement: anchor,
+    });
+    // Caret can shift on resize or when the textarea is scrolled — nudge FUI.
+    update();
+  }, [anchor, triggerStart, refs, update]);
 
   const showSkeleton = isPending && items.length === 0;
   const showEmpty = !isPending && items.length === 0;
@@ -94,9 +184,7 @@ function Dropdown({
       >
         <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-bg-subtle)] px-3 py-1.5">
           <span className="font-mono text-[10px] uppercase tracking-widest text-[var(--color-fg-faint)]">
-            {items[0]?.kind === "@" || (showSkeleton && selectedIdx === 0)
-              ? "Mention a user"
-              : "Reference an issue or PR"}
+            {triggerType === "@" ? "Mention a user" : "Reference an issue or PR"}
           </span>
           {isPending && items.length > 0 && (
             <span className="ml-auto flex items-center gap-1">
@@ -363,6 +451,8 @@ export function CommentBox({
           {trigger && (
             <Dropdown
               anchor={textareaRef.current}
+              triggerType={trigger.type}
+              triggerStart={trigger.startIndex}
               items={dropdownItems}
               isPending={isFetching || isSearching}
               selectedIdx={selectedIdx}

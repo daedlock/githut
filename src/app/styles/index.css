@@ -74,6 +74,30 @@
   --color-issue-closed-fg: #7c3aed; /* violet-600 — 4.7:1 on closed-bg (AA) */
 
   /*
+   * Diff tokens — derived from --color-success/--color-danger via color-mix.
+   * Keeping these derived (not static hex) means theme swaps cascade: change
+   * --color-success and diffs adapt. Mix against --color-bg so tints stay in
+   * the warm stone palette instead of going gray-green/gray-red.
+   *
+   *   -bg:       subtle line tint (12%), readable on top, not loud
+   *   -bg-word:  word-level highlight (28%), clearly calls out the change
+   *   -gutter:   line-number column tint (18%), slightly stronger than -bg
+   *   -marker:   the +/- glyph color itself — uses the full status token
+   */
+  --diff-add-bg: color-mix(in oklab, var(--color-success) 12%, var(--color-bg));
+  --diff-add-bg-word: color-mix(in oklab, var(--color-success) 28%, var(--color-bg));
+  --diff-add-gutter: color-mix(in oklab, var(--color-success) 18%, var(--color-bg));
+  --diff-add-marker: var(--color-success);
+  --diff-del-bg: color-mix(in oklab, var(--color-danger) 12%, var(--color-bg));
+  --diff-del-bg-word: color-mix(in oklab, var(--color-danger) 28%, var(--color-bg));
+  --diff-del-gutter: color-mix(in oklab, var(--color-danger) 18%, var(--color-bg));
+  --diff-del-marker: var(--color-danger);
+  --diff-hunk-bg: var(--color-bg-subtle);
+  --diff-hunk-fg: var(--color-fg-muted);
+  --diff-hunk-border: var(--color-border);
+  --diff-expand-hover: color-mix(in oklab, var(--color-accent) 10%, var(--color-bg));
+
+  /*
    * Chart slot colors (language bars, pie charts, segmented stats).
    * Chosen for visual distinction in CIELAB — hue spread across color wheel,
    * roughly uniform lightness (~50-60 in light, ~65-75 in dark) to keep chart
@@ -211,6 +235,24 @@ html.dark .shiki span {
 html.dark .code-token {
   color: var(--td);
 }
+
+/*
+ * Diff line backgrounds — applied to the whole line row.
+ * The gutter sits inside the same row and overrides to the -gutter token
+ * so the line-number column reads as "part of the frame, not part of the content".
+ */
+.diff-line-add { background: var(--diff-add-bg); }
+.diff-line-del { background: var(--diff-del-bg); }
+.diff-line-add .diff-gutter { background: var(--diff-add-gutter); }
+.diff-line-del .diff-gutter { background: var(--diff-del-gutter); }
+
+/*
+ * Word-level emphasis — the exact characters that differ within a changed line.
+ * Context scoped by parent .diff-line-add/del so the same span picks up the
+ * right hue without props.
+ */
+.diff-line-add .diff-word { background: var(--diff-add-bg-word); border-radius: 2px; }
+.diff-line-del .diff-word { background: var(--diff-del-bg-word); border-radius: 2px; }
 .font-feature-settings-code {
   font-feature-settings: "liga" 1, "calt" 1, "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;

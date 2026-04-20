@@ -5,6 +5,7 @@ import { ShellFooter } from "@/app/components/shell/ShellFooter";
 import { ShellHeader } from "@/app/components/shell/ShellHeader";
 import { UserMenu } from "@/app/components/shell/UserMenu";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
+import { Container } from "@/app/components/ui/Container";
 import { useMe } from "@/app/hooks/useMe";
 import { useRepos } from "@/app/hooks/useRepos";
 import { logout } from "@/app/lib/auth";
@@ -38,7 +39,7 @@ function IndexPage() {
       }
       footer={<ShellFooter bordered origin="localhost:5173" />}
     >
-      <div className="mx-auto w-full max-w-4xl px-6 py-6">
+      <Container className="py-6">
         <div className="grid grid-cols-1 gap-4">
           <RepoListWidget
             repos={repos.data}
@@ -51,7 +52,7 @@ function IndexPage() {
             }
           />
         </div>
-      </div>
+      </Container>
     </AppShell>
   );
 }

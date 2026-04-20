@@ -4,6 +4,7 @@ import { BlobViewer } from "@/app/components/repo/BlobViewer";
 import { Breadcrumb, FileList } from "@/app/components/repo/FileList";
 import { ReadmeViewer } from "@/app/components/repo/ReadmeViewer";
 import { RepoAbout } from "@/app/components/repo/RepoAbout";
+import { Container } from "@/app/components/ui/Container";
 import { useRepo } from "@/app/hooks/useRepo";
 import { useRepoContents } from "@/app/hooks/useRepoContents";
 import { useRepoFile } from "@/app/hooks/useRepoFile";
@@ -86,7 +87,7 @@ function CodePage() {
   const showSidebar = !isBlob || !path;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6">
+    <Container className="py-6">
       {/* breadcrumb */}
       <div className="mb-3">
         <Breadcrumb
@@ -132,7 +133,7 @@ function CodePage() {
           </div>
         )}
       </div>
-    </div>
+    </Container>
   );
 }
 
