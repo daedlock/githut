@@ -6,8 +6,8 @@ import { StatusMessage } from "@/app/components/StatusMessage";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { type CommitFile, useRepoCommit } from "@/app/hooks/useRepoCommit";
-import { detectLang } from "@/app/lib/detectLang";
 import { cn } from "@/app/lib/cn";
+import { detectLang } from "@/app/lib/detectLang";
 import { formatRelativeTime } from "@/app/lib/time";
 
 export const Route = createFileRoute("/$owner/$repo/commit/$sha")({
@@ -69,10 +69,7 @@ function CommitDetailPage() {
 
       {commit && diffFiles.length > 0 && (
         <div className="border-t border-border">
-          <DiffLayout
-            files={diffFiles}
-            initialSidebarOpen={diffFiles.length > 1}
-          />
+          <DiffLayout files={diffFiles} initialSidebarOpen={diffFiles.length > 1} />
         </div>
       )}
 

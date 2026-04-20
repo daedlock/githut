@@ -54,11 +54,7 @@ export function CommentCard({
       </CardHeader>
       <CardBody>
         {children}
-        <ReactionsBar
-          reactions={reactions}
-          myReactions={myReactions}
-          onToggle={onToggleReaction}
-        />
+        <ReactionsBar reactions={reactions} myReactions={myReactions} onToggle={onToggleReaction} />
       </CardBody>
     </Card>
   );

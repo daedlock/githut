@@ -185,9 +185,7 @@ export function IssueDetail({
                     {me?.avatar_url && (
                       <Avatar login={me.login} avatarUrl={me.avatar_url} size="sm" />
                     )}
-                    <span className="text-body font-medium text-foreground">
-                      Add a comment
-                    </span>
+                    <span className="text-body font-medium text-foreground">Add a comment</span>
                   </CardHeader>
                   <CardBody flush>
                     <CommentBox
