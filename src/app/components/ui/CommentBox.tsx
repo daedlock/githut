@@ -1,7 +1,7 @@
 import {
   autoUpdate,
-  flip,
   FloatingPortal,
+  flip,
   offset,
   shift,
   size,
@@ -10,6 +10,7 @@ import {
 import { CheckCircle2, CircleDot, Eye, GitPullRequest, Pencil } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
+import { Avatar } from "@/app/components/ui/Avatar";
 import { Skeleton } from "@/app/components/ui/Skeleton";
 import { useDebouncedValue } from "@/app/hooks/useDebouncedValue";
 import { type MentionItem, useMentionSearch } from "@/app/hooks/useMentionSearch";
@@ -212,12 +213,7 @@ function Dropdown({
             </div>
           ) : (
             items.map((item, i) => (
-              <Row
-                key={item.id}
-                item={item}
-                selected={i === selectedIdx}
-                onSelect={onSelect}
-              />
+              <Row key={item.id} item={item} selected={i === selectedIdx} onSelect={onSelect} />
             ))
           )}
         </div>
@@ -262,11 +258,7 @@ function Row({
 
       {item.kind === "@" ? (
         <>
-          <img
-            src={item.avatar}
-            alt=""
-            className="h-5 w-5 flex-shrink-0 rounded-full border border-[var(--color-border)]"
-          />
+          <Avatar login={item.login} avatarUrl={item.avatar} size="sm" />
           <span className="truncate font-medium text-[var(--color-fg)]">{item.login}</span>
           <span className="ml-auto shrink-0 font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
             member
