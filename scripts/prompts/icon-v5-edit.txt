@@ -1,0 +1,36 @@
+Edit the attached iOS app icon image. Keep EVERYTHING about it identical — the hut silhouette, its orange gradient fill, the porthole window, the cream cat face with triangular ears peeking through, the dark charcoal background, the cat's expression, proportions, layout, and composition must all be preserved exactly.
+
+Make only these two changes:
+
+1. ROUND THE HUT'S EDGES. Every corner and transition on the hut should become softly rounded:
+- The two base corners: round them with a generous radius so they become soft and pillowy (approximately 28px radius)
+- The two roof-to-wall seams where the roof meets the walls: round them (approximately 24px radius)
+- The roof peak itself: round the apex so it becomes a smooth curved top instead of a sharp triangular point
+- The silhouette should feel tactile, friendly, and pillowy — like a rounded iOS app glyph — rather than hard-edged and geometric
+
+2. ADD WARMTH AND DIMENSIONAL LIGHTING:
+- Make the porthole glow with warm interior light: the porthole interior becomes a radial gradient with a bright warm-cream (#fffbeb) center fading outward into golden honey (#fbbf24) near the rim, creating the feeling of a cozy lit room seen on a dark evening
+- Spill that warm light onto the hut face as a soft amber halo: the hut surface within about 80px of the porthole rim is brightened with a warm amber glow that falls off smoothly (stays inside the hut silhouette, does NOT spill onto the dark background beyond the hut's edge)
+- Add subtle dimensional shading to the hut itself: the upper-right edge of the roof catches a hair-thin lighter amber highlight (as if a warm key light comes from upper-right at 45 degrees); the left wall is slightly darker than the right wall, giving the hut gentle form
+- Softly shadow the upper portion of the cat's face and head from the top rim of the porthole, as if the window's upper frame casts a subtle shadow on the cat (soft blended, no hard edge)
+
+KEEP UNCHANGED:
+- The cat's identity, expression, pose, and features (same round head, same triangular ears poking above the porthole rim, same dark eyes, same tiny nose, same friendly curious look)
+- The hut's overall proportions and position on the canvas
+- The orange gradient palette (burnt orange to warm amber)
+- The dark charcoal background color and edge-to-edge fill
+- The porthole's position and size
+- The cream-colored porthole rim
+- The overall composition and framing
+
+DO NOT INCLUDE:
+- No text, no watermark
+- No drop shadow under the hut on the background
+- No skeuomorphic 3D bevels
+- No change to the cat's appearance
+- No change to the hut's proportions
+- No change to the color palette
+- No sparkles, particles, or lens flare
+- No sharp edges remaining anywhere on the hut
+
+Output a 1024x1024 PNG. Preserve the dark charcoal edge-to-edge background from the original.
