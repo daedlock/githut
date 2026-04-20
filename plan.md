@@ -1,700 +1,336 @@
-# GitHut — Genesis to MVP Plan
+# GitHut — Layout & UI Plan
 
-> **Audience:** an engineering agent with no prior context on this project. Execute milestones in order. Do not skip acceptance criteria. When in doubt, re-read the relevant section rather than inventing.
-
----
-
-## 1. Product Summary
-
-GitHut is a drop-in replacement for github.com's web UI. GitHub's site is SSR-heavy and slow; GitHut is a client-rendered SPA that talks to GitHub's API directly, with aggressive caching and prefetching to feel instant.
-
-**MVP scope (this plan):**
-- Code browsing (repos, files, branches, commits, diffs)
-- Issues (CRUD, reactions, comments, filters)
-- PRs (CRUD, reactions, inline review comments, approve/request-changes)
-
-**Explicitly out of MVP:**
-- GitHub Actions (deferred to post-MVP)
-- Writing code / editing files
-- Notifications, Projects, Discussions, Wiki, Security tab
+> **Audience:** the agent or engineer building GitHut's next phase. This document locks the UX direction, layout contracts, and build order. When in doubt, re-read rather than invent. The goal is **Linear-quality feel for the read + review path of GitHub** — speed, keyboard, triage, density. We are not rebuilding all of github.com. We are building the single best client for reading code and reviewing PRs.
 
 ---
 
-## 2. Locked Technical Decisions
+## 1. Positioning
 
-Do **not** revisit these without explicit user approval.
+GitHut is **the fast read-path for GitHub**. Three user jobs, in order of importance:
 
-| Area | Choice | Notes |
-|---|---|---|
-| Frontend framework | **Vite + React 19 + TypeScript** | Pure SPA. No Next.js. No SSR. |
-| Routing | **TanStack Router** | Type-safe, file-based-ish routes |
-| Server cache | **TanStack Query v5** | SWR, prefetch, optimistic updates |
-| Client state | **Zustand** | Tiny slices, one store per concern. **Never** for server data. |
-| URL state | **TanStack Router search params** | Filters, tabs, line ranges — shareable, history-aware |
-| Styling | **Tailwind CSS v4** | CSS vars for theming via `@theme` |
-| UI primitives | **Owned in `src/components/ui/`** | shadcn-style: we own the source. Variants via `cva`, classes via `cn` (clsx + tailwind-merge). Headless behavior from Radix only where needed (Dialog, DropdownMenu, Tooltip, Tabs, Popover). |
-| Syntax highlighting | **Shiki** | `shiki` + web workers for large files |
-| Markdown | **react-markdown** + `remark-gfm` | GitHub-flavored |
-| Icons | **lucide-react** | Consistent, tree-shakeable |
-| GitHub API | **GraphQL primary, REST fallback — called direct from browser** | `@octokit/graphql`, `@octokit/rest` hitting `api.github.com` directly. No server proxy. |
-| Validation | **Zod** | Validate all external responses |
-| Command palette | **cmdk** | Keyboard-first nav |
-| Virtualization | **@tanstack/react-virtual** | File trees, long lists |
-| Backend | **Minimal Cloudflare Worker** (Hono) | Only two jobs: (1) `/api/auth/callback` performs the OAuth `code → access_token` exchange (the one call that requires `client_secret` and doesn't allow browser CORS), (2) falls through to static SPA assets via the [Workers Assets binding](https://developers.cloudflare.com/workers/static-assets/). ~40 LOC. After login, the Worker is never hit again. |
-| Storage | **None** | No KV, no DB. Token lives in the browser; server has nothing to persist. |
-| Auth | **GitHub OAuth, browser-held token** | Worker swaps `code` for `access_token`, redirects to `/#token=…`. SPA reads the hash, clears it, stores token in `zustand/persist` → `localStorage`. All subsequent GitHub calls are direct from the browser. Same pattern as Pulldash / Octotree / `gh auth`. |
-| Deploy | **Cloudflare Workers + Assets** | Single `wrangler deploy`. No Pages project. |
-| Package manager | **Bun** | `bun install`, `bun run` |
-| Project layout | **Single workspace** | `src/app/` (SPA), `src/worker/` (server), `src/shared/` (types + zod schemas). One `package.json`, one `tsconfig`, one Biome config. |
-| Testing | `bun test` (unit), **Playwright** (e2e smoke) | |
-| Lint/format | **Biome** | Single tool, no eslint/prettier split |
+1. **Review PRs** — the biggest improvement area vs github.com
+2. **Triage work** — inbox of what demands your attention today
+3. **Browse code, commits, issues** — fast, keyboard-first, spatial memory preserved
 
-**Hard rules:**
-- No SSR. No RSC. No `use server`. If you type those words, stop.
-- No auth library (no NextAuth, no better-auth, no clerk). Hand-rolled OAuth — ~40 lines in the Worker.
-- No ORM, no DB, **no KV**, no sessions table. The browser-held token IS the session.
-- No server-side GitHub proxy. Browser talks to `api.github.com` directly. The Worker is on the critical path exactly once per login, then never again.
-- No CSS-in-JS runtime. Tailwind only.
-- **No UI library install** (no MUI, no Mantine, no Chakra, no shadcn CLI). Primitives are hand-rolled in `src/app/components/ui/` and we own them. Add a primitive only when the second usage appears.
-- **Server data never enters Zustand.** TanStack Query owns it. Zustand is for cross-cutting client UI state only (including the auth token — it's a client-held credential, not server data).
-- **No landing/marketing page.** `/` is the authed shell; unauthed users redirect to `/login` (single GitHub button).
-- **Strict CSP.** `script-src 'self'`, no `unsafe-inline`, no `unsafe-eval`, `connect-src 'self' https://api.github.com https://avatars.githubusercontent.com`. Markdown rendering never allows HTML passthrough (`react-markdown` without `rehype-raw`). The token is in `localStorage`, so XSS = token exfiltration — minimize surface area.
+What we are **not** building: Actions, Projects, Wiki, Security, Insights, Marketplace, Discussions, code editing, or writing-path features. If a user needs those, they open github.com.
 
 ---
 
-## 3. Repo Layout
+## 2. Design DNA — the non-negotiables
 
-Single workspace. One `package.json`, one `tsconfig`, one `biome.json`, one `wrangler.toml`. The Worker serves both `/api/*` and falls through to the built SPA assets.
+These principles are the deciding voice when we argue about any UI decision.
+
+1. **Speed is the product.** Every interaction ≤100ms perceived. Optimistic UI on all mutations. Prefetch on hover. IndexedDB-backed query cache. The spinner is a bug.
+2. **Keyboard is the primary input.** Every action has a shortcut. `?` reveals the map. Nothing relies on hover-only or click-only.
+3. **Opinionated triage.** The UI tells you what to focus on. Inbox is not a feed — it is a to-do queue, ranked.
+4. **Density + rhythm.** Tight vertical spacing, one shared type scale (`--text-*` tokens), one ember accent, restrained. Every gap and size is intentional, not eyeballed.
+5. **Motion is narrative.** Peek panels slide from the right; archived items slide out; state changes animate to where they're going. Motion explains structure, never decorates.
+6. **Local-first feel.** Cached data is the default; network revalidates in background. Works offline for read paths.
+7. **Editorial over utilitarian.** Prose meta lines instead of grids of chips. Content earns its chrome.
+
+---
+
+## 3. Layout thesis
+
+> **Top bar (persistent) + per-surface contextual sidebars + command palette (`⌘K`) as primary navigation. No global left sidebar.**
+
+**Why not Linear's left sidebar?** Linear is list-heavy (issues, projects, cycles). We're code/diff-heavy — diffs, file trees, and split views want every horizontal pixel. A 240px nav rail permanently stolen from main content is the wrong trade. Palette + a thoughtful top bar delivers Linear's nav velocity without the sidebar tax.
+
+**Visual layout:**
 
 ```
-githut/
-├── plan.md                 # this file
-├── prd.md                  # product brief
-├── CLAUDE.md               # Bun conventions
-├── README.md
-├── package.json
-├── biome.json
-├── tsconfig.json
-├── vite.config.ts
-├── wrangler.toml
-├── index.html              # Vite entry
-├── .env.example
-└── src/
-    ├── app/                # SPA (browser only)
-    │   ├── main.tsx        # createRoot + RouterProvider
-    │   ├── routes/         # TanStack Router routes
-    │   │   ├── __root.tsx
-    │   │   ├── index.tsx           # / — authed shell home
-    │   │   ├── login.tsx           # /login — single GitHub button
-    │   │   ├── $owner.tsx          # /:owner
-    │   │   ├── $owner.$repo.tsx    # /:owner/:repo
-    │   │   └── ...
-    │   ├── components/
-    │   │   ├── ui/         # owned primitives (Button, Dialog, Kbd, ...)
-    │   │   └── ...         # domain components
-    │   ├── features/       # feature-grouped: code/, issues/, pulls/
-    │   ├── stores/         # Zustand: theme, toasts, command palette, kbd registry
-    │   ├── lib/
-    │   │   ├── github/     # Octokit clients bound with the stored token; query keys
-    │   │   ├── cn.ts       # clsx + tailwind-merge
-    │   │   ├── auth.ts     # token store integration, login(), logout(), bootstrap from #hash
-    │   │   ├── keyboard.ts # shortcut registry
-    │   │   └── cache.ts    # IDB persister for TanStack Query
-    │   ├── hooks/
-    │   ├── styles/
-    │   │   └── index.css   # Tailwind v4 + @theme tokens
-    │   └── types/
-    ├── worker/             # Cloudflare Worker (server only — tiny)
-    │   ├── index.ts        # Hono app: /api/auth/login, /api/auth/callback, /api/health, ASSETS fallback
-    │   └── env.ts          # typed Env bindings (GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, ASSETS)
-    └── shared/             # imported by both app/ and worker/
-        ├── types.ts
-        └── schemas.ts      # zod schemas
+┌────────────────────────────────────────────────────────────────────────┐
+│ ◈ GitHut_   daedlock ▾ ⋮ owner / repo          [●3]  ⌘K   [avatar]    │  top bar (sticky)
+├────────────────────────────────────────────────────────────────────────┤
+│ Code  Commits  Pull requests  Issues                                    │  repo tabs (when in repo)
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│                        content (full width)                             │  contextual sidebars live here per surface
+│                                                                         │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Boundary rule:** `src/app/*` must never import from `src/worker/*` and vice versa. Both may import from `src/shared/*`. Enforced by separate `tsconfig` `references` (or a Biome rule).
+**Top bar zones (left → right):**
+- `GitHut_` — wordmark, home link (goes to `/` = inbox)
+- Workspace switcher — "daedlock ▾" — user's pinned set of repos. Collapses to "All" when no workspace selected.
+- Breadcrumb context — `owner / repo` in a repo context; page name otherwise
+- Inbox pill — `●N` unread indicator. Click opens peek drawer; direct route is `/`.
+- `⌘K` palette trigger
+- User menu
+
+**What is NOT in the top bar:** theme toggle (moved to user menu), help, docs, sign out (user menu), notifications bell (replaced by inbox pill).
 
 ---
 
-## 4. Prerequisites
+## 4. Surfaces
 
-Only two of these block deploy (M0 final checkpoint + M1). Local dev works without them — noted per item.
+Exactly the surfaces below. Do not add more without reopening this document.
 
-1. **Cloudflare account** with Workers enabled (free tier is enough). *Needed: M0 deploy checkpoint.*
-2. **GitHub OAuth App** at https://github.com/settings/developers: *Needed: M1.*
-   - Callback URLs: `https://<your-deploy-url>/api/auth/callback` and `http://localhost:5173/api/auth/callback` for dev.
-   - Scopes requested at authorize time: `repo read:user read:org`.
-   - Record **Client ID** and **Client Secret**.
-3. **OAuth state signing secret**: `openssl rand -hex 32`. Used to sign the `state` param so the callback can verify the login was initiated by us (CSRF on login). *Needed: M1.* Not a session secret — we have no sessions.
-4. **Toolchain**: `bun` ≥ 1.1, `wrangler` via `bunx` (no global install needed).
+### 4.1 Inbox — `/` — the new home
 
-Secrets are set via `bunx wrangler secret put <NAME>` (never committed). Non-secret config (`GITHUB_CLIENT_ID`) lives in `[vars]` in `wrangler.toml` and is safe to commit.
+Replaces today's "list of all repos." Four sections, ranked by actionability:
 
-**.env.example** (documentation only — dev reads from `.dev.vars` or shell env, prod from `wrangler secret`)
 ```
-# Worker
-GITHUB_CLIENT_ID=
-GITHUB_CLIENT_SECRET=
-OAUTH_STATE_SECRET=
-APP_URL=http://localhost:5173
-```
+AWAITING YOUR REVIEW                                                   3
+◉ ninja-rs · #128  "add evm precompiles for ecrecover"    you · 4h
+◉ githut · #42   "tight editorial commit page"            you · 1d
+◉ ninja-rs · #121  "debugger: sticky header fix"          you · 3d
 
-No `VITE_*` vars needed — the browser learns its own origin from `window.location`.
+MENTIONED                                                              1
+◆ ninja-rs · #119  "@dloc can you triage the stack trace?"  alex · 2h
 
----
+ASSIGNED                                                               2
+● ninja-rs · #113  "perf regression on EVM bench suite"    you · 1d
+● githut · #38   "implement PR files view"                you · today
 
-## 5. Milestones
-
-Each milestone has: **Goal → Steps → Deliverables → Acceptance Criteria**. Do not mark a milestone done unless every acceptance box is checked.
-
----
-
-### M0 — Foundation (Day 1–3)
-
-**Goal:** a repo that builds, runs, deploys, and has the design system and developer ergonomics in place. No product features yet.
-
-M0 is split into **five checkpoints**. At each checkpoint the agent stops, runs the app, and hands off to the user to verify in the browser. Don't begin the next checkpoint until the user confirms the current one.
-
-**Dependency install (shared across checkpoints):**
-```
-bun add react react-dom \
-  @tanstack/react-router @tanstack/react-query \
-  @tanstack/react-query-persist-client @tanstack/query-sync-storage-persister \
-  @tanstack/react-virtual idb-keyval \
-  zustand cmdk lucide-react clsx tailwind-merge class-variance-authority \
-  react-markdown remark-gfm shiki \
-  @octokit/graphql @octokit/rest zod \
-  @radix-ui/react-dialog \
-  hono
-bun add -d @types/react @types/react-dom @types/node \
-  vite @vitejs/plugin-react @tailwindcss/vite tailwindcss \
-  @tanstack/router-plugin @tanstack/router-devtools @tanstack/react-query-devtools \
-  wrangler @cloudflare/workers-types \
-  @biomejs/biome
+YOUR PRs · AWAITING ACTION                                             1
+● ninja-rs · #126  "kpvm rewrite"   2 approvals · CI green · ready
 ```
 
----
+- Data: GitHub REST `/notifications` + cross-repo search queries (`is:open assignee:@me`, `is:open review-requested:@me`, etc.) polled every 60s with jitter
+- Row shape: status glyph · repo · `#num` · title · meta · time
+- Keyboard: `j/k` move · `Enter` open · `p` peek · `e` archive · `s` snooze · `u` open upstream on github.com
+- Section headers collapsible (`h/l` to toggle)
+- Empty state: *"You're all caught up."*
 
-#### Checkpoint M0-A — Bare app boots
+Full-page route is `/`. Peek drawer version is accessible from the inbox pill in the top bar — identical content, half the width.
 
-**Build:**
-1. Single `package.json` at repo root, `"type": "module"`, no workspaces.
-2. Install deps (above).
-3. `vite.config.ts` with `@vitejs/plugin-react`, `@tailwindcss/vite`, `@tanstack/router-plugin`. Dev proxy `/api → http://127.0.0.1:8787`. Path aliases `@/app`, `@/worker`, `@/shared`.
-4. `index.html` at repo root (Vite entry), loads `/src/app/main.tsx`.
-5. `src/app/main.tsx` — `createRoot` + `RouterProvider` with one placeholder route (`/`) rendering "GitHut".
-6. `src/app/styles/index.css` with `@import "tailwindcss"` and a minimal `@theme` block (bg/fg/muted/border/accent).
-7. `src/app/routes/__root.tsx` + `routes/index.tsx` + `routes/login.tsx`. `/login` is the single-button card (button is a plain `<button>` for now — primitives come in M0-B).
-8. Biome config at root.
-9. Scripts: `dev` (vite), `build` (vite build), `check` (biome), `format`.
+### 4.2 Workspace — `/w/:name` — curated repo grid
 
-**Pause and test:**
-- Run `bun dev`.
-- Open http://localhost:5173 — blank page with "GitHut" text, no console errors.
-- Open http://localhost:5173/login — single-button card visible.
-- `bun run check` passes.
-- User confirms visually → proceed.
+- Default workspace = pinned repos (3–10 user-chosen). Initial seed = orgs the user belongs to.
+- Grid of repo cards. Responsive 1/2/3 cols at sm/md/xl.
+- Per card: name, language bar, latest activity, open PRs, open issues, last-pushed. Click → repo shell.
+- Workspace switcher in top bar lets the user flip between workspaces without page reload.
+- Creating/editing workspaces is a settings task (not a modal on this page).
 
----
+### 4.3 Repo shell — `/:owner/:repo/*`
 
-#### Checkpoint M0-B — Theme + UI primitives
+Already built. Tabs: **Code · Commits · Pull requests · Issues**. Keep as-is.
 
-**Build:**
-1. `src/app/lib/cn.ts` — `clsx` + `tailwind-merge`.
-2. Expand `index.css` `@theme` + `.dark` override with a production palette (bg, bg-subtle, fg, fg-muted, border, border-strong, accent, accent-fg, danger).
-3. `src/app/stores/theme.ts` — Zustand store `{ theme: 'light'|'dark'|'system', setTheme, resolved }`, `persist` middleware → `localStorage`. On change (and on bootstrap), toggle `.dark` on `<html>`. Resolves `'system'` via `matchMedia('(prefers-color-scheme: dark)')` + listener.
-4. UI primitives in `src/app/components/ui/` — only: `Button` (variants via cva: primary/secondary/ghost, sizes sm/md), `Input`, `Kbd`. Each uses `cn()`. One-paragraph `components/ui/README.md` documenting the "own it, add on second use, `cn` + `cva` only" rule.
-5. `src/app/components/ThemeToggle.tsx` — uses the `Button` primitive + `lucide-react` icons; cycles light → dark → system.
-6. Put the `ThemeToggle` in the `/login` card and a tiny dev-only `/playground` route that shows each primitive variant (gated behind `import.meta.env.DEV`).
+Tab design: sans 12px sentence-case, color + underline on active, no font-weight toggle (reflow bug), underline flush with the closing border so header + tabs read as one chrome unit. Done; documented in memory.
 
-**Pause and test:**
-- `bun dev`, visit `/login` — toggle theme; reload; toggle persists.
-- Visit `/playground` — all Button variants + Input + Kbd render correctly in both themes.
-- No raw hex in any component (`grep` for `#` outside `styles/`).
-- User confirms → proceed.
+### 4.4 Code — `/:o/:r/code`
 
----
+Already built (file browser + blob viewer + README). Polish items:
+- Sticky path breadcrumb aligned to app gutter (outside container)
+- `t` to open fuzzy file finder (palette scoped to current repo's file index)
+- Recent-files rail at top (MRU, IndexedDB-cached)
+- Branch switcher as compact popover in the top-right of the file list, not a fat dropdown
 
-#### Checkpoint M0-C — Router + Query + keyboard + command palette
+### 4.5 Commits — `/:o/:r/commits`
 
-**Build:**
-1. Add `src/app/lib/cache.ts` — `idb-keyval` persister for TanStack Query.
-2. `QueryClient` (staleTime 30s, gcTime 24h) with `PersistQueryClientProvider`. Devtools in dev only.
-3. `src/app/lib/keyboard.ts` — registry: single keys, chords, combos, scopes. Single global `keydown` listener. `useShortcut({ keys, scope, handler, description })` hook. Skips when focus is in an input/textarea/contentEditable (unless `allowInInput`).
-4. `src/app/stores/commandPalette.ts` — `{ open, setOpen }`.
-5. `Dialog` primitive wrapping `@radix-ui/react-dialog` (owned in `components/ui/Dialog.tsx`). Adds keyboard-registry awareness (close on Esc is native; logs registration so `?` help can list "Esc — close dialog").
-6. `src/app/components/CommandPalette.tsx` — `cmdk` inside `Dialog`. `Cmd/Ctrl+K` opens via shortcut registry. Empty state: "Nothing here yet — commands arrive in M1."
-7. `src/app/components/ShortcutHelp.tsx` — Dialog listing all registered shortcuts (pulled from registry, no hardcoded list). Opens on `?`.
-8. Register core shortcuts at app root: `mod+k`, `?`.
+Currently plain. Redesign as grouped timeline:
 
-**Pause and test:**
-- Reload `/` — `Cmd/Ctrl+K` opens palette, Esc closes it.
-- `?` opens shortcut help listing `Cmd+K` and `?` at minimum.
-- Typing in an input doesn't trigger `?`.
-- No console errors.
-- User confirms → proceed.
+```
+2026-04-19  ──────────────────────────────────────────────────────────
+◔ remove tui from workspace for now            daedlock · bad8697 · 4h
+● feat: add ecrecover precompile                 daedlock · 3bf810e · 6h
+● docs: tighten reviewer notes                   alex · 1be2ff4 · 12h
 
----
+2026-04-18  ──────────────────────────────────────────────────────────
+● merge: main ← feature/debugger-ui             daedlock · 8a9f03c · 1d
+```
 
-#### Checkpoint M0-D — Worker serves `/api/health` locally
+- Grouped by ISO date headers
+- Per row: CI glyph (◔ pending / ● green / ✕ red) · message · author · SHA chip · time
+- Virtualized (react-virtual) for long histories
+- Keyboard: `j/k` · `Enter` full detail · `p` peek
+- Filter chips: author, date range, branch
 
-**Build:**
-1. `wrangler.toml`:
-   - `main = "src/worker/index.ts"`
-   - `compatibility_date = "<today>"`
-   - `[assets]` → `directory = "./dist"`, `binding = "ASSETS"`, `not_found_handling = "single-page-application"`
-   - No KV. No secrets yet (M1 adds them).
-2. `src/worker/env.ts` — `type Env = { ASSETS: Fetcher }` (expanded in M1).
-3. `src/worker/index.ts` — Hono app. Routes:
-   - `GET /api/health → { ok: true, time: Date.now() }`
-   - `* → env.ASSETS.fetch(request)` (fallback).
-4. `src/shared/types.ts` — placeholder `export {};`.
-5. `package.json` `dev` script runs Vite **and** `wrangler dev --port 8787` concurrently. Small `scripts/dev.ts` using `Bun.spawn` to run both and forward output (avoid adding `concurrently` dep).
+### 4.6 Commit detail — `/:o/:r/commit/:sha`
 
-**Pause and test:**
-- `bun dev` boots both processes.
-- http://localhost:5173/api/health returns `{"ok":true,"time":...}` (proxied through Vite to Worker).
-- http://localhost:8787/api/health returns the same (Worker direct).
-- SPA still works at http://localhost:5173.
-- User confirms → proceed.
+Already built. Editorial header (title, prose meta, SHA anchored top-right, optional body as blockquote) + `DiffLayout` (file tree + stacked diffs + sticky top bar + `j/k`/`[` shortcuts). Keep; polish with motion when shipping phase 3.
 
----
+### 4.7 Pull requests list — `/:o/:r/pulls`
 
-#### Checkpoint M0-E — First production deploy
+Currently coming-soon placeholder. Design:
 
-**User-blocked prereqs** (agent flags and waits if missing):
-- Cloudflare account + `bunx wrangler login` done.
+- Segmented tabs at top: `Needs your review · Yours · All` (default = "Needs your review")
+- Row shape identical to issues list + additions:
+  - CI traffic-light dot
+  - Reviewer avatar stack (max 3 + overflow)
+  - Mergeability pill (ready · conflicts · draft · needs approval)
+  - Approval count (`✓ 2/2`)
+- Keyboard: `j/k` · `Enter` · `p` peek · `a` approve · `r` request changes · `c` comment
 
-**Build:**
-1. `bun run build` produces `dist/`.
-2. `bunx wrangler deploy` ships the Worker + assets. Record the `*.workers.dev` URL.
-3. Agent does not register the GitHub OAuth app yet — that's M1's prereq.
-4. Basic CI at `.github/workflows/ci.yml`: `bun install --frozen-lockfile && bun run check && bun run build`.
+### 4.8 PR detail — `/:o/:r/pulls/:num` — the "Change" view
 
-**Pause and test:**
-- Visit the deployed URL — `/` and `/login` render, theme toggle persists.
-- Visit `<deploy>/api/health` — returns JSON.
-- Lighthouse (desktop, cold cache) on `/`: performance ≥ 90, a11y ≥ 95.
-- User confirms → M0 complete.
+The biggest redesign lever in the app.
 
----
+```
+┌─ top bar + repo tabs ──────────────────────────────────────────────┐
+│ ← back   #128  "add evm precompiles for ecrecover"                  │
+│ daedlock wants to merge 3 commits into main from feature/precompiles│
+│ ● Open   ✓ 2 reviews   ✓ CI passing   ● Ready to merge              │
+├─────────────────────────────────────────────────────────────────────┤
+│  Overview  |  Files changed (12)  |  Commits (3)  |  Discussion (8) │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Overview      → markdown description + AI "what this changes"       │
+│                  summary paragraph + linked issues + timeline        │
+│  Files changed → DiffLayout (tree + stacked diffs + top bar)         │
+│  Commits       → per-commit mini-list; click → that commit's diff    │
+│  Discussion    → review conversations (separate from inline comments)│
+│                                                                      │
+│ Primary actions (keyboard): a approve · r request · c comment · m merge│
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-**M0 Exit Criteria (all checkpoints green):**
-- [ ] `bun run build` and `bun run check` pass.
-- [ ] Light/dark/system theme persists.
-- [ ] `Cmd/Ctrl+K` and `?` work; `?` help is data-driven from the registry.
-- [ ] `src/app/*` never imports `src/worker/*` and vice versa.
-- [ ] Deployed URL serves both SPA and `/api/health`.
-- [ ] Lighthouse a11y ≥ 95 on the shell.
+The commit and PR views SHARE the diff renderer (`DiffLayout`) but differ on metadata/actions around it. Treat a commit and a PR as two instances of a `Change` concept — same shape, different lifecycle.
 
----
+### 4.9 Issues list — `/:o/:r/issues`
 
-### M1 — OAuth + browser-held token (Day 4–6)
+Already built. Additions:
+- Saved-views chip bar above list: `my open · assigned · mentioned · created`
+- `c` to create issue
+- Bulk select via `x` for multi-assign/close/label (post-MVP stretch)
 
-**Goal:** user signs in with GitHub; browser stores the access token; the app makes an authenticated call direct to `api.github.com`; avatar appears in the shell. After login the Worker is never hit again.
+### 4.10 Issue detail — `/:o/:r/issues/:num`
 
-Split into **three checkpoints**.
+Already built (title + prose meta + markdown body + comments + reactions + CommentBox with @/# triggers + sidebar for labels/assignees). Keep.
 
-**User-blocked prereqs (agent pauses if missing):**
-- GitHub OAuth App created. Callback URLs set to `http://localhost:5173/api/auth/callback` (dev) and `<deploy>/api/auth/callback` (prod). Scopes selected at authorize time: `repo read:user read:org`.
-- Client ID: added to `wrangler.toml` `[vars]`.
-- Client Secret: `bunx wrangler secret put GITHUB_CLIENT_SECRET`.
-- State signing secret: `bunx wrangler secret put OAUTH_STATE_SECRET` (from `openssl rand -hex 32`).
-- For local dev: same values in `.dev.vars` (gitignored).
+### 4.11 Settings — `/settings`
+
+Already scaffolded. Lives in the user menu. Sections:
+- **Theme** — palette picker (stone / ember / ember-soft) + light/dark/system. Uses `ThemePicker`.
+- **Workspaces** — manage pinned repos per workspace (future)
+- **Keyboard** — full shortcut reference
+- **Account** — sign out, token info
+
+### 4.12 Login — `/login`
+
+Single-button GitHub OAuth card. No landing page. Keep.
 
 ---
 
-#### Checkpoint M1-A — Worker OAuth flow (code → token → hash redirect)
+## 5. Cross-cutting systems
 
-**Build:**
-1. `src/worker/env.ts` — extend: `{ ASSETS, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, OAUTH_STATE_SECRET, APP_URL }`.
-2. `src/worker/index.ts`:
-   - `GET /api/auth/login`: generate random 16-byte `nonce`, sign with HMAC-SHA256 using `OAUTH_STATE_SECRET` → `state = base64url(nonce) + "." + base64url(sig)`. Redirect to `https://github.com/login/oauth/authorize?client_id=...&scope=repo%20read:user%20read:org&state=<state>&redirect_uri=<APP_URL>/api/auth/callback`.
-   - `GET /api/auth/callback`: verify `state` HMAC (constant-time). POST to `https://github.com/login/oauth/access_token` with `{ client_id, client_secret, code }`, `Accept: application/json`. On success, redirect `302` to `/#t=<token>` (token only in URL fragment, which is never sent to the server by the browser). On failure, redirect to `/login?error=<reason>`.
-3. **No cookies set anywhere.** No KV. No session storage.
+These are shared primitives that every surface consumes.
 
-**Pause and test:**
-- `bun dev`. Visit `/api/auth/login` — redirected to GitHub.
-- Approve app → redirected back to `/#t=<token>`.
-- Hash contains a `gho_...` token. Console has no errors.
-- User confirms → proceed.
+### 5.1 Command palette — `⌘K`
 
----
+Primary navigation. Overlay dialog (Radix Dialog + cmdk). Sections, in order:
 
-#### Checkpoint M1-B — Browser stores token, makes an authenticated call
+1. **Recent** — last 5 items opened (IndexedDB-backed MRU)
+2. **Actions** — starting with `>`: toggle theme, snooze all, sign out, new issue, etc.
+3. **Repos** — fuzzy match; pinned first
+4. **Issues & PRs** — cross-repo, uses GitHub search API (`is:open assignee:@me bug` style queries)
+5. **Files** — scoped to current repo when user is in a repo context; uses cached tree
 
-**Build:**
-1. `src/app/stores/auth.ts` — Zustand store `{ token: string | null, setToken, clear }`, `persist` middleware → `localStorage` key `githut.auth`.
-2. `src/app/lib/auth.ts`:
-   - `bootstrapAuthFromHash()` — called once from `main.tsx` *before* React renders. If `location.hash` starts with `#t=`, extract token, call `setToken`, then `history.replaceState(null, '', location.pathname + location.search)` to clear the hash.
-   - `login()` → `location.href = '/api/auth/login'`.
-   - `logout()` → `clear()`, `queryClient.clear()`, navigate to `/login`.
-3. `src/app/lib/github/client.ts` — factory that builds Octokit REST + GraphQL clients bound with the current token from the auth store. Re-creates on token change.
-4. `src/app/hooks/useMe.ts` — `useQuery({ queryKey: ['me'], queryFn: () => octokit.rest.users.getAuthenticated(), enabled: !!token, staleTime: 5*60*1000 })`.
-5. `/login` route: if token already present, redirect to `/`. Else show the "Sign in with GitHub" button wired to `login()`.
-6. `/` route: if no token, redirect to `/login`. Else show "Hi, @${me.login}" with avatar.
-7. Shell chrome in `__root.tsx`: top bar with wordmark, `ThemeToggle`, avatar + `Sign out` (wired to `logout()`).
+`Enter` navigates. `⌘Enter` opens in peek drawer. Search input is always focused on open.
 
-**Pause and test:**
-- Start fresh: clear localStorage. Visit `/` → redirected to `/login`.
-- Click "Sign in with GitHub" → OAuth → land on `/` with your avatar and handle visible.
-- Network tab: the `/user` call goes direct to `https://api.github.com/user` (not through our Worker).
-- Reload page — still logged in.
-- Click "Sign out" → back to `/login`, localStorage cleared.
-- Open a new tab to the same origin — still signed in (persist + storage event sync).
-- User confirms → proceed.
+### 5.2 Peek panel (right drawer)
 
----
+Slide-over panel from the right, 50% viewport width. Content = the same React component that would render at the full route, just inside a drawer container.
 
-#### Checkpoint M1-C — CSP, rate-limit banner, cross-tab sync, prod deploy
+Use cases:
+- Click an item in a list → opens as peek (preserves list position)
+- Reference another issue/PR in a comment → open as peek instead of navigating
+- Palette `⌘Enter` → peek the selected result
 
-**Build:**
-1. **CSP** — worker sends `Content-Security-Policy` header on HTML responses (intercept the ASSETS fetch for `text/html`): `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://avatars.githubusercontent.com https://*.githubusercontent.com data:; connect-src 'self' https://api.github.com; frame-ancestors 'none'; base-uri 'self'`.
-2. **Rate-limit banner** — Octokit hook to read `x-ratelimit-remaining` / `x-ratelimit-reset` from responses; if remaining < 50, show a `Badge` in the shell footer with reset countdown. At 0, mutations disabled with tooltip.
-3. **401 handler** — if any GitHub call returns 401, clear the token and navigate to `/login?reason=expired`.
-4. **Cross-tab logout sync** — Zustand `persist` uses `storage` events; ensure logout propagates (verify manually).
-5. **Deploy** — `bun run deploy`. Update GitHub OAuth app with production callback URL.
+Behavior:
+- `Esc` or clicking outside closes
+- `⌘Enter` promotes peek → full route
+- Navigating inside a peek (clicking another link) **replaces** peek content (Finder-style Quick Look, not stacked)
+- At most ONE peek at a time
 
-**Pause and test:**
-- Deployed site: full login → shell → logout round-trip works.
-- DevTools → Security → CSP: no violations.
-- Revoke your own OAuth token at github.com/settings/applications in another tab; trigger a call in the app → you get bounced to `/login?reason=expired`.
-- Open the site in two tabs, sign out in one → the other goes to `/login` within a second or two.
-- User confirms → M1 complete.
+### 5.3 Keyboard layer
 
----
+One shared hook, one map per surface, one help overlay.
 
-**M1 Exit Criteria:**
-- [ ] OAuth state param verified with HMAC (constant-time).
-- [ ] `client_secret` never appears in the browser bundle (`grep` `dist/`).
-- [ ] After login, no request to the Worker is made for any GitHub API call (Network tab).
-- [ ] Token lives only in `localStorage` under `githut.auth` — not in cookies, not in response bodies outside the hash redirect.
-- [ ] CSP is active and there are zero violations on the happy path.
-- [ ] 401 from GitHub → auto-logout + `/login` redirect.
+- Global: `⌘K` palette · `g h` home · `g i` issues · `g p` PRs · `g c` code · `?` help
+- Contextual per surface (documented above per section)
+- Discovery: `?` opens an overlay with every shortcut, grouped by surface. Takes current URL into account so only relevant shortcuts show up top.
+- Implementation: a single `useKeybindings(map)` hook that disables when focus is in inputs/textareas/contenteditable, otherwise dispatches.
+
+### 5.4 Sync & cache layer
+
+- TanStack Query + IndexedDB persister (already wired)
+- `staleTime` per resource type, documented in hooks
+- On window focus → revalidate stale queries
+- Optimistic updates for all mutations (create issue, post comment, react, approve PR, etc.)
+- Offline read mode — cached data renders normally; mutations queued with UI hint and retried on reconnect (stretch)
+
+### 5.5 Motion kit
+
+Three shared primitives, exported from `src/app/lib/motion.tsx`:
+
+1. `fadeIn` — 120ms cubic-out, used for dialogs/popovers
+2. `slideOver` — 180ms ease-out, used for peek drawer entering from right
+3. `listEnter` — 60ms stagger per row, capped at 8 visible; used for the inbox reveal on first load
+
+No bounces. No springs. Industrial, deliberate motion.
+
+### 5.6 Notification polling
+
+Single worker/hook that hits `/notifications` and aggregates the inbox sections. Poll interval: 60s with 5s jitter. Pause when the tab is hidden. Badge count updates the inbox pill in real time.
 
 ---
 
-### M2 — Code Browsing (Day 7–13)
+## 6. Visual language — rules to lock in
 
-**Goal:** sign in, navigate to any repo you have access to, browse files, branches, commits, and diffs. This is the largest milestone — split into sub-milestones.
+Most of these are already partially enforced. Formalizing them so every future surface is consistent.
 
-#### M2.1 — Repo shell & home
-
-**Routes:**
-- `/:owner` — user/org overview: avatar, bio, pinned repos, repo list with filter.
-- `/:owner/:repo` — repo home: README rendered, file tree at repo root, quick stats (stars, watchers, default branch, latest commit).
-
-**Steps:**
-
-1. GraphQL query `RepoHome`: owner info + repo metadata + default branch + latest commit on default branch + README blob + root tree entries.
-2. Render README via `react-markdown` + `remark-gfm`, with code blocks highlighted via Shiki (async boundary with Suspense).
-3. File tree (flat at this stage): list of entries with type icons (folder/file), clickable.
-4. Stats sidebar (right column on ≥1024px, collapsed on mobile).
-
-**Acceptance:**
-- [ ] Loading `/:owner/:repo` shows README + tree in <500ms on warm cache.
-- [ ] Navigating back/forward preserves scroll position.
-
-#### M2.2 — File tree & file viewer
-
-**Routes:**
-- `/:owner/:repo/tree/:branch/*path` — browse a directory
-- `/:owner/:repo/blob/:branch/*path` — view a file
-
-**Steps:**
-
-1. Tree view: use REST `GET /repos/{o}/{r}/git/trees/{sha}?recursive=0`. Load one level at a time. Virtualize with `@tanstack/react-virtual` when >100 entries.
-2. Breadcrumb at top of tree/file views.
-3. File viewer:
-   - Binary detection (Content-Type or extension list): show "Binary file, X KB, [Download raw]" instead of contents.
-   - Images: render inline.
-   - Text: fetch raw blob, Shiki highlight, show line numbers, permalink on line click (`#L42`, shift-click for range `L42-L60`).
-   - Large files (>500KB): warn + "Load anyway" button.
-4. Syntax theme matches app theme (Shiki `github-light` / `github-dark`).
-5. Copy path button, Copy content button, Raw link.
-6. Keyboard: `y` copies permalink with commit SHA (GitHub parity).
-
-**Acceptance:**
-- [ ] Directories with 10k+ files don't jank (virtualized).
-- [ ] File >1MB shows warning before loading.
-- [ ] Line ranges in URL (`#L10-L20`) highlight and scroll into view on load.
-
-#### M2.3 — Branch/tag switcher
-
-**Steps:**
-
-1. Dropdown in repo header: Branches tab + Tags tab, search filter.
-2. Switching branch updates URL in place; caches per-branch.
-3. "Default branch" badge on the default.
-
-**Acceptance:**
-- [ ] Switching branches updates file tree and commit history without full page reload.
-
-#### M2.4 — Commits list + detail
-
-**Routes:**
-- `/:owner/:repo/commits/:branch` — list
-- `/:owner/:repo/commit/:sha` — detail
-
-**Steps:**
-
-1. Commits list: paginated (30 per page), grouped by day, showing author avatar, message, SHA (short), relative time.
-2. Commit detail: author info, full message, parents, files changed (summary: N files, +X −Y), diff for each file.
-3. Diff renderer (`features/diff/`):
-   - Parse unified diff from GitHub API (`patch` field per file).
-   - Support unified + split view toggle.
-   - Line numbers for old and new.
-   - Expand context (10-line chunks) via ranged blob fetch.
-   - Syntax-highlight via Shiki using the file's language.
-   - Collapse/expand per-file.
-4. Keyboard: `j/k` next/previous file in diff; `[`/`]` prev/next commit.
-
-**Acceptance:**
-- [ ] Diffs with 100+ files render progressively (don't block on all of them).
-- [ ] Split view aligns old/new line numbers correctly on hunks with adds and deletes.
-- [ ] Binary files show "Binary file not shown" (no crash).
-
----
-
-### M3 — Issues (Day 14–17)
-
-**Routes:**
-- `/:owner/:repo/issues` — list
-- `/:owner/:repo/issues/new` — create
-- `/:owner/:repo/issues/:number` — detail
-
-**Steps:**
-
-1. **List:**
-   - Tabs: Open / Closed.
-   - Filters: labels (multi), assignee, author, milestone, sort (newest/oldest/most-commented).
-   - Search bar (uses GitHub's issue search syntax; pass through as-is to `q=`).
-   - Row: title, number, labels, opened N ago by @user, N comments, assignee avatars.
-   - Pagination: infinite scroll via TanStack Query's `useInfiniteQuery`.
-2. **Detail:**
-   - Header: title (editable by author/maintainer), #number, open/closed state badge.
-   - Body: markdown rendered with GFM. Author avatar + timestamp.
-   - Comments timeline: mix of `IssueComment`, `LabeledEvent`, `AssignedEvent`, `ClosedEvent`, `ReopenedEvent`, `ReferencedEvent`. Render each with a consistent timeline skeleton.
-   - Reactions: 👍 👎 😄 🎉 😕 ❤️ 🚀 👀 — optimistic toggle via GraphQL `addReaction` / `removeReaction`.
-   - Right sidebar: Assignees, Labels, Projects (skip), Milestone, Linked PRs.
-   - New comment box with tabs (Write/Preview), markdown toolbar, drag-drop image upload (POST to GitHub via REST).
-3. **Create issue:** title + body + labels + assignees. Submit via GraphQL `createIssue`.
-4. **Mutations** (all optimistic with rollback on error):
-   - Add/edit/delete comment
-   - Close/reopen
-   - Toggle reaction
-   - Assign/unassign
-   - Add/remove label
-5. **Keyboard:** `c` new issue (on list), `e` edit (on your own comment/body), `cmd+enter` submit comment.
-
-**Acceptance:**
-- [ ] List filters composable and reflected in URL query params.
-- [ ] Reactions toggle instantly (optimistic), correct count on rollback.
-- [ ] Long issues (200+ comments) virtualize and stay 60fps on scroll.
-- [ ] Markdown preview matches GitHub rendering for: fenced code, tables, task lists, strikethrough, @mentions, #issue refs, commit SHAs.
-
----
-
-### M4 — Pull Requests (Day 18–24)
-
-**Routes:**
-- `/:owner/:repo/pulls` — list
-- `/:owner/:repo/pull/:number` — detail with tabs
-- `/:owner/:repo/pull/:number/files` — Files Changed
-- `/:owner/:repo/pull/:number/commits` — Commits
-- `/:owner/:repo/pull/:number/checks` — Checks (read-only; links to GitHub Actions UI for now)
-
-**Steps:**
-
-1. **List:** same pattern as issues, with extra filter: draft / ready for review / has reviews.
-2. **Detail — Conversation tab:** reuses issue detail components + PR-specific events (Commit, ReviewRequested, Review, HeadRefForcePushed, Merged, Closed).
-3. **Detail — Commits tab:** list of commits with short stats and links to commit detail.
-4. **Detail — Files Changed tab:**
-   - Reuse diff renderer from M2.4.
-   - Inline comment threads attached to a specific line (old or new).
-   - "Add a comment" ghost button appears on line hover; opens a thread input.
-   - Threads render inside the diff between hunks.
-   - "Start a review" → queue comments → "Submit review" with radio: Comment / Approve / Request changes + summary text.
-   - Sidebar: file tree of changed files with +/- counts; click jumps to file.
-   - "Viewed" checkbox per file (collapses it, local state, not synced).
-5. **Detail — Checks tab:** list check runs + statuses. No log viewing in MVP (Actions is post-MVP).
-6. **Merge panel** (bottom of Conversation tab when mergeable):
-   - Merge / Squash and merge / Rebase and merge dropdown.
-   - Custom merge commit title/message.
-   - Disabled with tooltip explaining why when not mergeable (conflicts / failing checks / unapproved).
-7. **Mutations:**
-   - Create PR (minimal — from branch compare page linked from branch switcher)
-   - Comment, review comment, submit review
-   - Request reviewers, assign, label, milestone
-   - Close / reopen / merge / mark-ready / convert-to-draft
-8. **Keyboard:** `g f` jump to Files Changed, `g c` Conversation, `g x` Commits, `.` toggle file viewed.
-
-**Acceptance:**
-- [ ] Review flow (queue comments → submit) matches GitHub's semantics exactly.
-- [ ] Inline comment position survives rebases (use the new `position` + `line` + `side` semantics from the v4 API).
-- [ ] PR with 500 changed files paginates the file list but renders the selected file immediately.
-- [ ] Mergeability UI reflects real-time state (poll every 10s on detail page).
-
----
-
-### M5 — Polish, Perf, Launch (Day 25–28)
-
-**Steps:**
-
-1. **Perf audit:**
-   - Lighthouse run on: repo home, file viewer (1000-line file), issue list, PR detail with 50 files.
-   - Targets: LCP <1.5s cold / <500ms warm, TBT <200ms, CLS <0.05.
-   - Investigate any violations; likely culprits: Shiki bundle size (code-split languages), unoptimized avatars (proxy through Worker with `cf-image-resize`).
-2. **Bundle audit:** `bunx vite-bundle-visualizer`. Split Shiki and Markdown renderer into async chunks.
-3. **A11y audit:**
-   - Keyboard-navigable: every interactive element reachable via Tab; focus ring visible.
-   - Screen reader: all icons have `aria-label`, live regions for toasts.
-   - Color contrast AA on both themes.
-4. **Error handling:**
-   - Global error boundary with reload button.
-   - Per-route error boundaries for degraded-but-usable failure modes.
-   - Network-offline banner.
-5. **Empty states:** every list has a designed empty state (no repos, no issues, etc.).
-6. **Onboarding:** first-login modal: "Press Cmd+K to navigate anywhere. Press ? for shortcuts." Dismissible, one-time.
-7. **Analytics:** Cloudflare Web Analytics (privacy-preserving, no consent banner needed). No other tracking.
-8. **Rate limit visibility:** small badge in footer showing remaining GitHub API quota, tooltip with reset time.
-9. **Domain + deploy:** point production domain, confirm OAuth callback URL, enable WAF rules, deploy.
-10. **Smoke tests** (Playwright):
-    - Login → repo home → view file → open issue → comment → open PR → leave review.
-    - Runs on CI against preview deploys.
-
-**Acceptance Criteria (launch gate):**
-- [ ] All prior milestone acceptance boxes checked.
-- [ ] Lighthouse perf ≥ 90, a11y ≥ 95, best practices ≥ 95 on the 4 key pages.
-- [ ] Playwright smoke passes on a real GitHub test account against the preview deploy.
-- [ ] No console errors on any happy path.
-- [ ] Sentry (or equivalent) wired; zero unhandled errors over a 24h soak.
-- [ ] README updated with setup + deploy instructions.
-
----
-
-## 6. Cross-Cutting Concerns
-
-### 6.1 Caching strategy (three layers)
-
-1. **In-memory (TanStack Query):** 30s `staleTime` default, 24h `gcTime`. Override per-query.
-2. **IndexedDB (persistQueryClient):** survives reloads. Max age 24h. Key: query hash.
-3. **Edge (Cloudflare Cache API):** per-user, short TTL, ETag-aware. Invalidated on mutations via `cf-cache-tag`.
-
-**Invalidation rules:**
-- Any mutation calls `queryClient.invalidateQueries(['gh', owner, repo, ...])` scoped to the affected repo.
-- Worker mutations purge edge cache tags for the affected resource.
-
-### 6.2 Prefetch policy
-
-- **Hover on a link** → `queryClient.prefetchQuery()` for that route's primary query. Debounced 100ms.
-- **Viewport prefetch** (IntersectionObserver) for top 5 items in a list.
-- **Route preload:** TanStack Router `preload: 'intent'`.
-
-### 6.3 Error taxonomy
-
-| Category | UX |
+| Area | Rule |
 |---|---|
-| 401 (session expired) | Silent redirect to `/login?redirect=...` |
-| 403 rate limit | Global banner + disable mutations |
-| 403 scope / permission | Inline: "You need `repo` scope. Re-authenticate." |
-| 404 | Dedicated not-found page with helpful suggestions |
-| 5xx | Toast + retry button; keep cached data visible |
-| Offline | Banner; queries serve from IDB; mutations queue |
+| **Type scale** | Only the 9 tokens in `index.css`: `text-micro · caption · ui · code · body · body-lg · title · heading · display`. No `text-[Npx]` in new code. |
+| **Mono vs sans** | Mono = eyebrows, code, hashes, technical meta. Sans = body, nav, UI labels, anything that reads as running text. |
+| **Uppercase tracking-widest** | Reserved for eyebrow labels (section markers you don't click). Never on nav or primary actions. |
+| **Page titles** | Two patterns only: **section header** (`text-title` / 18px medium) and **hero** (`text-heading` / 24px medium). |
+| **List row** | Canonical shape: `px-4 py-3`, hairline bottom border, no outer card. Variants only for density (compact/cozy). |
+| **Cards vs hairlines** | Cards ONLY for isolated content blocks (comment cards, widget boxes). Hairlines everywhere else. Kill outer borders on list panels. |
+| **Icons** | `h-3.5 w-3.5` inline-with-text · `h-4 w-4` standalone/button. Lucide only. No decorative icons. |
+| **Colors** | Tokens only (`var(--color-*)`, `var(--diff-*)`, `var(--syntax-*)`). Never raw hex in components. WCAG AA on all token definitions, documented inline. |
+| **Hover states** | Subtle bg tint (`--color-bg-subtle` or `--color-bg-sunken`). Never outlines, shadows, or scale. |
+| **Active state on controls** | Color shift + underline (for tabs) or filled bg (for buttons). NEVER `font-weight` toggle — causes layout reflow. |
+| **Numbers** | `tabular-nums` everywhere counts, SHAs, or line numbers render. |
+| **Radius** | `--radius-xs · sm · md · lg` — the only four. |
+| **Gutters** | `px-4 sm:px-6` — one horizontal gutter rule, applied via `Container` primitive or matched manually on full-bleed rows. |
 
-### 6.4 Keyboard shortcuts (MVP set)
+---
 
-| Key | Action | Scope |
+## 7. Build order
+
+Rough estimates; adjust per velocity.
+
+| Phase | Scope | Est. |
 |---|---|---|
-| `Cmd/Ctrl+K` | Command palette | Global |
-| `?` | Shortcut help | Global |
-| `g h` | Go home | Global |
-| `g i` | Go to issues | Repo |
-| `g p` | Go to PRs | Repo |
-| `g c` | Go to code | Repo |
-| `t` | Focus file finder | Code view |
-| `y` | Copy permalink with SHA | File view |
-| `c` | New issue / PR | List view |
-| `e` | Edit | Own comment |
-| `j`/`k` | Next/prev | Lists, diffs |
-| `[`/`]` | Prev/next commit | Commit/PR |
-| `.` | Toggle file viewed | PR files |
+| **0 — Done** | Shell + theme + type scale + diff viewer + commits list + commit detail + issues CRUD + comment box + file tree | ✓ |
+| **1 — Nav unlock** | Top bar rework (inbox pill, palette trigger, workspace stub) · command palette with Actions/Repos/Search · keyboard layer + `?` help | 1 week |
+| **2 — Inbox** | Replace `/` with triaged inbox · notifications polling hook · peek panel primitive · inbox-pill peek | 1 week |
+| **3 — PR view** | PR list with segmented filter · PR detail Change view with tabs (Overview / Files / Commits / Discussion) · approval + merge actions | 2 weeks |
+| **4 — Polish & speed** | Motion kit · prefetch-on-hover · optimistic mutations · visual language audit pass | 1 week |
+| **5 — Innovation bets** | AI PR summary (toggleable) · unified Change model for commits+PRs · workspaces real impl · AST-level diff (research) | async |
 
-### 6.5 Type generation
-
-- Run GraphQL Codegen in CI against a pinned schema snapshot (`shared/schema.graphql`, updated monthly).
-- REST types from `@octokit/openapi-types`.
-- All API responses validated with Zod at the boundary.
-
-### 6.6 Testing strategy
-
-- **Unit (`bun test`):** pure utilities, diff parser, keyboard registry, cookie signing.
-- **Component tests:** skipped for MVP — cost/value poor at this stage.
-- **E2E (Playwright):** one smoke test covering the happy path end-to-end, against a dedicated GitHub test account.
-- **Manual QA checklist** in `web/docs/qa.md` run before each deploy.
-
-### 6.7 Security
-
-Threat model is "public-client SPA with browser-held OAuth token" — the same model as `gh auth`, Octotree, and Pulldash.
-
-- **OAuth state HMAC** verification on login callback (constant-time compare).
-- **Token transport** — only ever delivered via URL fragment (`/#t=...`), which browsers never send to the server. App reads it and immediately clears the hash with `history.replaceState`.
-- **Token at rest** — `localStorage` under `githut.auth` (so it survives reload and syncs across tabs). Not a cookie. Not accessible to the Worker.
-- **Token in flight** — only to `https://api.github.com` via `Authorization: Bearer`. Enforced by CSP `connect-src`.
-- **CSP** (sent from the Worker on HTML responses):
-  `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://avatars.githubusercontent.com https://*.githubusercontent.com data:; connect-src 'self' https://api.github.com; frame-ancestors 'none'; base-uri 'self'`.
-  No `unsafe-inline`/`unsafe-eval` for scripts. Shiki highlight runs as app code, not inline.
-- **Markdown** — `react-markdown` with `remark-gfm` but **without** `rehype-raw`. Issue/PR bodies and READMEs from GitHub are never trusted as HTML.
-- **Dep surface** — deliberately small and mainstream. Renovate (or Dependabot) enabled post-launch. Avoid pulling packages with wide transitive trees.
-- **No third-party scripts.** No analytics until §M5 Cloudflare Web Analytics (first-party).
-- **401 from GitHub** → clear token and redirect to `/login?reason=expired`.
-- **Secrets** — `GITHUB_CLIENT_SECRET`, `OAUTH_STATE_SECRET` via `wrangler secret put`. Never committed.
-- **User revocation** — documented in README: users can revoke the token at https://github.com/settings/applications at any time.
-
-### 6.8 Design system notes
-
-- Spacing scale: Tailwind defaults, nothing custom.
-- Typography: system font stack. Monospace: `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`.
-- Border radius: `rounded-md` (6px) default, `rounded-lg` (8px) for cards, `rounded-full` for avatars/pills.
-- Shadows: almost none. Use border + subtle bg shift instead. One shadow allowed for modals (`shadow-2xl`).
-- Motion: 150ms ease-out for most transitions. Respect `prefers-reduced-motion`.
-- Density: comfortable, not cramped. Assume 1440px+ primary; responsive to 768px.
+**Phase 1 is the unlock.** Once palette + keyboard ship, the app *feels* like Linear even before the PR view is built. Users start their day in GitHut instead of github.com. That habit change is what makes the rest worth doing.
 
 ---
 
-## 7. Execution Rules for the Agent
+## 8. Non-goals / out of scope (this plan)
 
-1. **Work milestone-by-milestone.** Do not start M2 until every M0 + M1 box is checked.
-2. **Commit small.** One commit per meaningful step. Commit messages: `M2.2: add Shiki highlighter for file viewer`.
-3. **Ask the user** before: adding a dependency not listed here, changing a locked decision, skipping an acceptance box.
-4. **Don't invent features.** If something isn't in this plan and isn't in `prd.md`, it's out of scope.
-5. **When blocked,** write your question + what you've tried into a comment on the relevant milestone in this file, then ask the user.
-6. **Keep this plan updated.** If a decision changes (with user approval), update section 2. If a milestone's scope changes, update it in place with a dated note.
-7. **Never skip CI.** If CI fails, fix it before moving on.
-8. **Never push directly to `main`** unless the user says so. Use feature branches + PRs (yes, we'll dogfood via github.com until M4 lands).
+- Writing/editing code
+- Actions / CI runs
+- Projects / Boards
+- Wiki
+- Discussions
+- Security / Dependabot
+- Insights
+- Marketplace / Explore
+- Mobile-optimized layouts (responsive ok; no tablet/phone-first design)
+- Org admin / access management
+- Gists
 
----
-
-## 8. Open Questions (flag to user before they block you)
-
-- [ ] Custom domain: what should we register? Placeholder: `githut.dev`.
-- [ ] Logo/wordmark: text-only for MVP, or do we want a mark? Placeholder: text "GitHut" in Inter Bold.
-- [ ] Test GitHub account for Playwright: user to create and provide credentials via Cloudflare secret `E2E_TEST_TOKEN`.
-- [ ] Billing account on Cloudflare: confirmed? KV + Pages free tier should cover initial launch.
-- [ ] Analytics: Cloudflare Web Analytics OK? Or skip entirely?
+If the user asks for any of these, deflect to github.com and consider whether the missing surface would materially improve the review/triage path.
 
 ---
 
-## 9. Post-MVP Backlog (do not work on until MVP is shipped)
+## 9. Decision log — things NOT to relitigate
 
-- GitHub Actions: workflows, runs, live log streaming (SSE from Worker polling GitHub logs).
-- Notifications inbox.
-- Repo settings (collaborators, branches, webhooks).
-- Projects v2.
-- Discussions.
-- Wiki.
-- Search across all repos (global).
-- Gists.
-- Mobile PWA polish.
-- File editing (in-browser with Monaco).
-- Offline-first (queue mutations while offline).
+1. **No global left sidebar.** Decided for main-content horizontal density. Revisit only if list-based surfaces come to dominate the app.
+2. **Command palette is primary nav.** Decided; any "I want a menu" impulse should be a palette item instead.
+3. **Top bar is a single row.** Resist the urge to split brand, context, and actions across two rows.
+4. **Mono for eyebrows; sans for nav.** Font-family choice is tied to intent, not "looks cool."
+5. **Fixed-weight active tabs.** Never toggle `font-weight` on interactive state (reflow).
+6. **Tokens only, no hex.** Color discipline document is in `memory/feedback_color_discipline.md`.
+7. **One type scale.** 9 tokens, documented in `index.css`. No ad-hoc `text-[Npx]`.
+8. **Full-bleed gutter is `px-4 sm:px-6`.** Matches `Container`'s horizontal padding so full-bleed rows align with container content visually.

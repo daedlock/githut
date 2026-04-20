@@ -27,7 +27,7 @@ function plainTokenize(code: string): CodeLine[] {
 
 export function useCodeTokens(code: string, lang: string) {
   return useQuery({
-    queryKey: ["shiki-tokens", "githut-theme-v1", lang, djb2(code)],
+    queryKey: ["shiki-tokens", "githut-theme-v2", lang, djb2(code)],
     staleTime: Infinity,
     gcTime: 10 * 60_000,
     queryFn: async (): Promise<CodeLine[]> => {

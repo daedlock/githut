@@ -1,43 +1,88 @@
 import type { ThemeRegistrationRaw } from "shiki";
 
 /**
- * Our app's Shiki theme. Every foreground color is a CSS variable reference
- * (`var(--syntax-*)`), which Shiki passes through as-is into token inline
- * styles. The browser resolves them at paint time, so syntax colors
- * participate in whatever `.dark` / theme preset is active on <html>.
+ * Our app's Shiki theme.
  *
- * This is the "last mile" of app theming — everything upstream (surfaces,
- * borders, diff tints) was already token-driven; syntax highlighting used to
- * be stuck on GitHub's baked colors until now.
+ * Shiki does NOT accept arbitrary strings (e.g. `var(--syntax-keyword)`) in
+ * tokenColors — it validates foreground values and silently drops anything
+ * that isn't a hex/rgb color, leaving tokens uncolored. The officially
+ * supported path for CSS-variable theming is:
  *
- * Keep the scope list deliberately short. TextMate grammars emit noisy,
- * grammar-specific scopes; Shiki walks the list top-to-bottom and picks the
- * first match, so specific rules (e.g. "keyword.control.import") should come
- * BEFORE their parent ("keyword"). Every rule added here should map to an
- * existing --syntax-* token, not introduce a new color.
+ *   1. Use distinct hex PLACEHOLDER colors per syntax role in the theme.
+ *   2. Provide `colorReplacements` mapping each placeholder to its CSS var.
+ *   3. Shiki tokenizes with hex, then rewrites the output colors to the vars.
+ *
+ * This gives us the end result we wanted (token.color === "var(--syntax-*)")
+ * without tripping Shiki's color parsing. The placeholder hexes never appear
+ * in the rendered HTML.
  */
+
+// Distinct fake hexes — role-keyed so replacements are readable, not magical.
+// The exact values don't matter; they only need to be unique.
+const P = {
+  default: "#ff00f0",
+  comment: "#ff00f1",
+  keyword: "#ff00f2",
+  string: "#ff00f3",
+  number: "#ff00f4",
+  function: "#ff00f5",
+  type: "#ff00f6",
+  property: "#ff00f7",
+  constant: "#ff00f8",
+  variable: "#ff00f9",
+  operator: "#ff00fa",
+  punctuation: "#ff00fb",
+  tag: "#ff00fc",
+  attribute: "#ff00fd",
+  meta: "#ff00fe",
+  regex: "#ff00ff",
+} as const;
+
+const colorReplacements: Record<string, string> = {
+  [P.default]: "var(--color-fg)",
+  [P.comment]: "var(--syntax-comment)",
+  [P.keyword]: "var(--syntax-keyword)",
+  [P.string]: "var(--syntax-string)",
+  [P.number]: "var(--syntax-number)",
+  [P.function]: "var(--syntax-function)",
+  [P.type]: "var(--syntax-type)",
+  [P.property]: "var(--syntax-property)",
+  [P.constant]: "var(--syntax-constant)",
+  [P.variable]: "var(--syntax-variable)",
+  [P.operator]: "var(--syntax-operator)",
+  [P.punctuation]: "var(--syntax-punctuation)",
+  [P.tag]: "var(--syntax-tag)",
+  [P.attribute]: "var(--syntax-attribute)",
+  [P.meta]: "var(--syntax-meta)",
+  [P.regex]: "var(--syntax-regex)",
+};
+
 export const appSyntaxTheme: ThemeRegistrationRaw = {
   name: "githut",
-  type: "light",
-  // Minimal global `settings` entry — some Shiki code paths require this
-  // (e.g. background/foreground fallback for tokens with no scope match).
+  type: "dark",
+  // `colorReplacements` on the theme object is Shiki's supported hook for
+  // post-tokenize color remapping. Keeps everything self-contained.
+  colorReplacements,
+  colors: {
+    "editor.background": "#000000",
+    "editor.foreground": P.default,
+  },
+  // All scope rules live here. Shiki uses the TextMate-style `settings` array
+  // when present and IGNORES a sibling `tokenColors` field — putting the
+  // scoped rules anywhere else silently strips all syntax highlighting.
+  // First entry (no `scope`) is the default foreground/background.
   settings: [
     {
       settings: {
-        background: "var(--color-bg)",
-        foreground: "var(--color-fg)",
+        background: "#000000",
+        foreground: P.default,
       },
     },
-  ],
-  colors: {
-    "editor.background": "var(--color-bg)",
-    "editor.foreground": "var(--color-fg)",
-  },
-  tokenColors: [
+
     // Comments first — they win over anything else that might match
     {
       scope: ["comment", "punctuation.definition.comment", "string.comment"],
-      settings: { foreground: "var(--syntax-comment)", fontStyle: "italic" },
+      settings: { foreground: P.comment, fontStyle: "italic" },
     },
 
     // Imports / exports / directives — before generic keyword
@@ -50,7 +95,7 @@ export const appSyntaxTheme: ThemeRegistrationRaw = {
         "meta.preprocessor",
         "meta.import",
       ],
-      settings: { foreground: "var(--syntax-meta)" },
+      settings: { foreground: P.meta },
     },
 
     // Regular keywords: if/else/return/class/function/const/let/var, storage
@@ -64,7 +109,7 @@ export const appSyntaxTheme: ThemeRegistrationRaw = {
         "storage.type",
         "storage.modifier",
       ],
-      settings: { foreground: "var(--syntax-keyword)" },
+      settings: { foreground: P.keyword },
     },
 
     // Strings (and string escape sequences)
@@ -76,29 +121,29 @@ export const appSyntaxTheme: ThemeRegistrationRaw = {
         "punctuation.definition.string",
         "meta.string",
       ],
-      settings: { foreground: "var(--syntax-string)" },
+      settings: { foreground: P.string },
     },
     {
       scope: ["constant.character.escape", "string .constant.character"],
-      settings: { foreground: "var(--syntax-keyword)" },
+      settings: { foreground: P.keyword },
     },
 
     // Regex — before number (numeric literals inside regex were confusing)
     {
       scope: ["string.regexp"],
-      settings: { foreground: "var(--syntax-regex)" },
+      settings: { foreground: P.regex },
     },
 
     // Numbers + language constants (true/false/null/undefined)
     {
       scope: ["constant.numeric", "constant.language", "constant.language.boolean"],
-      settings: { foreground: "var(--syntax-number)" },
+      settings: { foreground: P.number },
     },
 
     // Named constants (UPPER_CASE idents)
     {
       scope: ["variable.other.constant", "constant.other"],
-      settings: { foreground: "var(--syntax-constant)" },
+      settings: { foreground: P.constant },
     },
 
     // Functions — callable identifiers
@@ -109,7 +154,7 @@ export const appSyntaxTheme: ThemeRegistrationRaw = {
         "meta.function-call.generic",
         "variable.function",
       ],
-      settings: { foreground: "var(--syntax-function)" },
+      settings: { foreground: P.function },
     },
 
     // Types / classes / interfaces
@@ -123,7 +168,7 @@ export const appSyntaxTheme: ThemeRegistrationRaw = {
         "support.class",
         "meta.type.declaration",
       ],
-      settings: { foreground: "var(--syntax-type)" },
+      settings: { foreground: P.type },
     },
 
     // Object properties / member access
@@ -134,35 +179,35 @@ export const appSyntaxTheme: ThemeRegistrationRaw = {
         "meta.property-name",
         "support.variable.property",
       ],
-      settings: { foreground: "var(--syntax-property)" },
+      settings: { foreground: P.property },
     },
 
     // HTML/JSX tags
     {
       scope: ["entity.name.tag", "support.class.component"],
-      settings: { foreground: "var(--syntax-tag)" },
+      settings: { foreground: P.tag },
     },
 
     // HTML/JSX attribute names
     {
       scope: ["entity.other.attribute-name"],
-      settings: { foreground: "var(--syntax-attribute)" },
+      settings: { foreground: P.attribute },
     },
 
     // Operators + punctuation — muted so structure recedes
     {
       scope: ["keyword.operator", "punctuation.separator", "punctuation.accessor"],
-      settings: { foreground: "var(--syntax-operator)" },
+      settings: { foreground: P.operator },
     },
     {
       scope: ["punctuation"],
-      settings: { foreground: "var(--syntax-punctuation)" },
+      settings: { foreground: P.punctuation },
     },
 
     // Generic variables / identifiers — default fg
     {
       scope: ["variable", "variable.other"],
-      settings: { foreground: "var(--syntax-variable)" },
+      settings: { foreground: P.variable },
     },
   ],
 };
