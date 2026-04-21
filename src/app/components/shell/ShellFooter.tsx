@@ -24,7 +24,7 @@ export function ShellFooter({
       )}
     >
       <Container className="flex items-center justify-between py-3">
-        <span>{origin ?? "\u00a0"}</span>
+        <span>Same Github, but better...</span>
         {showHelpHint ? (
           <div className="flex items-center gap-1.5">
             <Kbd>?</Kbd>

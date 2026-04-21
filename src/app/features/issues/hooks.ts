@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   EMPTY_MY_REACTIONS,
   IssueCommentSchema,
@@ -41,11 +41,9 @@ export const issueKeys = {
 
 // ─── Queries ────────────────────────────────────────────────────────────────
 
-export function useRepoIssues(owner: string, repo: string) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
+export const repoIssuesQueryOptions = (owner: string, repo: string) =>
+  queryOptions({
     queryKey: issueKeys.all(owner, repo),
-    enabled: !!token && !!owner && !!repo,
     staleTime: 30_000,
     queryFn: async (): Promise<RepoIssue[]> => {
       const client = getGitHubClient();
@@ -59,6 +57,13 @@ export function useRepoIssues(owner: string, repo: string) {
       });
       return IssueListSchema.parse(res.data).filter((i) => !i.pull_request);
     },
+  });
+
+export function useRepoIssues(owner: string, repo: string) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...repoIssuesQueryOptions(owner, repo),
+    enabled: !!token && !!owner && !!repo,
   });
 }
 

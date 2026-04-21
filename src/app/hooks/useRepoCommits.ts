@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
@@ -37,12 +37,10 @@ const CommitListSchema = z.array(CommitSummarySchema);
 
 export type CommitSummary = z.infer<typeof CommitSummarySchema>;
 
-export function useRepoCommits(owner: string, repo: string, branch: string | undefined) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    queryKey: ["repo-commits", owner, repo, branch],
-    enabled: !!token && !!owner && !!repo && !!branch,
-    staleTime: 30_000,
+export const repoCommitsQueryOptions = (owner: string, repo: string, branch: string) =>
+  queryOptions({
+    queryKey: ["repo-commits", owner, repo, branch] as const,
+    staleTime: 2 * 60_000,
     queryFn: async (): Promise<CommitSummary[]> => {
       const client = getGitHubClient();
       const res = await client.request("GET /repos/{owner}/{repo}/commits", {
@@ -53,5 +51,12 @@ export function useRepoCommits(owner: string, repo: string, branch: string | und
       });
       return CommitListSchema.parse(res.data);
     },
+  });
+
+export function useRepoCommits(owner: string, repo: string, branch: string | undefined) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...repoCommitsQueryOptions(owner, repo, branch ?? ""),
+    enabled: !!token && !!owner && !!repo && !!branch,
   });
 }

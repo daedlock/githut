@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
@@ -58,11 +58,9 @@ const CommitDetailSchema = z.object({
 export type CommitDetail = z.infer<typeof CommitDetailSchema>;
 export type CommitFile = z.infer<typeof CommitFileSchema>;
 
-export function useRepoCommit(owner: string, repo: string, ref: string | undefined) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    queryKey: ["repo-commit", owner, repo, ref],
-    enabled: !!token && !!owner && !!repo && !!ref,
+export const repoCommitQueryOptions = (owner: string, repo: string, ref: string) =>
+  queryOptions({
+    queryKey: ["repo-commit", owner, repo, ref] as const,
     // Commits are immutable — once fetched a SHA's detail never changes.
     // Infinite staleTime means navigating away and back never re-fetches.
     staleTime: Infinity,
@@ -72,10 +70,16 @@ export function useRepoCommit(owner: string, repo: string, ref: string | undefin
       const res = await client.request("GET /repos/{owner}/{repo}/commits/{ref}", {
         owner,
         repo,
-        // biome-ignore lint/style/noNonNullAssertion: enabled guard ensures this is defined
-        ref: ref!,
+        ref,
       });
       return CommitDetailSchema.parse(res.data);
     },
+  });
+
+export function useRepoCommit(owner: string, repo: string, ref: string | undefined) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...repoCommitQueryOptions(owner, repo, ref ?? ""),
+    enabled: !!token && !!owner && !!repo && !!ref,
   });
 }

@@ -5,6 +5,33 @@ import { unified } from "unified";
 import uniorgParse from "uniorg-parse";
 import uniorg2rehype from "uniorg-rehype";
 
+import { toInternalHref } from "@/app/lib/githubUrl";
+
+// Rehype plugin: rewrite <a href="https://github.com/..."> to our in-app routes
+// when a mapping exists. OrgRendered emits raw HTML via dangerouslySetInnerHTML,
+// so anchors aren't intercepted by the router — we just rewrite the href string
+// in place. Internal navigation will cause a full page load, but the router will
+// pick it up on the next mount. If you need client-side nav here, switch this
+// component to return JSX with per-node <Link> instead of a string.
+// biome-ignore lint/suspicious/noExplicitAny: hast node types live outside our dep tree.
+function rehypeRewriteGithubLinks() {
+  return (tree: any) => {
+    const visit = (node: any) => {
+      if (node.type === "element" && node.tagName === "a" && node.properties) {
+        const href = node.properties.href;
+        if (typeof href === "string") {
+          const internal = toInternalHref(href);
+          if (internal) node.properties.href = internal;
+        }
+      }
+      if (Array.isArray(node.children)) {
+        for (const child of node.children) visit(child);
+      }
+    };
+    visit(tree);
+  };
+}
+
 // Same permissive-but-safe sanitize schema as GithubMarkdown — org files often
 // embed HTML blocks (`#+BEGIN_HTML`) and use the same tags markdown does, so we
 // allow the same extended tag/attr set here.
@@ -43,6 +70,7 @@ const sanitizeSchema = {
 const processor = unified()
   .use(uniorgParse as any)
   .use(uniorg2rehype as any)
+  .use(rehypeRewriteGithubLinks)
   .use(rehypeSanitize, sanitizeSchema)
   .use(rehypeStringify);
 

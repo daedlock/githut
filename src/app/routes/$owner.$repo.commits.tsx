@@ -5,11 +5,18 @@ import { CommitRow } from "@/app/components/repo/CommitRow";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { useRepo } from "@/app/hooks/useRepo";
-import { useRepoCommits } from "@/app/hooks/useRepoCommits";
+import { repoQueryOptions, useRepo } from "@/app/hooks/useRepo";
+import { repoCommitsQueryOptions, useRepoCommits } from "@/app/hooks/useRepoCommits";
 import { formatFullDate, groupByDay } from "@/app/lib/time";
 
 export const Route = createFileRoute("/$owner/$repo/commits")({
+  loader: async ({ context, params }) => {
+    const qc = context.queryClient;
+    const repo = await qc.ensureQueryData(repoQueryOptions(params.owner, params.repo));
+    await qc.prefetchQuery(
+      repoCommitsQueryOptions(params.owner, params.repo, repo.default_branch),
+    );
+  },
   component: CommitsPage,
 });
 

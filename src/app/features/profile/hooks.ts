@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
@@ -20,7 +20,17 @@ export const profileKeys = {
   repos: (login: string) => ["profile-repos", login] as const,
   orgs: (login: string) => ["profile-orgs", login] as const,
   members: (org: string) => ["profile-members", org] as const,
+  readme: (login: string, isOrg: boolean) => ["profile-readme", login, isOrg] as const,
 };
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function decodeBase64Utf8(b64: string): string {
+  const clean = b64.replace(/\s/g, "");
+  const binary = atob(clean);
+  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+  return new TextDecoder("utf-8").decode(bytes);
+}
 
 // ─── Transforms ────────────────────────────────────────────────────────────
 
@@ -38,14 +48,11 @@ function toRepoSummary(r: z.infer<typeof ProfileRepoSchema>): RepoSummary {
   };
 }
 
-// ─── Queries ───────────────────────────────────────────────────────────────
+// ─── Query options ─────────────────────────────────────────────────────────
 
-/** Fetch a user or organization profile. Works for both via GET /users/{login}. */
-export function useProfile(login: string) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
+export const profileQueryOptions = (login: string) =>
+  queryOptions({
     queryKey: profileKeys.user(login),
-    enabled: !!token && !!login,
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<GitHubProfile> => {
       const client = getGitHubClient();
@@ -53,15 +60,11 @@ export function useProfile(login: string) {
       return GitHubProfileSchema.parse(res.data);
     },
   });
-}
 
-/** Fetch repositories for a user or org profile page. */
-export function useProfileRepos(login: string, isOrg: boolean) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
+export const profileReposQueryOptions = (login: string, isOrg: boolean) =>
+  queryOptions({
     queryKey: profileKeys.repos(login),
-    enabled: !!token && !!login,
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<RepoSummary[]> => {
       const client = getGitHubClient();
       const res = isOrg
@@ -82,14 +85,10 @@ export function useProfileRepos(login: string, isOrg: boolean) {
       return z.array(ProfileRepoSchema).parse(res.data).map(toRepoSummary);
     },
   });
-}
 
-/** Fetch organizations a user belongs to. */
-export function useUserOrgs(login: string) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
+export const userOrgsQueryOptions = (login: string) =>
+  queryOptions({
     queryKey: profileKeys.orgs(login),
-    enabled: !!token && !!login,
     staleTime: 5 * 60 * 1000,
     queryFn: async (): Promise<UserOrg[]> => {
       const client = getGitHubClient();
@@ -100,14 +99,42 @@ export function useUserOrgs(login: string) {
       return z.array(UserOrgSchema).parse(res.data);
     },
   });
-}
 
-/** Fetch members of an organization. Requires authenticated org membership. */
-export function useOrgMembers(org: string) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
+export const profileReadmeQueryOptions = (login: string, isOrg: boolean) =>
+  queryOptions({
+    queryKey: profileKeys.readme(login, isOrg),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+    queryFn: async (): Promise<string | null> => {
+      const client = getGitHubClient();
+      try {
+        if (isOrg) {
+          const res = await client.request("GET /repos/{owner}/{repo}/contents/{path}", {
+            owner: login,
+            repo: ".github",
+            path: "profile/README.md",
+          });
+          const data = res.data as { content?: string; encoding?: string };
+          if (data.encoding === "base64" && data.content) return decodeBase64Utf8(data.content);
+          return null;
+        }
+        const res = await client.request("GET /repos/{owner}/{repo}/readme", {
+          owner: login,
+          repo: login,
+        });
+        if (res.data.encoding === "base64" && res.data.content) {
+          return decodeBase64Utf8(res.data.content);
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    },
+  });
+
+export const orgMembersQueryOptions = (org: string) =>
+  queryOptions({
     queryKey: profileKeys.members(org),
-    enabled: !!token && !!org,
     staleTime: 5 * 60 * 1000,
     retry: false,
     queryFn: async (): Promise<OrgMember[]> => {
@@ -118,5 +145,59 @@ export function useOrgMembers(org: string) {
       });
       return z.array(OrgMemberSchema).parse(res.data);
     },
+  });
+
+// ─── Hooks ─────────────────────────────────────────────────────────────────
+
+/** Fetch a user or organization profile. Works for both via GET /users/{login}. */
+export function useProfile(login: string) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...profileQueryOptions(login),
+    enabled: !!token && !!login,
+  });
+}
+
+/** Fetch repositories for a user or org profile page. */
+export function useProfileRepos(login: string, isOrg: boolean) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...profileReposQueryOptions(login, isOrg),
+    enabled: !!token && !!login,
+  });
+}
+
+/** Fetch organizations a user belongs to. */
+export function useUserOrgs(login: string) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...userOrgsQueryOptions(login),
+    enabled: !!token && !!login,
+  });
+}
+
+/**
+ * Fetch the profile README markdown for a user or org.
+ *
+ *   User: `{login}/{login}` repo → README at root
+ *   Org:  `{login}/.github`   repo → `profile/README.md`
+ *
+ * Returns `null` (not an error) when the special repo doesn't exist — that's
+ * the common case and shouldn't poison the query state.
+ */
+export function useProfileReadme(login: string, isOrg: boolean | undefined) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...profileReadmeQueryOptions(login, !!isOrg),
+    enabled: !!token && !!login && isOrg !== undefined,
+  });
+}
+
+/** Fetch members of an organization. Requires authenticated org membership. */
+export function useOrgMembers(org: string) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...orgMembersQueryOptions(org),
+    enabled: !!token && !!org,
   });
 }

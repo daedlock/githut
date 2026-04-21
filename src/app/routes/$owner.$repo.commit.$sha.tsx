@@ -5,12 +5,16 @@ import { DiffLayout, type DiffLayoutFile, type FileStatus } from "@/app/componen
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
-import { type CommitFile, useRepoCommit } from "@/app/hooks/useRepoCommit";
+import { type CommitFile, repoCommitQueryOptions, useRepoCommit } from "@/app/hooks/useRepoCommit";
 import { cn } from "@/app/lib/cn";
 import { detectLang } from "@/app/lib/detectLang";
 import { formatRelativeTime } from "@/app/lib/time";
 
 export const Route = createFileRoute("/$owner/$repo/commit/$sha")({
+  loader: ({ context, params }) =>
+    context.queryClient.ensureQueryData(
+      repoCommitQueryOptions(params.owner, params.repo, params.sha),
+    ),
   component: CommitDetailPage,
 });
 
@@ -41,18 +45,19 @@ function CommitDetailPage() {
        * below via a single hairline. Tight vertical rhythm (py-4) keeps the
        * diff above the fold.
        */}
-      <div className="w-full px-4 py-4 sm:px-6">
+      <div className="w-full px-4 py-3 sm:px-6 sm:py-4">
         <Link
           to="/$owner/$repo/commits"
           params={{ owner, repo }}
           className={cn(
-            "mb-2 inline-flex items-center gap-1.5 rounded-sm px-1 py-0.5 -ml-1",
-            "text-ui text-muted-foreground outline-none transition-colors",
-            "hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15",
+            "mb-2 inline-flex items-center gap-1 rounded-sm px-1 py-0.5 -ml-1",
+            "text-caption text-(--color-fg-muted) outline-none transition-colors",
+            "hover:text-(--color-fg)",
+            "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
           )}
         >
-          <ArrowLeft className="size-3" />
-          All commits
+          <ArrowLeft className="size-3" strokeWidth={2.25} />
+          <span>All commits</span>
         </Link>
 
         {isPending ? (
@@ -99,24 +104,17 @@ function CommitHeader({
   const avatar = commit.author?.avatar_url;
 
   return (
-    <section className="relative">
-      {/* SHA anchored top-right — treat it as the commit's fingerprint, the
-          visual ID of this page. Separated from the prose meta row so the
-          copy-action isn't competing with author/parent info for attention. */}
-      <div className="absolute right-0 top-0">
+    <section className="flex flex-col gap-1.5">
+      {/* Title row — title + SHA chip top-aligned, no absolute positioning */}
+      <div className="flex items-start justify-between gap-3">
+        <h1 className="min-w-0 text-body font-medium leading-snug text-(--color-fg) sm:text-title">
+          {title}
+        </h1>
         <ShaChip sha={commit.sha} />
       </div>
 
-      {/*
-       * Title — text-title (18px) medium weight. Commit messages are sentences,
-       * not page headings; sizing them like an <h1 text-2xl font-semibold>
-       * over-signals hierarchy. pr-24 reserves space for the SHA chip so long
-       * titles don't collide with it.
-       */}
-      <h1 className="pr-24 text-title font-medium text-foreground">{title}</h1>
-
-      {/* Meta as prose — single line, no chips. Dot separators carry rhythm. */}
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-ui text-muted-foreground">
+      {/* Meta — single compact line */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-ui text-(--color-fg-muted)">
         {avatar ? (
           <img
             src={avatar}
@@ -125,25 +123,25 @@ function CommitHeader({
           />
         ) : null}
         {authorLogin ? (
-          <ProfileLink login={authorLogin} className="font-medium text-foreground">
+          <ProfileLink login={authorLogin} className="font-medium text-(--color-fg)">
             {displayAuthor}
           </ProfileLink>
         ) : (
-          <span className="font-medium text-foreground">{displayAuthor}</span>
+          <span className="font-medium text-(--color-fg)">{displayAuthor}</span>
         )}
         <span>committed {formatRelativeTime(commit.commit.author.date)}</span>
 
         {commit.parents.length > 0 && (
           <>
-            <span className="text-[var(--color-fg-faint)]" aria-hidden>
+            <span className="text-(--color-fg-faint)" aria-hidden>
               ·
             </span>
-            <span className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-1.5">
               <span>{commit.parents.length > 1 ? "parents" : "parent"}</span>
               {commit.parents.map((p, i) => (
                 <Fragment key={p.sha}>
                   {i > 0 && (
-                    <span className="text-[var(--color-fg-faint)]" aria-hidden>
+                    <span className="text-(--color-fg-faint)" aria-hidden>
                       +
                     </span>
                   )}
@@ -152,10 +150,10 @@ function CommitHeader({
                     params={{ owner, repo, sha: p.sha }}
                     className={cn(
                       "rounded-sm font-mono text-caption tabular-nums",
-                      "text-muted-foreground outline-none",
-                      "underline decoration-input decoration-1 underline-offset-2 transition-colors",
-                      "hover:text-foreground hover:decoration-muted-foreground",
-                      "focus-visible:ring-1 focus-visible:ring-foreground/15",
+                      "text-(--color-fg-muted) outline-none",
+                      "underline decoration-(--color-border-strong) decoration-1 underline-offset-[3px] transition-colors",
+                      "hover:text-(--color-fg) hover:decoration-(--color-fg-muted)",
+                      "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
                     )}
                   >
                     {p.sha.slice(0, 7)}
@@ -168,7 +166,7 @@ function CommitHeader({
       </div>
 
       {body && (
-        <pre className="mt-3 max-w-3xl whitespace-pre-wrap border-l-2 border-input pl-3 font-mono text-code text-muted-foreground">
+        <pre className="mt-1 max-w-3xl whitespace-pre-wrap border-l-2 border-(--color-border-strong) pl-3 font-mono text-code text-(--color-fg-muted)">
           {body}
         </pre>
       )}
@@ -190,18 +188,27 @@ function ShaChip({ sha }: { sha: string }) {
       title={copied ? "Copied!" : "Copy full SHA"}
       aria-label="Copy full SHA"
       className={cn(
-        "group inline-flex items-center gap-1.5 rounded-sm border border-border bg-background px-2 py-1",
-        "font-mono text-caption tabular-nums text-muted-foreground",
+        "group inline-flex h-5 shrink-0 items-center gap-1 rounded",
+        "border border-border bg-(--color-bg-subtle) pl-1.5 pr-1",
+        "font-mono text-micro tabular-nums leading-none text-(--color-fg-muted)",
         "outline-none transition-colors",
-        "hover:border-input hover:text-foreground",
-        "focus-visible:ring-1 focus-visible:ring-foreground/15",
+        "hover:border-(--color-border-strong) hover:bg-(--color-bg-sunken) hover:text-(--color-fg)",
+        "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
       )}
     >
       <span>{sha.slice(0, 7)}</span>
       {copied ? (
-        <Check className="size-3 text-[var(--color-success)]" />
+        <Check
+          className="size-2.5 text-(--color-success)"
+          strokeWidth={2.5}
+          aria-hidden
+        />
       ) : (
-        <Copy className="size-3 text-[var(--color-fg-faint)] transition-colors group-hover:text-muted-foreground" />
+        <Copy
+          className="size-2.5 text-(--color-fg-muted) transition-colors group-hover:text-(--color-fg)"
+          strokeWidth={2}
+          aria-hidden
+        />
       )}
     </button>
   );

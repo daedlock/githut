@@ -26,6 +26,8 @@ export function ProfileLink({
     return <span className={className}>{content}</span>;
   }
 
+  // `preload: "intent"` on the router triggers the $username route loader
+  // on hover/focus — no manual wiring needed here.
   return (
     <Link
       to="/$username"

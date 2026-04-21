@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
@@ -26,11 +26,9 @@ function decodeBase64(b64: string): string {
   return new TextDecoder("utf-8").decode(bytes);
 }
 
-export function useRepoReadme(owner: string, repo: string, ref?: string) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    queryKey: ["repo-readme", owner, repo, ref ?? "default"],
-    enabled: !!token && !!owner && !!repo,
+export const repoReadmeQueryOptions = (owner: string, repo: string, ref?: string) =>
+  queryOptions({
+    queryKey: ["repo-readme", owner, repo, ref ?? "default"] as const,
     staleTime: 60_000,
     retry: false,
     queryFn: async (): Promise<ReadmePayload | null> => {
@@ -48,5 +46,12 @@ export function useRepoReadme(owner: string, repo: string, ref?: string) {
         throw err;
       }
     },
+  });
+
+export function useRepoReadme(owner: string, repo: string, ref?: string) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...repoReadmeQueryOptions(owner, repo, ref),
+    enabled: !!token && !!owner && !!repo,
   });
 }

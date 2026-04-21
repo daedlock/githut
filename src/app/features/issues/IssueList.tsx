@@ -174,7 +174,13 @@ export function IssueList({
               </div>
             ) : (
               issues.map((issue) => (
-                <IssueRow key={issue.id} issue={issue} onClick={() => onOpenIssue(issue.number)} />
+                <IssueRow
+                  key={issue.id}
+                  issue={issue}
+                  owner={owner}
+                  repo={repo}
+                  onClick={() => onOpenIssue(issue.number)}
+                />
               ))
             )}
           </CardBody>

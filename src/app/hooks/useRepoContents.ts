@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
@@ -17,11 +17,14 @@ export type ContentEntry = z.infer<typeof ContentEntrySchema>;
 
 const DirContentsSchema = z.array(ContentEntrySchema);
 
-export function useRepoContents(owner: string, repo: string, path = "", ref?: string) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    queryKey: ["repo-contents", owner, repo, path, ref ?? "default"],
-    enabled: !!token && !!owner && !!repo,
+export const repoContentsQueryOptions = (
+  owner: string,
+  repo: string,
+  path = "",
+  ref?: string,
+) =>
+  queryOptions({
+    queryKey: ["repo-contents", owner, repo, path, ref ?? "default"] as const,
     staleTime: 60_000,
     queryFn: async (): Promise<ContentEntry[]> => {
       const client = getGitHubClient();
@@ -34,5 +37,12 @@ export function useRepoContents(owner: string, repo: string, path = "", ref?: st
       const data = Array.isArray(res.data) ? res.data : [res.data];
       return DirContentsSchema.parse(data);
     },
+  });
+
+export function useRepoContents(owner: string, repo: string, path = "", ref?: string) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...repoContentsQueryOptions(owner, repo, path, ref),
+    enabled: !!token && !!owner && !!repo,
   });
 }

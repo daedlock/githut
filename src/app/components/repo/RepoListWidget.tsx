@@ -83,6 +83,7 @@ export function RepoListWidget({ repos, isPending, onRepoClick }: RepoListWidget
           ))}
         </div>
       )}
+
     </Widget>
   );
 }
@@ -106,10 +107,11 @@ function EmptyState({ label }: { label: string }) {
   );
 }
 
-function RepoRowsSkeleton() {
+function RepoRowsSkeleton({ rows }: { rows?: number } = {}) {
   // Mirrors a real RepoRow's proportions so the shift when data arrives is
   // near-zero. Widths vary per-row so the list feels organic.
-  const widths = [72, 58, 80, 46, 64, 70, 52, 66];
+  const all = [72, 58, 80, 46, 64, 70, 52, 66];
+  const widths = rows ? all.slice(0, rows) : all;
   return (
     <div className="skeleton-fade flex flex-col">
       {widths.map((titleW) => (

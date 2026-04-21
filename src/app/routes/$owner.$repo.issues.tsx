@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import type { StateFilter } from "@/app/features/issues/components/StateTab";
 import {
+  repoIssuesQueryOptions,
   useCreateIssue,
   useCreateIssueComment,
   useRepoIssue,
@@ -21,6 +22,10 @@ export const Route = createFileRoute("/$owner/$repo/issues")({
     if (Number.isInteger(value) && value > 0) return { issue: value };
     return {};
   },
+  loader: ({ context, params }) =>
+    context.queryClient.ensureQueryData(
+      repoIssuesQueryOptions(params.owner, params.repo),
+    ),
   component: IssuesPage,
 });
 

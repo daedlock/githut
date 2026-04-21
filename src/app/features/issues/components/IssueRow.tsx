@@ -1,17 +1,60 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, CircleDot, MessageSquare } from "lucide-react";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { AssigneeList } from "@/app/features/issues/components/AssigneeList";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import type { RepoIssue } from "@/app/features/issues/schemas";
 import { REACTION_CONTENTS, REACTION_EMOJIS, reactionsHaveAny } from "@/app/features/issues/utils";
+import { getGitHubClient } from "@/app/lib/github/client";
 import { formatRelativeTime } from "@/app/lib/time";
+import { issueKeys } from "@/app/features/issues/hooks";
+import { IssueCommentsSchema, IssueDetailSchema } from "@/app/features/issues/schemas";
 
-export function IssueRow({ issue, onClick }: { issue: RepoIssue; onClick: () => void }) {
+export function IssueRow({
+  issue,
+  owner,
+  repo,
+  onClick,
+}: {
+  issue: RepoIssue;
+  owner: string;
+  repo: string;
+  onClick: () => void;
+}) {
+  const qc = useQueryClient();
+  // Detail view is a same-route search-param change, so router preload can't
+  // help here — populate the detail+comments cache entries manually.
+  const prefetch = () => {
+    qc.prefetchQuery({
+      queryKey: issueKeys.detail(owner, repo, issue.number),
+      queryFn: async () => {
+        const client = getGitHubClient();
+        const res = await client.request(
+          "GET /repos/{owner}/{repo}/issues/{issue_number}",
+          { owner, repo, issue_number: issue.number },
+        );
+        return IssueDetailSchema.parse(res.data);
+      },
+    });
+    qc.prefetchQuery({
+      queryKey: issueKeys.comments(owner, repo, issue.number),
+      queryFn: async () => {
+        const client = getGitHubClient();
+        const res = await client.request(
+          "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
+          { owner, repo, issue_number: issue.number, per_page: 100 },
+        );
+        return IssueCommentsSchema.parse(res.data);
+      },
+    });
+  };
   return (
     <div className="group relative">
       <button
         type="button"
         onClick={onClick}
+        onMouseEnter={prefetch}
+        onFocus={prefetch}
         aria-label={`Open issue #${issue.number}: ${issue.title}`}
         className="absolute inset-0 rounded-none outline-none transition-colors hover:bg-muted focus-visible:bg-muted"
       />

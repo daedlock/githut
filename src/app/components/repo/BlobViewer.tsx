@@ -26,7 +26,7 @@ export function BlobViewer({ file }: { file: RepoFile }) {
   );
 
   const codeCard = (
-    <div className="rounded-md border border-border overflow-hidden">
+    <div className="rounded-md border border-border overflow-hidden bg-muted">
       {/* header */}
       <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-border bg-muted">
         <span className="font-mono text-caption uppercase tracking-widest text-[var(--color-fg-faint)]">

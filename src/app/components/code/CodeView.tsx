@@ -51,7 +51,7 @@ export function CodeView({ lines, decorations, startLine = 1, className }: CodeV
     <div
       ref={scrollRef}
       className={cn(
-        "overflow-auto bg-white/20 dark:bg-black/10 text-code",
+        "overflow-auto bg-muted text-code",
         "font-feature-settings-code",
         className,
       )}

@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { KeyRound, LogOut, Monitor, Moon, Settings, Sun, User2 } from "lucide-react";
+import { ThemePalettePicker } from "@/app/components/shell/ThemePalettePicker";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
@@ -56,7 +57,7 @@ export function UserMenu({ login, avatarUrl, onSignOut, onReAuth, variant = "ful
           </button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="end" sideOffset={10} className="w-56 p-1.5">
+        <DropdownMenuContent align="end" sideOffset={10} className="w-64 p-1.5">
           {/* Identity header */}
           <div className="flex items-center gap-3 px-2 pb-2.5 pt-1.5">
             {avatarUrl ? (
@@ -95,32 +96,59 @@ export function UserMenu({ login, avatarUrl, onSignOut, onReAuth, variant = "ful
             </Link>
           </DropdownMenuItem>
 
-          {/* Theme — inline segmented control, no flyout */}
-          <div className="flex items-center gap-2 px-1.5 py-1.5">
-            <span className="flex-1 text-ui text-muted-foreground">Theme</span>
-            <div className="flex items-center gap-0.5 rounded-md bg-(--color-bg-sunken) p-0.5">
-              {THEME_OPTIONS.map(({ value, icon: Icon, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  title={label}
-                  aria-label={`${label} theme`}
-                  aria-pressed={themePreference === value}
-                  onClick={() => setThemePreference(value)}
-                  className={cn(
-                    "flex h-5.5 w-5.5 items-center justify-center rounded transition-colors",
-                    themePreference === value
-                      ? "bg-(--color-bg) text-foreground shadow-sm ring-1 ring-border"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <Icon className="size-3" />
-                </button>
-              ))}
+          <DropdownMenuSeparator className="-mx-1.5 my-1" />
+
+          {/* Appearance — light/dark toggle + palette picker.
+              Wrapped in an onSelect={preventDefault} container so clicking
+              a chip doesn't close the dropdown — users almost always want to
+              try a few. Close via Esc or clicking outside. */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              // Let arrow keys bubble to the picker; stop Enter/Space from
+              // triggering DropdownMenuItem activation on the parent.
+              if (e.key === " " || e.key === "Enter") e.stopPropagation();
+            }}
+          >
+            {/* Preference row — mono label + segmented tri-state */}
+            <div className="flex items-center justify-between gap-2 px-1.5 pb-1.5 pt-1">
+              <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
+                Appearance
+              </span>
+              <div
+                role="radiogroup"
+                aria-label="Theme preference"
+                className="flex items-center gap-0.5 rounded-md bg-(--color-bg-sunken) p-0.5"
+              >
+                {THEME_OPTIONS.map(({ value, icon: Icon, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={themePreference === value}
+                    title={label}
+                    aria-label={`${label} theme`}
+                    onClick={() => setThemePreference(value)}
+                    className={cn(
+                      "flex h-5.5 w-5.5 items-center justify-center rounded transition-colors",
+                      "focus-visible:outline-2 focus-visible:outline-offset-1",
+                      "focus-visible:outline-(--color-focus)",
+                      themePreference === value
+                        ? "bg-(--color-bg) text-foreground ring-1 ring-border"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="size-3" />
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Palette grid */}
+            <ThemePalettePicker />
           </div>
 
-          <DropdownMenuSeparator className="-mx-1.5 mt-1" />
+          <DropdownMenuSeparator className="-mx-1.5 my-1" />
 
           {/* Account actions */}
           {onReAuth ? (

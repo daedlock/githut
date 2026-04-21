@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
@@ -35,12 +35,13 @@ function toSummary(r: z.infer<typeof GhRepoSchema>): RepoSummary {
   };
 }
 
-export function useRepos() {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    queryKey: ["repos", "me"],
-    enabled: !!token,
-    staleTime: 60_000,
+// Single canonical options object — shared by the `useRepos` hook and the
+// route loader so hover-preload (via TanStack Router `preload: "intent"`)
+// warms exactly the same cache entry the consumer reads from.
+export const reposQueryOptions = () =>
+  queryOptions({
+    queryKey: ["repos", "me"] as const,
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<RepoSummary[]> => {
       const client = getGitHubClient();
       const res = await client.request("GET /user/repos", {
@@ -50,8 +51,11 @@ export function useRepos() {
         direction: "desc",
         per_page: 100,
       });
-      const parsed = GhReposSchema.parse(res.data);
-      return parsed.map(toSummary);
+      return GhReposSchema.parse(res.data).map(toSummary);
     },
   });
+
+export function useRepos() {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({ ...reposQueryOptions(), enabled: !!token });
 }

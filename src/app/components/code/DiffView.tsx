@@ -52,7 +52,7 @@ export function DiffView({ patch, lang = "text", mode = "unified", className }: 
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-md border border-border bg-white/20 dark:bg-black/10",
+        "overflow-hidden rounded-md border border-border bg-muted",
         className,
       )}
     >

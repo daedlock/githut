@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
@@ -39,16 +39,21 @@ const RepoSchema = z.object({
 
 export type Repo = z.infer<typeof RepoSchema>;
 
-export function useRepo(owner: string, repo: string) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    queryKey: ["repo", owner, repo],
-    enabled: !!token && !!owner && !!repo,
-    staleTime: 60_000,
+export const repoQueryOptions = (owner: string, repo: string) =>
+  queryOptions({
+    queryKey: ["repo", owner, repo] as const,
+    staleTime: 5 * 60_000,
     queryFn: async (): Promise<Repo> => {
       const client = getGitHubClient();
       const res = await client.request("GET /repos/{owner}/{repo}", { owner, repo });
       return RepoSchema.parse(res.data);
     },
+  });
+
+export function useRepo(owner: string, repo: string) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...repoQueryOptions(owner, repo),
+    enabled: !!token && !!owner && !!repo,
   });
 }

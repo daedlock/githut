@@ -28,12 +28,18 @@ function decodeBase64(b64: string): string {
   return new TextDecoder("utf-8").decode(bytes);
 }
 
+// A full 40-char hex SHA pins the response to an immutable blob — safe to cache forever.
+// Branch names like "main" or omitted refs can change, so they get a shorter stale window.
+const SHA_REF = /^[a-f0-9]{40}$/i;
+
 export function useRepoFile(owner: string, repo: string, path: string, ref?: string) {
   const token = useAuthStore((s) => s.token);
+  const isImmutable = !!ref && SHA_REF.test(ref);
   return useQuery({
     queryKey: ["repo-file", owner, repo, path, ref ?? "default"],
     enabled: !!token && !!owner && !!repo && !!path,
-    staleTime: 60_000,
+    staleTime: isImmutable ? Infinity : 5 * 60_000,
+    gcTime: isImmutable ? 10 * 60_000 : undefined,
     queryFn: async (): Promise<RepoFile> => {
       const client = getGitHubClient();
       const res = await client.request("GET /repos/{owner}/{repo}/contents/{path}", {

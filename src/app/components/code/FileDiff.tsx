@@ -79,13 +79,13 @@ export function FileDiff({
       {!collapsed && (
         <>
           {isBinary ? (
-            <div className="px-4 py-5 text-center font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)] bg-white/20 dark:bg-black/10">
+            <div className="bg-muted px-4 py-5 text-center font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]">
               Binary file — preview unavailable
             </div>
           ) : hasPatch ? (
             <DiffView patch={patch} lang={lang} mode={mode} className="rounded-none border-0" />
           ) : (
-            <div className="px-4 py-5 text-center font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]  bg-white/20 dark:bg-black/10">
+            <div className="bg-muted px-4 py-5 text-center font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]">
               No changes
             </div>
           )}

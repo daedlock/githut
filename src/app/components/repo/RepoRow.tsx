@@ -1,4 +1,7 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, Lock, Star } from "lucide-react";
+import { repoQueryOptions } from "@/app/hooks/useRepo";
+import { repoLanguagesQueryOptions } from "@/app/hooks/useRepoLanguages";
 import type { RepoSummary } from "@/shared/types";
 
 function formatStars(n: number): string {
@@ -27,10 +30,20 @@ export type RepoRowProps = {
 };
 
 export function RepoRow({ repo, showOwner = false, onClick }: RepoRowProps) {
+  const qc = useQueryClient();
+  // RepoRow is a button (not a <Link>), so router's intent-preload doesn't
+  // fire. Mirror its behavior manually: warm the same cache entries the
+  // target route's loader would.
+  const prefetch = () => {
+    qc.prefetchQuery(repoQueryOptions(repo.owner.login, repo.name));
+    qc.prefetchQuery(repoLanguagesQueryOptions(repo.owner.login, repo.name));
+  };
   return (
     <button
       type="button"
       onClick={() => onClick?.(repo)}
+      onMouseEnter={prefetch}
+      onFocus={prefetch}
       className="group flex w-full items-center gap-3 border-b border-border px-4 py-2.5 text-left outline-none transition-colors last:border-b-0 hover:bg-[var(--color-bg-sunken)] focus-visible:bg-[var(--color-bg-sunken)]"
     >
       <div className="min-w-0 flex-1 flex flex-col gap-1">

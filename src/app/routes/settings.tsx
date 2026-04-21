@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { Settings as SettingsIcon } from "lucide-react";
+import { NavVariantPicker } from "@/app/components/settings/NavVariantPicker";
 import { ThemePicker } from "@/app/components/settings/ThemePicker";
 import { AppShell } from "@/app/components/shell/AppShell";
 import { ShellFooter } from "@/app/components/shell/ShellFooter";
@@ -64,6 +65,22 @@ function SettingsPage() {
             </div>
             <div className="px-4 py-4">
               <ThemePicker />
+            </div>
+          </section>
+
+          <section className="rounded-md border border-border bg-background">
+            <div className="border-b border-border px-4 py-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
+                  Navbar variant
+                </h2>
+                <span className="font-sans text-caption italic text-muted-foreground">
+                  pick one — we're still evaluating
+                </span>
+              </div>
+            </div>
+            <div className="px-4 py-4">
+              <NavVariantPicker />
             </div>
           </section>
 

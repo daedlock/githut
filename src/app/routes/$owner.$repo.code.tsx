@@ -6,13 +6,13 @@ import { ReadmeViewer } from "@/app/components/repo/ReadmeViewer";
 import { RepoAbout } from "@/app/components/repo/RepoAbout";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { usePathCommit } from "@/app/hooks/usePathCommit";
-import { useRepo } from "@/app/hooks/useRepo";
+import { pathCommitQueryOptions, usePathCommit } from "@/app/hooks/usePathCommit";
+import { repoQueryOptions, useRepo } from "@/app/hooks/useRepo";
 import type { ContentEntry } from "@/app/hooks/useRepoContents";
-import { useRepoContents } from "@/app/hooks/useRepoContents";
+import { repoContentsQueryOptions, useRepoContents } from "@/app/hooks/useRepoContents";
 import { useRepoFile } from "@/app/hooks/useRepoFile";
-import { useRepoLanguages } from "@/app/hooks/useRepoLanguages";
-import { useRepoReadme } from "@/app/hooks/useRepoReadme";
+import { repoLanguagesQueryOptions, useRepoLanguages } from "@/app/hooks/useRepoLanguages";
+import { repoReadmeQueryOptions, useRepoReadme } from "@/app/hooks/useRepoReadme";
 
 const codeSearchSchema = z.object({
   path: z.string().optional(),
@@ -36,6 +36,19 @@ const BLOB_SKELETON_WIDTHS = [
 
 export const Route = createFileRoute("/$owner/$repo/code")({
   validateSearch: codeSearchSchema,
+  // Fire-and-forget prefetches for everything the code page renders. We wait
+  // for `repo` (so we know the default branch) before dispatching the
+  // branch-dependent queries; the independent ones go in parallel.
+  loader: async ({ context, params }) => {
+    const qc = context.queryClient;
+    const [repo] = await Promise.all([
+      qc.ensureQueryData(repoQueryOptions(params.owner, params.repo)),
+      qc.prefetchQuery(repoLanguagesQueryOptions(params.owner, params.repo)),
+      qc.prefetchQuery(repoReadmeQueryOptions(params.owner, params.repo)),
+      qc.prefetchQuery(repoContentsQueryOptions(params.owner, params.repo, "")),
+    ]);
+    qc.prefetchQuery(pathCommitQueryOptions(params.owner, params.repo, "", repo.default_branch));
+  },
   component: CodePage,
 });
 

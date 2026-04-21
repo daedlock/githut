@@ -1,6 +1,7 @@
-import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMemo } from "react";
 
+import { Avatar } from "@/app/components/ui/avatar";
 import { Container } from "@/app/components/ui/Container";
 import { cn } from "@/app/lib/cn";
 import { getTabMeta } from "@/app/lib/tabMeta";
@@ -65,8 +66,14 @@ export function RepoSubTabs({ owner, repo }: { owner: string; repo: string }) {
   }
 
   return (
-    <div className="border-b border-border">
-      <Container as="nav" className="flex items-end gap-0" aria-label="Repository sections">
+    <div className="border-b border-border bg-background">
+      <Container
+        as="nav"
+        className="flex items-stretch gap-0"
+        aria-label="Repository sections"
+      >
+        <RepoIdentity owner={owner} repo={repo} />
+
         {tabs.map((tab) => {
           const isActive = tab.href === activeHref;
           return (
@@ -90,6 +97,65 @@ export function RepoSubTabs({ owner, repo }: { owner: string; repo: string }) {
           );
         })}
       </Container>
+    </div>
+  );
+}
+
+// ─── Repo identity plaque ───────────────────────────────────────────────────
+
+/**
+ * `[avatar] owner/repo` shown at the start of the sub-tabs row.
+ * Avatar + owner login link to the profile page; the repo name links to
+ * the repo's code view. The trailing vertical rule separates identity
+ * (who/what) from navigation (which section).
+ *
+ * Uses `github.com/{login}.png` directly as the avatar source — works for
+ * both users and orgs, no extra fetch needed, browser caches it along
+ * with the main session.
+ */
+function RepoIdentity({ owner, repo }: { owner: string; repo: string }) {
+  return (
+    <div className="flex items-center gap-2 pr-3 mr-2 border-r border-border">
+      <Link
+        to="/$username"
+        params={{ username: owner }}
+        className="outline-none transition-opacity hover:opacity-80 focus-visible:ring-1 focus-visible:ring-(--color-focus) rounded-full"
+        title={`${owner} profile`}
+        aria-label={`${owner} profile`}
+      >
+        <Avatar
+          login={owner}
+          avatarUrl={`https://github.com/${owner}.png?size=48`}
+          size="md"
+        />
+      </Link>
+      <div className="flex items-baseline gap-0.5 font-mono text-ui leading-none">
+        <Link
+          to="/$username"
+          params={{ username: owner }}
+          className={cn(
+            "text-(--color-fg-muted) transition-colors",
+            "hover:text-(--color-fg)",
+            "focus-visible:outline-none focus-visible:text-(--color-fg)",
+          )}
+        >
+          {owner}
+        </Link>
+        <span aria-hidden className="text-(--color-fg-faint)">
+          /
+        </span>
+        <Link
+          to="/$owner/$repo/code"
+          params={{ owner, repo }}
+          className={cn(
+            "font-medium text-(--color-fg) transition-colors",
+            "hover:text-(--color-accent)",
+            "focus-visible:outline-none focus-visible:text-(--color-accent)",
+          )}
+        >
+          {repo}
+        </Link>
+      </div>
     </div>
   );
 }

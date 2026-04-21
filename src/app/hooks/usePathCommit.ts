@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
@@ -36,11 +36,14 @@ export type PathCommit = {
   date: string;
 };
 
-export function usePathCommit(owner: string, repo: string, path: string, ref?: string) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    queryKey: ["path-commit", owner, repo, path, ref ?? "default"],
-    enabled: !!token && !!owner && !!repo,
+export const pathCommitQueryOptions = (
+  owner: string,
+  repo: string,
+  path: string,
+  ref?: string,
+) =>
+  queryOptions({
+    queryKey: ["path-commit", owner, repo, path, ref ?? "default"] as const,
     staleTime: 5 * 60_000,
     queryFn: async (): Promise<PathCommit | null> => {
       const client = getGitHubClient();
@@ -61,14 +64,19 @@ export function usePathCommit(owner: string, repo: string, path: string, ref?: s
       return {
         sha: c.sha,
         shortSha: c.sha.slice(0, 7),
-        message: (c.commit.message.split("\n")[0]) ?? "",
+        message: c.commit.message.split("\n")[0] ?? "",
         authorName:
-          (c.author?.login ??
-          c.commit.author?.name ??
-          c.commit.committer?.name) ??
+          (c.author?.login ?? c.commit.author?.name ?? c.commit.committer?.name) ??
           "unknown",
         date,
       };
     },
+  });
+
+export function usePathCommit(owner: string, repo: string, path: string, ref?: string) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...pathCommitQueryOptions(owner, repo, path, ref),
+    enabled: !!token && !!owner && !!repo,
   });
 }

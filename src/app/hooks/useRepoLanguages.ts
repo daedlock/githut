@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
@@ -11,12 +11,12 @@ export type LanguageShare = {
   percentage: number;
 };
 
-export function useRepoLanguages(owner: string, repo: string) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    queryKey: ["repo-languages", owner, repo],
-    enabled: !!token && !!owner && !!repo,
-    staleTime: 5 * 60_000,
+export const repoLanguagesQueryOptions = (owner: string, repo: string) =>
+  queryOptions({
+    queryKey: ["repo-languages", owner, repo] as const,
+    // Language composition changes slowly (only when you push a lot of code in a new
+    // language). 30min avoids re-fetching on every repo-page navigation within a session.
+    staleTime: 30 * 60_000,
     queryFn: async (): Promise<LanguageShare[]> => {
       const client = getGitHubClient();
       const res = await client.request("GET /repos/{owner}/{repo}/languages", { owner, repo });
@@ -27,5 +27,12 @@ export function useRepoLanguages(owner: string, repo: string) {
         .map(([name, bytes]) => ({ name, bytes, percentage: (bytes / total) * 100 }))
         .sort((a, b) => b.bytes - a.bytes);
     },
+  });
+
+export function useRepoLanguages(owner: string, repo: string) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...repoLanguagesQueryOptions(owner, repo),
+    enabled: !!token && !!owner && !!repo,
   });
 }

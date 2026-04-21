@@ -73,6 +73,8 @@ export function CommitRow({ commit, owner, repo }: CommitRowProps) {
             <img
               src={avatar}
               alt=""
+              loading="lazy"
+              decoding="async"
               className="size-4 flex-shrink-0 rounded-full border border-border"
             />
           ) : (

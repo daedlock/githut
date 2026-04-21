@@ -4,13 +4,16 @@ import { AppShell } from "@/app/components/shell/AppShell";
 import { ShellFooter } from "@/app/components/shell/ShellFooter";
 import { TopBar } from "@/app/components/shell/TopBar";
 import { Container } from "@/app/components/ui/Container";
-import { useRepos } from "@/app/hooks/useRepos";
+import { reposQueryOptions, useRepos } from "@/app/hooks/useRepos";
 import { useAuthStore } from "@/app/stores/auth";
 
 export const Route = createFileRoute("/")({
   beforeLoad: () => {
     if (!useAuthStore.getState().token) throw redirect({ to: "/login" });
   },
+  // Runs on hover (preload: "intent") and on click. Warms the repos list
+  // cache before the component mounts so first paint is instant.
+  loader: ({ context }) => context.queryClient.ensureQueryData(reposQueryOptions()),
   component: IndexPage,
 });
 
@@ -21,7 +24,7 @@ function IndexPage() {
   return (
     <AppShell
       header={<TopBar bordered />}
-      footer={<ShellFooter bordered origin="localhost:5173" />}
+      footer={<ShellFooter bordered origin="Same Github, but better" />}
     >
       <Container className="py-6">
         <div className="grid grid-cols-1 gap-4">
