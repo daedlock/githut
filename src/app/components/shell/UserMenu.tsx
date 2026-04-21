@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { LogOut, Monitor, Moon, Settings, Sun, User2 } from "lucide-react";
+import { KeyRound, LogOut, Monitor, Moon, Settings, Sun, User2 } from "lucide-react";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
@@ -18,6 +18,7 @@ export type UserMenuProps = {
   login?: string;
   avatarUrl?: string;
   onSignOut: () => void;
+  onReAuth?: () => void;
   variant?: "full" | "compact";
 };
 
@@ -27,7 +28,7 @@ const THEME_OPTIONS: { value: ThemePreference; icon: typeof Sun; label: string }
   { value: "dark", icon: Moon, label: "Dark" },
 ];
 
-export function UserMenu({ login, avatarUrl, onSignOut, variant = "full" }: UserMenuProps) {
+export function UserMenu({ login, avatarUrl, onSignOut, onReAuth, variant = "full" }: UserMenuProps) {
   const themePreference = useThemeStore((s) => s.preference);
   const setThemePreference = useThemeStore((s) => s.setPreference);
 
@@ -66,10 +67,10 @@ export function UserMenu({ login, avatarUrl, onSignOut, variant = "full" }: User
               </span>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate font-mono text-[13px] font-semibold leading-tight text-foreground">
+              <p className="truncate font-mono text-code font-semibold leading-tight text-foreground">
                 {login ? `@${login}` : "Account"}
               </p>
-              <p className="mt-0.5 truncate text-[11px] leading-tight text-muted-foreground">
+              <p className="mt-0.5 truncate text-caption leading-tight text-muted-foreground">
                 github.com
               </p>
             </div>
@@ -96,7 +97,7 @@ export function UserMenu({ login, avatarUrl, onSignOut, variant = "full" }: User
 
           {/* Theme — inline segmented control, no flyout */}
           <div className="flex items-center gap-2 px-1.5 py-1.5">
-            <span className="flex-1 text-sm text-muted-foreground">Theme</span>
+            <span className="flex-1 text-ui text-muted-foreground">Theme</span>
             <div className="flex items-center gap-0.5 rounded-md bg-(--color-bg-sunken) p-0.5">
               {THEME_OPTIONS.map(({ value, icon: Icon, label }) => (
                 <button
@@ -121,7 +122,18 @@ export function UserMenu({ login, avatarUrl, onSignOut, variant = "full" }: User
 
           <DropdownMenuSeparator className="-mx-1.5 mt-1" />
 
-          {/* Danger zone */}
+          {/* Account actions */}
+          {onReAuth ? (
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                onReAuth();
+              }}
+            >
+              <KeyRound />
+              Manage GitHub access
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem
             variant="destructive"
             onSelect={(e) => {
@@ -150,6 +162,17 @@ export function UserMenu({ login, avatarUrl, onSignOut, variant = "full" }: User
           <Settings />
         </Link>
       </Button>
+      {onReAuth ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onReAuth}
+          aria-label="Manage GitHub access"
+          title="Manage GitHub access"
+        >
+          <KeyRound />
+        </Button>
+      ) : null}
       <Button
         variant="ghost"
         size="icon"

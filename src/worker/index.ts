@@ -54,6 +54,15 @@ app.get("/api/auth/callback", async (c) => {
   return c.redirect(`${c.env.APP_URL}/#t=${payload.access_token}`, 302);
 });
 
+// Redirect to GitHub's app management page so the user can grant/revoke per-org access.
+// The existing token immediately reflects any org grants made there — no new token needed.
+app.get("/api/auth/manage", (c) => {
+  return c.redirect(
+    `https://github.com/settings/connections/applications/${c.env.GITHUB_CLIENT_ID}`,
+    302,
+  );
+});
+
 app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
 export default app;

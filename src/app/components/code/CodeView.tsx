@@ -12,12 +12,10 @@ function fontStyleToCSS(fs: number | undefined): React.CSSProperties {
   return {
     fontStyle: fs & FS_ITALIC ? "italic" : undefined,
     fontWeight: fs & FS_BOLD ? "bold" : undefined,
-    textDecoration: [
-      fs & FS_UNDERLINE ? "underline" : "",
-      fs & FS_STRIKETHROUGH ? "line-through" : "",
-    ]
-      .filter(Boolean)
-      .join(" ") || undefined,
+    textDecoration:
+      [fs & FS_UNDERLINE ? "underline" : "", fs & FS_STRIKETHROUGH ? "line-through" : ""]
+        .filter(Boolean)
+        .join(" ") || undefined,
   };
 }
 
@@ -53,7 +51,7 @@ export function CodeView({ lines, decorations, startLine = 1, className }: CodeV
     <div
       ref={scrollRef}
       className={cn(
-        "overflow-auto bg-muted text-code",
+        "overflow-auto bg-white/20 dark:bg-black/10 text-code",
         "font-feature-settings-code",
         className,
       )}

@@ -52,7 +52,7 @@ export function DiffView({ patch, lang = "text", mode = "unified", className }: 
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-md border border-border bg-muted",
+        "overflow-hidden rounded-md border border-border bg-white/20 dark:bg-black/10",
         className,
       )}
     >
@@ -109,7 +109,7 @@ export type { DiffHunk, DiffLine };
 
 function HunkHeader({ hunk }: { hunk: DiffHunk }) {
   return (
-    <div className="flex items-center gap-3 border-b border-[var(--diff-hunk-border)] bg-[var(--diff-hunk-bg)] px-3 py-1">
+    <div className="flex items-center gap-3 border-b border-t border-[var(--diff-hunk-border)] bg-[var(--diff-hunk-bg)] px-3 py-1">
       <span className="font-mono text-caption tabular-nums text-[var(--diff-hunk-fg)]">
         @@ -{hunk.oldStart},{hunk.oldLines} +{hunk.newStart},{hunk.newLines} @@
       </span>
@@ -172,8 +172,7 @@ function UnifiedHunk({
             : tokensForNew(line, newTokens, newLineMap);
         // Un-paired add/del: don't show word emphasis (would be misleading)
         const showEmphasis =
-          segments != null &&
-          (line.kind === "del" ? pairs.has(idx) : inversePairs.has(idx));
+          segments != null && (line.kind === "del" ? pairs.has(idx) : inversePairs.has(idx));
 
         return (
           <DiffRow
@@ -206,8 +205,7 @@ function DiffRow({
   rawText: string;
   emphasis?: WordSegment[];
 }) {
-  const lineClass =
-    kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
+  const lineClass = kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
   return (
     <div className={cn("flex w-full items-stretch", lineClass)}>
       <div className="diff-gutter flex flex-shrink-0 select-none font-mono tabular-nums text-[var(--color-fg-faint)]">
@@ -272,7 +270,10 @@ function SplitHunk({
     return map;
   }, [hunk, pairs]);
 
-  type SplitRow = { left?: { idx: number; line: DiffLine }; right?: { idx: number; line: DiffLine } };
+  type SplitRow = {
+    left?: { idx: number; line: DiffLine };
+    right?: { idx: number; line: DiffLine };
+  };
   const rows = useMemo<SplitRow[]>(() => {
     const out: SplitRow[] = [];
     let i = 0;
@@ -328,8 +329,7 @@ function SplitHunk({
             if (!row.left) return <SplitPadRow key={`l-${rIdx}`} />;
             const { idx, line } = row.left;
             const tokens = tokensForOld(line, oldTokens, oldLineMap);
-            const emphasis =
-              line.kind === "del" && pairs.has(idx) ? wordDiffs.get(idx) : undefined;
+            const emphasis = line.kind === "del" && pairs.has(idx) ? wordDiffs.get(idx) : undefined;
             return (
               <SplitRow
                 key={`l-${rIdx}`}
@@ -384,8 +384,7 @@ function SplitRow({
   rawText: string;
   emphasis?: WordSegment[];
 }) {
-  const lineClass =
-    kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
+  const lineClass = kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
   return (
     <div className={cn("flex w-full items-stretch", lineClass)}>
       <span className="diff-gutter w-10 flex-shrink-0 select-none px-1 text-right font-mono tabular-nums text-[var(--color-fg-faint)]">
@@ -504,9 +503,7 @@ function buildEmphasizedPieces(
     const tokEnd = charPos + token.content.length;
 
     // Collect cuts inside this token
-    const localCuts = [...cuts]
-      .filter((c) => c > tokStart && c < tokEnd)
-      .sort((a, b) => a - b);
+    const localCuts = [...cuts].filter((c) => c > tokStart && c < tokEnd).sort((a, b) => a - b);
     const bounds = [tokStart, ...localCuts, tokEnd];
 
     for (let i = 0; i < bounds.length - 1; i++) {
@@ -617,7 +614,7 @@ function DiffSkeleton() {
       </div>
       <div className="skeleton-fade flex flex-col gap-1 p-3">
         {Array.from({ length: 10 }).map((_, i) => (
-          <Skeleton key={i} className="h-4" style={{ width: `${50 + (i * 17) % 40}%` }} />
+          <Skeleton key={i} className="h-4" style={{ width: `${50 + ((i * 17) % 40)}%` }} />
         ))}
       </div>
     </div>

@@ -1,4 +1,20 @@
 
+## UI work — read DESIGN.md first
+
+Before building or editing **any** component, shell element, page layout, or list:
+**read `DESIGN.md`** at the repo root. It defines chrome heights, spacing rhythm,
+typographic scale, color usage rules, and component patterns. Violating it produces
+UIs that look wrong even if they technically work.
+
+Key rules that catch most mistakes:
+- Top bar: `h-9` with `flex items-center`. **Never `py-*`** on a chrome bar.
+- Hover/selected rows: `bg-(--color-bg-sunken)`. **Never ember/primary as a fill**.
+- All text sizes: use `text-micro/caption/ui/code/body/title/heading/display`. **Never `text-sm`, `text-xs`, etc.**
+- Mono (`font-mono`) for identifiers. Sans (`font-sans`) for labels and descriptions.
+- Shadows on overlays only. **No shadows on headers, toolbars, or sidebars**.
+
+---
+
 Default to using Bun instead of Node.js.
 
 - Use `bun <file>` instead of `node <file>` or `ts-node <file>`

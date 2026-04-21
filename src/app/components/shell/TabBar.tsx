@@ -164,12 +164,14 @@ function TabPill({
         "group relative flex shrink-0 cursor-pointer items-center",
         "h-8 select-none",
         "transition-colors duration-75",
-        active ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground",
+        active
+          ? "bg-(--color-bg-subtle) text-foreground"
+          : "text-muted-foreground hover:bg-(--color-bg-sunken) hover:text-foreground",
       )}
       title={tab.sublabel ? `${tab.label} — ${tab.sublabel}` : tab.label}
     >
-      {/* Active indicator — thin top line */}
-      {active && <span aria-hidden className="absolute inset-x-0 top-0 h-px bg-foreground/40" />}
+      {/* Active indicator — ember top border */}
+      {active && <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-(--color-accent)" />}
 
       {/* Icon + label */}
       <span className="flex items-center gap-1.5 pl-3 pr-1 font-mono text-caption leading-none">
@@ -179,7 +181,7 @@ function TabPill({
           <span
             className={cn(
               "text-micro",
-              active ? "text-muted-foreground" : "text-[var(--color-fg-faint)]",
+              active ? "text-muted-foreground" : "text-fg-faint",
             )}
           >
             {tab.sublabel}
@@ -195,7 +197,7 @@ function TabPill({
         aria-label={`Close ${tab.label}`}
         className={cn(
           "mr-1.5 flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm",
-          "text-[var(--color-fg-faint)] outline-none transition-colors",
+          "text-fg-faint outline-none transition-colors",
           "opacity-0 group-hover:opacity-100",
           active && "opacity-60",
           "hover:opacity-100! hover:bg-(--color-bg-sunken) hover:text-foreground",

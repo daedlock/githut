@@ -112,9 +112,9 @@ function RepoRowsSkeleton() {
   const widths = [72, 58, 80, 46, 64, 70, 52, 66];
   return (
     <div className="skeleton-fade flex flex-col">
-      {widths.map((titleW, i) => (
+      {widths.map((titleW) => (
         <div
-          key={i}
+          key={titleW}
           className="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
         >
           <div className="min-w-0 flex-1 flex flex-col gap-1.5">
@@ -137,18 +137,18 @@ function GroupToggle({
   onChange: (next: GroupMode) => void;
 }) {
   return (
-    <div className="flex items-center rounded-md border border-input p-0.5">
+    <div className="flex items-center gap-px">
       {(["owner", "flat"] as const).map((mode) => (
         <button
           key={mode}
           type="button"
           onClick={() => onChange(mode)}
           className={cn(
-            "h-5 px-2 rounded-sm font-mono text-micro uppercase tracking-widest",
-            "outline-none transition-colors",
+            "h-6 px-2 rounded-sm font-sans text-caption font-medium",
+            "outline-none focus-visible:ring-1 focus-visible:ring-(--color-focus)",
             value === mode
-              ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
-              : "text-muted-foreground hover:text-foreground",
+              ? "bg-(--color-bg-sunken) text-foreground"
+              : "text-muted-foreground hover:bg-(--color-bg-sunken) hover:text-foreground",
           )}
         >
           {mode === "owner" ? "by org" : "flat"}

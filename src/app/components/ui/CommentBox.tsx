@@ -90,7 +90,8 @@ function getCaretCoords(textarea: HTMLTextAreaElement, position: number): DOMRec
 
   const offsetTop = markerRect.top - mirrorRect.top;
   const offsetLeft = markerRect.left - mirrorRect.left;
-  const lineHeight = Number.parseFloat(computed.lineHeight) || Number.parseFloat(computed.fontSize) * 1.4;
+  const lineHeight =
+    Number.parseFloat(computed.lineHeight) || Number.parseFloat(computed.fontSize) * 1.4;
 
   document.body.removeChild(mirror);
 
@@ -124,7 +125,9 @@ function Row({
       className={cn(
         "group relative flex w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-hidden select-none",
         "transition-colors duration-75",
-        selected ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]" : "hover:bg-[var(--color-bg-sunken)]",
+        selected
+          ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
+          : "hover:bg-[var(--color-bg-sunken)]",
       )}
     >
       <span

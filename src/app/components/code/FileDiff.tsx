@@ -42,12 +42,7 @@ export function FileDiff({
   const hasPatch = !!patch;
 
   return (
-    <section
-      className={cn(
-        "overflow-hidden rounded-lg border border-input bg-muted",
-        className,
-      )}
-    >
+    <section className={cn("overflow-hidden rounded-lg border border-input bg-muted", className)}>
       <header className="flex items-center gap-3 border-b border-border px-3 py-2">
         <button
           type="button"
@@ -60,11 +55,7 @@ export function FileDiff({
           )}
           aria-label={collapsed ? "Expand diff" : "Collapse diff"}
         >
-          {collapsed ? (
-            <ChevronRight className="size-3.5" />
-          ) : (
-            <ChevronDown className="size-3.5" />
-          )}
+          {collapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
         </button>
 
         <StatusBadge status={status} />
@@ -88,13 +79,13 @@ export function FileDiff({
       {!collapsed && (
         <>
           {isBinary ? (
-            <div className="px-4 py-5 text-center font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]">
+            <div className="px-4 py-5 text-center font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)] bg-white/20 dark:bg-black/10">
               Binary file — preview unavailable
             </div>
           ) : hasPatch ? (
             <DiffView patch={patch} lang={lang} mode={mode} className="rounded-none border-0" />
           ) : (
-            <div className="px-4 py-5 text-center font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]">
+            <div className="px-4 py-5 text-center font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]  bg-white/20 dark:bg-black/10">
               No changes
             </div>
           )}

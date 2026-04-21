@@ -9,7 +9,7 @@ import { ThemeToggle } from "@/app/components/ThemeToggle";
 import { Container } from "@/app/components/ui/Container";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { useMe } from "@/app/hooks/useMe";
-import { logout } from "@/app/lib/auth";
+import { logout, manageGitHubAccess } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
 import { useAuthStore } from "@/app/stores/auth";
 import { useSettingsStore } from "@/app/stores/settings";
@@ -38,7 +38,7 @@ function SettingsPage() {
           right={
             <>
               <ThemeToggle />
-              <UserMenu login={me?.login} avatarUrl={me?.avatar_url} onSignOut={logout} />
+              <UserMenu login={me?.login} avatarUrl={me?.avatar_url} onSignOut={logout} onReAuth={manageGitHubAccess} />
             </>
           }
         />

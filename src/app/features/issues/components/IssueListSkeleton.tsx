@@ -3,7 +3,7 @@ import { Skeleton } from "@/app/components/ui/skeleton";
 export function IssueListSkeleton() {
   return (
     <>
-      {Array.from({ length: 6 }).map((_, i) => (
+      {Array.from({ length: 10 }).map((_, i) => (
         <div
           key={i}
           className="flex items-start gap-3 px-4 py-3.5 sm:px-5"
