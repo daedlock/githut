@@ -20,7 +20,10 @@ import { Route as OwnerRepoPullsRouteImport } from './routes/$owner.$repo.pulls'
 import { Route as OwnerRepoIssuesRouteImport } from './routes/$owner.$repo.issues'
 import { Route as OwnerRepoCommitsRouteImport } from './routes/$owner.$repo.commits'
 import { Route as OwnerRepoCodeRouteImport } from './routes/$owner.$repo.code'
+import { Route as OwnerRepoActionsRouteImport } from './routes/$owner.$repo.actions'
+import { Route as OwnerRepoActionsIndexRouteImport } from './routes/$owner.$repo.actions.index'
 import { Route as OwnerRepoCommitShaRouteImport } from './routes/$owner.$repo.commit.$sha'
+import { Route as OwnerRepoActionsRunsRunIdRouteImport } from './routes/$owner.$repo.actions.runs.$runId'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -77,11 +80,27 @@ const OwnerRepoCodeRoute = OwnerRepoCodeRouteImport.update({
   path: '/code',
   getParentRoute: () => OwnerRepoRoute,
 } as any)
+const OwnerRepoActionsRoute = OwnerRepoActionsRouteImport.update({
+  id: '/actions',
+  path: '/actions',
+  getParentRoute: () => OwnerRepoRoute,
+} as any)
+const OwnerRepoActionsIndexRoute = OwnerRepoActionsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OwnerRepoActionsRoute,
+} as any)
 const OwnerRepoCommitShaRoute = OwnerRepoCommitShaRouteImport.update({
   id: '/commit/$sha',
   path: '/commit/$sha',
   getParentRoute: () => OwnerRepoRoute,
 } as any)
+const OwnerRepoActionsRunsRunIdRoute =
+  OwnerRepoActionsRunsRunIdRouteImport.update({
+    id: '/runs/$runId',
+    path: '/runs/$runId',
+    getParentRoute: () => OwnerRepoActionsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -90,12 +109,15 @@ export interface FileRoutesByFullPath {
   '/playground': typeof PlaygroundRoute
   '/settings': typeof SettingsRoute
   '/$owner/$repo': typeof OwnerRepoRouteWithChildren
+  '/$owner/$repo/actions': typeof OwnerRepoActionsRouteWithChildren
   '/$owner/$repo/code': typeof OwnerRepoCodeRoute
   '/$owner/$repo/commits': typeof OwnerRepoCommitsRoute
   '/$owner/$repo/issues': typeof OwnerRepoIssuesRoute
   '/$owner/$repo/pulls': typeof OwnerRepoPullsRoute
   '/$owner/$repo/': typeof OwnerRepoIndexRoute
   '/$owner/$repo/commit/$sha': typeof OwnerRepoCommitShaRoute
+  '/$owner/$repo/actions/': typeof OwnerRepoActionsIndexRoute
+  '/$owner/$repo/actions/runs/$runId': typeof OwnerRepoActionsRunsRunIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -109,6 +131,8 @@ export interface FileRoutesByTo {
   '/$owner/$repo/pulls': typeof OwnerRepoPullsRoute
   '/$owner/$repo': typeof OwnerRepoIndexRoute
   '/$owner/$repo/commit/$sha': typeof OwnerRepoCommitShaRoute
+  '/$owner/$repo/actions': typeof OwnerRepoActionsIndexRoute
+  '/$owner/$repo/actions/runs/$runId': typeof OwnerRepoActionsRunsRunIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -118,12 +142,15 @@ export interface FileRoutesById {
   '/playground': typeof PlaygroundRoute
   '/settings': typeof SettingsRoute
   '/$owner/$repo': typeof OwnerRepoRouteWithChildren
+  '/$owner/$repo/actions': typeof OwnerRepoActionsRouteWithChildren
   '/$owner/$repo/code': typeof OwnerRepoCodeRoute
   '/$owner/$repo/commits': typeof OwnerRepoCommitsRoute
   '/$owner/$repo/issues': typeof OwnerRepoIssuesRoute
   '/$owner/$repo/pulls': typeof OwnerRepoPullsRoute
   '/$owner/$repo/': typeof OwnerRepoIndexRoute
   '/$owner/$repo/commit/$sha': typeof OwnerRepoCommitShaRoute
+  '/$owner/$repo/actions/': typeof OwnerRepoActionsIndexRoute
+  '/$owner/$repo/actions/runs/$runId': typeof OwnerRepoActionsRunsRunIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -134,12 +161,15 @@ export interface FileRouteTypes {
     | '/playground'
     | '/settings'
     | '/$owner/$repo'
+    | '/$owner/$repo/actions'
     | '/$owner/$repo/code'
     | '/$owner/$repo/commits'
     | '/$owner/$repo/issues'
     | '/$owner/$repo/pulls'
     | '/$owner/$repo/'
     | '/$owner/$repo/commit/$sha'
+    | '/$owner/$repo/actions/'
+    | '/$owner/$repo/actions/runs/$runId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -153,6 +183,8 @@ export interface FileRouteTypes {
     | '/$owner/$repo/pulls'
     | '/$owner/$repo'
     | '/$owner/$repo/commit/$sha'
+    | '/$owner/$repo/actions'
+    | '/$owner/$repo/actions/runs/$runId'
   id:
     | '__root__'
     | '/'
@@ -161,12 +193,15 @@ export interface FileRouteTypes {
     | '/playground'
     | '/settings'
     | '/$owner/$repo'
+    | '/$owner/$repo/actions'
     | '/$owner/$repo/code'
     | '/$owner/$repo/commits'
     | '/$owner/$repo/issues'
     | '/$owner/$repo/pulls'
     | '/$owner/$repo/'
     | '/$owner/$repo/commit/$sha'
+    | '/$owner/$repo/actions/'
+    | '/$owner/$repo/actions/runs/$runId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -257,6 +292,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OwnerRepoCodeRouteImport
       parentRoute: typeof OwnerRepoRoute
     }
+    '/$owner/$repo/actions': {
+      id: '/$owner/$repo/actions'
+      path: '/actions'
+      fullPath: '/$owner/$repo/actions'
+      preLoaderRoute: typeof OwnerRepoActionsRouteImport
+      parentRoute: typeof OwnerRepoRoute
+    }
+    '/$owner/$repo/actions/': {
+      id: '/$owner/$repo/actions/'
+      path: '/'
+      fullPath: '/$owner/$repo/actions/'
+      preLoaderRoute: typeof OwnerRepoActionsIndexRouteImport
+      parentRoute: typeof OwnerRepoActionsRoute
+    }
     '/$owner/$repo/commit/$sha': {
       id: '/$owner/$repo/commit/$sha'
       path: '/commit/$sha'
@@ -264,10 +313,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OwnerRepoCommitShaRouteImport
       parentRoute: typeof OwnerRepoRoute
     }
+    '/$owner/$repo/actions/runs/$runId': {
+      id: '/$owner/$repo/actions/runs/$runId'
+      path: '/runs/$runId'
+      fullPath: '/$owner/$repo/actions/runs/$runId'
+      preLoaderRoute: typeof OwnerRepoActionsRunsRunIdRouteImport
+      parentRoute: typeof OwnerRepoActionsRoute
+    }
   }
 }
 
+interface OwnerRepoActionsRouteChildren {
+  OwnerRepoActionsIndexRoute: typeof OwnerRepoActionsIndexRoute
+  OwnerRepoActionsRunsRunIdRoute: typeof OwnerRepoActionsRunsRunIdRoute
+}
+
+const OwnerRepoActionsRouteChildren: OwnerRepoActionsRouteChildren = {
+  OwnerRepoActionsIndexRoute: OwnerRepoActionsIndexRoute,
+  OwnerRepoActionsRunsRunIdRoute: OwnerRepoActionsRunsRunIdRoute,
+}
+
+const OwnerRepoActionsRouteWithChildren =
+  OwnerRepoActionsRoute._addFileChildren(OwnerRepoActionsRouteChildren)
+
 interface OwnerRepoRouteChildren {
+  OwnerRepoActionsRoute: typeof OwnerRepoActionsRouteWithChildren
   OwnerRepoCodeRoute: typeof OwnerRepoCodeRoute
   OwnerRepoCommitsRoute: typeof OwnerRepoCommitsRoute
   OwnerRepoIssuesRoute: typeof OwnerRepoIssuesRoute
@@ -277,6 +347,7 @@ interface OwnerRepoRouteChildren {
 }
 
 const OwnerRepoRouteChildren: OwnerRepoRouteChildren = {
+  OwnerRepoActionsRoute: OwnerRepoActionsRouteWithChildren,
   OwnerRepoCodeRoute: OwnerRepoCodeRoute,
   OwnerRepoCommitsRoute: OwnerRepoCommitsRoute,
   OwnerRepoIssuesRoute: OwnerRepoIssuesRoute,

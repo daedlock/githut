@@ -34,6 +34,7 @@ export function RepoSubTabs({ owner, repo }: { owner: string; repo: string }) {
       { href: `/${owner}/${repo}/commits`, label: "Commits" },
       { href: `/${owner}/${repo}/pulls`, label: "Pull requests" },
       { href: `/${owner}/${repo}/issues`, label: "Issues" },
+      { href: `/${owner}/${repo}/actions`, label: "Actions" },
     ],
     [owner, repo],
   );

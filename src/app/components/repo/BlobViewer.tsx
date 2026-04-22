@@ -12,7 +12,22 @@ function formatBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
 
-export function BlobViewer({ file }: { file: RepoFile }) {
+function dirname(path: string): string {
+  const i = path.lastIndexOf("/");
+  return i === -1 ? "" : path.slice(0, i);
+}
+
+export function BlobViewer({
+  file,
+  owner,
+  repo,
+  ref,
+}: {
+  file: RepoFile;
+  owner: string;
+  repo: string;
+  ref?: string;
+}) {
   const lang = detectLang(file.path);
   const lineCount = file.content.split("\n").length;
   const isBinary = file.content.includes("\0");
@@ -72,7 +87,11 @@ export function BlobViewer({ file }: { file: RepoFile }) {
           {isOrg ? (
             <OrgRendered>{file.content}</OrgRendered>
           ) : (
-            <GithubMarkdown>{file.content}</GithubMarkdown>
+            <GithubMarkdown
+              assetContext={{ owner, repo, ref, basePath: dirname(file.path) }}
+            >
+              {file.content}
+            </GithubMarkdown>
           )}
         </div>
       </article>

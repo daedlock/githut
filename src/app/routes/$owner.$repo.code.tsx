@@ -129,7 +129,7 @@ function CodePage() {
             filePending || !fileData ? (
               <BlobSkeleton />
             ) : (
-              <BlobViewer file={fileData} />
+              <BlobViewer file={fileData} owner={owner} repo={repo} ref={branch} />
             )
           ) : (
             <>
@@ -144,7 +144,9 @@ function CodePage() {
                 commitPending={commitPending}
                 onNavigate={navigateToEntry}
               />
-              {!path && readme && <ReadmeViewer readme={readme} />}
+              {!path && readme && (
+                <ReadmeViewer readme={readme} owner={owner} repo={repo} ref={branch} />
+              )}
             </>
           )}
         </div>
