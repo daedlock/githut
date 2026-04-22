@@ -11,10 +11,12 @@ import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
 import {
   IssueCommentOnPrSchema,
+  PrFileSchema,
   PullRequestSchema,
   ReviewSchema,
   TimelineEventsResponseSchema,
   type IssueCommentOnPr,
+  type PrFile,
   type PullRequest,
   type Review,
   type TimelineEvent,
@@ -87,6 +89,8 @@ export const pullsKeys = {
     ["pulls-reviews", owner, repo, number] as const,
   timeline: (owner: string, repo: string, number: number) =>
     ["pulls-timeline", owner, repo, number] as const,
+  files: (owner: string, repo: string, number: number) =>
+    ["pulls-files", owner, repo, number] as const,
 };
 
 // ─── Filters ───────────────────────────────────────────────────────────────
@@ -401,5 +405,36 @@ export function usePostPrComment(
         queryKey: pullsKeys.detail(owner, repo, number),
       });
     },
+  });
+}
+
+// ─── PR files (diff) ───────────────────────────────────────────────────────
+//
+// One-shot fetch of the PR's changed-files list with patches inline. For
+// very large PRs GitHub paginates with `per_page=100`; we take the first
+// page and document the limit in the UI. (Full paging comes with the
+// "load more files" affordance in P10.)
+
+const PrFilesResponseSchema = z.array(PrFileSchema);
+
+export const prFilesQueryOptions = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: pullsKeys.files(owner, repo, number),
+    staleTime: 30_000,
+    queryFn: async (): Promise<PrFile[]> => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
+        { owner, repo, pull_number: number, per_page: 100 },
+      );
+      return PrFilesResponseSchema.parse(res.data);
+    },
+  });
+
+export function usePrFiles(owner: string, repo: string, number: number) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...prFilesQueryOptions(owner, repo, number),
+    enabled: !!token && !!owner && !!repo && Number.isFinite(number),
   });
 }

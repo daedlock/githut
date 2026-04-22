@@ -1,16 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Container } from "@/app/components/ui/Container";
+import { PrFilesPage } from "@/app/features/pulls/PrFilesPage";
+import { prFilesQueryOptions } from "@/app/features/pulls/hooks";
 
 export const Route = createFileRoute("/$owner/$repo/pulls/$number/files")({
+  loader: ({ context, params }) => {
+    const { owner, repo, number } = params;
+    if (!Number.isFinite(number)) return;
+    void context.queryClient.prefetchQuery(
+      prFilesQueryOptions(owner, repo, number),
+    );
+  },
   component: FilesPage,
 });
 
 function FilesPage() {
-  return (
-    <Container className="py-6">
-      <p className="font-mono text-ui text-muted-foreground">
-        Files changed — wiring in P4.
-      </p>
-    </Container>
-  );
+  const { owner, repo, number } = Route.useParams();
+  return <PrFilesPage owner={owner} repo={repo} number={number} />;
 }
