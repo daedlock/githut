@@ -1,14 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PrFilesPage } from "@/app/features/pulls/PrFilesPage";
-import { prFilesQueryOptions } from "@/app/features/pulls/hooks";
+import {
+  prFilesQueryOptions,
+  prReviewCommentsQueryOptions,
+} from "@/app/features/pulls/hooks";
 
 export const Route = createFileRoute("/$owner/$repo/pulls/$number/files")({
   loader: ({ context, params }) => {
     const { owner, repo, number } = params;
     if (!Number.isFinite(number)) return;
-    void context.queryClient.prefetchQuery(
-      prFilesQueryOptions(owner, repo, number),
-    );
+    const qc = context.queryClient;
+    void qc.prefetchQuery(prFilesQueryOptions(owner, repo, number));
+    void qc.prefetchQuery(prReviewCommentsQueryOptions(owner, repo, number));
   },
   component: FilesPage,
 });

@@ -13,12 +13,14 @@ import {
   IssueCommentOnPrSchema,
   PrFileSchema,
   PullRequestSchema,
+  ReviewCommentSchema,
   ReviewSchema,
   TimelineEventsResponseSchema,
   type IssueCommentOnPr,
   type PrFile,
   type PullRequest,
   type Review,
+  type ReviewComment,
   type TimelineEvent,
 } from "@/app/features/pulls/schemas";
 import { toUiState, isLive as isStateLive } from "@/app/features/pulls/lib/prStatus";
@@ -95,6 +97,8 @@ export const pullsKeys = {
     ["pulls-commits", owner, repo, number] as const,
   checks: (owner: string, repo: string, sha: string) =>
     ["pulls-checks", owner, repo, sha] as const,
+  reviewComments: (owner: string, repo: string, number: number) =>
+    ["pulls-review-comments", owner, repo, number] as const,
 };
 
 // ─── Filters ───────────────────────────────────────────────────────────────
@@ -802,6 +806,76 @@ export function useSetPrDraft(owner: string, repo: string, number: number) {
       });
       queryClient.invalidateQueries({
         queryKey: pullsKeys.timeline(owner, repo, number),
+      });
+    },
+  });
+}
+
+// ─── Inline review comments ────────────────────────────────────────────────
+//
+// The `/pulls/{n}/comments` endpoint returns a flat list of per-line
+// review comments; threads are reconstructed client-side via
+// `in_reply_to_id`. We ship view + reply in P5; brand-new-line comments
+// arrive once the diff view supports picking a line.
+
+const ReviewCommentsResponseSchema = z.array(ReviewCommentSchema);
+
+export const prReviewCommentsQueryOptions = (
+  owner: string,
+  repo: string,
+  number: number,
+) =>
+  queryOptions({
+    queryKey: pullsKeys.reviewComments(owner, repo, number),
+    staleTime: 15_000,
+    queryFn: async (): Promise<ReviewComment[]> => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "GET /repos/{owner}/{repo}/pulls/{pull_number}/comments",
+        { owner, repo, pull_number: number, per_page: 100 },
+      );
+      return ReviewCommentsResponseSchema.parse(res.data);
+    },
+  });
+
+export function usePrReviewComments(owner: string, repo: string, number: number) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...prReviewCommentsQueryOptions(owner, repo, number),
+    enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+  });
+}
+
+export function useReplyToReviewComment(
+  owner: string,
+  repo: string,
+  number: number,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      inReplyToId,
+      body,
+    }: {
+      inReplyToId: number;
+      body: string;
+    }) => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies",
+        {
+          owner,
+          repo,
+          pull_number: number,
+          comment_id: inReplyToId,
+          body,
+        },
+      );
+      return ReviewCommentSchema.parse(res.data);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: pullsKeys.reviewComments(owner, repo, number),
       });
     },
   });

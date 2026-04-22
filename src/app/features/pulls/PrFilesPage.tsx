@@ -7,6 +7,7 @@ import {
 } from "@/app/components/code";
 import { Button } from "@/app/components/ui/button";
 import { Skeleton } from "@/app/components/ui/skeleton";
+import { InlineCommentsSection } from "@/app/features/pulls/components/InlineCommentsSection";
 import { PrReviewDialog } from "@/app/features/pulls/components/PrReviewDialog";
 import { useFullPr, usePrFiles } from "@/app/features/pulls/hooks";
 import type { PrFile } from "@/app/features/pulls/schemas";
@@ -82,6 +83,7 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
           </Button>
         </div>
       )}
+      <InlineCommentsSection owner={owner} repo={repo} number={number} />
       <div className="-mx-4 sm:-mx-6">
         <DiffLayout
           files={diffFiles}
