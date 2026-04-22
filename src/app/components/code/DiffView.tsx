@@ -81,7 +81,7 @@ export function DiffView({
       )}
     >
       <div
-        className={cn("overflow-x-auto text-code font-feature-settings-code")}
+        className={cn("overflow-x-auto text-code font-feature-settings-code @container/diff")}
         // Force the mono token inline — Tailwind's @layer utility for `font-mono`
         // loses to body's unlayered `font-family: var(--font-sans)` rule, so an
         // inline style is the only way to guarantee the code font wins. Same

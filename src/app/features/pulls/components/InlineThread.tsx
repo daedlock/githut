@@ -37,7 +37,7 @@ export function InlineThread({
   }
 
   return (
-    <div className="sticky left-0 mx-4 my-2 max-w-[min(100%,calc(100vw-5rem))] overflow-hidden rounded-md border border-border bg-background">
+    <div className="sticky left-0 mx-4 my-2 max-w-[calc(100cqi-3rem)] overflow-hidden rounded-md border border-border bg-background">
       <ThreadComment comment={root} />
       {replies.map((r) => (
         <ThreadComment key={r.id} comment={r} />
