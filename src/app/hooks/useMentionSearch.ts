@@ -24,9 +24,9 @@ export type MentionItem = MentionUser | MentionIssue;
 // ── GraphQL queries ──────────────────────────────────────────────────────────
 
 const USERS_QUERY = /* GraphQL */ `
-  query MentionableUsers($owner: String!, $repo: String!, $query: String!) {
+  query MentionableUsers($owner: String!, $repo: String!, $q: String!) {
     repository(owner: $owner, name: $repo) {
-      mentionableUsers(first: 7, query: $query) {
+      mentionableUsers(first: 7, query: $q) {
         nodes { login avatarUrl }
       }
     }
@@ -34,8 +34,8 @@ const USERS_QUERY = /* GraphQL */ `
 `;
 
 const ISSUES_QUERY = /* GraphQL */ `
-  query SearchIssues($query: String!) {
-    search(query: $query, type: ISSUE, first: 7) {
+  query SearchIssues($q: String!) {
+    search(query: $q, type: ISSUE, first: 7) {
       nodes {
         __typename
         ... on Issue { number title state }
@@ -91,10 +91,11 @@ export function useMentionSearch(
       const client = getGitHubClient();
 
       if (type === "@") {
-        const res = await client.graphql<unknown>(USERS_QUERY, {
+        let res: unknown;
+        res = await client.graphql<unknown>(USERS_QUERY, {
           owner,
           repo,
-          query,
+          q: query,
         });
         const parsed = UsersResponseSchema.parse(res);
         const nodes = parsed.repository?.mentionableUsers.nodes ?? [];
@@ -114,7 +115,7 @@ export function useMentionSearch(
       const q = isNumeric
         ? `repo:${owner}/${repo} ${query} in:title`
         : `repo:${owner}/${repo} ${query || ""} sort:updated-desc`;
-      const res = await client.graphql<unknown>(ISSUES_QUERY, { query: q });
+      const res = await client.graphql<unknown>(ISSUES_QUERY, { q });
       const parsed = IssuesResponseSchema.parse(res);
 
       return parsed.search.nodes.map(
