@@ -109,12 +109,10 @@ export function useMentionSearch(
         );
       }
 
-      // Issues/PRs: search scoped to the repo.
-      // If query is numeric, bias toward number match; otherwise text match.
-      const isNumeric = /^\d+$/.test(query);
-      const q = isNumeric
-        ? `repo:${owner}/${repo} ${query} in:title`
-        : `repo:${owner}/${repo} ${query || ""} sort:updated-desc`;
+      // Strictly repo-scoped — never falls through to GitHub-wide search.
+      const q = query.trim()
+        ? `repo:${owner}/${repo} ${query.trim()}`
+        : `repo:${owner}/${repo}`;
       const res = await client.graphql<unknown>(ISSUES_QUERY, { q });
       const parsed = IssuesResponseSchema.parse(res);
 

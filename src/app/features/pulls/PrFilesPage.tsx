@@ -1,5 +1,5 @@
 import { AlertCircle, FileDiff as FileDiffIcon, MessageSquarePlus, Send } from "lucide-react";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import {
   DiffLayout,
   type DiffLayoutFile,
@@ -18,7 +18,6 @@ import {
 } from "@/app/features/pulls/hooks";
 import type { PrFile, ReviewComment } from "@/app/features/pulls/schemas";
 import {
-  useActiveComposer,
   usePendingComments,
   useReviewMode,
   useReviewStore,
@@ -54,30 +53,43 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
     [filesQuery.data],
   );
 
-  // Stable factory — returns a fixed DiffReviewHooks per filename.
-  // LineSlot subscribes to its own state independently, so this factory
-  // never needs to change. The "+" handler writes to the zustand store.
+  // Per-file hooks are cached in a ref so DiffLayout/FileDiff/DiffView
+  // receive stable object references across re-renders. Without this,
+  // every render of PrFilesPage creates new {onAddComment, renderLineTrailer}
+  // objects → new props → full diff tree re-render on every state change.
+  const hooksCache = useRef(new Map<string, DiffReviewHooks>());
+  const prevCanReview = useRef(canReview);
+  if (prevCanReview.current !== canReview) {
+    hooksCache.current.clear();
+    prevCanReview.current = canReview;
+  }
+
   const getReviewHooks = useCallback(
     (filename: string): DiffReviewHooks | undefined => {
       if (!canReview) return undefined;
-      return {
-        onAddComment: (args) => {
-          store.openComposer(owner, repo, number, {
-            path: filename,
-            ...args,
-          });
-        },
-        renderLineTrailer: (args) => (
-          <LineSlot
-            owner={owner}
-            repo={repo}
-            number={number}
-            path={filename}
-            side={args.side}
-            line={args.line}
-          />
-        ),
-      };
+      let hooks = hooksCache.current.get(filename);
+      if (!hooks) {
+        hooks = {
+          onAddComment: (args) => {
+            store.openComposer(owner, repo, number, {
+              path: filename,
+              ...args,
+            });
+          },
+          renderLineTrailer: (args) => (
+            <LineSlot
+              owner={owner}
+              repo={repo}
+              number={number}
+              path={filename}
+              side={args.side}
+              line={args.line}
+            />
+          ),
+        };
+        hooksCache.current.set(filename, hooks);
+      }
+      return hooks;
     },
     [canReview, owner, repo, number, store],
   );
@@ -167,48 +179,84 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
 
 // ─── LineSlot ──────────────────────────────────────────────────────────────
 //
-// Each slot subscribes independently to:
-//   • Zustand — active composer + pending comments for this line
-//   • TanStack Query — review comments (via usePrReviewComments cache)
-// Only the slot whose data changed re-renders. The parent diff tree stays
-// frozen → no lag when opening a composer.
+// Gate component: uses primitive-boolean Zustand selectors so Zustand's
+// Object.is equality skips re-renders for 99% of slots (false === false).
+// Only slots whose data actually changed re-render. The full content
+// component (LineSlotContent) mounts lazily — most slots render null.
 
-const LineSlot = memo(function LineSlot({
-  owner,
-  repo,
-  number,
-  path,
-  side,
-  line,
-}: {
+type LineSlotProps = {
   owner: string;
   repo: string;
   number: number;
   path: string;
   side: "LEFT" | "RIGHT";
   line: number;
-}) {
-  const store = useReviewStore();
-  const activeComposer = useActiveComposer(owner, repo, number);
-  const allPending = usePendingComments(owner, repo, number);
-  const reviewCommentsQuery = usePrReviewComments(owner, repo, number);
+};
 
-  const isComposerHere =
-    activeComposer?.path === path &&
-    activeComposer.side === side &&
-    activeComposer.line === line;
+const LineSlot = memo(function LineSlot(props: LineSlotProps) {
+  const { owner, repo, number, path, side, line } = props;
+  const prKey = `${owner}/${repo}/${number}`;
 
-  const pendingHere = useMemo(
-    () => allPending.filter((c) => c.path === path && c.side === side && c.line === line),
-    [allPending, path, side, line],
+  // Primitive selectors — Object.is equality means false===false → no re-render
+  const isComposerHere = useReviewStore(
+    (s) => {
+      const c = s.composerByPr[prKey];
+      return !!c && c.path === path && c.side === side && c.line === line;
+    },
   );
 
+  const hasPending = useReviewStore(
+    (s) => {
+      const list = s.pendingByPr[prKey];
+      return !!list && list.some((c) => c.path === path && c.side === side && c.line === line);
+    },
+  );
+
+  // Thread check — review comments change rarely (only on review submit)
+  const reviewCommentsQuery = usePrReviewComments(owner, repo, number);
+  const hasThreads = useMemo(() => {
+    const comments = reviewCommentsQuery.data;
+    if (!comments?.length) return false;
+    return comments.some((c) => {
+      const cSide = c.side ?? "RIGHT";
+      const cLine = c.line ?? c.original_line ?? 0;
+      return c.path === path && cSide === side && cLine === line && !c.in_reply_to_id;
+    });
+  }, [reviewCommentsQuery.data, path, side, line]);
+
+  if (!isComposerHere && !hasPending && !hasThreads) return null;
+
+  return <LineSlotContent {...props} />;
+});
+
+const LineSlotContent = memo(function LineSlotContent({
+  owner,
+  repo,
+  number,
+  path,
+  side,
+  line,
+}: LineSlotProps) {
+  const store = useReviewStore();
+  const prKey = `${owner}/${repo}/${number}`;
+
+  const isComposerHere = useReviewStore(
+    (s) => {
+      const c = s.composerByPr[prKey];
+      return !!c && c.path === path && c.side === side && c.line === line;
+    },
+  );
+
+  const pendingHere = useReviewStore((s) => {
+    const list = s.pendingByPr[prKey] ?? [];
+    return list.filter((c) => c.path === path && c.side === side && c.line === line);
+  });
+
+  const reviewCommentsQuery = usePrReviewComments(owner, repo, number);
   const threads = useMemo(() => {
     const comments = reviewCommentsQuery.data ?? [];
     return buildThreadsForLine(comments, path, side, line);
   }, [reviewCommentsQuery.data, path, side, line]);
-
-  if (!threads.length && !pendingHere.length && !isComposerHere) return null;
 
   return (
     <>
