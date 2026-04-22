@@ -21,13 +21,18 @@ export type JobPanelProps = {
 
 // ─── JobPanel ──────────────────────────────────────────────────────────────
 //
-// Header = collapsible job summary. Body = per-step disclosure list, each
-// with its own log segment. Logs fetched once per job (GitHub only exposes
-// a per-job logs endpoint) and split client-side by timestamp windows so
-// each step's disclosure shows only its own output. Steps that haven't
-// started yet render without a chevron and without a log slot.
+// Collapsible job header + a per-step disclosure list inside. Each step
+// has its own log segment. Logs are fetched once per job (GitHub only
+// exposes a per-job logs endpoint) and split client-side by timestamp
+// windows so each step disclosure shows only its own output. Steps that
+// haven't started yet render without a chevron and without a log slot.
 
-export function JobPanel({ owner, repo, job, defaultOpen = false }: JobPanelProps) {
+export function JobPanel({
+  owner,
+  repo,
+  job,
+  defaultOpen = false,
+}: JobPanelProps) {
   const [open, setOpen] = useState(defaultOpen);
   const now = useNow();
   const ui = toUiStatus(job.status, job.conclusion);

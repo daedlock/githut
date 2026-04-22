@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, GitBranch, GitCommit } from "lucide-react";
+import { ArrowLeft, ExternalLink, GitBranch, GitCommit } from "lucide-react";
 import { StatusPill } from "@/app/components/ui/StatusPill";
 import { formatDuration } from "@/app/components/ui/Timeline";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
@@ -39,19 +39,37 @@ export function RunHeader({ owner, repo, run }: RunHeaderProps) {
 
   return (
     <section className="flex flex-col gap-2">
-      <Link
-        to="/$owner/$repo/actions"
-        params={{ owner, repo }}
-        className={cn(
-          "inline-flex w-fit items-center gap-1 rounded-sm px-1 py-0.5 -ml-1",
-          "font-sans text-caption text-(--color-fg-muted) outline-none",
-          "hover:text-(--color-fg)",
-          "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
-        )}
-      >
-        <ArrowLeft className="size-3" strokeWidth={2.25} />
-        <span>All runs</span>
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link
+          to="/$owner/$repo/actions"
+          params={{ owner, repo }}
+          className={cn(
+            "inline-flex w-fit items-center gap-1 rounded-sm px-1 py-0.5 -ml-1",
+            "font-sans text-caption text-(--color-fg-muted) outline-none",
+            "hover:text-(--color-fg)",
+            "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
+          )}
+        >
+          <ArrowLeft className="size-3" strokeWidth={2.25} />
+          <span>All runs</span>
+        </Link>
+
+        <a
+          href={run.html_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            "inline-flex items-center gap-1 rounded-sm px-1 py-0.5",
+            "font-sans text-caption text-(--color-fg-muted) outline-none",
+            "hover:text-(--color-fg)",
+            "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
+          )}
+          title="Open this run on github.com"
+        >
+          <span>View on GitHub</span>
+          <ExternalLink className="size-3" strokeWidth={2.25} />
+        </a>
+      </div>
 
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
