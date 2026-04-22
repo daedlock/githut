@@ -727,6 +727,44 @@ export function useTogglePrState(owner: string, repo: string, number: number) {
   });
 }
 
+// ─── Submit a review (top-level approve / request-changes / comment) ──────
+//
+// Posts a fresh review with a body and an event. The inline comments
+// flow (P5) uses the same endpoint with a `comments` array payload.
+
+export type ReviewEvent = "APPROVE" | "REQUEST_CHANGES" | "COMMENT";
+
+export function useSubmitPrReview(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ event, body }: { event: ReviewEvent; body?: string }) => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews",
+        {
+          owner,
+          repo,
+          pull_number: number,
+          event,
+          body: body?.trim() || undefined,
+        },
+      );
+      return ReviewSchema.parse(res.data);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: pullsKeys.reviews(owner, repo, number),
+      });
+      queryClient.invalidateQueries({
+        queryKey: pullsKeys.timeline(owner, repo, number),
+      });
+      queryClient.invalidateQueries({
+        queryKey: pullsKeys.detail(owner, repo, number),
+      });
+    },
+  });
+}
+
 export function useSetPrDraft(owner: string, repo: string, number: number) {
   const queryClient = useQueryClient();
   return useMutation({

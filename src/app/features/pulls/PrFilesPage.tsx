@@ -1,13 +1,16 @@
-import { AlertCircle, FileDiff } from "lucide-react";
-import { useMemo } from "react";
+import { AlertCircle, FileDiff, MessageSquarePlus } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
   DiffLayout,
   type DiffLayoutFile,
   type FileStatus,
 } from "@/app/components/code";
+import { Button } from "@/app/components/ui/button";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { usePrFiles } from "@/app/features/pulls/hooks";
+import { PrReviewDialog } from "@/app/features/pulls/components/PrReviewDialog";
+import { useFullPr, usePrFiles } from "@/app/features/pulls/hooks";
 import type { PrFile } from "@/app/features/pulls/schemas";
+import { useMe } from "@/app/hooks/useMe";
 import { detectLang } from "@/app/lib/detectLang";
 
 // ─── PrFilesPage ───────────────────────────────────────────────────────────
@@ -30,12 +33,21 @@ export type PrFilesPageProps = {
 
 export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
   const filesQuery = usePrFiles(owner, repo, number);
+  const prQuery = useFullPr(owner, repo, number);
+  const meQuery = useMe();
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   const diffFiles = useMemo<DiffLayoutFile[]>(() => {
     const files = filesQuery.data;
     if (!files) return [];
     return files.map(toDiffLayoutFile);
   }, [filesQuery.data]);
+
+  const canReview =
+    !!prQuery.data &&
+    prQuery.data.state === "open" &&
+    !prQuery.data.merged;
+  const isAuthor = prQuery.data?.user?.login === meQuery.data?.login;
 
   if (filesQuery.isPending) return <PrFilesSkeleton />;
   if (filesQuery.isError) {
@@ -61,10 +73,28 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
   // it directly at full width. Escaping the Container on this tab is
   // intentional; it matches the commit diff page.
   return (
-    <div className="-mx-4 sm:-mx-6">
-      <DiffLayout
-        files={diffFiles}
-        initialSidebarOpen={diffFiles.length > 1}
+    <div className="flex flex-col gap-3">
+      {canReview && (
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => setReviewOpen(true)}>
+            <MessageSquarePlus data-icon="inline-start" />
+            Review changes
+          </Button>
+        </div>
+      )}
+      <div className="-mx-4 sm:-mx-6">
+        <DiffLayout
+          files={diffFiles}
+          initialSidebarOpen={diffFiles.length > 1}
+        />
+      </div>
+      <PrReviewDialog
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+        owner={owner}
+        repo={repo}
+        number={number}
+        isAuthor={isAuthor}
       />
     </div>
   );
