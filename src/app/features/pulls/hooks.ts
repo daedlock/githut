@@ -91,6 +91,10 @@ export const pullsKeys = {
     ["pulls-timeline", owner, repo, number] as const,
   files: (owner: string, repo: string, number: number) =>
     ["pulls-files", owner, repo, number] as const,
+  commits: (owner: string, repo: string, number: number) =>
+    ["pulls-commits", owner, repo, number] as const,
+  checks: (owner: string, repo: string, sha: string) =>
+    ["pulls-checks", owner, repo, sha] as const,
 };
 
 // ─── Filters ───────────────────────────────────────────────────────────────
@@ -438,3 +442,188 @@ export function usePrFiles(owner: string, repo: string, number: number) {
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
   });
 }
+
+// ─── PR commits ────────────────────────────────────────────────────────────
+//
+// Commits in the PR (oldest → newest). Each entry has the same shape as
+// the repo-wide commit summary so we reuse `CommitRow` for rendering.
+
+const MaybeGitHubUser = z
+  .object({
+    login: z.string(),
+    avatar_url: z.string(),
+    html_url: z.string().optional(),
+  })
+  .nullable();
+
+const PrCommitSchema = z.object({
+  sha: z.string(),
+  html_url: z.string(),
+  commit: z.object({
+    author: z.object({
+      name: z.string(),
+      email: z.string(),
+      date: z.string(),
+    }),
+    committer: z.object({
+      name: z.string(),
+      email: z.string(),
+      date: z.string(),
+    }),
+    message: z.string(),
+  }),
+  author: MaybeGitHubUser,
+  committer: MaybeGitHubUser,
+  parents: z.array(z.object({ sha: z.string(), html_url: z.string() })),
+});
+export type PrCommit = z.infer<typeof PrCommitSchema>;
+
+const PrCommitsResponseSchema = z.array(PrCommitSchema);
+
+export const prCommitsQueryOptions = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: pullsKeys.commits(owner, repo, number),
+    staleTime: 30_000,
+    queryFn: async (): Promise<PrCommit[]> => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "GET /repos/{owner}/{repo}/pulls/{pull_number}/commits",
+        { owner, repo, pull_number: number, per_page: 100 },
+      );
+      return PrCommitsResponseSchema.parse(res.data);
+    },
+  });
+
+export function usePrCommits(owner: string, repo: string, number: number) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...prCommitsQueryOptions(owner, repo, number),
+    enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+  });
+}
+
+// ─── Checks / statuses (keyed on PR head SHA) ──────────────────────────────
+//
+// Two legacy surfaces exist:
+//   • `/commits/{sha}/check-runs` — modern (GitHub Actions + third-party
+//     Check Runs). This is where most status flows now.
+//   • `/commits/{sha}/status` — legacy "combined status" (Travis-era
+//     contexts). Still used by many providers for the single green/red
+//     rollup.
+// We fetch both and unify at the view layer: a CheckRun carries the
+// granular per-job result; the combined status rolls the remaining
+// providers into one row. Polls while non-terminal so the UI updates as
+// runs complete.
+
+const CheckRunSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  status: z.enum(["queued", "in_progress", "completed", "waiting", "pending"]),
+  conclusion: z
+    .enum([
+      "success",
+      "failure",
+      "neutral",
+      "cancelled",
+      "skipped",
+      "timed_out",
+      "action_required",
+      "stale",
+    ])
+    .nullable(),
+  started_at: z.string().nullable().optional(),
+  completed_at: z.string().nullable().optional(),
+  html_url: z.string().nullable().optional(),
+  details_url: z.string().nullable().optional(),
+  app: z
+    .object({
+      name: z.string(),
+      slug: z.string().optional(),
+      owner: z
+        .object({ login: z.string(), avatar_url: z.string() })
+        .nullable()
+        .optional(),
+    })
+    .nullable()
+    .optional(),
+  output: z
+    .object({
+      title: z.string().nullable().optional(),
+      summary: z.string().nullable().optional(),
+    })
+    .optional(),
+});
+export type CheckRun = z.infer<typeof CheckRunSchema>;
+
+const CheckRunsResponseSchema = z.object({
+  total_count: z.number(),
+  check_runs: z.array(CheckRunSchema),
+});
+
+const CombinedStatusSchema = z.object({
+  state: z.enum(["pending", "success", "failure", "error"]),
+  total_count: z.number(),
+  statuses: z.array(
+    z.object({
+      id: z.number(),
+      state: z.enum(["pending", "success", "failure", "error"]),
+      context: z.string(),
+      description: z.string().nullable(),
+      target_url: z.string().nullable(),
+      avatar_url: z.string().nullable().optional(),
+      created_at: z.string(),
+      updated_at: z.string(),
+    }),
+  ),
+});
+export type CombinedStatus = z.infer<typeof CombinedStatusSchema>;
+
+export type PrChecksData = {
+  checkRuns: CheckRun[];
+  combined: CombinedStatus;
+};
+
+export const prChecksQueryOptions = (owner: string, repo: string, sha: string) =>
+  queryOptions({
+    queryKey: pullsKeys.checks(owner, repo, sha),
+    staleTime: 10_000,
+    queryFn: async (): Promise<PrChecksData> => {
+      const client = getGitHubClient();
+      const [runsRes, statusRes] = await Promise.all([
+        client.request("GET /repos/{owner}/{repo}/commits/{ref}/check-runs", {
+          owner,
+          repo,
+          ref: sha,
+          per_page: 100,
+        }),
+        client.request("GET /repos/{owner}/{repo}/commits/{ref}/status", {
+          owner,
+          repo,
+          ref: sha,
+        }),
+      ]);
+      return {
+        checkRuns: CheckRunsResponseSchema.parse(runsRes.data).check_runs,
+        combined: CombinedStatusSchema.parse(statusRes.data),
+      };
+    },
+  });
+
+export function usePrChecks(owner: string, repo: string, sha: string | undefined) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...prChecksQueryOptions(owner, repo, sha ?? ""),
+    enabled: !!token && !!owner && !!repo && !!sha,
+    refetchInterval: (q) => {
+      const data = q.state.data;
+      if (!data) return false;
+      const anyLive =
+        data.checkRuns.some(
+          (r) => r.status === "queued" || r.status === "in_progress" || r.status === "pending",
+        ) || data.combined.state === "pending";
+      return anyLive ? 10_000 : false;
+    },
+    refetchIntervalInBackground: false,
+  });
+}
+

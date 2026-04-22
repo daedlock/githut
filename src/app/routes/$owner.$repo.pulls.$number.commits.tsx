@@ -1,16 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Container } from "@/app/components/ui/Container";
+import { PrCommitsPage } from "@/app/features/pulls/PrCommitsPage";
+import { prCommitsQueryOptions } from "@/app/features/pulls/hooks";
 
 export const Route = createFileRoute("/$owner/$repo/pulls/$number/commits")({
+  loader: ({ context, params }) => {
+    const { owner, repo, number } = params;
+    if (!Number.isFinite(number)) return;
+    void context.queryClient.prefetchQuery(
+      prCommitsQueryOptions(owner, repo, number),
+    );
+  },
   component: CommitsPage,
 });
 
 function CommitsPage() {
-  return (
-    <Container className="py-6">
-      <p className="font-mono text-ui text-muted-foreground">
-        Commits — wiring in P8.
-      </p>
-    </Container>
-  );
+  const { owner, repo, number } = Route.useParams();
+  return <PrCommitsPage owner={owner} repo={repo} number={number} />;
 }
