@@ -251,7 +251,7 @@ function PendingCard({
   onRemove: () => void;
 }) {
   return (
-    <div className="mx-4 my-2 overflow-hidden rounded-md border border-dashed border-primary/40 bg-[var(--color-bg-sunken)] px-3 py-2">
+    <div className="sticky left-0 mx-4 my-2 max-w-[min(100%,calc(100vw-5rem))] overflow-hidden rounded-md border border-dashed border-primary/40 bg-[var(--color-bg-sunken)] px-3 py-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <span className="text-micro font-medium text-primary">Pending review comment</span>

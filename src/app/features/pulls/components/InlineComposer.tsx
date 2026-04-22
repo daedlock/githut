@@ -18,7 +18,7 @@ export function InlineComposer({
   const [body, setBody] = useState("");
 
   return (
-    <div className="mx-4 my-2 overflow-hidden rounded-md border border-primary/40 bg-background p-2">
+    <div className="sticky left-0 mx-4 my-2 max-w-[min(100%,calc(100vw-5rem))] rounded-md border border-primary/40 bg-background p-2">
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
