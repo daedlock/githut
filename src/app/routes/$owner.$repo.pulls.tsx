@@ -1,17 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { GitPullRequest } from "lucide-react";
-import { ComingSoon } from "@/app/components/ComingSoon";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
+
+// The /pulls tree has its own layout-child structure:
+//   /pulls                  → list
+//   /pulls/$number          → detail (conversation by default)
+//   /pulls/$number/files    → files changed
+//   /pulls/$number/commits  → commits in PR
+//   /pulls/$number/checks   → checks
+// This parent route is mostly a pass-through; the list and detail layouts
+// do their own chrome.
 
 export const Route = createFileRoute("/$owner/$repo/pulls")({
-  component: PullsPage,
+  component: PullsLayout,
 });
 
-function PullsPage() {
-  return (
-    <ComingSoon
-      icon={GitPullRequest}
-      title="Pull requests"
-      description="List, detail, inline review comments, and merge flow. Lands in M4."
-    />
-  );
+function PullsLayout() {
+  return <Outlet />;
 }

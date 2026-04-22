@@ -1,408 +1,367 @@
-# GitHut Design Language
-
-> Inspired by Zed and Linear. A professional developer tool — dense, precise, fast.
-> Every pixel must justify its existence.
-
----
-
-## Philosophy
-
-GitHut is used by developers all day. The UI is **infrastructure**, not decoration. Users should feel the app is *fast* and *respects their attention*, not that someone spent time making it pretty.
-
-**Three tests before writing any className:**
-1. Does this increase visual weight without adding information? Remove it.
-2. Is there a smaller / tighter way to achieve the same goal? Use it.
-3. Does this use a non-semantic value (raw hex, raw px, `text-sm`)? Replace it with a token.
-
-**The Zed principle:** Chrome should be nearly invisible. The header, sidebar, and toolbars exist to orient and navigate — they should never compete with the content they frame.
-
-**The Linear principle:** Information density is a feature. Fitting more meaningful data in the same space makes the app feel powerful. Whitespace is not virtue; appropriate whitespace is.
-
----
-
-## Spatial System
-
-### Base unit: 4px
-
-All spacing uses the 4px grid. Tailwind's default scale maps directly: `gap-1` = 4px, `gap-2` = 8px, `gap-3` = 12px, `gap-4` = 16px.
-
-| Use | Class | Value |
-|-----|-------|-------|
-| Icon ↔ label (tightly coupled) | `gap-1.5` | 6px |
-| Items within a group | `gap-2` | 8px |
-| Groups within a section | `gap-3` | 12px |
-| Sections within a panel | `gap-4` | 16px |
-| Content areas (prose, issue body) | `gap-5` / `gap-6` | 20–24px |
-
-`gap-5` and above belong **only** in content areas (comment threads, README prose, forms). Never in chrome (toolbars, sidebars, tab bars, list rows).
-
-### Chrome height budget — never exceed these
-
-| Surface | Height | Class |
-|---------|--------|-------|
-| Main top bar (entire row incl. tabs when inline) | 36px | `h-9` |
-| Tab strip (standalone, below top bar) | 32px | `h-8` |
-| Tab pill (within either strip) | 28px | `h-7` |
-| Sidebar / nav row | 28px | `h-7` |
-| Secondary toolbar / sub-bar | 32px | `h-8` |
-| List row (file list, issue list, PR list) | 32px | `h-8` or `py-1.5` with 14px text |
-| Default button / input | 28px | `h-7` |
-| Small button / input | 24px | `h-6` |
-| Icon button | 28px | `size-7` |
-| Icon button (small) | 24px | `size-6` |
-
-**The main top bar rule:** Use `h-9 flex items-center` on the container. Do **not** use `py-*` padding — set height explicitly. `py-2.5` on a 28px avatar produces a 68px header. That's a mobile nav, not a developer tool.
-
-### Horizontal padding
-
-| Context | Class | Value |
-|---------|-------|-------|
-| Main content container (full-width) | `px-4` or `<Container>` | 16px |
-| Panel / sidebar row | `px-3` | 12px |
-| Dense row (file tree, list) | `px-2` | 8px |
-| Button default | `px-2.5` | 10px |
-| Button small | `px-2` | 8px |
-| Dropdown item | `px-1.5` | 6px |
-
----
-
-## Typography
-
-**Never use Tailwind's default text scale** (`text-xs`, `text-sm`, `text-base`, `text-lg`, etc.). We have a semantic scale — use it. Raw pixel values in `className` are a bug.
-
-### The scale
-
-| Token | Size | Line-height | Use |
-|-------|------|-------------|-----|
-| `text-micro` | 10px | 1.2 | Badges, eyebrow labels (always `uppercase tracking-widest`) |
-| `text-caption` | 11px | 1.4 | Timestamps, keyboard hints, secondary metadata |
-| `text-ui` | 12px | 1.35 | Button labels, tab labels, nav items, filter chips |
-| `text-code` | 13px | 20px fixed | File names, paths, hashes, code — anything monospaced |
-| `text-body` | 14px | 1.55 | Default prose, comments, form fields, primary descriptions |
-| `text-title` | 18px | 1.35 | Card / section headings |
-| `text-heading` | 24px | 1.25 | Page-level headings (issue title, repo name) |
-| `text-display` | 32px | 1.15 | Login card, empty-state hero — rarest size |
-
-### Font family assignment
-
-| Font | Token | When to use |
-|------|-------|-------------|
-| Berkeley Mono SemiCondensed | `font-mono` | Anything that **names a thing**: file names, paths, usernames, branch names, commit hashes, keyboard shortcuts, counts, line numbers, code |
-| IBM Plex Sans | `font-sans` | Anything that **describes a thing**: nav labels, button text, descriptions, prose, UI copy |
-
-**The rule in one line:** if it's an identifier or a symbol, it's mono. If it's a sentence or a label, it's sans.
-
-Do not mix mono and sans on the same label. Pick one.
-
-### Weight
-
-| Weight | Class | Use |
-|--------|-------|-----|
-| 400 | `font-normal` | Body text, descriptions, secondary labels |
-| 500 | `font-medium` | Primary labels, active tab text, button text, nav items |
-| 600 | `font-semibold` | Section headings, page titles — sparingly |
-
-`font-bold` (700) is **never used**. We do not have it in the font stacks and the visual weight is wrong for our aesthetic.
-
----
-
-## Color
-
-### Surface hierarchy
-
-```
---color-bg          ← page / primary panel background
---color-bg-subtle   ← card surfaces, sidebar background, secondary panels  
---color-bg-sunken   ← hover tint, selected row, inset input, depressed surface
-```
-
-These three steps are the entire surface vocabulary. There is no fourth level.
-
-### Hover surfaces — two options, know which to use
-
-We have two ember-tinted hover tokens defined in `base.css`:
-
-| Token | Value | Use |
-|-------|-------|-----|
-| `bg-(--color-bg-sunken)` | Stone sunken (neutral) | Default hover for rows, list items, dropdown items, nav |
-| `bg-(--palette-hover)` | 6% ember tint over bg | Hover on **primary navigation** items (the active section's siblings) |
-| `bg-(--palette-selected)` | 14% ember tint over bg | **Persistent selected state** — the currently active nav item |
-
-The `--palette-*` tokens are contextually meaningful: they signal "this row belongs to the current ember-accented selection". Use `--color-bg-sunken` for neutral hover (most cases), and `--palette-*` only in primary navigation where the ember selection context is established.
-
-### The ember accent (`--color-accent`, `text-primary`, `bg-primary`)
-
-Ember is **earned**. It fires attention. Every use must answer: *why does this element deserve brand attention?*
-
-**Correct uses:**
-- Active nav item: left accent border `border-l-2 border-l-(--color-accent)`
-- Active tab indicator: `border-t-2 border-t-(--color-accent)` or bottom equivalent
-- Primary action buttons (`bg-primary`)
-- Links and interactive inline text (`text-primary`)
-- Focus rings (`ring-(--color-focus)`)
-- Brand moment in wordmark (`_` cursor)
-- Notification badges on active items
-- Count/stat values in profile headers
-
-**Incorrect uses — never do these:**
-- ✗ Fill color for a hovered list row
-- ✗ Background of a focused dropdown item
-- ✗ Decorative border just to add color to a card
-- ✗ Icon color that isn't interactive
-- ✗ Any use where you could swap in `--color-bg-sunken` and lose nothing
-
-### Text hierarchy
-
-Always use semantic text color tokens. Do not use opacity hacks like `text-foreground/60`.
-
-| Token | Use |
-|-------|-----|
-| `text-foreground` | Primary content: headings, active labels, selected items |
-| `text-muted-foreground` | Secondary content: metadata, inactive tabs, descriptions |
-| `text-(--color-fg-faint)` | Decorative only: separators in mono strings, disabled text |
-| `text-primary` | Interactive: links, ember accent text |
-| `text-destructive` | Danger actions, error states |
-
-### Border treatment
-
-All borders are hairlines. There are no decorative thick borders.
-
-| Use | Class |
-|-----|-------|
-| Section divider, panel edge | `border-border` (1px, stone-200/stone-800) |
-| Form control, focused input | `border-border-strong` |
-| Horizontal rule / separator | `h-px bg-border` (not `<hr>`, not `border-b`) |
-| Vertical separator | `w-px bg-border self-stretch` |
-
-**No `border-2` or thicker in chrome.** The only thick borders are semantic: the 2px left/top accent border on active nav/tab items.
-
-### Shadows
-
-| Context | Rule |
-|---------|------|
-| Headers, sidebars, toolbars, tab bars | No shadow — flat, bordered |
-| Inline cards in content area | No shadow — use border + bg-subtle |
-| Overlays: dropdowns, popovers, tooltips | `shadow-md`  |
-| Modals / dialogs | `shadow-xl` |
-
----
-
-## Interactive State Machine
-
-Every clickable element follows this state machine:
-
-```
-rest → hover → pressed
-  ↘              ↗
-    selected (persistent)
-
-+ focus-visible (keyboard only, overlays all above)
-```
-
-| State | Treatment |
-|-------|-----------|
-| Rest | No background. `text-muted-foreground` for secondary, `text-foreground` for primary |
-| Hover | `bg-(--color-bg-sunken)` · `text-foreground` · no transition (tool UIs are instant) |
-| Pressed | `bg-(--color-bg-sunken)` with `brightness-95` or `opacity-90` |
-| Selected (nav/tab) | `bg-(--palette-selected)` · `text-foreground` · ember accent border |
-| Selected (list row) | `bg-(--color-bg-sunken)` · `border-l-2 border-l-(--color-accent)` |
-| Focus-visible | `ring-1 ring-(--color-focus) outline-none`. Never show on mouse click — use `:focus-visible` not `:focus` |
-| Disabled | `opacity-50 pointer-events-none` |
-| Destructive hover | `bg-destructive/10 text-destructive` |
-
-**No transition durations on hover in dense lists.** `transition-colors` is fine for isolated buttons. In file lists, issue lists, and any row with 10+ items, remove transition-colors — instant response feels faster.
-
----
-
-## Component Patterns
-
-### Top Bar
-
-```
-┌─────────────────────────────────────────────────────┐  h-9 (36px)
-│ GitHut_  │  tab  tab  [active tab]  tab  │  ⌘K  ◉  │
-└─────────────────────────────────────────────────────┘
-  wordmark   tab strip (flex-1)              actions
-```
-
-```tsx
-// Correct
-<header className="h-9 border-b border-border">
-  <div className="flex h-full items-center gap-2 px-4">
-    ...
-  </div>
-</header>
-
-// Wrong — py-* on a chrome bar
-<header>
-  <div className="flex items-center gap-3 py-2.5 px-4"> {/* ← 68px header */}
-```
-
-- Wordmark: `font-mono text-body font-medium` · ember `_` as the only brand accent
-- Tab strip: `flex-1 min-w-0 flex items-center overflow-x-auto`
-- Actions cluster: `flex items-center gap-2`
-- Bottom border: only when no tabs are present (tabs anchor visually without a border)
-
-### Tab Pills
-
-```
-┌──────────────────┐
-│ ⊞  label  sub ×  │  h-7 (28px) · active or inactive
-└──────────────────┘
-```
-
-```tsx
-// Active tab
-"h-7 flex items-center px-2.5 gap-1.5 font-mono text-caption font-medium"
-"text-foreground bg-(--color-bg-subtle) border-t-2 border-t-(--color-accent)"
-
-// Inactive tab  
-"h-7 flex items-center px-2.5 gap-1.5 font-mono text-caption font-medium"
-"text-muted-foreground hover:text-foreground hover:bg-(--color-bg-sunken)"
-```
-
-- Icon: `size-3.5` (`14px`)
-- Label: `text-caption font-medium font-mono`
-- Sublabel: `text-micro text-muted-foreground`
-- Close `×`: `size-4`, hidden at rest (`opacity-0 group-hover:opacity-100`), `hover:bg-(--color-bg-sunken)`
-- Tab separator: `w-px bg-border self-stretch my-1.5` — hidden adjacent to active tab
-
-### Navigation / Sidebar Rows
-
-```
-│ ▌  ⊞  Label           │  active: ember left border
-│    ⊞  Label           │  inactive: no bg
-│    ⊞  Label           │  hover: bg-sunken
-```
-
-```tsx
-// Active
-"h-7 flex items-center gap-2 px-3 border-l-2 border-l-(--color-accent)"
-"pl-[10px]"  // compensate 2px border so text stays aligned
-"bg-(--palette-selected) text-foreground font-medium text-ui"
-
-// Inactive
-"h-7 flex items-center gap-2 px-3 border-l-2 border-l-transparent"
-"text-muted-foreground hover:bg-(--color-bg-sunken) hover:text-foreground text-ui"
-```
-
-Icons: `size-4` (`16px`) · `text-muted-foreground` → `text-foreground` on hover/active
-
-### List Rows (issues, files, PRs, commits)
-
-```
-│  ⊞  Primary label            secondary meta  timestamp  │  h-8 (32px)
-│  ⊞  Primary label            secondary meta  timestamp  │
-```
-
-```tsx
-"flex h-8 items-center gap-3 px-3"
-"hover:bg-(--color-bg-sunken)"
-// No transition-colors for lists
-```
-
-- Primary label: `text-body font-medium text-foreground`
-- Secondary text: `text-caption text-muted-foreground`
-- Timestamps: `text-caption font-mono text-muted-foreground`
-- Hashes / IDs: `text-caption font-mono text-muted-foreground`
-- Left icon: `size-4 shrink-0 text-muted-foreground`
-
-Selected row in a navigable list adds: `bg-(--color-bg-sunken) border-l-2 border-l-(--color-accent) pl-[10px]`
+# Design System Inspired by Linear
+
+## 1. Visual Theme & Atmosphere
+
+Linear's website is a masterclass in dark-mode-first product design — a near-black canvas (`#08090a`) where content emerges from darkness like starlight. The overall impression is one of extreme precision engineering: every element exists in a carefully calibrated hierarchy of luminance, from barely-visible borders (`rgba(255,255,255,0.05)`) to soft, luminous text (`#f7f8f8`). This is not a dark theme applied to a light design — it is darkness as the native medium, where information density is managed through subtle gradations of white opacity rather than color variation.
+
+The typography system is built entirely on Inter Variable with OpenType features `"cv01"` and `"ss03"` enabled globally, giving the typeface a cleaner, more geometric character. Inter is used at a remarkable range of weights — from 300 (light body) through 510 (medium, Linear's signature weight) to 590 (semibold emphasis). The 510 weight is particularly distinctive: it sits between regular and medium, creating a subtle emphasis that doesn't shout. At display sizes (72px, 64px, 48px), Inter uses aggressive negative letter-spacing (-1.584px to -1.056px), creating compressed, authoritative headlines that feel engineered rather than designed. Berkeley Mono serves as the monospace companion for code and technical labels, with fallbacks to ui-monospace, SF Mono, and Menlo.
+
+The color system is almost entirely achromatic — dark backgrounds with white/gray text — punctuated by a single brand accent: Linear's signature indigo-violet (`#5e6ad2` for backgrounds, `#7170ff` for interactive accents). This accent color is used sparingly and intentionally, appearing only on CTAs, active states, and brand elements. The border system uses ultra-thin, semi-transparent white borders (`rgba(255,255,255,0.05)` to `rgba(255,255,255,0.08)`) that create structure without visual noise, like wireframes drawn in moonlight.
+
+**Key Characteristics:**
+- Dark-mode-native: `#08090a` marketing background, `#0f1011` panel background, `#191a1b` elevated surfaces
+- Inter Variable with `"cv01", "ss03"` globally — geometric alternates for a cleaner aesthetic
+- Signature weight 510 (between regular and medium) for most UI text
+- Aggressive negative letter-spacing at display sizes (-1.584px at 72px, -1.056px at 48px)
+- Brand indigo-violet: `#5e6ad2` (bg) / `#7170ff` (accent) / `#828fff` (hover) — the only chromatic color in the system
+- Semi-transparent white borders throughout: `rgba(255,255,255,0.05)` to `rgba(255,255,255,0.08)`
+- Button backgrounds at near-zero opacity: `rgba(255,255,255,0.02)` to `rgba(255,255,255,0.05)`
+- Multi-layered shadows with inset variants for depth on dark surfaces
+- Radix UI primitives as the component foundation (6 detected primitives)
+- Success green (`#27a644`, `#10b981`) used only for status indicators
+
+## 2. Color Palette & Roles
+
+### Background Surfaces
+- **Marketing Black** (`#010102` / `#08090a`): The deepest background — the canvas for hero sections and marketing pages. Near-pure black with an imperceptible blue-cool undertone.
+- **Panel Dark** (`#0f1011`): Sidebar and panel backgrounds. One step up from the marketing black.
+- **Level 3 Surface** (`#191a1b`): Elevated surface areas, card backgrounds, dropdowns.
+- **Secondary Surface** (`#28282c`): The lightest dark surface — used for hover states and slightly elevated components.
+
+### Text & Content
+- **Primary Text** (`#f7f8f8`): Near-white with a barely-warm cast. The default text color — not pure white, preventing eye strain on dark backgrounds.
+- **Secondary Text** (`#d0d6e0`): Cool silver-gray for body text, descriptions, and secondary content.
+- **Tertiary Text** (`#8a8f98`): Muted gray for placeholders, metadata, and de-emphasized content.
+- **Quaternary Text** (`#62666d`): The most subdued text — timestamps, disabled states, subtle labels.
+
+### Brand & Accent
+- **Brand Indigo** (`#5e6ad2`): Primary brand color — used for CTA button backgrounds, brand marks, and key interactive surfaces.
+- **Accent Violet** (`#7170ff`): Brighter variant for interactive elements — links, active states, selected items.
+- **Accent Hover** (`#828fff`): Lighter, more saturated variant for hover states on accent elements.
+- **Security Lavender** (`#7a7fad`): Muted indigo used specifically for security-related UI elements.
+
+### Status Colors
+- **Green** (`#27a644`): Primary success/active status. Used for "in progress" indicators.
+- **Emerald** (`#10b981`): Secondary success — pill badges, completion states.
+
+### Border & Divider
+- **Border Primary** (`#23252a`): Solid dark border for prominent separations.
+- **Border Secondary** (`#34343a`): Slightly lighter solid border.
+- **Border Tertiary** (`#3e3e44`): Lightest solid border variant.
+- **Border Subtle** (`rgba(255,255,255,0.05)`): Ultra-subtle semi-transparent border — the default.
+- **Border Standard** (`rgba(255,255,255,0.08)`): Standard semi-transparent border for cards, inputs, code blocks.
+- **Line Tint** (`#141516`): Nearly invisible line for the subtlest divisions.
+- **Line Tertiary** (`#18191a`): Slightly more visible divider line.
+
+### Light Mode Neutrals (for light theme contexts)
+- **Light Background** (`#f7f8f8`): Page background in light mode.
+- **Light Surface** (`#f3f4f5` / `#f5f6f7`): Subtle surface tinting.
+- **Light Border** (`#d0d6e0`): Visible border in light contexts.
+- **Light Border Alt** (`#e6e6e6`): Alternative lighter border.
+- **Pure White** (`#ffffff`): Card surfaces, highlights.
+
+### Overlay
+- **Overlay Primary** (`rgba(0,0,0,0.85)`): Modal/dialog backdrop — extremely dark for focus isolation.
+
+## 3. Typography Rules
+
+### Font Family
+- **Primary**: `Inter Variable`, with fallbacks: `SF Pro Display, -apple-system, system-ui, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Open Sans, Helvetica Neue`
+- **Monospace**: `Berkeley Mono`, with fallbacks: `ui-monospace, SF Mono, Menlo`
+- **OpenType Features**: `"cv01", "ss03"` enabled globally — cv01 provides an alternate lowercase 'a' (single-story), ss03 adjusts specific letterforms for a cleaner geometric appearance.
+
+### Hierarchy
+
+| Role | Font | Size | Weight | Line Height | Letter Spacing | Notes |
+|------|------|------|--------|-------------|----------------|-------|
+| Display XL | Inter Variable | 72px (4.50rem) | 510 | 1.00 (tight) | -1.584px | Hero headlines, maximum impact |
+| Display Large | Inter Variable | 64px (4.00rem) | 510 | 1.00 (tight) | -1.408px | Secondary hero text |
+| Display | Inter Variable | 48px (3.00rem) | 510 | 1.00 (tight) | -1.056px | Section headlines |
+| Heading 1 | Inter Variable | 32px (2.00rem) | 400 | 1.13 (tight) | -0.704px | Major section titles |
+| Heading 2 | Inter Variable | 24px (1.50rem) | 400 | 1.33 | -0.288px | Sub-section headings |
+| Heading 3 | Inter Variable | 20px (1.25rem) | 590 | 1.33 | -0.24px | Feature titles, card headers |
+| Body Large | Inter Variable | 18px (1.13rem) | 400 | 1.60 (relaxed) | -0.165px | Introduction text, feature descriptions |
+| Body Emphasis | Inter Variable | 17px (1.06rem) | 590 | 1.60 (relaxed) | normal | Emphasized body, sub-headings in content |
+| Body | Inter Variable | 16px (1.00rem) | 400 | 1.50 | normal | Standard reading text |
+| Body Medium | Inter Variable | 16px (1.00rem) | 510 | 1.50 | normal | Navigation, labels |
+| Body Semibold | Inter Variable | 16px (1.00rem) | 590 | 1.50 | normal | Strong emphasis |
+| Small | Inter Variable | 15px (0.94rem) | 400 | 1.60 (relaxed) | -0.165px | Secondary body text |
+| Small Medium | Inter Variable | 15px (0.94rem) | 510 | 1.60 (relaxed) | -0.165px | Emphasized small text |
+| Small Semibold | Inter Variable | 15px (0.94rem) | 590 | 1.60 (relaxed) | -0.165px | Strong small text |
+| Small Light | Inter Variable | 15px (0.94rem) | 300 | 1.47 | -0.165px | De-emphasized body |
+| Caption Large | Inter Variable | 14px (0.88rem) | 510–590 | 1.50 | -0.182px | Sub-labels, category headers |
+| Caption | Inter Variable | 13px (0.81rem) | 400–510 | 1.50 | -0.13px | Metadata, timestamps |
+| Label | Inter Variable | 12px (0.75rem) | 400–590 | 1.40 | normal | Button text, small labels |
+| Micro | Inter Variable | 11px (0.69rem) | 510 | 1.40 | normal | Tiny labels |
+| Tiny | Inter Variable | 10px (0.63rem) | 400–510 | 1.50 | -0.15px | Overline text, sometimes uppercase |
+| Link Large | Inter Variable | 16px (1.00rem) | 400 | 1.50 | normal | Standard links |
+| Link Medium | Inter Variable | 15px (0.94rem) | 510 | 2.67 | normal | Spaced navigation links |
+| Link Small | Inter Variable | 14px (0.88rem) | 510 | 1.50 | normal | Compact links |
+| Link Caption | Inter Variable | 13px (0.81rem) | 400–510 | 1.50 | -0.13px | Footer, metadata links |
+| Mono Body | Berkeley Mono | 14px (0.88rem) | 400 | 1.50 | normal | Code blocks |
+| Mono Caption | Berkeley Mono | 13px (0.81rem) | 400 | 1.50 | normal | Code labels |
+| Mono Label | Berkeley Mono | 12px (0.75rem) | 400 | 1.40 | normal | Code metadata, sometimes uppercase |
+
+### Principles
+- **510 is the signature weight**: Linear uses Inter Variable's 510 weight (between regular 400 and medium 500) as its default emphasis weight. This creates a subtly bolded feel without the heaviness of traditional medium or semibold.
+- **Compression at scale**: Display sizes use progressively tighter letter-spacing — -1.584px at 72px, -1.408px at 64px, -1.056px at 48px, -0.704px at 32px. Below 24px, spacing relaxes toward normal.
+- **OpenType as identity**: `"cv01", "ss03"` aren't decorative — they transform Inter into Linear's distinctive typeface, giving it a more geometric, purposeful character.
+- **Three-tier weight system**: 400 (reading), 510 (emphasis/UI), 590 (strong emphasis). The 300 weight appears only in deliberately de-emphasized contexts.
+
+## 4. Component Stylings
 
 ### Buttons
 
-```
-text-ui (12px) · font-medium · h-7 · px-2.5
-text-caption (11px) · font-medium · h-6 · px-2   ← small
-```
+**Ghost Button (Default)**
+- Background: `rgba(255,255,255,0.02)`
+- Text: `#e2e4e7` (near-white)
+- Padding: comfortable
+- Radius: 6px
+- Border: `1px solid rgb(36, 40, 44)`
+- Outline: none
+- Focus shadow: `rgba(0,0,0,0.1) 0px 4px 12px`
+- Use: Standard actions, secondary CTAs
 
-Never use `text-sm` or `text-xs` inside buttons. Our scale is `text-ui` (12px) for standard buttons and `text-caption` (11px) for small ones.
+**Subtle Button**
+- Background: `rgba(255,255,255,0.04)`
+- Text: `#d0d6e0` (silver-gray)
+- Padding: 0px 6px
+- Radius: 6px
+- Use: Toolbar actions, contextual buttons
 
-Icon inside button: `size-4` for standard, `size-3.5` for small. Use `data-icon="inline-start"` per shadcn's button convention.
+**Primary Brand Button (Inferred)**
+- Background: `#5e6ad2` (brand indigo)
+- Text: `#ffffff`
+- Padding: 8px 16px
+- Radius: 6px
+- Hover: `#828fff` shift
+- Use: Primary CTAs ("Start building", "Sign up")
 
-### Badges / Pills
+**Icon Button (Circle)**
+- Background: `rgba(255,255,255,0.03)` or `rgba(255,255,255,0.05)`
+- Text: `#f7f8f8` or `#ffffff`
+- Radius: 50%
+- Border: `1px solid rgba(255,255,255,0.08)`
+- Use: Close, menu toggle, icon-only actions
 
-```tsx
-// Status badge (e.g. "Open", "Draft")
-"text-micro uppercase tracking-widest font-medium px-1.5 py-0.5 rounded-sm"
+**Pill Button**
+- Background: transparent
+- Text: `#d0d6e0`
+- Padding: 0px 10px 0px 5px
+- Radius: 9999px
+- Border: `1px solid rgb(35, 37, 42)`
+- Use: Filter chips, tags, status indicators
 
-// Count (e.g. "42 issues")
-"font-mono text-caption font-medium text-muted-foreground"
+**Small Toolbar Button**
+- Background: `rgba(255,255,255,0.05)`
+- Text: `#62666d` (muted)
+- Radius: 2px
+- Border: `1px solid rgba(255,255,255,0.05)`
+- Shadow: `rgba(0,0,0,0.03) 0px 1.2px 0px 0px`
+- Font: 12px weight 510
+- Use: Toolbar actions, quick-access controls
 
-// Notification dot
-"size-1.5 rounded-full bg-(--color-accent)"  // no text, no border
-```
+### Cards & Containers
+- Background: `rgba(255,255,255,0.02)` to `rgba(255,255,255,0.05)` (never solid — always translucent)
+- Border: `1px solid rgba(255,255,255,0.08)` (standard) or `1px solid rgba(255,255,255,0.05)` (subtle)
+- Radius: 8px (standard), 12px (featured), 22px (large panels)
+- Shadow: `rgba(0,0,0,0.2) 0px 0px 0px 1px` or layered multi-shadow stacks
+- Hover: subtle background opacity increase
 
-### Separator / Divider
+### Inputs & Forms
 
-```tsx
-// Horizontal rule within a panel
-<div className="h-px bg-border my-1 -mx-1.5" />
+**Text Area**
+- Background: `rgba(255,255,255,0.02)`
+- Text: `#d0d6e0`
+- Border: `1px solid rgba(255,255,255,0.08)`
+- Padding: 12px 14px
+- Radius: 6px
 
-// Dropdown / popover separator — use DropdownMenuSeparator
+**Search Input**
+- Background: transparent
+- Text: `#f7f8f8`
+- Padding: 1px 32px (icon-aware)
 
-// Vertical separator between button groups
-<div className="w-px bg-border self-stretch my-1" />
-```
+**Button-style Input**
+- Text: `#8a8f98`
+- Padding: 1px 6px
+- Radius: 5px
+- Focus shadow: multi-layer stack
 
-Do not use `<hr>`. Do not use `border-b` on a container just to draw a line — use the `h-px` element.
+### Badges & Pills
 
----
+**Success Pill**
+- Background: `#10b981`
+- Text: `#f7f8f8`
+- Radius: 50% (circular)
+- Font: 10px weight 510
+- Use: Status dots, completion indicators
 
-## Anti-Patterns — Never Do These
+**Neutral Pill**
+- Background: transparent
+- Text: `#d0d6e0`
+- Padding: 0px 10px 0px 5px
+- Radius: 9999px
+- Border: `1px solid rgb(35, 37, 42)`
+- Font: 12px weight 510
+- Use: Tags, filter chips, category labels
 
-### Spacing / Layout
-- **`py-2.5` or more on any chrome bar** — produces 68px+ headers. Set height explicitly with `h-9`, `h-8`, `h-7`.
-- **`gap-4` or more between icon + label** — 16px between a 14px icon and 12px label. Use `gap-1.5` (6px).
-- **`p-4` or `p-6` on a list row** — rows are `h-8 py-0` or `py-1.5` max.
-- **`space-y-*` or `space-x-*`** — always `gap-*` with `flex`.
+**Subtle Badge**
+- Background: `rgba(255,255,255,0.05)`
+- Text: `#f7f8f8`
+- Padding: 0px 8px 0px 2px
+- Radius: 2px
+- Border: `1px solid rgba(255,255,255,0.05)`
+- Font: 10px weight 510
+- Use: Inline labels, version tags
 
-### Typography
-- **`text-sm`, `text-xs`, `text-base`, `text-lg`** — use our semantic scale.
-- **Raw pixel values in className**: `text-[11px]`, `text-[13px]` — use `text-caption`, `text-code`.
-- **`font-bold` (700 weight)** — not in our font stacks; use `font-semibold` max.
-- **Mixing mono + sans on a single label** — pick one.
-- **`uppercase` without `tracking-widest`** — always pair them on micro labels.
+### Navigation
+- Dark sticky header on near-black background
+- Linear logomark left-aligned (SVG icon)
+- Links: Inter Variable 13–14px weight 510, `#d0d6e0` text
+- Active/hover: text lightens to `#f7f8f8`
+- CTA: Brand indigo button or ghost button
+- Mobile: hamburger collapse
+- Search: command palette trigger (`/` or `Cmd+K`)
 
-### Color
-- **Ember as hover fill** — `hover:bg-primary`, `hover:bg-(--color-accent)` on rows or nav items.
-- **`bg-accent` from shadcn's default for hover** — the bridge is fragile across themes; use `bg-(--color-bg-sunken)` directly.
-- **Raw hex in `className`** — `bg-[#ea580c]`, `text-[#57534e]`. Always a token.
-- **`text-foreground/60` opacity hack** — use `text-muted-foreground` instead.
-- **`--color-accent` directly in component code** — use `--color-bg-sunken` for hover, `--color-focus` for rings, `text-primary` for links.
+### Image Treatment
+- Product screenshots on dark backgrounds with subtle border (`rgba(255,255,255,0.08)`)
+- Top-rounded images: `12px 12px 0px 0px` radius
+- Dashboard/issue previews dominate feature sections
+- Subtle shadow beneath screenshots: `rgba(0,0,0,0.4) 0px 2px 4px`
 
-### Visual Treatment
-- **`rounded-lg` on list rows, nav items, or tab pills** — use `rounded-sm` (3px) or `rounded-md` (4px). Large radius reads as "mobile app".
-- **`shadow-*` on chrome** — no box-shadow on headers, sidebars, toolbars, or tab bars. Shadows belong on overlays only.
-- **Gradients anywhere in chrome** — flat surfaces, bordered. Gradients only in content (charts, stat cards).
-- **Transition delays on dense lists** — `transition-colors duration-200` on a 50-item file list creates lag. Omit or use `duration-75` max.
-- **Chevron disclosure on every section** — use only when the expand is genuinely non-obvious.
+## 5. Layout Principles
 
-### Ember misuse
-- **Filled ember background on hover** — a hovered nav item is sunken surface + foreground text, NOT an ember rectangle.
-- **Ember on decorative icons** — icon colors are `text-muted-foreground` by default; ember is for interactive icons that ARE the primary action.
-- **`bg-primary` on anything other than a call-to-action button** — it's the loudest thing on the screen; use it once per view at most.
+### Spacing System
+- Base unit: 8px
+- Scale: 1px, 4px, 7px, 8px, 11px, 12px, 16px, 19px, 20px, 22px, 24px, 28px, 32px, 35px
+- The 7px and 11px values suggest micro-adjustments for optical alignment
+- Primary rhythm: 8px, 16px, 24px, 32px (standard 8px grid)
 
----
+### Grid & Container
+- Max content width: approximately 1200px
+- Hero: centered single-column with generous vertical padding
+- Feature sections: 2–3 column grids for feature cards
+- Full-width dark sections with internal max-width constraints
+- Changelog: single-column timeline layout
 
-## Density Reference
+### Whitespace Philosophy
+- **Darkness as space**: On Linear's dark canvas, empty space isn't white — it's absence. The near-black background IS the whitespace, and content emerges from it.
+- **Compressed headlines, expanded surroundings**: Display text at 72px with -1.584px tracking is dense and compressed, but sits within vast dark padding. The contrast between typographic density and spatial generosity creates tension.
+- **Section isolation**: Each feature section is separated by generous vertical padding (80px+) with no visible dividers — the dark background provides natural separation.
 
-These are the exact values used in production. When in doubt, match these.
+### Border Radius Scale
+- Micro (2px): Inline badges, toolbar buttons, subtle tags
+- Standard (4px): Small containers, list items
+- Comfortable (6px): Buttons, inputs, functional elements
+- Card (8px): Cards, dropdowns, popovers
+- Panel (12px): Panels, featured cards, section containers
+- Large (22px): Large panel elements
+- Full Pill (9999px): Chips, filter pills, status tags
+- Circle (50%): Icon buttons, avatars, status dots
 
-| Element | Height | Font | Size | Weight | Color |
-|---------|--------|------|------|--------|-------|
-| Top bar | `h-9` | mono | `text-body` | medium | foreground |
-| Tab pill active | `h-7` | mono | `text-caption` | medium | foreground |
-| Tab pill inactive | `h-7` | mono | `text-caption` | medium | muted |
-| Sidebar nav row | `h-7` | sans | `text-ui` | medium | muted→fg |
-| List row primary | `h-8` | sans | `text-body` | medium | foreground |
-| List row secondary | `h-8` | mono | `text-caption` | normal | muted |
-| Dropdown item | auto | sans | `text-body` (14px via shadcn) | normal | foreground |
-| Button default | `h-7` | sans | `text-ui` | medium | — |
-| Button small | `h-6` | sans | `text-caption` | medium | — |
-| Breadcrumb | — | mono | `text-body` | normal | muted+fg |
-| Badge / pill | — | sans | `text-micro` | medium | — |
-| Timestamp / hash | — | mono | `text-caption` | normal | muted |
-| Icon (nav/header) | — | — | `size-3.5` | — | muted |
-| Icon (list row) | — | — | `size-4` | — | muted |
-| Icon (button) | — | — | `size-4` | — | inherits |
+## 6. Depth & Elevation
+
+| Level | Treatment | Use |
+|-------|-----------|-----|
+| Flat (Level 0) | No shadow, `#010102` bg | Page background, deepest canvas |
+| Subtle (Level 1) | `rgba(0,0,0,0.03) 0px 1.2px 0px` | Toolbar buttons, micro-elevation |
+| Surface (Level 2) | `rgba(255,255,255,0.05)` bg + `1px solid rgba(255,255,255,0.08)` border | Cards, input fields, containers |
+| Inset (Level 2b) | `rgba(0,0,0,0.2) 0px 0px 12px 0px inset` | Recessed panels, inner shadows |
+| Ring (Level 3) | `rgba(0,0,0,0.2) 0px 0px 0px 1px` | Border-as-shadow technique |
+| Elevated (Level 4) | `rgba(0,0,0,0.4) 0px 2px 4px` | Floating elements, dropdowns |
+| Dialog (Level 5) | Multi-layer stack: `rgba(0,0,0,0) 0px 8px 2px, rgba(0,0,0,0.01) 0px 5px 2px, rgba(0,0,0,0.04) 0px 3px 2px, rgba(0,0,0,0.07) 0px 1px 1px, rgba(0,0,0,0.08) 0px 0px 1px` | Popovers, command palette, modals |
+| Focus | `rgba(0,0,0,0.1) 0px 4px 12px` + additional layers | Keyboard focus on interactive elements |
+
+**Shadow Philosophy**: On dark surfaces, traditional shadows (dark on dark) are nearly invisible. Linear solves this by using semi-transparent white borders as the primary depth indicator. Elevation isn't communicated through shadow darkness but through background luminance steps — each level slightly increases the white opacity of the surface background (`0.02` → `0.04` → `0.05`), creating a subtle stacking effect. The inset shadow technique (`rgba(0,0,0,0.2) 0px 0px 12px 0px inset`) creates a unique "sunken" effect for recessed panels, adding dimensional depth that traditional dark themes lack.
+
+## 7. Do's and Don'ts
+
+### Do
+- Use Inter Variable with `"cv01", "ss03"` on ALL text — these features are fundamental to Linear's typeface identity
+- Use weight 510 as your default emphasis weight — it's Linear's signature between-weight
+- Apply aggressive negative letter-spacing at display sizes (-1.584px at 72px, -1.056px at 48px)
+- Build on near-black backgrounds: `#08090a` for marketing, `#0f1011` for panels, `#191a1b` for elevated surfaces
+- Use semi-transparent white borders (`rgba(255,255,255,0.05)` to `rgba(255,255,255,0.08)`) instead of solid dark borders
+- Keep button backgrounds nearly transparent: `rgba(255,255,255,0.02)` to `rgba(255,255,255,0.05)`
+- Reserve brand indigo (`#5e6ad2` / `#7170ff`) for primary CTAs and interactive accents only
+- Use `#f7f8f8` for primary text — not pure `#ffffff`, which would be too harsh
+- Apply the luminance stacking model: deeper = darker bg, elevated = slightly lighter bg
+
+### Don't
+- Don't use pure white (`#ffffff`) as primary text — `#f7f8f8` prevents eye strain
+- Don't use solid colored backgrounds for buttons — transparency is the system (rgba white at 0.02–0.05)
+- Don't apply the brand indigo decoratively — it's reserved for interactive/CTA elements only
+- Don't use positive letter-spacing on display text — Inter at large sizes always runs negative
+- Don't use visible/opaque borders on dark backgrounds — borders should be whisper-thin semi-transparent white
+- Don't skip the OpenType features (`"cv01", "ss03"`) — without them, it's generic Inter, not Linear's Inter
+- Don't use weight 700 (bold) — Linear's maximum weight is 590, with 510 as the workhorse
+- Don't introduce warm colors into the UI chrome — the palette is cool gray with blue-violet accent only
+- Don't use drop shadows for elevation on dark surfaces — use background luminance stepping instead
+
+## 8. Responsive Behavior
+
+### Breakpoints
+| Name | Width | Key Changes |
+|------|-------|-------------|
+| Mobile Small | <600px | Single column, compact padding |
+| Mobile | 600–640px | Standard mobile layout |
+| Tablet | 640–768px | Two-column grids begin |
+| Desktop Small | 768–1024px | Full card grids, expanded padding |
+| Desktop | 1024–1280px | Standard desktop, full navigation |
+| Large Desktop | >1280px | Full layout, generous margins |
+
+### Touch Targets
+- Buttons use comfortable padding with 6px radius minimum
+- Navigation links at 13–14px with adequate spacing
+- Pill tags have 10px horizontal padding for touch accessibility
+- Icon buttons at 50% radius ensure circular, easy-to-tap targets
+- Search trigger is prominently placed with generous hit area
+
+### Collapsing Strategy
+- Hero: 72px → 48px → 32px display text, tracking adjusts proportionally
+- Navigation: horizontal links + CTAs → hamburger menu at 768px
+- Feature cards: 3-column → 2-column → single column stacked
+- Product screenshots: maintain aspect ratio, may reduce padding
+- Changelog: timeline maintains single-column through all sizes
+- Footer: multi-column → stacked single column
+- Section spacing: 80px+ → 48px on mobile
+
+### Image Behavior
+- Dashboard screenshots maintain border treatment at all sizes
+- Hero visuals simplify on mobile (fewer floating UI elements)
+- Product screenshots use responsive sizing with consistent radius
+- Dark background ensures screenshots blend naturally at any viewport
+
+## 9. Agent Prompt Guide
+
+### Quick Color Reference
+- Primary CTA: Brand Indigo (`#5e6ad2`)
+- Page Background: Marketing Black (`#08090a`)
+- Panel Background: Panel Dark (`#0f1011`)
+- Surface: Level 3 (`#191a1b`)
+- Heading text: Primary White (`#f7f8f8`)
+- Body text: Silver Gray (`#d0d6e0`)
+- Muted text: Tertiary Gray (`#8a8f98`)
+- Subtle text: Quaternary Gray (`#62666d`)
+- Accent: Violet (`#7170ff`)
+- Accent Hover: Light Violet (`#828fff`)
+- Border (default): `rgba(255,255,255,0.08)`
+- Border (subtle): `rgba(255,255,255,0.05)`
+- Focus ring: Multi-layer shadow stack
+
+### Example Component Prompts
+- "Create a hero section on `#08090a` background. Headline at 48px Inter Variable weight 510, line-height 1.00, letter-spacing -1.056px, color `#f7f8f8`, font-feature-settings `'cv01', 'ss03'`. Subtitle at 18px weight 400, line-height 1.60, color `#8a8f98`. Brand CTA button (`#5e6ad2`, 6px radius, 8px 16px padding) and ghost button (`rgba(255,255,255,0.02)` bg, `1px solid rgba(255,255,255,0.08)` border, 6px radius)."
+- "Design a card on dark background: `rgba(255,255,255,0.02)` background, `1px solid rgba(255,255,255,0.08)` border, 8px radius. Title at 20px Inter Variable weight 590, letter-spacing -0.24px, color `#f7f8f8`. Body at 15px weight 400, color `#8a8f98`, letter-spacing -0.165px."
+- "Build a pill badge: transparent background, `#d0d6e0` text, 9999px radius, 0px 10px padding, `1px solid #23252a` border, 12px Inter Variable weight 510."
+- "Create navigation: dark sticky header on `#0f1011`. Inter Variable 13px weight 510 for links, `#d0d6e0` text. Brand indigo CTA `#5e6ad2` right-aligned with 6px radius. Bottom border: `1px solid rgba(255,255,255,0.05)`."
+- "Design a command palette: `#191a1b` background, `1px solid rgba(255,255,255,0.08)` border, 12px radius, multi-layer shadow stack. Input at 16px Inter Variable weight 400, `#f7f8f8` text. Results list with 13px weight 510 labels in `#d0d6e0` and 12px metadata in `#62666d`."
+
+### Iteration Guide
+1. Always set font-feature-settings `"cv01", "ss03"` on all Inter text — this is non-negotiable for Linear's look
+2. Letter-spacing scales with font size: -1.584px at 72px, -1.056px at 48px, -0.704px at 32px, normal below 16px
+3. Three weights: 400 (read), 510 (emphasize/navigate), 590 (announce)
+4. Surface elevation via background opacity: `rgba(255,255,255, 0.02 → 0.04 → 0.05)` — never solid backgrounds on dark
+5. Brand indigo (`#5e6ad2` / `#7170ff`) is the only chromatic color — everything else is grayscale
+6. Borders are always semi-transparent white, never solid dark colors on dark backgrounds
+7. Berkeley Mono for any code or technical content, Inter Variable for everything else
