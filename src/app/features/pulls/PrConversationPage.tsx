@@ -11,6 +11,7 @@ import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import { SidebarSection } from "@/app/features/issues/components/SidebarSection";
 import { PrCommentCard } from "@/app/features/pulls/components/PrCommentCard";
+import { PrMergeBox } from "@/app/features/pulls/components/PrMergeBox";
 import { PrTimelineRow } from "@/app/features/pulls/components/PrTimelineRow";
 import { SidebarPicker, type PickerItem } from "@/app/features/pulls/components/SidebarPicker";
 import {
@@ -97,55 +98,80 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
       {/* Main column */}
-      <div className="min-w-0 flex-1 flex flex-col gap-3">
-        {pr.user && (
-          <PrCommentCard
-            login={pr.user.login}
-            avatarUrl={pr.user.avatar_url}
-            date={pr.created_at}
-            isAuthor
-          >
-            {pr.body?.trim() ? (
-              <div className="readme-prose max-w-none text-body">
-                <GithubMarkdown>{pr.body}</GithubMarkdown>
-              </div>
-            ) : (
-              <p className="text-body italic text-[var(--color-fg-faint)]">
-                No description provided.
-              </p>
-            )}
-          </PrCommentCard>
-        )}
-
-        {commentsQuery.isError || timelineQuery.isError ? (
-          <StatusMessage tone="danger">Could not load conversation.</StatusMessage>
-        ) : feed.length === 0 &&
-          (commentsQuery.isPending || timelineQuery.isPending) ? (
-          <FeedSkeleton />
-        ) : (
-          feed.map((item, i) => {
-            if (item.kind === "comment") {
-              return (
-                <PrCommentCard
-                  key={`c-${item.id}`}
-                  login={item.user?.login ?? "ghost"}
-                  avatarUrl={item.user?.avatar_url}
-                  date={item.at}
-                >
+      <div className="min-w-0 flex-1">
+        {/* Timeline lane — left border connects events visually */}
+        <div className="relative ml-5 border-l-2 border-border pl-6">
+          {/* PR body */}
+          <div className="relative -ml-[1.8125rem] mb-4">
+            {pr.user && (
+              <PrCommentCard
+                login={pr.user.login}
+                avatarUrl={pr.user.avatar_url}
+                date={pr.created_at}
+                isAuthor
+              >
+                {pr.body?.trim() ? (
                   <div className="readme-prose max-w-none text-body">
-                    <GithubMarkdown>{item.body}</GithubMarkdown>
+                    <GithubMarkdown>{pr.body}</GithubMarkdown>
                   </div>
-                </PrCommentCard>
-              );
-            }
-            if (item.event === "reviewed" && typeof item.id === "number") {
-              const full = reviewsById.get(item.id);
-              if (full) return <ReviewCardFromFeed key={`r-${item.id}`} review={full} />;
-            }
-            return <PrTimelineRow key={`e-${item.id ?? i}`} event={item} />;
-          })
-        )}
+                ) : (
+                  <p className="text-body italic text-[var(--color-fg-faint)]">
+                    No description provided.
+                  </p>
+                )}
+              </PrCommentCard>
+            )}
+          </div>
 
+          {/* Feed */}
+          {commentsQuery.isError || timelineQuery.isError ? (
+            <StatusMessage tone="danger">Could not load conversation.</StatusMessage>
+          ) : feed.length === 0 &&
+            (commentsQuery.isPending || timelineQuery.isPending) ? (
+            <FeedSkeleton />
+          ) : (
+            feed.map((item, i) => {
+              if (item.kind === "comment") {
+                return (
+                  <div key={`c-${item.id}`} className="relative -ml-[1.8125rem] mb-4">
+                    <PrCommentCard
+                      login={item.user?.login ?? "ghost"}
+                      avatarUrl={item.user?.avatar_url}
+                      date={item.at}
+                    >
+                      <div className="readme-prose max-w-none text-body">
+                        <GithubMarkdown>{item.body}</GithubMarkdown>
+                      </div>
+                    </PrCommentCard>
+                  </div>
+                );
+              }
+              if (item.event === "reviewed" && typeof item.id === "number") {
+                const full = reviewsById.get(item.id);
+                if (full) {
+                  return (
+                    <div key={`r-${item.id}`} className="relative -ml-[1.8125rem] mb-4">
+                      <ReviewCardFromFeed review={full} />
+                    </div>
+                  );
+                }
+              }
+              return (
+                <div key={`e-${item.id ?? i}`} className="relative mb-3 -ml-2">
+                  <TimelineDot />
+                  <PrTimelineRow event={item} />
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Merge status box */}
+        <div className="mb-4">
+          <PrMergeBox owner={owner} repo={repo} pr={pr} />
+        </div>
+
+        {/* Add a comment */}
         {meQuery.data && (
           <Card as="div" radius="md" tone="default" border="strong">
             <form onSubmit={handleSubmit}>
@@ -578,5 +604,14 @@ function FeedSkeleton() {
         </div>
       ))}
     </div>
+  );
+}
+
+function TimelineDot() {
+  return (
+    <span
+      aria-hidden
+      className="absolute -left-[0.4375rem] top-1 size-2.5 rounded-full border-2 border-border bg-background"
+    />
   );
 }
