@@ -1,21 +1,43 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { GitPullRequest } from "lucide-react";
-import { Container } from "@/app/components/ui/Container";
+import { z } from "zod";
+import { PrListPage } from "@/app/features/pulls/PrListPage";
+import { pullsQueryOptions } from "@/app/features/pulls/hooks";
 
-export const Route = createFileRoute("/$owner/$repo/pulls/")({
-  component: PrListPage,
+// ─── Search params ─────────────────────────────────────────────────────────
+
+const SORT = ["newest", "oldest", "updated", "comments"] as const;
+const STATE = ["open", "closed", "all"] as const;
+
+const searchSchema = z.object({
+  state: z.enum(STATE).optional(),
+  author: z.string().optional(),
+  label: z.string().optional(),
+  reviewer: z.string().optional(),
+  assignee: z.string().optional(),
+  sort: z.enum(SORT).optional(),
 });
 
-// P1 replaces this scaffold with the real list + filters.
-function PrListPage() {
-  return (
-    <Container className="py-6">
-      <div className="rounded-md border border-border bg-muted px-4 py-10 text-center">
-        <GitPullRequest className="mx-auto mb-2 size-5 text-(--color-fg-faint)" aria-hidden />
-        <p className="font-mono text-ui text-muted-foreground">
-          Pull requests list — wiring in P1.
-        </p>
-      </div>
-    </Container>
-  );
+export const Route = createFileRoute("/$owner/$repo/pulls/")({
+  validateSearch: searchSchema,
+  loaderDeps: ({ search }) => search,
+  // Non-blocking prefetch. Component shows its own skeleton on cold load.
+  loader: ({ context, params, deps }) => {
+    void context.queryClient.prefetchInfiniteQuery(
+      pullsQueryOptions(params.owner, params.repo, {
+        state: deps.state ?? "open",
+        author: deps.author,
+        label: deps.label,
+        reviewer: deps.reviewer,
+        assignee: deps.assignee,
+        sort: deps.sort ?? "newest",
+      }),
+    );
+  },
+  component: Page,
+});
+
+function Page() {
+  const { owner, repo } = Route.useParams();
+  const search = Route.useSearch();
+  return <PrListPage owner={owner} repo={repo} search={search} />;
 }
