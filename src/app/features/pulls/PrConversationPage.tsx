@@ -12,6 +12,7 @@ import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import { SidebarSection } from "@/app/features/issues/components/SidebarSection";
 import { PrCommentCard } from "@/app/features/pulls/components/PrCommentCard";
 import { PrTimelineRow } from "@/app/features/pulls/components/PrTimelineRow";
+import { SidebarPicker, type PickerItem } from "@/app/features/pulls/components/SidebarPicker";
 import {
   useFullPr,
   usePostPrComment,
@@ -20,6 +21,13 @@ import {
   usePrTimeline,
 } from "@/app/features/pulls/hooks";
 import { mergeTimeline, type FeedItem } from "@/app/features/pulls/lib/mergeTimeline";
+import {
+  useRepoCollaborators,
+  useRepoLabels,
+  useSetPrAssignees,
+  useSetPrLabels,
+  useSetPrReviewers,
+} from "@/app/features/pulls/pickers";
 import type { PullRequest, Review } from "@/app/features/pulls/schemas";
 import { useMe } from "@/app/hooks/useMe";
 import { cn } from "@/app/lib/cn";
@@ -175,69 +183,230 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
 
       {/* Sidebar */}
       <aside className="w-full lg:w-56 lg:flex-shrink-0">
-        <div className="flex flex-col gap-5">
-          <SidebarSection icon={<UserCheck className="size-3.5" />} title="Reviewers">
-            <ReviewerList pr={pr} reviews={reviews} />
-          </SidebarSection>
-
-          <SidebarSection icon={<User className="size-3.5" />} title="Assignees">
-            {pr.assignees.length > 0 ? (
-              <div className="flex flex-col gap-1.5">
-                {pr.assignees.map((a) => (
-                  <div key={a.login} className="flex items-center gap-2">
-                    <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
-                    <ProfileLink
-                      login={a.login}
-                      className="text-caption text-muted-foreground"
-                    >
-                      {a.login}
-                    </ProfileLink>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <span className="text-caption text-[var(--color-fg-faint)]">
-                No one assigned
-              </span>
-            )}
-          </SidebarSection>
-
-          <SidebarSection icon={<Tag className="size-3.5" />} title="Labels">
-            {pr.labels.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {pr.labels.map((l) => (
-                  <LabelPill
-                    key={l.id}
-                    label={{
-                      id: l.id,
-                      name: l.name,
-                      color: l.color,
-                      description: l.description ?? null,
-                    }}
-                    size="sm"
-                  />
-                ))}
-              </div>
-            ) : (
-              <span className="text-caption text-[var(--color-fg-faint)]">
-                None yet
-              </span>
-            )}
-          </SidebarSection>
-
-          <SidebarSection icon={<Milestone className="size-3.5" />} title="Milestone">
-            {pr.milestone ? (
-              <span className="text-caption text-muted-foreground">
-                {pr.milestone.title}
-              </span>
-            ) : (
-              <span className="text-caption text-[var(--color-fg-faint)]">
-                No milestone
-              </span>
-            )}
-          </SidebarSection>
-        </div>
+        <PrSidebar owner={owner} repo={repo} pr={pr} reviews={reviews} />
       </aside>
+    </div>
+  );
+}
+
+// ─── Sidebar ───────────────────────────────────────────────────────────────
+//
+// Interactive sidebar: each section has a gear affordance that opens a
+// picker popover. All mutations are optimistic — the PR detail cache is
+// patched immediately, then resynced on settle so the server is the
+// eventual source of truth.
+
+function PrSidebar({
+  owner,
+  repo,
+  pr,
+  reviews,
+}: {
+  owner: string;
+  repo: string;
+  pr: PullRequest;
+  reviews: Review[];
+}) {
+  const labelsQuery = useRepoLabels(owner, repo);
+  const collabQuery = useRepoCollaborators(owner, repo);
+
+  const setReviewers = useSetPrReviewers(owner, repo, pr.number);
+  const setAssignees = useSetPrAssignees(owner, repo, pr.number);
+  const setLabels = useSetPrLabels(owner, repo, pr.number);
+
+  // ─── Reviewers ────────────────────────────────────────────────────────────
+  const reviewerItems: PickerItem[] = useMemo(
+    () =>
+      (collabQuery.data ?? [])
+        .filter((c) => c.login !== pr.user?.login)
+        .map((c) => ({ id: c.login, label: c.login, avatarUrl: c.avatar_url })),
+    [collabQuery.data, pr.user?.login],
+  );
+  const selectedReviewers = useMemo(
+    () => new Set(pr.requested_reviewers.map((r) => r.login)),
+    [pr.requested_reviewers],
+  );
+  const onToggleReviewer = (login: string, next: boolean) => {
+    if (next) setReviewers.mutate({ add: [login], remove: [] });
+    else setReviewers.mutate({ add: [], remove: [login] });
+  };
+
+  // ─── Assignees ────────────────────────────────────────────────────────────
+  const assigneeItems: PickerItem[] = useMemo(
+    () =>
+      (collabQuery.data ?? []).map((c) => ({
+        id: c.login,
+        label: c.login,
+        avatarUrl: c.avatar_url,
+      })),
+    [collabQuery.data],
+  );
+  const selectedAssignees = useMemo(
+    () => new Set(pr.assignees.map((a) => a.login)),
+    [pr.assignees],
+  );
+  const onToggleAssignee = (login: string, next: boolean) => {
+    if (next) setAssignees.mutate({ add: [login], remove: [] });
+    else setAssignees.mutate({ add: [], remove: [login] });
+  };
+
+  // ─── Labels ───────────────────────────────────────────────────────────────
+  const labelItems: PickerItem[] = useMemo(
+    () =>
+      (labelsQuery.data ?? []).map((l) => ({
+        id: l.name,
+        label: l.name,
+        description: l.description ?? undefined,
+        color: l.color,
+      })),
+    [labelsQuery.data],
+  );
+  const selectedLabels = useMemo(
+    () => new Set(pr.labels.map((l) => l.name)),
+    [pr.labels],
+  );
+  const onToggleLabel = (name: string, next: boolean) => {
+    const current = pr.labels.map((l) => l.name);
+    const nextNames = next
+      ? [...current, name]
+      : current.filter((n) => n !== name);
+    setLabels.mutate({ names: nextNames });
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      <PickerSection
+        icon={<UserCheck className="size-3.5" />}
+        title="Reviewers"
+        picker={
+          <SidebarPicker
+            title="Request up to 15 reviewers"
+            ariaLabel="Edit reviewers"
+            items={reviewerItems}
+            selectedIds={selectedReviewers}
+            onToggle={onToggleReviewer}
+            loading={collabQuery.isPending}
+            emptyText="No collaborators available"
+          />
+        }
+      >
+        <ReviewerList pr={pr} reviews={reviews} />
+      </PickerSection>
+
+      <PickerSection
+        icon={<User className="size-3.5" />}
+        title="Assignees"
+        picker={
+          <SidebarPicker
+            title="Assign up to 10 people"
+            ariaLabel="Edit assignees"
+            items={assigneeItems}
+            selectedIds={selectedAssignees}
+            onToggle={onToggleAssignee}
+            loading={collabQuery.isPending}
+            emptyText="No collaborators available"
+          />
+        }
+      >
+        {pr.assignees.length > 0 ? (
+          <div className="flex flex-col gap-1.5">
+            {pr.assignees.map((a) => (
+              <div key={a.login} className="flex items-center gap-2">
+                <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
+                <ProfileLink
+                  login={a.login}
+                  className="text-caption text-muted-foreground"
+                >
+                  {a.login}
+                </ProfileLink>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <span className="text-caption text-[var(--color-fg-faint)]">
+            No one assigned
+          </span>
+        )}
+      </PickerSection>
+
+      <PickerSection
+        icon={<Tag className="size-3.5" />}
+        title="Labels"
+        picker={
+          <SidebarPicker
+            title="Apply labels to this pull request"
+            ariaLabel="Edit labels"
+            items={labelItems}
+            selectedIds={selectedLabels}
+            onToggle={onToggleLabel}
+            loading={labelsQuery.isPending}
+            emptyText="No labels in this repo"
+          />
+        }
+      >
+        {pr.labels.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {pr.labels.map((l) => (
+              <LabelPill
+                key={l.id}
+                label={{
+                  id: l.id,
+                  name: l.name,
+                  color: l.color,
+                  description: l.description ?? null,
+                }}
+                size="sm"
+              />
+            ))}
+          </div>
+        ) : (
+          <span className="text-caption text-[var(--color-fg-faint)]">
+            None yet
+          </span>
+        )}
+      </PickerSection>
+
+      <SidebarSection icon={<Milestone className="size-3.5" />} title="Milestone">
+        {pr.milestone ? (
+          <span className="text-caption text-muted-foreground">
+            {pr.milestone.title}
+          </span>
+        ) : (
+          <span className="text-caption text-[var(--color-fg-faint)]">
+            No milestone
+          </span>
+        )}
+      </SidebarSection>
+    </div>
+  );
+}
+
+/**
+ * SidebarSection + gear-picker trigger in one, mirroring GitHub's own
+ * sidebar-header-with-affordance pattern. The picker lives inline in the
+ * header (top-right) instead of creating a new chrome row.
+ */
+function PickerSection({
+  icon,
+  title,
+  picker,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  picker: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-1.5 border-b border-border pb-1.5">
+        <span className="text-[var(--color-fg-faint)]">{icon}</span>
+        <span className="flex-1 font-mono text-micro font-medium uppercase tracking-widest text-[var(--color-fg-faint)]">
+          {title}
+        </span>
+        {picker}
+      </div>
+      {children}
     </div>
   );
 }
