@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Milestone, Tag, User, UserCheck } from "lucide-react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Avatar } from "@/app/components/ui/avatar";
@@ -7,6 +7,9 @@ import { Button } from "@/app/components/ui/button";
 import { Card, CardBody, CardFooter, CardHeader } from "@/app/components/ui/Card";
 import { CommentBox } from "@/app/components/ui/CommentBox";
 import { Skeleton } from "@/app/components/ui/skeleton";
+import { ProfileLink } from "@/app/components/user/ProfileLink";
+import { LabelPill } from "@/app/features/issues/components/LabelPill";
+import { SidebarSection } from "@/app/features/issues/components/SidebarSection";
 import { PrCommentCard } from "@/app/features/pulls/components/PrCommentCard";
 import { PrTimelineRow } from "@/app/features/pulls/components/PrTimelineRow";
 import {
@@ -17,21 +20,17 @@ import {
   usePrTimeline,
 } from "@/app/features/pulls/hooks";
 import { mergeTimeline, type FeedItem } from "@/app/features/pulls/lib/mergeTimeline";
-import type { Review } from "@/app/features/pulls/schemas";
+import type { PullRequest, Review } from "@/app/features/pulls/schemas";
 import { useMe } from "@/app/hooks/useMe";
 import { cn } from "@/app/lib/cn";
 
 // ─── PrConversationPage ────────────────────────────────────────────────────
 //
-// Body of the Conversation sub-tab. Composed of four parts, top-to-bottom:
-//   1) PR body (as a comment card from the author)
-//   2) Interleaved feed — issue comments + timeline events (reviews surface
-//      as timeline `reviewed` entries; their bodies are rendered inline
-//      via the reviews cache so we can show the full markdown).
-//   3) Add-a-comment box (optimistic)
-//
-// The Conversation/Files/Commits/Checks sub-tab shell is owned by the
-// parent route — this component renders below that `<Outlet/>`.
+// Body of the Conversation sub-tab. Two-column layout matching github.com:
+//   main column  → PR body, interleaved feed (comments + timeline events +
+//                  reviews), and the "Add a comment" box
+//   sidebar      → Reviewers · Assignees · Labels · Milestone
+// Sidebar is read-only in P3; pickers ship in P9.
 
 export type PrConversationPageProps = {
   owner: string;
@@ -54,7 +53,6 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
   const reviews = reviewsQuery.data ?? [];
   const timeline = timelineQuery.data ?? [];
 
-  // Map of review id → review so the feed can render review bodies inline.
   const reviewsById = useMemo(() => {
     const m = new Map<number, Review>();
     for (const r of reviews) m.set(r.id, r);
@@ -89,103 +87,249 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* PR body */}
-      {pr.user && (
-        <PrCommentCard
-          login={pr.user.login}
-          avatarUrl={pr.user.avatar_url}
-          date={pr.created_at}
-          isAuthor
-        >
-          {pr.body?.trim() ? (
-            <div className="readme-prose max-w-none text-body">
-              <GithubMarkdown>{pr.body}</GithubMarkdown>
-            </div>
-          ) : (
-            <p className="text-body italic text-[var(--color-fg-faint)]">
-              No description provided.
-            </p>
-          )}
-        </PrCommentCard>
-      )}
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+      {/* Main column */}
+      <div className="min-w-0 flex-1 flex flex-col gap-3">
+        {pr.user && (
+          <PrCommentCard
+            login={pr.user.login}
+            avatarUrl={pr.user.avatar_url}
+            date={pr.created_at}
+            isAuthor
+          >
+            {pr.body?.trim() ? (
+              <div className="readme-prose max-w-none text-body">
+                <GithubMarkdown>{pr.body}</GithubMarkdown>
+              </div>
+            ) : (
+              <p className="text-body italic text-[var(--color-fg-faint)]">
+                No description provided.
+              </p>
+            )}
+          </PrCommentCard>
+        )}
 
-      {/* Feed */}
-      {commentsQuery.isError || timelineQuery.isError ? (
-        <StatusMessage tone="danger">Could not load conversation.</StatusMessage>
-      ) : feed.length === 0 &&
-        (commentsQuery.isPending || timelineQuery.isPending) ? (
-        <FeedSkeleton />
-      ) : (
-        feed.map((item, i) => {
-          if (item.kind === "comment") {
-            return (
-              <PrCommentCard
-                key={`c-${item.id}`}
-                login={item.user?.login ?? "ghost"}
-                avatarUrl={item.user?.avatar_url}
-                date={item.at}
-              >
-                <div className="readme-prose max-w-none text-body">
-                  <GithubMarkdown>{item.body}</GithubMarkdown>
-                </div>
-              </PrCommentCard>
-            );
-          }
-          // kind === "event"
-          // Review events surface a separate card (body + state pill); all
-          // other events render as single-line timeline rows.
-          if (item.event === "reviewed" && typeof item.id === "number") {
-            const full = reviewsById.get(item.id);
-            if (full) return <ReviewCardFromFeed key={`r-${item.id}`} review={full} />;
-          }
-          return <PrTimelineRow key={`e-${item.id ?? i}`} event={item} />;
-        })
-      )}
+        {commentsQuery.isError || timelineQuery.isError ? (
+          <StatusMessage tone="danger">Could not load conversation.</StatusMessage>
+        ) : feed.length === 0 &&
+          (commentsQuery.isPending || timelineQuery.isPending) ? (
+          <FeedSkeleton />
+        ) : (
+          feed.map((item, i) => {
+            if (item.kind === "comment") {
+              return (
+                <PrCommentCard
+                  key={`c-${item.id}`}
+                  login={item.user?.login ?? "ghost"}
+                  avatarUrl={item.user?.avatar_url}
+                  date={item.at}
+                >
+                  <div className="readme-prose max-w-none text-body">
+                    <GithubMarkdown>{item.body}</GithubMarkdown>
+                  </div>
+                </PrCommentCard>
+              );
+            }
+            if (item.event === "reviewed" && typeof item.id === "number") {
+              const full = reviewsById.get(item.id);
+              if (full) return <ReviewCardFromFeed key={`r-${item.id}`} review={full} />;
+            }
+            return <PrTimelineRow key={`e-${item.id ?? i}`} event={item} />;
+          })
+        )}
 
-      {/* Add a comment */}
-      {meQuery.data && (
-        <Card as="div" radius="md" tone="default" border="strong">
-          <form onSubmit={handleSubmit}>
-            <CardHeader>
-              <Avatar
-                login={meQuery.data.login}
-                avatarUrl={meQuery.data.avatar_url}
-                size="sm"
-              />
-              <span className="text-body font-medium text-foreground">Add a comment</span>
-            </CardHeader>
-            <CardBody flush>
-              <CommentBox
-                owner={owner}
-                repo={repo}
-                value={draft}
-                onChange={setDraft}
-                placeholder="Leave a comment"
-                rows={4}
-              />
-            </CardBody>
-            <CardFooter className="flex justify-end">
-              <Button
-                type="submit"
-                size="sm"
-                disabled={!draft.trim() || postComment.isPending}
-              >
-                {postComment.isPending ? "Posting…" : "Comment"}
-              </Button>
-            </CardFooter>
-          </form>
-        </Card>
-      )}
+        {meQuery.data && (
+          <Card as="div" radius="md" tone="default" border="strong">
+            <form onSubmit={handleSubmit}>
+              <CardHeader>
+                <Avatar
+                  login={meQuery.data.login}
+                  avatarUrl={meQuery.data.avatar_url}
+                  size="sm"
+                />
+                <span className="text-body font-medium text-foreground">Add a comment</span>
+              </CardHeader>
+              <CardBody flush>
+                <CommentBox
+                  owner={owner}
+                  repo={repo}
+                  value={draft}
+                  onChange={setDraft}
+                  placeholder="Leave a comment"
+                  rows={4}
+                />
+              </CardBody>
+              <CardFooter className="flex justify-end">
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!draft.trim() || postComment.isPending}
+                >
+                  {postComment.isPending ? "Posting…" : "Comment"}
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
+        )}
+      </div>
+
+      {/* Sidebar */}
+      <aside className="w-full lg:w-56 lg:flex-shrink-0">
+        <div className="flex flex-col gap-5">
+          <SidebarSection icon={<UserCheck className="size-3.5" />} title="Reviewers">
+            <ReviewerList pr={pr} reviews={reviews} />
+          </SidebarSection>
+
+          <SidebarSection icon={<User className="size-3.5" />} title="Assignees">
+            {pr.assignees.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                {pr.assignees.map((a) => (
+                  <div key={a.login} className="flex items-center gap-2">
+                    <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
+                    <ProfileLink
+                      login={a.login}
+                      className="text-caption text-muted-foreground"
+                    >
+                      {a.login}
+                    </ProfileLink>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <span className="text-caption text-[var(--color-fg-faint)]">
+                No one assigned
+              </span>
+            )}
+          </SidebarSection>
+
+          <SidebarSection icon={<Tag className="size-3.5" />} title="Labels">
+            {pr.labels.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {pr.labels.map((l) => (
+                  <LabelPill
+                    key={l.id}
+                    label={{
+                      id: l.id,
+                      name: l.name,
+                      color: l.color,
+                      description: l.description ?? null,
+                    }}
+                    size="sm"
+                  />
+                ))}
+              </div>
+            ) : (
+              <span className="text-caption text-[var(--color-fg-faint)]">
+                None yet
+              </span>
+            )}
+          </SidebarSection>
+
+          <SidebarSection icon={<Milestone className="size-3.5" />} title="Milestone">
+            {pr.milestone ? (
+              <span className="text-caption text-muted-foreground">
+                {pr.milestone.title}
+              </span>
+            ) : (
+              <span className="text-caption text-[var(--color-fg-faint)]">
+                No milestone
+              </span>
+            )}
+          </SidebarSection>
+        </div>
+      </aside>
     </div>
   );
 }
 
-// ─── Review card ───────────────────────────────────────────────────────────
+// ─── Reviewers list ────────────────────────────────────────────────────────
 //
-// Renders a submitted review's body + state pill. We show "Approved" /
-// "Changes requested" / "Commented" inline since the state is part of the
-// review's meaning, not just decoration.
+// Shows requested reviewers + anyone who has actually submitted a review,
+// with the latest review state shown as a status dot to the right of
+// their name (GitHub parity).
+
+function ReviewerList({ pr, reviews }: { pr: PullRequest; reviews: Review[] }) {
+  // login → latest review state (by submitted_at).
+  const latest = useMemo(() => {
+    const byUser = new Map<string, Review>();
+    const sorted = [...reviews].sort((a, b) => {
+      const at = a.submitted_at ?? "";
+      const bt = b.submitted_at ?? "";
+      return at < bt ? -1 : at > bt ? 1 : 0;
+    });
+    for (const r of sorted) {
+      if (r.user?.login) byUser.set(r.user.login, r);
+    }
+    return byUser;
+  }, [reviews]);
+
+  // Union of requested reviewers + reviewers who already submitted.
+  const people = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Array<{ login: string; avatar_url: string }> = [];
+    for (const rr of pr.requested_reviewers) {
+      if (seen.has(rr.login)) continue;
+      seen.add(rr.login);
+      out.push(rr);
+    }
+    for (const r of reviews) {
+      if (!r.user || seen.has(r.user.login)) continue;
+      seen.add(r.user.login);
+      out.push({ login: r.user.login, avatar_url: r.user.avatar_url });
+    }
+    return out;
+  }, [pr.requested_reviewers, reviews]);
+
+  if (people.length === 0) {
+    return <span className="text-caption text-[var(--color-fg-faint)]">None yet</span>;
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {people.map((p) => {
+        const state = latest.get(p.login)?.state;
+        return (
+          <div key={p.login} className="flex items-center gap-2">
+            <Avatar login={p.login} avatarUrl={p.avatar_url} size="sm" />
+            <ProfileLink
+              login={p.login}
+              className="flex-1 min-w-0 truncate text-caption text-muted-foreground"
+            >
+              {p.login}
+            </ProfileLink>
+            {state && <ReviewStateDot state={state} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ReviewStateDot({ state }: { state: Review["state"] }) {
+  const map: Record<Review["state"], { tone: string; label: string }> = {
+    APPROVED: {
+      tone: "bg-[var(--color-success)]",
+      label: "Approved",
+    },
+    CHANGES_REQUESTED: {
+      tone: "bg-[var(--color-danger)]",
+      label: "Changes requested",
+    },
+    COMMENTED: { tone: "bg-[var(--color-fg-faint)]", label: "Commented" },
+    DISMISSED: { tone: "bg-[var(--color-fg-faint)]", label: "Dismissed" },
+    PENDING: { tone: "bg-[var(--color-warning)]", label: "Pending" },
+  };
+  const s = map[state];
+  return (
+    <span
+      title={s.label}
+      aria-label={s.label}
+      className={cn("size-2 rounded-full shrink-0", s.tone)}
+    />
+  );
+}
+
+// ─── Review card (feed) ────────────────────────────────────────────────────
 
 function ReviewCardFromFeed({ review }: { review: Review }) {
   const tone =

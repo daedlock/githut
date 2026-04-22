@@ -54,9 +54,10 @@ function PrDetailLayout() {
         number={number}
         counts={{
           conversation: pr.comments + pr.review_comments,
-          files: pr.changed_files,
           commits: pr.commits,
+          files: pr.changed_files,
         }}
+        deltas={{ additions: pr.additions, deletions: pr.deletions }}
       />
       <Outlet />
     </Container>

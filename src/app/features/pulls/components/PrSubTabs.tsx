@@ -5,11 +5,12 @@ import { cn } from "@/app/lib/cn";
 
 // ─── PrSubTabs ─────────────────────────────────────────────────────────────
 //
-// Tabs inside the PR detail shell: Conversation · Files · Commits · Checks.
+// Tabs inside the PR detail shell, ordered to match github.com:
+//   Conversation · Commits · Checks · Files changed          [+N -N]
 // Visual language matches `RepoSubTabs` (underline on active, muted text
-// when inactive) so the PR page reads as a nested section rather than a
-// new chrome pattern. Counts live next to the tab label — tabular-nums
-// keeps them from shifting as values change.
+// when inactive). Counts live as pill badges next to each tab label, and
+// the total +additions/−deletions render as a right-aligned affordance
+// mirroring GitHub's own layout.
 
 type Tab = {
   to: "/$owner/$repo/pulls/$number"
@@ -19,7 +20,6 @@ type Tab = {
   label: string;
   icon: LucideIcon;
   count?: number;
-  /** Path suffix used for active matching (e.g. "", "/files", "/commits"). */
   suffix: string;
 };
 
@@ -29,12 +29,15 @@ export type PrSubTabsProps = {
   number: number;
   counts: {
     conversation?: number;
-    files?: number;
     commits?: number;
+    checks?: number;
+    files?: number;
   };
+  /** Total +additions / −deletions across the PR, shown on the right. */
+  deltas?: { additions: number; deletions: number };
 };
 
-export function PrSubTabs({ owner, repo, number, counts }: PrSubTabsProps) {
+export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const base = `/${owner}/${repo}/pulls/${number}`;
 
@@ -45,13 +48,6 @@ export function PrSubTabs({ owner, repo, number, counts }: PrSubTabsProps) {
       label: "Conversation",
       icon: MessageSquare,
       count: counts.conversation,
-    },
-    {
-      to: "/$owner/$repo/pulls/$number/files",
-      suffix: "/files",
-      label: "Files changed",
-      icon: FileDiff,
-      count: counts.files,
     },
     {
       to: "/$owner/$repo/pulls/$number/commits",
@@ -65,6 +61,14 @@ export function PrSubTabs({ owner, repo, number, counts }: PrSubTabsProps) {
       suffix: "/checks",
       label: "Checks",
       icon: CheckCircle2,
+      count: counts.checks,
+    },
+    {
+      to: "/$owner/$repo/pulls/$number/files",
+      suffix: "/files",
+      label: "Files changed",
+      icon: FileDiff,
+      count: counts.files,
     },
   ];
 
@@ -120,6 +124,13 @@ export function PrSubTabs({ owner, repo, number, counts }: PrSubTabsProps) {
           </Link>
         );
       })}
+      {deltas && (
+        <span className="ml-auto flex items-center pr-1 text-caption tabular-nums">
+          <span className="text-[var(--color-success)]">+{deltas.additions}</span>
+          <span className="mx-1.5 text-[var(--color-fg-faint)]">·</span>
+          <span className="text-[var(--color-danger)]">−{deltas.deletions}</span>
+        </span>
+      )}
     </nav>
   );
 }
