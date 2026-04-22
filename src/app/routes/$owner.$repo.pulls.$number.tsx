@@ -2,6 +2,7 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { AlertCircle } from "lucide-react";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton } from "@/app/components/ui/skeleton";
+import { PrActions } from "@/app/features/pulls/components/PrActions";
 import { PrHeader } from "@/app/features/pulls/components/PrHeader";
 import { PrSubTabs } from "@/app/features/pulls/components/PrSubTabs";
 import { prDetailQueryOptions, useFullPr } from "@/app/features/pulls/hooks";
@@ -47,7 +48,12 @@ function PrDetailLayout() {
 
   return (
     <Container className="py-5 sm:py-6">
-      <PrHeader owner={owner} repo={repo} pr={pr} />
+      <PrHeader
+        owner={owner}
+        repo={repo}
+        pr={pr}
+        rightSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
+      />
       <PrSubTabs
         owner={owner}
         repo={repo}

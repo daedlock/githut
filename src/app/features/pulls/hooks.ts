@@ -627,3 +627,145 @@ export function usePrChecks(owner: string, repo: string, sha: string | undefined
   });
 }
 
+// ─── PR lifecycle actions ──────────────────────────────────────────────────
+//
+// Close / reopen / merge via REST; draft toggles via GraphQL (REST
+// doesn't support flipping the draft flag post-creation). All writes
+// optimistically patch the PR detail cache so the header flips state
+// instantly, then invalidate on settle so the server's shape wins.
+
+export type MergeMethod = "merge" | "squash" | "rebase";
+
+export function useMergePr(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: {
+      method: MergeMethod;
+      commitTitle?: string;
+      commitMessage?: string;
+    }) => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge",
+        {
+          owner,
+          repo,
+          pull_number: number,
+          merge_method: vars.method,
+          commit_title: vars.commitTitle,
+          commit_message: vars.commitMessage,
+        },
+      );
+      return res.data as { sha: string; merged: boolean; message: string };
+    },
+    onMutate: async () => {
+      const key = pullsKeys.detail(owner, repo, number);
+      await queryClient.cancelQueries({ queryKey: key });
+      const prev = queryClient.getQueryData<PullRequest>(key);
+      if (prev) {
+        queryClient.setQueryData<PullRequest>(key, {
+          ...prev,
+          state: "closed",
+          merged: true,
+          merged_at: new Date().toISOString(),
+        });
+      }
+      return { key, prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: pullsKeys.detail(owner, repo, number),
+      });
+      queryClient.invalidateQueries({
+        queryKey: pullsKeys.timeline(owner, repo, number),
+      });
+      queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) });
+    },
+  });
+}
+
+export function useTogglePrState(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ state }: { state: "open" | "closed" }) => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "PATCH /repos/{owner}/{repo}/pulls/{pull_number}",
+        { owner, repo, pull_number: number, state },
+      );
+      return PullRequestSchema.parse(res.data);
+    },
+    onMutate: async ({ state }) => {
+      const key = pullsKeys.detail(owner, repo, number);
+      await queryClient.cancelQueries({ queryKey: key });
+      const prev = queryClient.getQueryData<PullRequest>(key);
+      if (prev) {
+        queryClient.setQueryData<PullRequest>(key, {
+          ...prev,
+          state,
+          closed_at:
+            state === "closed" ? new Date().toISOString() : null,
+        });
+      }
+      return { key, prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: pullsKeys.detail(owner, repo, number),
+      });
+      queryClient.invalidateQueries({
+        queryKey: pullsKeys.timeline(owner, repo, number),
+      });
+      queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) });
+    },
+  });
+}
+
+export function useSetPrDraft(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ draft, nodeId }: { draft: boolean; nodeId: string }) => {
+      const client = getGitHubClient();
+      // REST doesn't expose the draft flip post-creation; GraphQL does.
+      const mutation = draft
+        ? `mutation($id: ID!) {
+            convertPullRequestToDraft(input: { pullRequestId: $id }) {
+              pullRequest { id isDraft }
+            }
+          }`
+        : `mutation($id: ID!) {
+            markPullRequestReadyForReview(input: { pullRequestId: $id }) {
+              pullRequest { id isDraft }
+            }
+          }`;
+      return client.graphql(mutation, { id: nodeId });
+    },
+    onMutate: async ({ draft }) => {
+      const key = pullsKeys.detail(owner, repo, number);
+      await queryClient.cancelQueries({ queryKey: key });
+      const prev = queryClient.getQueryData<PullRequest>(key);
+      if (prev) {
+        queryClient.setQueryData<PullRequest>(key, { ...prev, draft });
+      }
+      return { key, prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: pullsKeys.detail(owner, repo, number),
+      });
+      queryClient.invalidateQueries({
+        queryKey: pullsKeys.timeline(owner, repo, number),
+      });
+    },
+  });
+}
+
