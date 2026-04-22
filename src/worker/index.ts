@@ -63,6 +63,110 @@ app.get("/api/auth/manage", (c) => {
   );
 });
 
+// ─── Actions log proxy ─────────────────────────────────────────────────────
+//
+// GitHub's job-logs endpoint returns a 302 to a short-lived Azure Blob URL
+// that doesn't serve CORS — so the browser can't fetch logs directly.
+// This route uses the caller's token server-side, follows the redirect,
+// and streams the plain-text log bytes back with an Access-Control header.
+// The token never lives in the Worker; we just forward it verbatim.
+
+app.get("/api/actions/jobs/:jobId/logs", async (c) => {
+  const auth = c.req.header("Authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) {
+    return c.json({ error: "missing_auth" }, 401);
+  }
+  const token = auth.slice("Bearer ".length);
+
+  const owner = c.req.query("owner");
+  const repo = c.req.query("repo");
+  const jobId = c.req.param("jobId");
+  if (!owner || !repo || !jobId || !/^\d+$/.test(jobId)) {
+    return c.json({ error: "bad_params" }, 400);
+  }
+
+  // Step 1: hit GitHub with the user's token. DO NOT auto-follow — GitHub
+  // returns 302 → short-lived Azure Blob signed URL, and forwarding the
+  // Authorization header to Azure causes 400 "invalid header". We handle
+  // the redirect manually and drop auth for the blob fetch.
+  const ghUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
+    repo,
+  )}/actions/jobs/${jobId}/logs`;
+  const gh = await fetch(ghUrl, {
+    redirect: "manual",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "githut/0.1",
+    },
+  });
+
+  // Step 2: follow the redirect ourselves to the signed URL, WITHOUT auth.
+  if (gh.status === 302 || gh.status === 301) {
+    const location = gh.headers.get("location");
+    if (!location) return c.json({ error: "no_redirect_target" }, 502);
+
+    let blob: Response;
+    try {
+      blob = await fetch(location);
+    } catch (err) {
+      return c.json(
+        { error: "blob_fetch_threw", detail: err instanceof Error ? err.message : String(err) },
+        502,
+      );
+    }
+
+    if (!blob.ok) {
+      // Pass Azure's status through verbatim. Squashing to 502 hides real
+      // diagnostics: 404 = blob not yet written, 410 = archive expired,
+      // 403 = signature problem, 5xx = transient Azure error. Each needs
+      // a different UX path; the client decides.
+      const detail = await blob.text().catch(() => "");
+      return c.json(
+        {
+          error: "blob_error",
+          status: blob.status,
+          detail: detail.slice(0, 500),
+        },
+        // Hono's status type only accepts known HTTP codes — 4xx/5xx are
+        // always safe here because `blob.ok` is false.
+        blob.status as 400 | 401 | 403 | 404 | 410 | 500 | 502 | 503 | 504,
+      );
+    }
+
+    return new Response(blob.body, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": c.env.APP_URL,
+      },
+    });
+  }
+
+  // Some edge cases return the body inline (small logs, specific endpoints).
+  if (gh.ok) {
+    return new Response(gh.body, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": c.env.APP_URL,
+      },
+    });
+  }
+
+  // GitHub error (non-redirect, non-2xx) — surface its status so the UI
+  // can render a scoped message. 401/403/404 are the ones clients care
+  // about; anything else becomes 502 since it's an upstream glitch.
+  const bodyText = await gh.text().catch(() => "");
+  return c.json(
+    { error: "github_error", status: gh.status, detail: bodyText.slice(0, 200) },
+    gh.status === 401 || gh.status === 403 || gh.status === 404 ? gh.status : 502,
+  );
+});
+
 app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
 
 export default app;

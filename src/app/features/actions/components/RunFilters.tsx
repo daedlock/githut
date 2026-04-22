@@ -1,10 +1,12 @@
 import { X } from "lucide-react";
 import { cn } from "@/app/lib/cn";
 
-// ─── Filters bar ───────────────────────────────────────────────────────────
+// ─── Filters ───────────────────────────────────────────────────────────────
 //
-// URL-driven: reads the active filters from props and emits intents back to
-// the parent, which updates search params. No local state. Back/forward work.
+// Slot-compatible with `<Widget actions={...}>` — lives inside the widget
+// header band (DESIGN.md's Widget pattern) instead of floating above the
+// list. `rounded-sm` chips instead of `rounded-full` to match the rest of
+// the app's chrome.
 
 type StatusFilter =
   | "all"
@@ -29,10 +31,8 @@ export type RunFiltersProps = {
   branch?: string;
   event?: string;
   actor?: string;
-  /** Total count rendered after these filters apply. Null while loading. */
-  resultCount: number | null;
   onStatusChange: (next: StatusFilter) => void;
-  onClearAll: () => void;
+  onClear: (field: "branch" | "event" | "actor") => void;
 };
 
 export function RunFilters({
@@ -40,74 +40,61 @@ export function RunFilters({
   branch,
   event,
   actor,
-  resultCount,
   onStatusChange,
-  onClearAll,
+  onClear,
 }: RunFiltersProps) {
-  const chips = [
-    branch && { label: "Branch", value: branch },
-    event && { label: "Event", value: event },
-    actor && { label: "Actor", value: actor },
-  ].filter((x): x is { label: string; value: string } => Boolean(x));
-
-  const hasExplicitFilter = status !== "all" || chips.length > 0;
+  const pinnedChips: Array<{ field: "branch" | "event" | "actor"; label: string; value: string }> =
+    [
+      branch && { field: "branch" as const, label: "branch", value: branch },
+      event && { field: "event" as const, label: "event", value: event },
+      actor && { field: "actor" as const, label: "actor", value: actor },
+    ].filter((x): x is { field: "branch" | "event" | "actor"; label: string; value: string } =>
+      Boolean(x),
+    );
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-1">
-        {STATUS_OPTIONS.map((opt) => (
+    <div className="flex items-center gap-0.5">
+      {STATUS_OPTIONS.map((opt) => {
+        const isActive = status === opt.value;
+        return (
           <button
             key={opt.value}
             type="button"
             onClick={() => onStatusChange(opt.value)}
             className={cn(
-              "h-6 rounded-full px-2.5 font-sans text-caption font-medium outline-none",
-              "transition-colors focus-visible:ring-1 focus-visible:ring-(--color-focus)",
-              status === opt.value
+              "h-6 px-2 rounded-sm font-sans text-caption font-medium outline-none",
+              "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
+              isActive
                 ? "bg-(--color-bg-sunken) text-foreground"
                 : "text-muted-foreground hover:bg-(--color-bg-sunken) hover:text-foreground",
             )}
           >
             {opt.label}
           </button>
-        ))}
+        );
+      })}
 
-        {/* Read-only chips for filters that currently only arrive via URL.
-           Edits come through navigation (e.g. click a branch or actor anywhere
-           to set the filter). A trailing × clears the chip. */}
-        {chips.map((c) => (
-          <span
-            key={c.label}
-            className={cn(
-              "inline-flex h-6 items-center gap-1 rounded-full px-2.5",
-              "bg-(--color-bg-sunken) font-mono text-caption text-foreground",
-            )}
-          >
-            <span className="text-muted-foreground">{c.label}:</span>
-            <span>{c.value}</span>
-          </span>
-        ))}
+      {pinnedChips.length > 0 ? (
+        <span aria-hidden className="mx-1 h-4 w-px bg-border self-center" />
+      ) : null}
 
-        {hasExplicitFilter ? (
-          <button
-            type="button"
-            onClick={onClearAll}
-            className={cn(
-              "inline-flex h-6 items-center gap-1 rounded-full px-2",
-              "font-sans text-caption text-muted-foreground outline-none",
-              "transition-colors hover:text-foreground",
-              "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
-            )}
-          >
-            <X className="size-3" />
-            Clear
-          </button>
-        ) : null}
-
-        <span className="ml-auto font-mono text-caption tabular-nums text-muted-foreground">
-          {resultCount === null ? "…" : `${resultCount} ${resultCount === 1 ? "run" : "runs"}`}
-        </span>
-      </div>
+      {pinnedChips.map((c) => (
+        <button
+          key={c.field}
+          type="button"
+          onClick={() => onClear(c.field)}
+          title={`Clear ${c.label} filter`}
+          className={cn(
+            "group inline-flex h-6 items-center gap-1 rounded-sm px-1.5",
+            "bg-(--color-bg-sunken) font-mono text-caption text-foreground outline-none",
+            "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
+          )}
+        >
+          <span className="text-(--color-fg-faint)">{c.label}</span>
+          <span>{c.value}</span>
+          <X className="size-3 text-(--color-fg-faint) group-hover:text-foreground" />
+        </button>
+      ))}
     </div>
   );
 }

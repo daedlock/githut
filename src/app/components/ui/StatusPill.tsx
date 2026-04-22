@@ -181,6 +181,38 @@ function defaultLabel(v: StatusPillVariant): string {
   return v.charAt(0).toUpperCase() + v.slice(1);
 }
 
+// ─── StatusIcon (bare) ─────────────────────────────────────────────────────
+
+/**
+ * Just the status's icon with its tone color — no pill, no label. For dense
+ * list rows where `StatusPill` adds too much chrome. Mirrors the treatment
+ * `IssueRow` uses for open/closed icons — consistent across the app.
+ */
+export function StatusIcon({
+  variant,
+  className,
+  size = 4,
+}: {
+  variant: StatusPillVariant;
+  className?: string;
+  /** Tailwind size scale — 3 = size-3 (12px), 4 = size-4 (16px), etc. */
+  size?: 3 | 4 | 5;
+}) {
+  const style = STYLES[variant];
+  const Icon = style.icon;
+  return (
+    <Icon
+      aria-label={defaultLabel(variant)}
+      className={cn(
+        `size-${size}`,
+        style.tone,
+        variant === "running" && "animate-spin",
+        className,
+      )}
+    />
+  );
+}
+
 // Discriminated-union narrowing helper so consumers using a `UiStatus`-style
 // object can pass `variant={s.kind}` without type friction.
 export type StatusPillVariantOf<T extends { kind: StatusPillVariant }> = T["kind"];

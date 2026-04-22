@@ -44,6 +44,7 @@
     "@tanstack/react-query-persist-client": "^5.99.2",
     "@tanstack/react-router": "^1.168.23",
     "@tanstack/react-virtual": "^3.13.24",
+    "anser": "^2.3.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -65,6 +66,7 @@
     "unified": "^11.0.5",
     "uniorg-parse": "^3.2.0",
     "uniorg-rehype": "^2.2.0",
+    "yaml": "^2.8.3",
     "zod": "^4.3.6",
     "zustand": "^5.0.12"
   }
