@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { GitBranch, X } from "lucide-react";
+import { Check, Copy, ExternalLink, GitBranch, X } from "lucide-react";
+import { useState } from "react";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { PrStatePill } from "@/app/features/pulls/components/PrStatePill";
 import { toUiState } from "@/app/features/pulls/lib/prStatus";
@@ -38,7 +39,7 @@ export function PrHeader({ owner, repo, pr, rightSlot }: PrHeaderProps) {
 
   return (
     <div className="mb-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Link
           to="/$owner/$repo/pulls"
           params={{ owner, repo }}
@@ -51,15 +52,18 @@ export function PrHeader({ owner, repo, pr, rightSlot }: PrHeaderProps) {
           <X className="size-3.5" />
           Back to pull requests
         </Link>
-        {rightSlot}
+        {rightSlot && <div className="flex-shrink-0">{rightSlot}</div>}
       </div>
 
-      <h1 className="text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">
-        {pr.title}{" "}
-        <span className="font-mono text-title font-normal text-[var(--color-fg-faint)]">
-          #{pr.number}
-        </span>
-      </h1>
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <h1 className="text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">
+          {pr.title}{" "}
+          <span className="font-mono text-title font-normal text-[var(--color-fg-faint)]">
+            #{pr.number}
+          </span>
+        </h1>
+        <HeaderLinks pr={pr} />
+      </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-2 text-body text-muted-foreground">
         <PrStatePill state={state} />
@@ -99,6 +103,53 @@ export function PrHeader({ owner, repo, pr, rightSlot }: PrHeaderProps) {
           <span className="text-[var(--color-danger)]">−{pr.deletions}</span>
         </span>
       </div>
+    </div>
+  );
+}
+
+function HeaderLinks({ pr }: { pr: PullRequest }) {
+  const [copied, setCopied] = useState(false);
+
+  function copy() {
+    navigator.clipboard.writeText(pr.html_url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-1 text-muted-foreground">
+      <button
+        type="button"
+        onClick={copy}
+        className={cn(
+          "inline-flex size-6 items-center justify-center rounded-sm outline-none",
+          "transition-colors hover:bg-[var(--color-bg-sunken)] hover:text-foreground",
+          "focus-visible:ring-1 focus-visible:ring-foreground/15",
+        )}
+        aria-label="Copy PR link"
+        title={copied ? "Copied!" : "Copy link"}
+      >
+        {copied ? (
+          <Check className="size-3.5 text-[var(--color-success)]" />
+        ) : (
+          <Copy className="size-3.5" />
+        )}
+      </button>
+      <a
+        href={pr.html_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn(
+          "inline-flex size-6 items-center justify-center rounded-sm outline-none",
+          "transition-colors hover:bg-[var(--color-bg-sunken)] hover:text-foreground",
+          "focus-visible:ring-1 focus-visible:ring-foreground/15",
+        )}
+        aria-label="Open on GitHub"
+        title="Open on GitHub"
+      >
+        <ExternalLink className="size-3.5" />
+      </a>
     </div>
   );
 }

@@ -198,7 +198,7 @@ function ReplyBox({
   const [body, setBody] = useState("");
   const reply = useReplyToReviewComment(owner, repo, number);
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const text = body.trim();
     if (!text || reply.isPending) return;

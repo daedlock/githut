@@ -72,7 +72,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
     [timeline, comments],
   );
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const body = draft.trim();
     if (!body || postComment.isPending) return;
