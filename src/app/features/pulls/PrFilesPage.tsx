@@ -1,5 +1,5 @@
 import { AlertCircle, FileDiff as FileDiffIcon, MessageSquarePlus, Send } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
   DiffLayout,
   type DiffLayoutFile,
@@ -18,24 +18,16 @@ import {
 } from "@/app/features/pulls/hooks";
 import type { PrFile, ReviewComment } from "@/app/features/pulls/schemas";
 import {
+  useActiveComposer,
   usePendingComments,
   useReviewMode,
   useReviewStore,
   type PendingComment,
-  type PendingSide,
 } from "@/app/features/pulls/stores/review";
 import { useMe } from "@/app/hooks/useMe";
 import { detectLang } from "@/app/lib/detectLang";
 
 // ─── PrFilesPage ───────────────────────────────────────────────────────────
-//
-// Full review workspace. When review mode is off the diff is read-only;
-// clicking "Start review" arms line-level comment affordances throughout
-// the diff. Pending comments accumulate in the Zustand review store and
-// are submitted as a batch with the "Finish review" dialog.
-//
-// Existing review threads from prior reviews render inline at the
-// relevant line. Replies are supported via the InlineThread component.
 
 export type PrFilesPageProps = {
   owner: string;
@@ -46,108 +38,50 @@ export type PrFilesPageProps = {
 export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
   const filesQuery = usePrFiles(owner, repo, number);
   const prQuery = useFullPr(owner, repo, number);
-  const reviewCommentsQuery = usePrReviewComments(owner, repo, number);
-  const meQuery = useMe();
 
   const reviewMode = useReviewMode(owner, repo, number);
   const pending = usePendingComments(owner, repo, number);
   const store = useReviewStore();
 
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-  const [activeComposer, setActiveComposer] = useState<{
-    path: string;
-    side: PendingSide;
-    line: number;
-  } | null>(null);
 
-  // ── Derived ───────────────────────────────────────────────────────────
   const canReview =
     !!prQuery.data && prQuery.data.state === "open" && !prQuery.data.merged;
-  const isAuthor = prQuery.data?.user?.login === meQuery.data?.login;
+  const isAuthor = prQuery.data?.user?.login === useMe().data?.login;
 
   const diffFiles = useMemo<DiffLayoutFile[]>(
     () => (filesQuery.data ?? []).map(toDiffLayoutFile),
     [filesQuery.data],
   );
 
-  // Group existing review comments by `path:side:line` for O(1) lookup.
-  const threadMap = useMemo(() => {
-    const comments = reviewCommentsQuery.data ?? [];
-    return buildThreadMap(comments);
-  }, [reviewCommentsQuery.data]);
-
-  // Group pending comments by same key.
-  const pendingMap = useMemo(() => {
-    const m = new Map<string, PendingComment[]>();
-    for (const c of pending) {
-      const k = `${c.path}:${c.side}:${c.line}`;
-      const arr = m.get(k) ?? [];
-      arr.push(c);
-      m.set(k, arr);
-    }
-    return m;
-  }, [pending]);
-
-  // ── Review hooks factory — one per file ───────────────────────────────
+  // Stable factory — returns a fixed DiffReviewHooks per filename.
+  // LineSlot subscribes to its own state independently, so this factory
+  // never needs to change. The "+" handler writes to the zustand store.
   const getReviewHooks = useCallback(
     (filename: string): DiffReviewHooks | undefined => {
       if (!canReview) return undefined;
       return {
-        onAddComment: reviewMode
-          ? (args) => {
-              setActiveComposer({ path: filename, ...args });
-            }
-          : undefined,
-        renderLineTrailer: (args) => {
-          const key = `${filename}:${args.side}:${args.line}`;
-          const threads = threadMap.get(key);
-          const pendingHere = pendingMap.get(key);
-          const isComposerHere =
-            activeComposer?.path === filename &&
-            activeComposer.side === args.side &&
-            activeComposer.line === args.line;
-          if (!threads?.length && !pendingHere?.length && !isComposerHere)
-            return null;
-          return (
-            <LineTrailer
-              owner={owner}
-              repo={repo}
-              number={number}
-              threads={threads}
-              pending={pendingHere}
-              isComposerHere={isComposerHere}
-              onSaveComment={(body) => {
-                store.addPending(owner, repo, number, {
-                  path: filename,
-                  side: args.side,
-                  line: args.line,
-                  body,
-                });
-                setActiveComposer(null);
-              }}
-              onCancelComposer={() => setActiveComposer(null)}
-              onRemovePending={(id) =>
-                store.removePending(owner, repo, number, id)
-              }
-            />
-          );
+        onAddComment: (args) => {
+          store.openComposer(owner, repo, number, {
+            path: filename,
+            ...args,
+          });
         },
+        renderLineTrailer: (args) => (
+          <LineSlot
+            owner={owner}
+            repo={repo}
+            number={number}
+            path={filename}
+            side={args.side}
+            line={args.line}
+          />
+        ),
       };
     },
-    [
-      canReview,
-      reviewMode,
-      threadMap,
-      pendingMap,
-      activeComposer,
-      owner,
-      repo,
-      number,
-      store,
-    ],
+    [canReview, owner, repo, number, store],
   );
 
-  // ── Render ────────────────────────────────────────────────────────────
   if (filesQuery.isPending) return <PrFilesSkeleton />;
   if (filesQuery.isError) {
     return (
@@ -170,7 +104,6 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
 
   return (
     <div className="flex flex-col gap-0">
-      {/* Review action bar */}
       {canReview && (
         <div className="sticky top-0 z-20 flex items-center justify-end gap-2 border-b border-border bg-background/95 px-3 py-2 backdrop-blur-sm">
           {!reviewMode ? (
@@ -198,10 +131,7 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
               >
                 Cancel review
               </Button>
-              <Button
-                size="sm"
-                onClick={() => setReviewDialogOpen(true)}
-              >
+              <Button size="sm" onClick={() => setReviewDialogOpen(true)}>
                 <Send data-icon="inline-start" />
                 Finish review
               </Button>
@@ -210,7 +140,6 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
         </div>
       )}
 
-      {/* Diff */}
       <div className="-mx-4 sm:-mx-6">
         <DiffLayout
           files={diffFiles}
@@ -236,38 +165,54 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
   );
 }
 
-// ─── LineTrailer ────────────────────────────────────────────────────────────
+// ─── LineSlot ──────────────────────────────────────────────────────────────
 //
-// Renders below a diff row when threads, pending comments, or the active
-// composer belong to that line. Kept intentionally lightweight — no
-// CommentBox, no markdown-preview, just native textarea.
+// Each slot subscribes independently to:
+//   • Zustand — active composer + pending comments for this line
+//   • TanStack Query — review comments (via usePrReviewComments cache)
+// Only the slot whose data changed re-renders. The parent diff tree stays
+// frozen → no lag when opening a composer.
 
-type Thread = { root: ReviewComment; replies: ReviewComment[] };
-
-function LineTrailer({
+const LineSlot = memo(function LineSlot({
   owner,
   repo,
   number,
-  threads,
-  pending: pendingHere,
-  isComposerHere,
-  onSaveComment,
-  onCancelComposer,
-  onRemovePending,
+  path,
+  side,
+  line,
 }: {
   owner: string;
   repo: string;
   number: number;
-  threads?: Thread[];
-  pending?: PendingComment[];
-  isComposerHere: boolean;
-  onSaveComment: (body: string) => void;
-  onCancelComposer: () => void;
-  onRemovePending: (id: number) => void;
+  path: string;
+  side: "LEFT" | "RIGHT";
+  line: number;
 }) {
+  const store = useReviewStore();
+  const activeComposer = useActiveComposer(owner, repo, number);
+  const allPending = usePendingComments(owner, repo, number);
+  const reviewCommentsQuery = usePrReviewComments(owner, repo, number);
+
+  const isComposerHere =
+    activeComposer?.path === path &&
+    activeComposer.side === side &&
+    activeComposer.line === line;
+
+  const pendingHere = useMemo(
+    () => allPending.filter((c) => c.path === path && c.side === side && c.line === line),
+    [allPending, path, side, line],
+  );
+
+  const threads = useMemo(() => {
+    const comments = reviewCommentsQuery.data ?? [];
+    return buildThreadsForLine(comments, path, side, line);
+  }, [reviewCommentsQuery.data, path, side, line]);
+
+  if (!threads.length && !pendingHere.length && !isComposerHere) return null;
+
   return (
     <>
-      {threads?.map((t) => (
+      {threads.map((t) => (
         <InlineThread
           key={t.root.id}
           owner={owner}
@@ -277,19 +222,26 @@ function LineTrailer({
           replies={t.replies}
         />
       ))}
-      {pendingHere?.map((c) => (
-        <PendingCard key={c.id} comment={c} onRemove={() => onRemovePending(c.id)} />
+      {pendingHere.map((c) => (
+        <PendingCard
+          key={c.id}
+          comment={c}
+          onRemove={() => store.removePending(owner, repo, number, c.id)}
+        />
       ))}
       {isComposerHere && (
         <InlineComposer
-          onSubmit={onSaveComment}
-          onCancel={onCancelComposer}
+          onSubmit={(body) => {
+            store.addPending(owner, repo, number, { path, side, line, body });
+            store.closeComposer(owner, repo, number);
+          }}
+          onCancel={() => store.closeComposer(owner, repo, number)}
           submitLabel="Add review comment"
         />
       )}
     </>
   );
-}
+});
 
 function PendingCard({
   comment,
@@ -319,9 +271,16 @@ function PendingCard({
   );
 }
 
-// ─── Thread grouping ───────────────────────────────────────────────────────
+// ─── Thread grouping for a specific line ───────────────────────────────────
 
-function buildThreadMap(comments: ReviewComment[]) {
+type Thread = { root: ReviewComment; replies: ReviewComment[] };
+
+function buildThreadsForLine(
+  comments: ReviewComment[],
+  path: string,
+  side: "LEFT" | "RIGHT",
+  line: number,
+): Thread[] {
   const byId = new Map<number, ReviewComment>();
   for (const c of comments) byId.set(c.id, c);
 
@@ -336,20 +295,17 @@ function buildThreadMap(comments: ReviewComment[]) {
     }
     if (c.id !== rootId) t.replies.push(c);
   }
-  for (const t of threads.values()) {
-    t.replies.sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
-  }
 
-  const map = new Map<string, Thread[]>();
+  const result: Thread[] = [];
   for (const t of threads.values()) {
-    const side = t.root.side ?? "RIGHT";
-    const line = t.root.line ?? t.root.original_line ?? 0;
-    const key = `${t.root.path}:${side}:${line}`;
-    const arr = map.get(key) ?? [];
-    arr.push(t);
-    map.set(key, arr);
+    const rSide = t.root.side ?? "RIGHT";
+    const rLine = t.root.line ?? t.root.original_line ?? 0;
+    if (t.root.path === path && rSide === side && rLine === line) {
+      t.replies.sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+      result.push(t);
+    }
   }
-  return map;
+  return result;
 }
 
 function findRootId(c: ReviewComment, byId: Map<number, ReviewComment>): number {

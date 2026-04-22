@@ -93,8 +93,9 @@ export function DiffView({
          * below the viewport (min-w-full). All children render `w-full` of
          * this wrapper, so hunk headers, diff rows, short lines, long lines
          * all share the same box width — no ragged right edge when scrolled.
+         * Split mode uses `w-full` so the 50/50 grid stays within viewport.
          */}
-        <div className="w-max min-w-full">
+        <div className={mode === "split" ? "w-full" : "w-max min-w-full"}>
           {hunks.map((hunk, hIdx) => (
             <Fragment key={hIdx}>
               {hIdx > 0 && <div className="h-px bg-border" />}

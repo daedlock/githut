@@ -28,11 +28,16 @@ type PrKey = string; // `${owner}/${repo}/${number}`
 
 const prKey = (o: string, r: string, n: number) => `${o}/${r}/${n}`;
 
+export type ActiveComposer = {
+  path: string;
+  side: PendingSide;
+  line: number;
+} | null;
+
 type ReviewState = {
-  /** PRs in active-review mode. Exit on submit or cancel. */
   modeByPr: Record<PrKey, boolean>;
-  /** pendingByPr[pr][commentId] = draft. Ordered by insertion via Map. */
   pendingByPr: Record<PrKey, PendingComment[]>;
+  composerByPr: Record<PrKey, ActiveComposer>;
 
   startReview(o: string, r: string, n: number): void;
   cancelReview(o: string, r: string, n: number): void;
@@ -40,11 +45,14 @@ type ReviewState = {
   updatePending(o: string, r: string, n: number, id: number, body: string): void;
   removePending(o: string, r: string, n: number, id: number): void;
   clearPending(o: string, r: string, n: number): void;
+  openComposer(o: string, r: string, n: number, c: ActiveComposer): void;
+  closeComposer(o: string, r: string, n: number): void;
 };
 
 export const useReviewStore = create<ReviewState>()((set, get) => ({
   modeByPr: {},
   pendingByPr: {},
+  composerByPr: {},
 
   startReview: (o, r, n) => {
     const k = prKey(o, r, n);
@@ -53,12 +61,14 @@ export const useReviewStore = create<ReviewState>()((set, get) => ({
 
   cancelReview: (o, r, n) => {
     const k = prKey(o, r, n);
-    const { modeByPr, pendingByPr } = get();
+    const { modeByPr, pendingByPr, composerByPr } = get();
     const nextMode = { ...modeByPr };
     const nextPending = { ...pendingByPr };
+    const nextComposer = { ...composerByPr };
     delete nextMode[k];
     delete nextPending[k];
-    set({ modeByPr: nextMode, pendingByPr: nextPending });
+    delete nextComposer[k];
+    set({ modeByPr: nextMode, pendingByPr: nextPending, composerByPr: nextComposer });
   },
 
   addPending: (o, r, n, c) => {
@@ -99,6 +109,16 @@ export const useReviewStore = create<ReviewState>()((set, get) => ({
     delete next[k];
     set({ pendingByPr: next });
   },
+
+  openComposer: (o, r, n, c) => {
+    const k = prKey(o, r, n);
+    set({ composerByPr: { ...get().composerByPr, [k]: c } });
+  },
+
+  closeComposer: (o, r, n) => {
+    const k = prKey(o, r, n);
+    set({ composerByPr: { ...get().composerByPr, [k]: null } });
+  },
 }));
 
 // ─── Selector helpers (keeps subscribers from re-rendering on unrelated PRs) ─
@@ -113,6 +133,14 @@ export function usePendingComments(
   n: number,
 ): PendingComment[] {
   return useReviewStore((s) => s.pendingByPr[prKey(o, r, n)] ?? EMPTY);
+}
+
+export function useActiveComposer(
+  o: string,
+  r: string,
+  n: number,
+): ActiveComposer {
+  return useReviewStore((s) => s.composerByPr[prKey(o, r, n)] ?? null);
 }
 
 const EMPTY: PendingComment[] = [];
