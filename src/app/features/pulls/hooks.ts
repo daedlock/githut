@@ -2,12 +2,23 @@ import {
   infiniteQueryOptions,
   queryOptions,
   useInfiniteQuery,
+  useMutation,
   useQuery,
+  useQueryClient,
 } from "@tanstack/react-query";
 import { z } from "zod";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
-import { PullRequestSchema, type PullRequest } from "@/app/features/pulls/schemas";
+import {
+  IssueCommentOnPrSchema,
+  PullRequestSchema,
+  ReviewSchema,
+  TimelineEventsResponseSchema,
+  type IssueCommentOnPr,
+  type PullRequest,
+  type Review,
+  type TimelineEvent,
+} from "@/app/features/pulls/schemas";
 import { toUiState, isLive as isStateLive } from "@/app/features/pulls/lib/prStatus";
 
 // ─── PR-list schema (search API `items` shape) ─────────────────────────────
@@ -70,6 +81,12 @@ export const pullsKeys = {
   counts: (owner: string, repo: string) => ["pulls-counts", owner, repo] as const,
   detail: (owner: string, repo: string, number: number) =>
     ["pulls-detail", owner, repo, number] as const,
+  comments: (owner: string, repo: string, number: number) =>
+    ["pulls-comments", owner, repo, number] as const,
+  reviews: (owner: string, repo: string, number: number) =>
+    ["pulls-reviews", owner, repo, number] as const,
+  timeline: (owner: string, repo: string, number: number) =>
+    ["pulls-timeline", owner, repo, number] as const,
 };
 
 // ─── Filters ───────────────────────────────────────────────────────────────
@@ -236,5 +253,153 @@ export function useFullPr(owner: string, repo: string, number: number) {
       return isStateLive(ui) ? 10_000 : false;
     },
     refetchIntervalInBackground: false,
+  });
+}
+
+// ─── Conversation feed — issue comments, reviews, timeline ─────────────────
+//
+// GitHub's "Conversation" tab is the interleave of three endpoints. We
+// fetch them separately so each can cache/invalidate on its own schedule
+// and merge chronologically in the view layer (via `lib/mergeTimeline`).
+
+const PrCommentsResponseSchema = z.array(IssueCommentOnPrSchema);
+const PrReviewsResponseSchema = z.array(ReviewSchema);
+
+export const prCommentsQueryOptions = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: pullsKeys.comments(owner, repo, number),
+    staleTime: 15_000,
+    queryFn: async (): Promise<IssueCommentOnPr[]> => {
+      const client = getGitHubClient();
+      // PR issue-level comments live under /issues/{n}/comments (PRs are
+      // issues under the hood). Review comments on diff rows come from a
+      // different endpoint and are fetched in P5.
+      const res = await client.request(
+        "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
+        { owner, repo, issue_number: number, per_page: 100 },
+      );
+      return PrCommentsResponseSchema.parse(res.data);
+    },
+  });
+
+export function usePrComments(owner: string, repo: string, number: number) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...prCommentsQueryOptions(owner, repo, number),
+    enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+  });
+}
+
+export const prReviewsQueryOptions = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: pullsKeys.reviews(owner, repo, number),
+    staleTime: 15_000,
+    queryFn: async (): Promise<Review[]> => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews",
+        { owner, repo, pull_number: number, per_page: 100 },
+      );
+      return PrReviewsResponseSchema.parse(res.data);
+    },
+  });
+
+export function usePrReviews(owner: string, repo: string, number: number) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...prReviewsQueryOptions(owner, repo, number),
+    enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+  });
+}
+
+export const prTimelineQueryOptions = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: pullsKeys.timeline(owner, repo, number),
+    staleTime: 15_000,
+    queryFn: async (): Promise<TimelineEvent[]> => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "GET /repos/{owner}/{repo}/issues/{issue_number}/timeline",
+        {
+          owner,
+          repo,
+          issue_number: number,
+          per_page: 100,
+          headers: { accept: "application/vnd.github.mockingbird-preview+json" },
+        },
+      );
+      return TimelineEventsResponseSchema.parse(res.data);
+    },
+  });
+
+export function usePrTimeline(owner: string, repo: string, number: number) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...prTimelineQueryOptions(owner, repo, number),
+    enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+  });
+}
+
+// ─── Post PR comment (optimistic) ──────────────────────────────────────────
+//
+// Mirrors `useCreateIssueComment`: snapshot → temp row → swap on success
+// → rollback on error → invalidate detail so the `comments` counter and
+// sub-tab badge refresh.
+
+export function usePostPrComment(
+  owner: string,
+  repo: string,
+  number: number,
+  me: { id: number; login: string; avatar_url: string } | undefined,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ body }: { body: string }) => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
+        { owner, repo, issue_number: number, body },
+      );
+      return IssueCommentOnPrSchema.parse(res.data);
+    },
+    onMutate: async ({ body }) => {
+      const key = pullsKeys.comments(owner, repo, number);
+      await queryClient.cancelQueries({ queryKey: key });
+      const prev = queryClient.getQueryData<IssueCommentOnPr[]>(key);
+      const tempId = -Date.now();
+      const nowIso = new Date().toISOString();
+      const optimistic: IssueCommentOnPr = {
+        id: tempId,
+        node_id: `temp-${tempId}`,
+        url: "",
+        html_url: "",
+        body,
+        created_at: nowIso,
+        updated_at: nowIso,
+        user: me
+          ? { login: me.login, avatar_url: me.avatar_url, html_url: undefined }
+          : null,
+      };
+      queryClient.setQueryData<IssueCommentOnPr[]>(key, (old) => [
+        ...(old ?? []),
+        optimistic,
+      ]);
+      return { prev, tempId, key };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSuccess: (created, _vars, ctx) => {
+      if (ctx) {
+        queryClient.setQueryData<IssueCommentOnPr[]>(ctx.key, (old) =>
+          (old ?? []).map((c) => (c.id === ctx.tempId ? created : c)),
+        );
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: pullsKeys.detail(owner, repo, number),
+      });
+    },
   });
 }
