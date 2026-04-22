@@ -7,6 +7,8 @@ import {
 import { z } from "zod";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
+import { PullRequestSchema, type PullRequest } from "@/app/features/pulls/schemas";
+import { toUiState, isLive as isStateLive } from "@/app/features/pulls/lib/prStatus";
 
 // ─── PR-list schema (search API `items` shape) ─────────────────────────────
 //
@@ -66,6 +68,8 @@ export const pullsKeys = {
   list: (owner: string, repo: string, filters: PullsFilters) =>
     ["pulls-list", owner, repo, normalizeFilters(filters)] as const,
   counts: (owner: string, repo: string) => ["pulls-counts", owner, repo] as const,
+  detail: (owner: string, repo: string, number: number) =>
+    ["pulls-detail", owner, repo, number] as const,
 };
 
 // ─── Filters ───────────────────────────────────────────────────────────────
@@ -194,5 +198,43 @@ export function usePullsCounts(owner: string, repo: string) {
   return useQuery({
     ...pullsCountsQueryOptions(owner, repo),
     enabled: !!token && !!owner && !!repo,
+  });
+}
+
+// ─── PR detail (full REST shape) ───────────────────────────────────────────
+//
+// Everything the detail header needs — title, state, draft/merged flags,
+// head/base refs, mergeable state, body, counts. Polls while the PR is
+// live so the header reflects merge-state changes + status-check results
+// without a refresh.
+
+export const prDetailQueryOptions = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: pullsKeys.detail(owner, repo, number),
+    staleTime: 30_000,
+    queryFn: async (): Promise<PullRequest> => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "GET /repos/{owner}/{repo}/pulls/{pull_number}",
+        { owner, repo, pull_number: number },
+      );
+      return PullRequestSchema.parse(res.data);
+    },
+  });
+
+export function useFullPr(owner: string, repo: string, number: number) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...prDetailQueryOptions(owner, repo, number),
+    enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: (q) => {
+      const pr = q.state.data;
+      if (!pr) return false;
+      const ui = toUiState(pr);
+      // Merge state and check-status can flip without user action (checks
+      // complete, mergeability recomputes) — poll at 10s while live.
+      return isStateLive(ui) ? 10_000 : false;
+    },
+    refetchIntervalInBackground: false,
   });
 }
