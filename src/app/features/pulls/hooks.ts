@@ -741,7 +741,20 @@ export type ReviewEvent = "APPROVE" | "REQUEST_CHANGES" | "COMMENT";
 export function useSubmitPrReview(owner: string, repo: string, number: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ event, body }: { event: ReviewEvent; body?: string }) => {
+    mutationFn: async ({
+      event,
+      body,
+      comments,
+    }: {
+      event: ReviewEvent;
+      body?: string;
+      comments?: Array<{
+        path: string;
+        line: number;
+        side: "LEFT" | "RIGHT";
+        body: string;
+      }>;
+    }) => {
       const client = getGitHubClient();
       const res = await client.request(
         "POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews",
@@ -751,6 +764,7 @@ export function useSubmitPrReview(owner: string, repo: string, number: number) {
           pull_number: number,
           event,
           body: body?.trim() || undefined,
+          comments: comments?.length ? comments : undefined,
         },
       );
       return ReviewSchema.parse(res.data);
@@ -764,6 +778,9 @@ export function useSubmitPrReview(owner: string, repo: string, number: number) {
       });
       queryClient.invalidateQueries({
         queryKey: pullsKeys.detail(owner, repo, number),
+      });
+      queryClient.invalidateQueries({
+        queryKey: pullsKeys.reviewComments(owner, repo, number),
       });
     },
   });

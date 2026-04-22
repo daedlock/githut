@@ -12,6 +12,7 @@ import {
 } from "@/app/components/ui/dialog";
 import { Textarea } from "@/app/components/ui/textarea";
 import { useSubmitPrReview, type ReviewEvent } from "@/app/features/pulls/hooks";
+import type { PendingComment } from "@/app/features/pulls/stores/review";
 import { cn } from "@/app/lib/cn";
 
 // ─── PrReviewDialog ────────────────────────────────────────────────────────
@@ -58,8 +59,9 @@ export type PrReviewDialogProps = {
   owner: string;
   repo: string;
   number: number;
-  /** When true, disables APPROVE (GitHub forbids self-approval). */
   isAuthor: boolean;
+  pendingComments?: PendingComment[];
+  onReviewSubmitted?: () => void;
 };
 
 export function PrReviewDialog({
@@ -69,6 +71,8 @@ export function PrReviewDialog({
   repo,
   number,
   isAuthor,
+  pendingComments = [],
+  onReviewSubmitted,
 }: PrReviewDialogProps) {
   const [event, setEvent] = useState<ReviewEvent>("COMMENT");
   const [body, setBody] = useState("");
@@ -84,12 +88,19 @@ export function PrReviewDialog({
       setError("A comment is required when requesting changes.");
       return;
     }
+    const comments = pendingComments.map((c) => ({
+      path: c.path,
+      line: c.line,
+      side: c.side,
+      body: c.body,
+    }));
     submit.mutate(
-      { event, body },
+      { event, body, comments },
       {
         onSuccess: () => {
           setBody("");
           setEvent("COMMENT");
+          onReviewSubmitted?.();
           onOpenChange(false);
         },
         onError: (err) => {
@@ -107,9 +118,11 @@ export function PrReviewDialog({
         <DialogHeader>
           <DialogTitle>Finish your review</DialogTitle>
           <DialogDescription>
-            Submit your feedback for this pull request. A review carries
-            extra weight in the timeline — use it when a reviewer role
-            applies.
+            {pendingComments.length > 0
+              ? `${pendingComments.length} pending inline ${
+                  pendingComments.length === 1 ? "comment" : "comments"
+                } will be submitted with this review.`
+              : "Submit your feedback for this pull request."}
           </DialogDescription>
         </DialogHeader>
 

@@ -2,7 +2,7 @@ import { Columns2, PanelLeftClose, PanelLeftOpen, Rows2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type ChangedFile, ChangedFileTree } from "@/app/components/repo/ChangedFileTree";
 import { cn } from "@/app/lib/cn";
-import type { DiffMode } from "./DiffView";
+import type { DiffMode, DiffReviewHooks } from "./DiffView";
 import { FileDiff } from "./FileDiff";
 
 /**
@@ -25,6 +25,9 @@ export type DiffLayoutProps = {
    * viewport and isn't dwarfed by a sidebar pointing at one row. */
   initialSidebarOpen?: boolean;
   className?: string;
+  /** Per-file review hooks factory. Returns hooks scoped to one filename.
+   * When absent, no review affordances render (commit diff stays clean). */
+  getReviewHooks?: (filename: string) => DiffReviewHooks | undefined;
 };
 
 /**
@@ -59,6 +62,7 @@ export function DiffLayout({
   defaultMode = "unified",
   initialSidebarOpen = true,
   className,
+  getReviewHooks,
 }: DiffLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(initialSidebarOpen);
   const [mode, setMode] = useState<DiffMode>(defaultMode);
@@ -252,6 +256,7 @@ export function DiffLayout({
                   patch={file.patch}
                   lang={file.lang}
                   defaultMode={mode}
+                  review={getReviewHooks?.(file.filename)}
                 />
               </div>
             ))}

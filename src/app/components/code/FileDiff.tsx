@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight, Columns2, Rows2 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/app/lib/cn";
-import { DiffView, type DiffMode } from "./DiffView";
+import { DiffView, type DiffMode, type DiffReviewHooks } from "./DiffView";
 
 export type FileStatus = "added" | "removed" | "modified" | "renamed" | "copied" | "changed";
 
@@ -21,6 +21,8 @@ export type FileDiffProps = {
   /** Initial collapsed state. */
   defaultCollapsed?: boolean;
   className?: string;
+  /** Optional review hooks — see DiffView for shape. */
+  review?: DiffReviewHooks;
 };
 
 export function FileDiff({
@@ -34,6 +36,7 @@ export function FileDiff({
   defaultMode = "unified",
   defaultCollapsed = false,
   className,
+  review,
 }: FileDiffProps) {
   const [mode, setMode] = useState<DiffMode>(defaultMode);
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -83,7 +86,7 @@ export function FileDiff({
               Binary file — preview unavailable
             </div>
           ) : hasPatch ? (
-            <DiffView patch={patch} lang={lang} mode={mode} className="rounded-none border-0" />
+            <DiffView patch={patch} lang={lang} mode={mode} review={review} className="rounded-none border-0" />
           ) : (
             <div className="bg-muted px-4 py-5 text-center font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]">
               No changes

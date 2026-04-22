@@ -1,4 +1,5 @@
-import { Fragment, useMemo } from "react";
+import { MessageSquarePlus } from "lucide-react";
+import { Fragment, useMemo, type ReactNode } from "react";
 import { cn } from "@/app/lib/cn";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { countChanges, type DiffHunk, type DiffLine, parseUnifiedDiff } from "./parseDiff";
@@ -11,6 +12,21 @@ import { computeLinePairs, wordDiff, type WordSegment } from "./wordDiff";
 
 export type DiffMode = "unified" | "split";
 
+/**
+ * Optional review affordances. When provided, each unified-mode row shows a
+ * hover "+" button that fires `onAddComment`; `renderLineTrailer` is called
+ * once per rendered row and its return value is mounted directly below —
+ * used to inline existing review threads and the active composer.
+ * Split mode intentionally opts out; matches GitHub's own behavior.
+ */
+export type DiffReviewHooks = {
+  onAddComment?: (args: { side: "LEFT" | "RIGHT"; line: number }) => void;
+  renderLineTrailer?: (args: {
+    side: "LEFT" | "RIGHT";
+    line: number;
+  }) => ReactNode;
+};
+
 export type DiffViewProps = {
   /** The unified-diff text — typically the `patch` field from GitHub's files API. */
   patch: string | null | undefined;
@@ -19,9 +35,17 @@ export type DiffViewProps = {
   /** "unified" stacks +/- inline; "split" is side-by-side with aligned rows. */
   mode?: DiffMode;
   className?: string;
+  /** Opt-in review mode hooks. */
+  review?: DiffReviewHooks;
 };
 
-export function DiffView({ patch, lang = "text", mode = "unified", className }: DiffViewProps) {
+export function DiffView({
+  patch,
+  lang = "text",
+  mode = "unified",
+  className,
+  review,
+}: DiffViewProps) {
   const hunks = useMemo(() => parseUnifiedDiff(patch), [patch]);
 
   // Build the two "virtual" source files from the patch: old (context + dels)
@@ -82,6 +106,7 @@ export function DiffView({ patch, lang = "text", mode = "unified", className }: 
                   newTokens={newTokens}
                   oldLineMap={oldLineMap}
                   newLineMap={newLineMap}
+                  review={review}
                 />
               ) : (
                 <SplitHunk
@@ -128,12 +153,14 @@ function UnifiedHunk({
   newTokens,
   oldLineMap,
   newLineMap,
+  review,
 }: {
   hunk: DiffHunk;
   oldTokens: CodeLine[];
   newTokens: CodeLine[];
   oldLineMap: Map<number, number>;
   newLineMap: Map<number, number>;
+  review?: DiffReviewHooks;
 }) {
   const pairs = useMemo(() => computeLinePairs(hunk.lines), [hunk]);
   const inversePairs = useMemo(() => {
@@ -174,16 +201,32 @@ function UnifiedHunk({
         const showEmphasis =
           segments != null && (line.kind === "del" ? pairs.has(idx) : inversePairs.has(idx));
 
+        // Which side + line the trailer / comment affordance anchors to.
+        // Deletions live on LEFT; additions and context on RIGHT (GitHub's
+        // convention for anchoring inline threads).
+        const side: "LEFT" | "RIGHT" = line.kind === "del" ? "LEFT" : "RIGHT";
+        const lineNum = side === "LEFT" ? line.oldNum : line.newNum;
+        const trailer =
+          lineNum != null && review?.renderLineTrailer
+            ? review.renderLineTrailer({ side, line: lineNum })
+            : null;
         return (
-          <DiffRow
-            key={idx}
-            kind={line.kind}
-            oldNum={line.oldNum}
-            newNum={line.newNum}
-            tokens={tokens}
-            rawText={line.content}
-            emphasis={showEmphasis ? segments : undefined}
-          />
+          <Fragment key={idx}>
+            <DiffRow
+              kind={line.kind}
+              oldNum={line.oldNum}
+              newNum={line.newNum}
+              tokens={tokens}
+              rawText={line.content}
+              emphasis={showEmphasis ? segments : undefined}
+              onAddComment={
+                review?.onAddComment && lineNum != null
+                  ? () => review.onAddComment!({ side, line: lineNum })
+                  : undefined
+              }
+            />
+            {trailer}
+          </Fragment>
         );
       })}
     </div>
@@ -197,6 +240,7 @@ function DiffRow({
   tokens,
   rawText,
   emphasis,
+  onAddComment,
 }: {
   kind: DiffLine["kind"];
   oldNum?: number;
@@ -204,10 +248,26 @@ function DiffRow({
   tokens: CodeLine;
   rawText: string;
   emphasis?: WordSegment[];
+  onAddComment?: () => void;
 }) {
   const lineClass = kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
   return (
-    <div className={cn("flex w-full items-stretch", lineClass)}>
+    <div className={cn("group relative flex w-full items-stretch", lineClass)}>
+      {onAddComment && (
+        <button
+          type="button"
+          onClick={onAddComment}
+          aria-label="Add a comment on this line"
+          className={cn(
+            "absolute left-0 top-0 z-10 inline-flex size-5 items-center justify-center",
+            "rounded-sm bg-primary text-primary-foreground opacity-0",
+            "transition-opacity focus-visible:opacity-100 group-hover:opacity-100",
+            "outline-none shadow-sm",
+          )}
+        >
+          <MessageSquarePlus className="size-3" aria-hidden />
+        </button>
+      )}
       <div className="diff-gutter flex flex-shrink-0 select-none font-mono tabular-nums text-[var(--color-fg-faint)]">
         <span className="w-10 px-1 text-right">{oldNum ?? ""}</span>
         <span className="w-10 px-1 text-right">{newNum ?? ""}</span>
