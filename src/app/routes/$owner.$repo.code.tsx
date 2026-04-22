@@ -6,7 +6,7 @@ import { ReadmeViewer } from "@/app/components/repo/ReadmeViewer";
 import { RepoAbout } from "@/app/components/repo/RepoAbout";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { pathCommitQueryOptions, usePathCommit } from "@/app/hooks/usePathCommit";
+import { usePathCommit } from "@/app/hooks/usePathCommit";
 import { repoQueryOptions, useRepo } from "@/app/hooks/useRepo";
 import type { ContentEntry } from "@/app/hooks/useRepoContents";
 import { repoContentsQueryOptions, useRepoContents } from "@/app/hooks/useRepoContents";
@@ -36,18 +36,17 @@ const BLOB_SKELETON_WIDTHS = [
 
 export const Route = createFileRoute("/$owner/$repo/code")({
   validateSearch: codeSearchSchema,
-  // Fire-and-forget prefetches for everything the code page renders. We wait
-  // for `repo` (so we know the default branch) before dispatching the
-  // branch-dependent queries; the independent ones go in parallel.
-  loader: async ({ context, params }) => {
+  // Non-blocking prefetch for everything the code page renders. All fire
+  // in parallel without awaiting — the component's own useRepo/useRepoX
+  // hooks show skeletons on cold load. Branch-dependent queries
+  // (pathCommit) are NOT pre-kicked here because we'd need the repo's
+  // default_branch; the component fires those once repo data arrives.
+  loader: ({ context, params }) => {
     const qc = context.queryClient;
-    const [repo] = await Promise.all([
-      qc.ensureQueryData(repoQueryOptions(params.owner, params.repo)),
-      qc.prefetchQuery(repoLanguagesQueryOptions(params.owner, params.repo)),
-      qc.prefetchQuery(repoReadmeQueryOptions(params.owner, params.repo)),
-      qc.prefetchQuery(repoContentsQueryOptions(params.owner, params.repo, "")),
-    ]);
-    qc.prefetchQuery(pathCommitQueryOptions(params.owner, params.repo, "", repo.default_branch));
+    void qc.prefetchQuery(repoQueryOptions(params.owner, params.repo));
+    void qc.prefetchQuery(repoLanguagesQueryOptions(params.owner, params.repo));
+    void qc.prefetchQuery(repoReadmeQueryOptions(params.owner, params.repo));
+    void qc.prefetchQuery(repoContentsQueryOptions(params.owner, params.repo, ""));
   },
   component: CodePage,
 });

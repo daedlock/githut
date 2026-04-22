@@ -11,9 +11,12 @@ export const Route = createFileRoute("/")({
   beforeLoad: () => {
     if (!useAuthStore.getState().token) throw redirect({ to: "/login" });
   },
-  // Runs on hover (preload: "intent") and on click. Warms the repos list
-  // cache before the component mounts so first paint is instant.
-  loader: ({ context }) => context.queryClient.ensureQueryData(reposQueryOptions()),
+  // Fire-and-forget prefetch — warms the cache on hover (preload: "intent")
+  // without blocking the route transition. The component handles its own
+  // pending state with a skeleton so cold navigations show loading UI.
+  loader: ({ context }) => {
+    void context.queryClient.prefetchQuery(reposQueryOptions());
+  },
   component: IndexPage,
 });
 

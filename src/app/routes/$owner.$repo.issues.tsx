@@ -22,10 +22,13 @@ export const Route = createFileRoute("/$owner/$repo/issues")({
     if (Number.isInteger(value) && value > 0) return { issue: value };
     return {};
   },
-  loader: ({ context, params }) =>
-    context.queryClient.ensureQueryData(
+  // Fire-and-forget prefetch — component handles its own pending state
+  // with a skeleton so cold navigations show loading UI.
+  loader: ({ context, params }) => {
+    void context.queryClient.prefetchQuery(
       repoIssuesQueryOptions(params.owner, params.repo),
-    ),
+    );
+  },
   component: IssuesPage,
 });
 

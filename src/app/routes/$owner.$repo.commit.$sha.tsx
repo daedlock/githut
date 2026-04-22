@@ -11,10 +11,12 @@ import { detectLang } from "@/app/lib/detectLang";
 import { formatRelativeTime } from "@/app/lib/time";
 
 export const Route = createFileRoute("/$owner/$repo/commit/$sha")({
-  loader: ({ context, params }) =>
-    context.queryClient.ensureQueryData(
+  // Fire-and-forget prefetch — component handles its own pending state.
+  loader: ({ context, params }) => {
+    void context.queryClient.prefetchQuery(
       repoCommitQueryOptions(params.owner, params.repo, params.sha),
-    ),
+    );
+  },
   component: CommitDetailPage,
 });
 

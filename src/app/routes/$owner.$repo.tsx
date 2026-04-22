@@ -18,10 +18,14 @@ export const Route = createFileRoute("/$owner/$repo")({
   beforeLoad: () => {
     if (!useAuthStore.getState().token) throw redirect({ to: "/login" });
   },
-  // Repo metadata is needed by every child (for `default_branch` and the
-  // sidebar), so prefetch here once and let children reuse the cache.
-  loader: ({ context, params }) =>
-    context.queryClient.ensureQueryData(repoQueryOptions(params.owner, params.repo)),
+  // Non-blocking prefetch — warms the cache on hover (preload: "intent")
+  // and on click without awaiting, so the route transitions instantly and
+  // child components get to render their own skeletons while the fetch
+  // completes. Repo metadata is needed by every child (for `default_branch`
+  // and the sidebar), so it's prefetched here once and children reuse it.
+  loader: ({ context, params }) => {
+    void context.queryClient.prefetchQuery(repoQueryOptions(params.owner, params.repo));
+  },
   component: RepoLayout,
 });
 

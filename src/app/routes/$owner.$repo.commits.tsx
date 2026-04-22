@@ -6,15 +6,16 @@ import { StatusMessage } from "@/app/components/StatusMessage";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { repoQueryOptions, useRepo } from "@/app/hooks/useRepo";
-import { repoCommitsQueryOptions, useRepoCommits } from "@/app/hooks/useRepoCommits";
+import { useRepoCommits } from "@/app/hooks/useRepoCommits";
 import { formatFullDate, groupByDay } from "@/app/lib/time";
 
 export const Route = createFileRoute("/$owner/$repo/commits")({
-  loader: async ({ context, params }) => {
-    const qc = context.queryClient;
-    const repo = await qc.ensureQueryData(repoQueryOptions(params.owner, params.repo));
-    await qc.prefetchQuery(
-      repoCommitsQueryOptions(params.owner, params.repo, repo.default_branch),
+  // Non-blocking prefetch. Only the repo query fires here; the commits
+  // query needs `repo.default_branch` which the component derives once
+  // the repo data arrives. Component owns skeleton state end-to-end.
+  loader: ({ context, params }) => {
+    void context.queryClient.prefetchQuery(
+      repoQueryOptions(params.owner, params.repo),
     );
   },
   component: CommitsPage,
