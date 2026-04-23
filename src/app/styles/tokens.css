@@ -21,28 +21,48 @@
   --color-border: #e7e5e4; /* stone-200 — subtle separator */
   --color-border-strong: #d6d3d1; /* stone-300 — form controls, focused borders */
 
-  /* brand accent — warm ember, orange-600 */
-  --color-accent: #ea580c; /* 4.52:1 on bg; used sparingly on small UI + large text */
-  --color-accent-hover: #c2410c; /* orange-700 — 6.4:1 on bg */
-  --color-accent-fg: #fffbeb; /* amber-50 — 14.1:1 on accent */
+  /*
+   * ── OKLCH semantic color system ──────────────────────────────────────
+   *
+   * All semantic colors derived from shared lightness (--sem-l) and chroma
+   * (--sem-c) with only hue varying per role. This guarantees visual
+   * harmony — change the palette primitives and every status color, diff
+   * tint, badge, and pill adapts automatically.
+   *
+   * OKLCH(L C H): L=perceptual lightness 0-1, C=chroma 0-0.4, H=hue 0-360
+   *
+   * Light mode: sem-l ~0.55 (mid-dark on light bg for contrast)
+   * Dark mode:  sem-l ~0.78 (bright on dark bg for contrast)
+   * sem-c controls vibrancy — 0.18 is vivid but not neon
+   *
+   * Hues (matching GitHub's visual vocabulary):
+   *   accent/ember:  55   (warm orange)
+   *   success/green: 145  (natural green)
+   *   danger/red:    25   (warm red)
+   *   warning/amber: 85   (golden yellow)
+   *   merged/violet: 295  (purple)
+   *   info/blue:     240  (blue)
+   */
+  --sem-l: 0.55;
+  --sem-c: 0.18;
 
-  /* status */
-  --color-success: #16a34a; /* green-600 — 4.6:1 on bg */
-  --color-danger: #dc2626; /* red-600 — 5.3:1 on bg */
-  --color-warning: #ca8a04; /* yellow-600 — 4.6:1 on bg */
-  --color-focus: #ea580c; /* same as accent; focus ring consistency */
+  --color-accent: oklch(var(--sem-l) var(--sem-c) 55);
+  --color-accent-hover: oklch(calc(var(--sem-l) - 0.08) var(--sem-c) 55);
+  --color-accent-fg: #fffbeb;
 
-  /* issue state pills — GitHub-style colored badges */
-  --color-issue-open-bg: #dcfce7; /* green-100 — warm tint for open state */
-  --color-issue-open-fg: #15803d; /* green-700 — 5.9:1 on open-bg (AA large) */
-  --color-issue-closed-bg: #f3e8ff; /* purple-100 — soft tint for closed state */
-  --color-issue-closed-fg: #7c3aed; /* violet-600 — 4.7:1 on closed-bg (AA) */
+  --color-success: oklch(var(--sem-l) var(--sem-c) 145);
+  --color-danger: oklch(var(--sem-l) var(--sem-c) 25);
+  --color-warning: oklch(var(--sem-l) var(--sem-c) 85);
+  --color-focus: oklch(var(--sem-l) var(--sem-c) 55);
 
-  /* PR merged state — GitHub's violet. Distinct from issue-closed violet so
-     a merged PR reads differently from a closed-unmerged one. */
-  --color-pr-merged: #8250df; /* matches GitHub's merged-purple */
-  --color-pr-merged-bg: color-mix(in oklab, #8250df 14%, var(--color-bg-subtle));
-  --color-pr-merged-fg: color-mix(in oklab, #8250df 80%, var(--color-fg));
+  --color-pr-merged: oklch(var(--sem-l) var(--sem-c) 295);
+  --color-pr-merged-bg: color-mix(in oklab, oklch(var(--sem-l) var(--sem-c) 295) 14%, var(--color-bg-subtle));
+  --color-pr-merged-fg: color-mix(in oklab, oklch(var(--sem-l) var(--sem-c) 295) 80%, var(--color-fg));
+
+  --color-issue-open-bg: color-mix(in oklab, var(--color-success) 12%, var(--color-bg));
+  --color-issue-open-fg: oklch(calc(var(--sem-l) - 0.1) var(--sem-c) 145);
+  --color-issue-closed-bg: color-mix(in oklab, var(--color-pr-merged) 12%, var(--color-bg));
+  --color-issue-closed-fg: oklch(calc(var(--sem-l) - 0.1) var(--sem-c) 295);
 
   /*
    * Syntax highlighting tokens — consumed by our custom Shiki theme
@@ -292,21 +312,10 @@
   --color-border: #292524; /* stone-800 */
   --color-border-strong: #44403c; /* stone-700 */
 
-  /* accent — brighter on dark so 4.5:1 against bg holds without washing out */
-  --color-accent: #fb923c; /* orange-400 — 7.9:1 on bg */
-  --color-accent-hover: #fdba74; /* orange-300 */
-  --color-accent-fg: #1c1917; /* stone-900 — 12.1:1 on accent */
-
-  /* status — 400-level on dark to keep contrast high */
-  --color-success: #4ade80; /* green-400 — 9.4:1 on bg */
-  --color-danger: #f87171; /* red-400 — 7.0:1 on bg */
-  --color-warning: #facc15; /* yellow-400 — 12.5:1 on bg */
-  --color-focus: #fb923c;
-
-  /* issue state pills — dark mode */
-  --color-issue-open-bg: #052e16; /* green-950 — deep tint on near-black bg */
-  --color-issue-open-fg: #4ade80; /* green-400 — 9.4:1 on open-bg (AAA) */
-  --color-issue-closed-bg: #2e1065; /* violet-950 — deep tint */
+  /* OKLCH: brighter on dark bg, same chroma → all semantic colors adapt */
+  --sem-l: 0.78;
+  --sem-c: 0.18;
+  --color-accent-fg: #1c1917;
   --color-issue-closed-fg: #c084fc; /* purple-400 — 7.1:1 on closed-bg (AA) */
 
   /* syntax tokens — dark mode (300-level hues for high contrast on near-black) */
