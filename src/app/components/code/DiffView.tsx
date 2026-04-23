@@ -494,13 +494,14 @@ function NopArea() {
     <div
       className="flex h-[20px] items-stretch"
       style={{
-        background: `repeating-linear-gradient(
-          -45deg,
-          transparent,
-          transparent 3px,
-          color-mix(in oklab, var(--color-fg) 8%, var(--color-bg)) 3px,
-          color-mix(in oklab, var(--color-fg) 8%, var(--color-bg)) 4px
+        backgroundImage: `repeating-linear-gradient(
+          135deg,
+          color-mix(in oklab, var(--color-fg) 6%, transparent) 0px,
+          color-mix(in oklab, var(--color-fg) 6%, transparent) 1px,
+          transparent 1px,
+          transparent 5px
         )`,
+        backgroundColor: `color-mix(in oklab, var(--color-fg) 3%, var(--color-bg))`,
       }}
     >
     </div>
