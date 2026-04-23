@@ -130,7 +130,7 @@
   --diff-del-bg-word: color-mix(in oklab, var(--color-danger) 28%, var(--color-bg));
   --diff-del-gutter: color-mix(in oklab, var(--color-danger) 22%, var(--color-bg));
   --diff-del-marker: var(--color-danger);
-  --diff-hunk-bg: var(--color-bg-sunken);
+  --diff-hunk-bg: var(--color-bg-subtle);
   --diff-hunk-fg: var(--color-fg-muted);
   --diff-hunk-border: var(--color-border);
   --diff-expand-hover: color-mix(in oklab, var(--color-accent) 10%, var(--color-bg-subtle));
