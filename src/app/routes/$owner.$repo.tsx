@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { AppShell } from "@/app/components/shell/AppShell";
@@ -8,10 +8,8 @@ import { repoQueryOptions } from "@/app/hooks/useRepo";
 import { useAuthStore } from "@/app/stores/auth";
 import { useTabsStore } from "@/app/stores/tabs";
 
-// Child routes under /$owner/$repo whose own inner sticky chrome
-// (e.g. DiffLayout's top bar) would otherwise stack below the repo bar.
-// On these, we scroll the repo bar away instead of stacking stickies.
-const NON_STICKY_HEADER_PATTERNS: RegExp[] = [/\/commit\/[0-9a-f]{4,40}\/?$/i];
+// With the unified single-row nav, the header is always sticky.
+// DiffLayout's own sticky bar sits below it at top-10.
 
 export const Route = createFileRoute("/$owner/$repo")({
   beforeLoad: () => {
@@ -30,14 +28,12 @@ export const Route = createFileRoute("/$owner/$repo")({
 
 function RepoLayout() {
   const { owner, repo } = Route.useParams();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const stickyHeader = !NON_STICKY_HEADER_PATTERNS.some((re) => re.test(pathname));
 
   return (
     <AppShell
       header={<UnifiedNav repoContext={{ owner, repo }} />}
       footer={<ShellFooter bordered origin="localhost:5173" />}
-      stickyHeader={stickyHeader}
+      stickyHeader
     >
       <TabScrollRegistrar />
       <Outlet />
