@@ -491,13 +491,7 @@ const SplitRow = memo(function SplitRow({
 
 function NopArea() {
   return (
-    <div
-      className="flex h-[20px] items-stretch"
-      style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='8' height='8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-1,1 l2,-2 M0,8 l8,-8 M7,9 l2,-2' stroke='%23888' stroke-opacity='0.12' stroke-width='1'/%3E%3C/svg%3E")`,
-        backgroundColor: `color-mix(in oklab, var(--color-fg) 3%, var(--color-bg))`,
-      }}
-    >
+    <div className="h-[20px] bg-[color-mix(in_oklab,var(--color-fg)_5%,var(--color-bg))]">
     </div>
   );
 }
