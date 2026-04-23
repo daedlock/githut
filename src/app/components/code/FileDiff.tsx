@@ -20,12 +20,6 @@ export type FileDiffProps = {
   review?: DiffReviewHooks;
 };
 
-// Lazy DiffView: the file header renders immediately (cheap) but the
-// actual diff content only mounts when the header enters a 600px
-// viewport margin. Combined with content-visibility on the outer
-// wrapper, this gives instant page load + smooth scroll + no empty
-// space. Shiki tokens are prefetched so the DiffView mounts with
-// cached data.
 export const FileDiff = memo(function FileDiff({
   filename,
   previousFilename,
@@ -66,40 +60,52 @@ export const FileDiff = memo(function FileDiff({
   const showContent = !collapsed && mounted;
 
   return (
-    <section ref={sectionRef} className={cn("border-b border-border", className)}>
-      <header className="sticky top-[44px] z-[5] flex items-center gap-3 border-y border-[var(--color-border-strong)] bg-[var(--color-bg-sunken)] px-3 py-2">
+    <section ref={sectionRef} className={className}>
+      <header
+        className={cn(
+          "sticky top-[44px] z-[5]",
+          "flex items-center gap-2.5 px-3 py-1.5",
+          "border-y border-[var(--color-border-strong)]",
+          "bg-[var(--color-bg-subtle)]",
+        )}
+      >
         <button
           type="button"
           onClick={() => {
             setCollapsed((c) => !c);
             if (collapsed) setMounted(true);
           }}
-          className={cn(
-            "shrink-0 rounded-sm p-0.5 text-fg-faint",
-            "outline-none transition-colors",
-            "hover:bg-(--color-bg-sunken) hover:text-(--color-fg)",
-            "focus-visible:ring-1 focus-visible:ring-foreground/15",
-          )}
+          className="shrink-0 rounded p-0.5 text-[var(--color-fg-faint)] outline-none transition-colors hover:text-foreground"
           aria-label={collapsed ? "Expand diff" : "Collapse diff"}
         >
           {collapsed ? <ChevronRight className="size-3.5" /> : <ChevronDown className="size-3.5" />}
         </button>
 
         <StatusBadge status={status} />
-        <Filename filename={filename} previousFilename={previousFilename} status={status} />
+
+        <div className="flex min-w-0 flex-1 items-baseline gap-1 font-mono text-code">
+          {status === "renamed" && previousFilename && previousFilename !== filename && (
+            <>
+              <span className="truncate text-[var(--color-fg-faint)] line-through">{previousFilename}</span>
+              <span className="shrink-0 text-[var(--color-fg-faint)]">→</span>
+            </>
+          )}
+          <span className="truncate text-foreground">{filename}</span>
+        </div>
+
         <ChangeStats additions={additions} deletions={deletions} />
       </header>
 
       {showContent && (
         <>
           {isBinary ? (
-            <div className="bg-muted px-4 py-5 text-center font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]">
+            <div className="px-4 py-6 text-center font-mono text-caption uppercase tracking-widest text-[var(--color-fg-faint)]">
               Binary file — preview unavailable
             </div>
           ) : hasPatch ? (
             <DiffView patch={patch} lang={lang} mode={mode} review={review} className="rounded-none border-0" />
           ) : (
-            <div className="bg-muted px-4 py-5 text-center font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]">
+            <div className="px-4 py-6 text-center font-mono text-caption uppercase tracking-widest text-[var(--color-fg-faint)]">
               No changes
             </div>
           )}
@@ -109,36 +115,19 @@ export const FileDiff = memo(function FileDiff({
   );
 });
 
-// ── Header pieces ───────────────────────────────────────────────────────────
-
 function StatusBadge({ status }: { status: FileStatus }) {
   const label =
     status === "added" ? "A" : status === "removed" ? "D" : status === "renamed" ? "R" : status === "copied" ? "C" : "M";
   const tone =
     status === "added"
-      ? "bg-[var(--diff-add-gutter)] text-[var(--diff-add-marker)]"
+      ? "text-[var(--diff-add-marker)]"
       : status === "removed"
-        ? "bg-[var(--diff-del-gutter)] text-[var(--diff-del-marker)]"
-        : "bg-[var(--color-bg-sunken)] text-muted-foreground";
+        ? "text-[var(--diff-del-marker)]"
+        : "text-[var(--color-fg-faint)]";
   return (
-    <span className={cn("inline-flex size-[18px] flex-shrink-0 items-center justify-center rounded-sm font-mono text-micro font-semibold", tone)} aria-label={status}>
+    <span className={cn("shrink-0 font-mono text-micro font-bold", tone)} aria-label={status}>
       {label}
     </span>
-  );
-}
-
-function Filename({ filename, previousFilename, status }: { filename: string; previousFilename?: string; status: FileStatus }) {
-  const isRename = status === "renamed" && previousFilename && previousFilename !== filename;
-  return (
-    <div className="flex min-w-0 flex-1 items-baseline gap-1 font-mono text-code">
-      {isRename && (
-        <>
-          <span className="truncate text-[var(--color-fg-faint)] line-through decoration-[var(--color-fg-faint)]/60">{previousFilename}</span>
-          <span className="flex-shrink-0 text-[var(--color-fg-faint)]">→</span>
-        </>
-      )}
-      <span className="truncate font-medium text-foreground">{filename}</span>
-    </div>
   );
 }
 
@@ -152,15 +141,22 @@ function ChangeStats({ additions, deletions }: { additions: number; deletions: n
   for (let i = 0; i < dLeft; i++) squares.push("del");
   while (squares.length < 5) squares.push("empty");
   return (
-    <div className="flex flex-shrink-0 items-center gap-2">
-      <span className="font-mono text-caption tabular-nums text-[var(--diff-add-marker)]">+{additions}</span>
-      <span className="font-mono text-caption tabular-nums text-[var(--diff-del-marker)]">−{deletions}</span>
-      <span className="flex items-center gap-[2px]">
+    <div className="flex shrink-0 items-center gap-1.5">
+      <span className="font-mono text-micro tabular-nums text-[var(--diff-add-marker)]">+{additions}</span>
+      <span className="font-mono text-micro tabular-nums text-[var(--diff-del-marker)]">−{deletions}</span>
+      <span className="flex items-center gap-px">
         {squares.map((kind, i) => (
-          <span key={i} className={cn("size-2 rounded-[1px]", kind === "add" && "bg-[var(--diff-add-marker)]", kind === "del" && "bg-[var(--diff-del-marker)]", kind === "empty" && "bg-[var(--color-bg-sunken)]")} />
+          <span
+            key={i}
+            className={cn(
+              "size-[7px] rounded-[2px]",
+              kind === "add" && "bg-[var(--diff-add-marker)]",
+              kind === "del" && "bg-[var(--diff-del-marker)]",
+              kind === "empty" && "bg-[var(--color-border-strong)]",
+            )}
+          />
         ))}
       </span>
     </div>
   );
 }
-
