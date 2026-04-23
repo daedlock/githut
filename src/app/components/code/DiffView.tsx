@@ -264,8 +264,7 @@ const DiffRow = memo(function DiffRow({
         </button>
       )}
       <div className="diff-gutter flex flex-shrink-0 select-none font-mono tabular-nums text-[var(--color-fg-faint)]">
-        <span className="w-10 px-1 text-right">{oldNum ?? ""}</span>
-        <span className="w-10 px-1 text-right">{newNum ?? ""}</span>
+        <span className="w-10 px-1 text-right">{newNum ?? oldNum ?? ""}</span>
       </div>
       <span
         className={cn(
