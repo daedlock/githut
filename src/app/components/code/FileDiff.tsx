@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, Columns2, Rows2 } from "lucide-react";
-import { memo, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { cn } from "@/app/lib/cn";
 import { DiffView, type DiffMode, type DiffReviewHooks } from "./DiffView";
 
@@ -19,6 +19,12 @@ export type FileDiffProps = {
   review?: DiffReviewHooks;
 };
 
+// Lazy DiffView: the file header renders immediately (cheap) but the
+// actual diff content only mounts when the header enters a 600px
+// viewport margin. Combined with content-visibility on the outer
+// wrapper, this gives instant page load + smooth scroll + no empty
+// space. Shiki tokens are prefetched so the DiffView mounts with
+// cached data.
 export const FileDiff = memo(function FileDiff({
   filename,
   previousFilename,
@@ -34,16 +40,39 @@ export const FileDiff = memo(function FileDiff({
 }: FileDiffProps) {
   const [mode, setMode] = useState<DiffMode>(defaultMode);
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const sectionRef = useRef<HTMLElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    if (mounted || collapsed) return;
+    const el = sectionRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setMounted(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "600px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [collapsed, mounted]);
 
   const isBinary = !patch && (additions > 0 || deletions > 0);
   const hasPatch = !!patch;
+  const showContent = !collapsed && mounted;
 
   return (
-    <section className={cn("overflow-hidden rounded-lg border border-input bg-muted", className)}>
+    <section ref={sectionRef} className={cn("overflow-hidden rounded-lg border border-input bg-muted", className)}>
       <header className="flex items-center gap-3 border-b border-border px-3 py-2">
         <button
           type="button"
-          onClick={() => setCollapsed((c) => !c)}
+          onClick={() => {
+            setCollapsed((c) => !c);
+            if (collapsed) setMounted(true);
+          }}
           className={cn(
             "shrink-0 rounded-sm p-0.5 text-fg-faint",
             "outline-none transition-colors",
@@ -56,9 +85,7 @@ export const FileDiff = memo(function FileDiff({
         </button>
 
         <StatusBadge status={status} />
-
         <Filename filename={filename} previousFilename={previousFilename} status={status} />
-
         <ChangeStats additions={additions} deletions={deletions} />
 
         {hasPatch && (
@@ -73,7 +100,7 @@ export const FileDiff = memo(function FileDiff({
         )}
       </header>
 
-      {!collapsed && (
+      {showContent && (
         <>
           {isBinary ? (
             <div className="bg-muted px-4 py-5 text-center font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]">
@@ -96,15 +123,7 @@ export const FileDiff = memo(function FileDiff({
 
 function StatusBadge({ status }: { status: FileStatus }) {
   const label =
-    status === "added"
-      ? "A"
-      : status === "removed"
-        ? "D"
-        : status === "renamed"
-          ? "R"
-          : status === "copied"
-            ? "C"
-            : "M";
+    status === "added" ? "A" : status === "removed" ? "D" : status === "renamed" ? "R" : status === "copied" ? "C" : "M";
   const tone =
     status === "added"
       ? "bg-[var(--diff-add-gutter)] text-[var(--diff-add-marker)]"
@@ -112,35 +131,19 @@ function StatusBadge({ status }: { status: FileStatus }) {
         ? "bg-[var(--diff-del-gutter)] text-[var(--diff-del-marker)]"
         : "bg-[var(--color-bg-sunken)] text-muted-foreground";
   return (
-    <span
-      className={cn(
-        "inline-flex size-[18px] flex-shrink-0 items-center justify-center rounded-sm font-mono text-micro font-semibold",
-        tone,
-      )}
-      aria-label={status}
-    >
+    <span className={cn("inline-flex size-[18px] flex-shrink-0 items-center justify-center rounded-sm font-mono text-micro font-semibold", tone)} aria-label={status}>
       {label}
     </span>
   );
 }
 
-function Filename({
-  filename,
-  previousFilename,
-  status,
-}: {
-  filename: string;
-  previousFilename?: string;
-  status: FileStatus;
-}) {
+function Filename({ filename, previousFilename, status }: { filename: string; previousFilename?: string; status: FileStatus }) {
   const isRename = status === "renamed" && previousFilename && previousFilename !== filename;
   return (
     <div className="flex min-w-0 flex-1 items-baseline gap-1 font-mono text-code">
       {isRename && (
         <>
-          <span className="truncate text-[var(--color-fg-faint)] line-through decoration-[var(--color-fg-faint)]/60">
-            {previousFilename}
-          </span>
+          <span className="truncate text-[var(--color-fg-faint)] line-through decoration-[var(--color-fg-faint)]/60">{previousFilename}</span>
           <span className="flex-shrink-0 text-[var(--color-fg-faint)]">→</span>
         </>
       )}
@@ -151,67 +154,35 @@ function Filename({
 
 function ChangeStats({ additions, deletions }: { additions: number; deletions: number }) {
   const total = additions + deletions || 1;
-  const addPct = (additions / total) * 5;
-  const delPct = (deletions / total) * 5;
   const squares: Array<"add" | "del" | "empty"> = [];
-  let aLeft = additions > 0 ? Math.max(1, Math.round(addPct)) : 0;
-  let dLeft = deletions > 0 ? Math.max(1, Math.round(delPct)) : 0;
-  while (aLeft + dLeft > 5) {
-    if (aLeft >= dLeft) aLeft--;
-    else dLeft--;
-  }
+  let aLeft = additions > 0 ? Math.max(1, Math.round((additions / total) * 5)) : 0;
+  let dLeft = deletions > 0 ? Math.max(1, Math.round((deletions / total) * 5)) : 0;
+  while (aLeft + dLeft > 5) { if (aLeft >= dLeft) aLeft--; else dLeft--; }
   for (let i = 0; i < aLeft; i++) squares.push("add");
   for (let i = 0; i < dLeft; i++) squares.push("del");
   while (squares.length < 5) squares.push("empty");
-
   return (
     <div className="flex flex-shrink-0 items-center gap-2">
-      <span className="font-mono text-caption tabular-nums text-[var(--diff-add-marker)]">
-        +{additions}
-      </span>
-      <span className="font-mono text-caption tabular-nums text-[var(--diff-del-marker)]">
-        −{deletions}
-      </span>
+      <span className="font-mono text-caption tabular-nums text-[var(--diff-add-marker)]">+{additions}</span>
+      <span className="font-mono text-caption tabular-nums text-[var(--diff-del-marker)]">−{deletions}</span>
       <span className="flex items-center gap-[2px]">
         {squares.map((kind, i) => (
-          <span
-            key={i}
-            className={cn(
-              "size-2 rounded-[1px]",
-              kind === "add" && "bg-[var(--diff-add-marker)]",
-              kind === "del" && "bg-[var(--diff-del-marker)]",
-              kind === "empty" && "bg-[var(--color-bg-sunken)]",
-            )}
-          />
+          <span key={i} className={cn("size-2 rounded-[1px]", kind === "add" && "bg-[var(--diff-add-marker)]", kind === "del" && "bg-[var(--diff-del-marker)]", kind === "empty" && "bg-[var(--color-bg-sunken)]")} />
         ))}
       </span>
     </div>
   );
 }
 
-function ModeBtn({
-  active,
-  onClick,
-  children,
-  title,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  title: string;
-}) {
+function ModeBtn({ active, onClick, children, title }: { active: boolean; onClick: () => void; children: React.ReactNode; title: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
       title={title}
       className={cn(
-        "inline-flex size-5 items-center justify-center rounded-sm",
-        "outline-none transition-colors",
-        "focus-visible:ring-1 focus-visible:ring-foreground/15",
-        active
-          ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
-          : "text-[var(--color-fg-faint)] hover:text-foreground",
+        "inline-flex size-5 items-center justify-center rounded-sm outline-none transition-colors focus-visible:ring-1 focus-visible:ring-foreground/15",
+        active ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]" : "text-[var(--color-fg-faint)] hover:text-foreground",
       )}
     >
       {children}
