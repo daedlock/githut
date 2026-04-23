@@ -198,22 +198,19 @@
   /* --- micro: 10px / 1.2 / +0.015em ---
      Tiny mono badges, eyebrow labels (pair with uppercase+tracking-widest),
      avatar-sm initials. Below 10px falls under WCAG minimum legibility. */
-  --text-micro: 10px;
+  --text-micro: 11px;
   --text-micro--line-height: 1.2;
   --text-micro--letter-spacing: 0.015em;
 
-  /* --- caption: 11px / 1.4 / +0.01em ---
-     Small meta text (counts, timestamps, language names, keyboard hints).
-     Non-uppercase small text sits here — it needs more lh than uppercase
-     labels because lowercase descenders steal vertical room. */
-  --text-caption: 11px;
+  /* --- caption: 12px / 1.4 / +0.01em ---
+     Small meta text (counts, timestamps, language names, keyboard hints). */
+  --text-caption: 12px;
   --text-caption--line-height: 1.4;
   --text-caption--letter-spacing: 0.01em;
 
-  /* --- ui: 12px / 1.35 / 0 ---
-     Default UI controls: button text, tab labels, filter chips, small inputs.
-     The "most utility per pixel" size — sits between caption and body. */
-  --text-ui: 12px;
+  /* --- ui: 13px / 1.35 / 0 ---
+     Default UI controls: button text, tab labels, filter chips, small inputs. */
+  --text-ui: 13px;
   --text-ui--line-height: 1.35;
   --text-ui--letter-spacing: 0;
 
