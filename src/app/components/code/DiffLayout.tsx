@@ -172,7 +172,7 @@ export function DiffLayout({
           </aside>
         )}
 
-        <div className="min-w-0 flex-1 px-2 pb-2">
+        <div className="min-w-0 flex-1 p-2">
           <div className="flex flex-col gap-2">
             {files.map((file) => (
               <div
