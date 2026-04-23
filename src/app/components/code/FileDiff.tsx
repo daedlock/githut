@@ -64,7 +64,7 @@ export const FileDiff = memo(function FileDiff({
     <section ref={sectionRef} className={cn("border border-[var(--color-border)] rounded-[3px]", className)}>
       <header
         className={cn(
-          "sticky top-[44px] z-[5]",
+          "sticky top-[84px] z-[5]",
           "flex items-center gap-2.5 px-3 py-2",
           "bg-[var(--color-bg-sunken)] rounded-t-[2px]",
           hasVisibleBody && "border-b border-[var(--color-border)]",

@@ -119,7 +119,7 @@ export function DiffLayout({
   return (
     <div className={cn("w-full bg-background", className)}>
       <div
-        className="sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-muted px-3 sm:px-4"
+        className="sticky top-10 z-30 flex items-center gap-2 border-b border-border bg-muted px-3 sm:px-4"
         style={{ height: TOPBAR_H }}
       >
         {/* Left: review bar or sidebar toggle + file stats */}
