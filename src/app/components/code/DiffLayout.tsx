@@ -1,6 +1,5 @@
 import { Columns2, PanelLeftClose, PanelLeftOpen, Rows2 } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { type ChangedFile, ChangedFileTree } from "@/app/components/repo/ChangedFileTree";
 import { cn } from "@/app/lib/cn";
 import type { DiffMode, DiffReviewHooks } from "./DiffView";
@@ -20,8 +19,29 @@ export type DiffLayoutProps = {
   getReviewHooks?: (filename: string) => DiffReviewHooks | undefined;
 };
 
+// ─── DiffLayout ────────────────────────────────────────────────────────────
+//
+// Uses CSS `content-visibility: auto` instead of JS virtualization. Every
+// file card is in the DOM but the browser skips layout + paint for
+// off-screen ones. This gives:
+//   • Zero empty space on fast scroll (no mount/unmount cycle)
+//   • Instant scroll-to-file (element already exists in DOM)
+//   • Native scrollbar accuracy (real heights, not estimates)
+//   • No React reconciliation overhead on scroll
+//
+// `contain-intrinsic-block-size` gives the browser a height estimate for
+// off-screen files so the scrollbar is roughly correct before paint.
+// Once painted, the browser remembers the actual size.
+
 const TOPBAR_H = 44;
-const ESTIMATED_FILE_H = 400;
+const LINE_H = 20;
+const FILE_HEADER_H = 44;
+
+function estimateFileHeight(file: DiffLayoutFile): number {
+  if (!file.patch) return FILE_HEADER_H + 60;
+  const lines = file.patch.split("\n").length;
+  return FILE_HEADER_H + lines * LINE_H;
+}
 
 export function DiffLayout({
   files,
@@ -34,12 +54,7 @@ export function DiffLayout({
   const [mode, setMode] = useState<DiffMode>(defaultMode);
   const [activeFile, setActiveFile] = useState<string | undefined>(files[0]?.filename);
 
-  const listRef = useRef<HTMLDivElement>(null);
-  const [scrollMargin, setScrollMargin] = useState(0);
-
-  useEffect(() => {
-    if (listRef.current) setScrollMargin(listRef.current.offsetTop);
-  }, []);
+  const fileRefs = useRef<Map<string, HTMLElement>>(new Map());
 
   const totals = useMemo(() => {
     let add = 0;
@@ -51,52 +66,31 @@ export function DiffLayout({
     return { add, del };
   }, [files]);
 
-  const virtualizer = useWindowVirtualizer({
-    count: files.length,
-    estimateSize: () => ESTIMATED_FILE_H,
-    overscan: 2,
-    scrollMargin,
-  });
-
-  // Throttled scroll-spy — RAF-gated so it fires at most once per frame.
-  const activeFileRef = useRef(activeFile);
-  activeFileRef.current = activeFile;
+  // Scroll-spy via IntersectionObserver — no JS per scroll tick.
   useEffect(() => {
-    let rafId = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        const items = virtualizer.getVirtualItems();
-        const offset = virtualizer.scrollOffset ?? 0;
-        for (const item of items) {
-          const top = item.start - offset;
-          if (top > -100 && top < 300) {
-            const f = files[item.index];
-            if (f && f.filename !== activeFileRef.current) {
-              setActiveFile(f.filename);
-            }
-            break;
-          }
-        }
-      });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      cancelAnimationFrame(rafId);
-    };
-  }, [files, virtualizer]);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .map((e) => ({
+            name: (e.target as HTMLElement).dataset.filename ?? "",
+            top: e.boundingClientRect.top,
+          }))
+          .sort((a, b) => a.top - b.top);
+        if (visible[0]) setActiveFile(visible[0].name);
+      },
+      { root: null, rootMargin: `-${TOPBAR_H + 40}px 0px -55% 0px`, threshold: [0, 0.25] },
+    );
+    for (const el of fileRefs.current.values()) observer.observe(el);
+    return () => observer.disconnect();
+  }, [files]);
 
-  const scrollToFile = useCallback(
-    (filename: string) => {
-      const idx = files.findIndex((f) => f.filename === filename);
-      if (idx >= 0) {
-        virtualizer.scrollToIndex(idx, { align: "start", behavior: "auto" });
-        setActiveFile(filename);
-      }
-    },
-    [files, virtualizer],
-  );
+  const scrollToFile = useCallback((filename: string) => {
+    const el = fileRefs.current.get(filename);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "instant" as ScrollBehavior, block: "start" });
+    setActiveFile(filename);
+  }, []);
 
   useEffect(() => {
     function isEditable(el: EventTarget | null): boolean {
@@ -110,7 +104,7 @@ export function DiffLayout({
       if (isEditable(e.target)) return;
       if (e.key === "j" || e.key === "k") {
         e.preventDefault();
-        const idx = files.findIndex((f) => f.filename === activeFileRef.current);
+        const idx = files.findIndex((f) => f.filename === activeFile);
         const nextIdx =
           e.key === "j" ? Math.min(files.length - 1, idx + 1) : Math.max(0, idx - 1);
         const next = files[nextIdx];
@@ -122,9 +116,7 @@ export function DiffLayout({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [files, scrollToFile]);
-
-  const virtualItems = virtualizer.getVirtualItems();
+  }, [files, activeFile, scrollToFile]);
 
   return (
     <div className={cn("w-full bg-background", className)}>
@@ -184,32 +176,25 @@ export function DiffLayout({
           </aside>
         )}
 
-        <div ref={listRef} className="min-w-0 flex-1 p-4">
-          <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
-            {virtualItems.map((item) => {
-              const file = files[item.index]!;
-              return (
-                <div
-                  key={file.filename}
-                  data-index={item.index}
-                  ref={virtualizer.measureElement}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    transform: `translateY(${item.start - scrollMargin}px)`,
-                  }}
-                  className="pb-3"
-                >
-                  <FileItem
-                    file={file}
-                    mode={mode}
-                    review={getReviewHooks?.(file.filename)}
-                  />
-                </div>
-              );
-            })}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex flex-col gap-3 p-4">
+            {files.map((file) => (
+              <div
+                key={file.filename}
+                ref={(el) => {
+                  if (el) fileRefs.current.set(file.filename, el);
+                  else fileRefs.current.delete(file.filename);
+                }}
+                data-filename={file.filename}
+                style={{
+                  contentVisibility: "auto",
+                  containIntrinsicBlockSize: `${estimateFileHeight(file)}px`,
+                  scrollMarginTop: `${TOPBAR_H + 8}px`,
+                }}
+              >
+                <FileItem file={file} mode={mode} review={getReviewHooks?.(file.filename)} />
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -217,9 +202,6 @@ export function DiffLayout({
   );
 }
 
-// Memo'd content — the outer positioning div changes transform on
-// scroll but this inner component only re-renders when file data,
-// mode, or review hooks actually change.
 const FileItem = memo(function FileItem({
   file,
   mode,
