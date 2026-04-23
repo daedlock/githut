@@ -1,5 +1,5 @@
 import { MessageSquarePlus } from "lucide-react";
-import { Fragment, useMemo, type ReactNode } from "react";
+import { Fragment, memo, useMemo, type ReactNode } from "react";
 import { cn } from "@/app/lib/cn";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { countChanges, type DiffHunk, type DiffLine, parseUnifiedDiff } from "./parseDiff";
@@ -234,7 +234,7 @@ function UnifiedHunk({
   );
 }
 
-function DiffRow({
+const DiffRow = memo(function DiffRow({
   kind,
   oldNum,
   newNum,
@@ -293,7 +293,7 @@ function DiffRow({
       </span>
     </div>
   );
-}
+});
 
 // ── Split view ──────────────────────────────────────────────────────────────
 

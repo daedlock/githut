@@ -16,6 +16,10 @@ export type DiffLayoutFile = ChangedFile & {
   previousFilename?: string;
 };
 
+/** Above this file count, collapse all diffs on mount so Shiki doesn't
+ * tokenize dozens of files simultaneously and freeze the main thread. */
+const LARGE_PR_THRESHOLD = 8;
+
 export type DiffLayoutProps = {
   files: DiffLayoutFile[];
   /** Initial layout mode — persists to each FileDiff's internal state. */
@@ -256,6 +260,7 @@ export function DiffLayout({
                   patch={file.patch}
                   lang={file.lang}
                   defaultMode={mode}
+                  defaultCollapsed={files.length > LARGE_PR_THRESHOLD}
                   review={getReviewHooks?.(file.filename)}
                 />
               </div>

@@ -53,10 +53,35 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
     [filesQuery.data],
   );
 
+  // Build a set of line keys that have existing review threads. This is
+  // cheap (one pass over the review comments array, which rarely exceeds
+  // ~100 items) and lets renderLineTrailer skip mounting a component for
+  // the 99% of lines that have no content.
+  const reviewCommentsQuery = usePrReviewComments(owner, repo, number);
+  const threadLineKeys = useMemo(() => {
+    const keys = new Set<string>();
+    const comments = reviewCommentsQuery.data ?? [];
+    for (const c of comments) {
+      if (c.in_reply_to_id) continue;
+      const s = c.side ?? "RIGHT";
+      const l = c.line ?? c.original_line ?? 0;
+      keys.add(`${c.path}:${s}:${l}`);
+    }
+    return keys;
+  }, [reviewCommentsQuery.data]);
+
+  // Refs for state the factory reads but shouldn't depend on for identity.
+  const threadKeysRef = useRef(threadLineKeys);
+  threadKeysRef.current = threadLineKeys;
+  const composerRef = useRef<ReturnType<typeof useReviewStore.getState>["composerByPr"]>({});
+  composerRef.current = useReviewStore.getState().composerByPr;
+  const pendingRef = useRef<ReturnType<typeof useReviewStore.getState>["pendingByPr"]>({});
+  pendingRef.current = useReviewStore.getState().pendingByPr;
+
+  const prKey = `${owner}/${repo}/${number}`;
+
   // Per-file hooks are cached in a ref so DiffLayout/FileDiff/DiffView
-  // receive stable object references across re-renders. Without this,
-  // every render of PrFilesPage creates new {onAddComment, renderLineTrailer}
-  // objects → new props → full diff tree re-render on every state change.
+  // receive stable object references across re-renders.
   const hooksCache = useRef(new Map<string, DiffReviewHooks>());
   const prevCanReview = useRef(canReview);
   if (prevCanReview.current !== canReview) {
@@ -76,22 +101,45 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
               ...args,
             });
           },
-          renderLineTrailer: (args) => (
-            <LineSlot
-              owner={owner}
-              repo={repo}
-              number={number}
-              path={filename}
-              side={args.side}
-              line={args.line}
-            />
-          ),
+          renderLineTrailer: (args) => {
+            const key = `${filename}:${args.side}:${args.line}`;
+            // Fast path: skip mounting a component for lines with no content.
+            // Check thread set + composer + pending via refs (not hooks —
+            // this runs during the parent render, not in a component).
+            const hasThread = threadKeysRef.current.has(key);
+            const composer = composerRef.current[prKey];
+            const isComposer =
+              !!composer &&
+              composer.path === filename &&
+              composer.side === args.side &&
+              composer.line === args.line;
+            const pendingList = pendingRef.current[prKey];
+            const hasPending =
+              !!pendingList &&
+              pendingList.some(
+                (c) =>
+                  c.path === filename &&
+                  c.side === args.side &&
+                  c.line === args.line,
+              );
+            if (!hasThread && !isComposer && !hasPending) return null;
+            return (
+              <LineSlot
+                owner={owner}
+                repo={repo}
+                number={number}
+                path={filename}
+                side={args.side}
+                line={args.line}
+              />
+            );
+          },
         };
         hooksCache.current.set(filename, hooks);
       }
       return hooks;
     },
-    [canReview, owner, repo, number, store],
+    [canReview, owner, repo, number, store, prKey],
   );
 
   if (filesQuery.isPending) return <PrFilesSkeleton />;
