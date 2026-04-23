@@ -386,7 +386,7 @@ const SplitHunk = memo(function SplitHunk({
             when the column is scrolled. */}
         <div className="w-max min-w-full">
           {rows.map((row, rIdx) => {
-            if (!row.left) return <SplitPadRow key={`l-${rIdx}`} />;
+            if (!row.left) return <NopArea key={`l-${rIdx}`} />;
             const { idx, line } = row.left;
             const tokens = tokensForOld(line, oldTokens, oldLineMap);
             const emphasis = line.kind === "del" && pairs.has(idx) ? wordDiffs.get(idx) : undefined;
@@ -408,7 +408,7 @@ const SplitHunk = memo(function SplitHunk({
       <div className="min-w-0 overflow-x-auto">
         <div className="w-max min-w-full">
           {rows.map((row, rIdx) => {
-            if (!row.right) return <SplitPadRow key={`r-${rIdx}`} />;
+            if (!row.right) return <NopArea key={`r-${rIdx}`} />;
             const { idx, line } = row.right;
             const tokens = tokensForNew(line, newTokens, newLineMap);
             const emphasis =
@@ -489,7 +489,7 @@ const SplitRow = memo(function SplitRow({
   );
 });
 
-function SplitPadRow() {
+function NopArea() {
   return (
     <div
       className="flex h-[20px] items-stretch"
