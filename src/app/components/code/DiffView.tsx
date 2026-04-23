@@ -496,10 +496,10 @@ function NopArea() {
       style={{
         backgroundImage: `repeating-linear-gradient(
           135deg,
-          color-mix(in oklab, var(--color-fg) 6%, transparent) 0px,
-          color-mix(in oklab, var(--color-fg) 6%, transparent) 1px,
+          color-mix(in oklab, var(--color-fg) 10%, transparent) 0px,
+          color-mix(in oklab, var(--color-fg) 10%, transparent) 1px,
           transparent 1px,
-          transparent 5px
+          transparent 8px
         )`,
         backgroundColor: `color-mix(in oklab, var(--color-fg) 3%, var(--color-bg))`,
       }}
