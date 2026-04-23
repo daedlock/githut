@@ -13,7 +13,7 @@ export type ResolvedTheme = "light" | "dark";
  * - ember       — warm graphite with a single coral hero (darkembertheme.com)
  * - ember-soft  — lifted-graphite ember variant, softer contrast
  */
-export type Palette = "stone" | "ember" | "ember-soft" | "dune" | "haze" | "lagoon" | "lagoon-light" | "matrix" | "moss" | "sagecream";
+export type Palette = "main" | "stone" | "ember" | "ember-soft" | "dune" | "haze" | "lagoon" | "lagoon-light" | "matrix" | "moss" | "sagecream";
 
 type ThemeState = {
   palette: Palette;
@@ -28,7 +28,7 @@ const PREF_ORDER: ThemePreference[] = ["light", "dark", "system"];
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
-      palette: "stone",
+      palette: "main",
       preference: "system",
       setPalette: (palette) => set({ palette }),
       setPreference: (preference) => set({ preference }),
@@ -62,6 +62,7 @@ function resolve(pref: ThemePreference): ResolvedTheme {
  * ember-soft has no paired light — falls back to ember-light for consistency.
  */
 function resolveDataTheme(palette: Palette, resolved: ResolvedTheme): string | null {
+  if (palette === "main") return resolved === "dark" ? "main-dark" : "main-light";
   if (palette === "stone") return null;
   if (palette === "ember") return resolved === "dark" ? "ember" : "ember-light";
   if (palette === "ember-soft") return resolved === "dark" ? "ember-soft" : "ember-light";

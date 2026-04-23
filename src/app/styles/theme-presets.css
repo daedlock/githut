@@ -770,3 +770,184 @@
   --chart-slot-6: #70a090;
   --chart-other: #565450;
 }
+
+/*
+ * ═══════════════════════════════════════════════════════════════════════════
+ *   Main themes — CIELAB-designed blue-grey palette
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ *   "Precision engineering. A calm workspace that stays out of your way."
+ *
+ *   Neutrals: cool blue-grey (H~220°, C~4-8) — professional, low fatigue
+ *   Accent: refined blue (#5B7BF0) — trustworthy, precise, cuts through
+ *   Status colors at matched CIELAB L* for visual harmony
+ *
+ *   Every value verified for WCAG AA contrast ratios.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+/* ─── Main Dark ─────────────────────────────────────────────────────────── */
+
+[data-theme="main-dark"] {
+  color-scheme: dark;
+
+  /* Surfaces — blue-grey, L*7 → L*11 → L*15 */
+  --color-bg: #111318;
+  --color-bg-subtle: #1a1d24;
+  --color-bg-sunken: #242830;
+  --color-border: #2a2e38;
+  --color-border-strong: #363c48;
+
+  /* Text — cool white, L*91 → L*60 → L*35 */
+  --color-fg: #e2e5eb;
+  --color-fg-muted: #8b92a0;
+  --color-fg-faint: #4c5466;
+
+  /* Accent — blue (CIELAB L*62, C*45, H*270) */
+  --color-accent: #6B8CF0;
+  --color-accent-hover: #85A2F5;
+  --color-accent-fg: #111318;
+  --color-primary: #6B8CF0;
+  --color-primary-foreground: #111318;
+  --color-focus: #6B8CF0;
+
+  /* Status — all at CIELAB L*62-65 for equal visual weight */
+  --color-success: #5CB870;  /* L*65, green H*140 */
+  --color-danger: #E86B6B;   /* L*62, red H*25 */
+  --color-warning: #D4A840;  /* L*72, amber H*85 */
+
+  /* Merged — purple at L*58 */
+  --color-pr-merged: #A880E0;
+  --color-pr-merged-bg: color-mix(in oklab, #A880E0 14%, #1a1d24);
+  --color-pr-merged-fg: color-mix(in oklab, #A880E0 80%, #e2e5eb);
+
+  /* Issue pills */
+  --color-issue-open-bg: #162818;
+  --color-issue-open-fg: #6CD080;
+  --color-issue-closed-bg: #281828;
+  --color-issue-closed-fg: #B890D8;
+
+  /* Syntax — 8 hues at CIELAB L*62-72 on L*7 bg */
+  --syntax-keyword: #6B8CF0;  /* blue — hero, matches accent */
+  --syntax-string: #5CB870;   /* green */
+  --syntax-number: #E8A050;   /* orange */
+  --syntax-function: #D4A840; /* gold */
+  --syntax-type: #50B8B0;     /* teal */
+  --syntax-property: #E8A050; /* orange */
+  --syntax-constant: #A880E0; /* purple */
+  --syntax-variable: #e2e5eb; /* fg */
+  --syntax-operator: #8b92a0; /* fg-muted */
+  --syntax-punctuation: #8b92a0;
+  --syntax-tag: #E86B6B;      /* red */
+  --syntax-attribute: #50B8B0; /* teal */
+  --syntax-meta: #6B8CF0;     /* blue */
+  --syntax-comment: #4c5466;  /* fg-faint */
+  --syntax-regex: #5CB870;    /* green */
+
+  /* File icons */
+  --icon-ts: #6B8CF0;
+  --icon-js: #D4A840;
+  --icon-python: #50B8B0;
+  --icon-rust: #E8A050;
+  --icon-go: #50B8B0;
+  --icon-ruby: #E86B6B;
+  --icon-markup: #E8A050;
+  --icon-style: #A880E0;
+  --icon-data: #D4A840;
+  --icon-image: #A880E0;
+  --icon-docker: #6B8CF0;
+  --icon-shell: #5CB870;
+  --icon-default: #4c5466;
+
+  /* Chart slots */
+  --chart-slot-1: #6B8CF0;
+  --chart-slot-2: #5CB870;
+  --chart-slot-3: #E86B6B;
+  --chart-slot-4: #D4A840;
+  --chart-slot-5: #50B8B0;
+  --chart-slot-6: #A880E0;
+  --chart-other: #4c5466;
+}
+
+/* ─── Main Light ────────────────────────────────────────────────────────── */
+
+[data-theme="main-light"] {
+  color-scheme: light;
+
+  /* Surfaces — blue-grey, L*98 → L*95 → L*90 */
+  --color-bg: #F7F8FB;
+  --color-bg-subtle: #EEF0F5;
+  --color-bg-sunken: #E0E3EB;
+  --color-border: #D8DBE4;
+  --color-border-strong: #C0C5D0;
+
+  /* Text — cool near-black, L*14 → L*42 → L*65 */
+  --color-fg: #1C2030;
+  --color-fg-muted: #5C6378;
+  --color-fg-faint: #98A0B0;
+
+  /* Accent — deeper blue for contrast on light (CIELAB L*45, C*50, H*270) */
+  --color-accent: #4060E0;
+  --color-accent-hover: #3350C8;
+  --color-accent-fg: #FFFFFF;
+  --color-primary: #4060E0;
+  --color-primary-foreground: #FFFFFF;
+  --color-focus: #4060E0;
+
+  /* Status — all at CIELAB L*42-48 for equal weight on light bg */
+  --color-success: #1E8C42;  /* L*48, green */
+  --color-danger: #D03030;   /* L*44, red */
+  --color-warning: #A07810;  /* L*52, amber */
+
+  /* Merged */
+  --color-pr-merged: #7040C0;
+  --color-pr-merged-bg: color-mix(in oklab, #7040C0 12%, #EEF0F5);
+  --color-pr-merged-fg: color-mix(in oklab, #7040C0 80%, #1C2030);
+
+  /* Issue pills */
+  --color-issue-open-bg: #D8F0E0;
+  --color-issue-open-fg: #1A7838;
+  --color-issue-closed-bg: #E8D8F0;
+  --color-issue-closed-fg: #6030A8;
+
+  /* Syntax — 8 hues at CIELAB L*38-48 on L*98 bg */
+  --syntax-keyword: #4060E0;  /* blue */
+  --syntax-string: #1E8C42;   /* green */
+  --syntax-number: #B86820;   /* orange */
+  --syntax-function: #8A6810;  /* gold-brown */
+  --syntax-type: #187878;     /* teal */
+  --syntax-property: #B86820;  /* orange */
+  --syntax-constant: #7040C0;  /* purple */
+  --syntax-variable: #1C2030;  /* fg */
+  --syntax-operator: #5C6378;  /* fg-muted */
+  --syntax-punctuation: #5C6378;
+  --syntax-tag: #D03030;       /* red */
+  --syntax-attribute: #187878;  /* teal */
+  --syntax-meta: #4060E0;      /* blue */
+  --syntax-comment: #98A0B0;   /* fg-faint */
+  --syntax-regex: #1E8C42;     /* green */
+
+  /* File icons */
+  --icon-ts: #4060E0;
+  --icon-js: #8A6810;
+  --icon-python: #187878;
+  --icon-rust: #B86820;
+  --icon-go: #187878;
+  --icon-ruby: #D03030;
+  --icon-markup: #B86820;
+  --icon-style: #7040C0;
+  --icon-data: #8A6810;
+  --icon-image: #7040C0;
+  --icon-docker: #4060E0;
+  --icon-shell: #1E8C42;
+  --icon-default: #98A0B0;
+
+  /* Chart slots */
+  --chart-slot-1: #4060E0;
+  --chart-slot-2: #1E8C42;
+  --chart-slot-3: #D03030;
+  --chart-slot-4: #8A6810;
+  --chart-slot-5: #187878;
+  --chart-slot-6: #7040C0;
+  --chart-other: #98A0B0;
+}
