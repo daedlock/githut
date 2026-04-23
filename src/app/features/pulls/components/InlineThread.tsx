@@ -111,7 +111,7 @@ function ThreadComment({ comment }: { comment: ReviewComment }) {
             {formatRelativeTime(comment.created_at)}
           </span>
         </div>
-        <div className="readme-prose mt-0.5 max-w-none text-caption">
+        <div className="readme-prose mt-0.5 max-w-none font-sans text-body">
           <GithubMarkdown>{comment.body}</GithubMarkdown>
         </div>
       </div>

@@ -107,6 +107,7 @@ export const DiffView = memo(function DiffView({
                   newTokens={newTokens}
                   oldLineMap={oldLineMap}
                   newLineMap={newLineMap}
+                  review={review}
                 />
               )}
             </Fragment>
@@ -247,28 +248,31 @@ const DiffRow = memo(function DiffRow({
   const lineClass = kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
   const canComment = !!onAddComment && commentSide != null && commentLine != null;
   return (
-    <div className={cn("group relative flex w-full items-stretch", lineClass)}>
-      {canComment && (
-        <button
-          type="button"
-          onClick={() => onAddComment!({ side: commentSide!, line: commentLine! })}
-          aria-label="Add a comment on this line"
-          className={cn(
-            "absolute left-0 top-0 z-10 inline-flex size-5 items-center justify-center",
-            "rounded-sm bg-primary text-primary-foreground opacity-0",
-            "transition-opacity focus-visible:opacity-100 group-hover:opacity-100",
-            "outline-none shadow-sm",
-          )}
-        >
-          <MessageSquarePlus className="size-3" aria-hidden />
-        </button>
-      )}
+    <div className={cn("group flex w-full items-stretch", lineClass)}>
       <div className="diff-gutter flex flex-shrink-0 select-none font-mono tabular-nums text-[var(--color-fg-faint)]">
         <span className="w-10 px-1 text-right">{newNum ?? oldNum ?? ""}</span>
       </div>
+      {/* Comment button — inline between line number and +/- marker */}
+      <span className="flex w-4 flex-shrink-0 items-center justify-center">
+        {canComment ? (
+          <button
+            type="button"
+            onClick={() => onAddComment!({ side: commentSide!, line: commentLine! })}
+            aria-label="Add comment"
+            className={cn(
+              "inline-flex size-3.5 items-center justify-center rounded-full",
+              "bg-primary text-primary-foreground",
+              "opacity-0 transition-opacity outline-none",
+              "group-hover:opacity-100 focus-visible:opacity-100",
+            )}
+          >
+            <MessageSquarePlus className="size-2.5" aria-hidden />
+          </button>
+        ) : null}
+      </span>
       <span
         className={cn(
-          "w-5 flex-shrink-0 select-none text-center",
+          "w-4 flex-shrink-0 select-none text-center",
           kind === "add" && "text-[var(--diff-add-marker)]",
           kind === "del" && "text-[var(--diff-del-marker)]",
           kind === "context" && "text-[var(--color-fg-faint)] opacity-60",
@@ -296,12 +300,14 @@ const SplitHunk = memo(function SplitHunk({
   newTokens,
   oldLineMap,
   newLineMap,
+  review,
 }: {
   hunk: DiffHunk;
   oldTokens: CodeLineWithHtml[];
   newTokens: CodeLineWithHtml[];
   oldLineMap: Map<number, number>;
   newLineMap: Map<number, number>;
+  review?: DiffReviewHooks;
 }) {
   // Build paired rows: each row has an optional left (del/context) and optional right (add/context)
   const pairs = useMemo(() => computeLinePairs(hunk.lines), [hunk]);
@@ -393,6 +399,7 @@ const SplitHunk = memo(function SplitHunk({
                 tokens={tokens}
                 rawText={line.content}
                 emphasis={emphasis}
+                onAddComment={review?.onAddComment}
               />
             );
           })}
@@ -413,6 +420,7 @@ const SplitHunk = memo(function SplitHunk({
                 kind={line.kind}
                 num={line.newNum}
                 tokens={tokens}
+                onAddComment={review?.onAddComment}
                 rawText={line.content}
                 emphasis={emphasis}
               />
@@ -425,11 +433,13 @@ const SplitHunk = memo(function SplitHunk({
 });
 
 const SplitRow = memo(function SplitRow({
+  side: splitSide,
   kind,
   num,
   tokens,
   rawText,
   emphasis,
+  onAddComment,
 }: {
   side: "old" | "new";
   kind: DiffLine["kind"];
@@ -437,16 +447,31 @@ const SplitRow = memo(function SplitRow({
   tokens: CodeLineWithHtml;
   rawText: string;
   emphasis?: WordSegment[];
+  onAddComment?: DiffReviewHooks["onAddComment"];
 }) {
   const lineClass = kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
+  const commentSide: "LEFT" | "RIGHT" = splitSide === "old" ? "LEFT" : "RIGHT";
+  const canComment = !!onAddComment && num != null;
   return (
-    <div className={cn("flex w-full items-stretch", lineClass)}>
+    <div className={cn("group flex w-full items-stretch", lineClass)}>
       <span className="diff-gutter w-10 flex-shrink-0 select-none px-1 text-right font-mono tabular-nums text-[var(--color-fg-faint)]">
         {num ?? ""}
       </span>
+      <span className="flex w-4 flex-shrink-0 items-center justify-center">
+        {canComment ? (
+          <button
+            type="button"
+            onClick={() => onAddComment!({ side: commentSide, line: num! })}
+            aria-label="Add comment"
+            className="inline-flex size-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 transition-opacity outline-none group-hover:opacity-100 focus-visible:opacity-100"
+          >
+            <MessageSquarePlus className="size-2.5" aria-hidden />
+          </button>
+        ) : null}
+      </span>
       <span
         className={cn(
-          "w-5 flex-shrink-0 select-none text-center",
+          "w-4 flex-shrink-0 select-none text-center",
           kind === "add" && "text-[var(--diff-add-marker)]",
           kind === "del" && "text-[var(--diff-del-marker)]",
           kind === "context" && "text-[var(--color-fg-faint)] opacity-60",

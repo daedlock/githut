@@ -95,22 +95,6 @@ function ReviewPage() {
   }, [filesQuery.data, qc]);
 
   // Review hooks (same stable-ref pattern as PrFilesPage)
-  const reviewCommentsQuery = usePrReviewComments(owner, repo, number);
-  const threadLineKeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (const c of reviewCommentsQuery.data ?? []) {
-      if (c.in_reply_to_id) continue;
-      keys.add(`${c.path}:${c.side ?? "RIGHT"}:${c.line ?? c.original_line ?? 0}`);
-    }
-    return keys;
-  }, [reviewCommentsQuery.data]);
-
-  const threadKeysRef = useRef(threadLineKeys);
-  threadKeysRef.current = threadLineKeys;
-  const composerRef = useRef(store.composerByPr);
-  composerRef.current = useReviewStore.getState().composerByPr;
-  const pendingRef = useRef(store.pendingByPr);
-  pendingRef.current = useReviewStore.getState().pendingByPr;
   const prKey = `${owner}/${repo}/${number}`;
 
   const hooksCache = useRef(new Map<string, DiffReviewHooks>());
@@ -125,18 +109,9 @@ function ReviewPage() {
             if (!reviewMode) store.startReview(owner, repo, number);
             store.openComposer(owner, repo, number, { path: filename, ...args });
           },
-          renderLineTrailer: (args) => {
-            const key = `${filename}:${args.side}:${args.line}`;
-            const hasThread = threadKeysRef.current.has(key);
-            const composer = composerRef.current[prKey];
-            const isComposer = !!composer && composer.path === filename && composer.side === args.side && composer.line === args.line;
-            const pendingList = pendingRef.current[prKey];
-            const hasPending = !!pendingList && pendingList.some(c => c.path === filename && c.side === args.side && c.line === args.line);
-            if (!hasThread && !isComposer && !hasPending) return null;
-            return (
-              <LineSlot owner={owner} repo={repo} number={number} path={filename} side={args.side} line={args.line} />
-            );
-          },
+          renderLineTrailer: (args) => (
+            <LineSlot owner={owner} repo={repo} number={number} path={filename} side={args.side} line={args.line} />
+          ),
         };
         hooksCache.current.set(filename, hooks);
       }
