@@ -61,7 +61,7 @@ export const FileDiff = memo(function FileDiff({
   const hasVisibleBody = showContent && (isBinary || hasPatch);
 
   return (
-    <section ref={sectionRef} className={cn("border border-[var(--color-border)] rounded", className)}>
+    <section ref={sectionRef} className={cn("overflow-hidden border border-[var(--color-border)] rounded", className)}>
       <header
         className={cn(
           "sticky top-[44px] z-[5]",
