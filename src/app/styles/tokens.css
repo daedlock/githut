@@ -102,13 +102,13 @@
    *   -gutter:   line-number column tint (18%), slightly stronger than -bg
    *   -marker:   the +/- glyph color itself — uses the full status token
    */
-  --diff-add-bg: color-mix(in oklab, var(--color-success) 18%, var(--color-bg));
-  --diff-add-bg-word: color-mix(in oklab, var(--color-success) 40%, var(--color-bg));
-  --diff-add-gutter: color-mix(in oklab, var(--color-success) 25%, var(--color-bg));
+  --diff-add-bg: color-mix(in oklab, var(--color-success) 15%, var(--color-bg));
+  --diff-add-bg-word: color-mix(in oklab, var(--color-success) 28%, var(--color-bg));
+  --diff-add-gutter: color-mix(in oklab, var(--color-success) 22%, var(--color-bg));
   --diff-add-marker: var(--color-success);
-  --diff-del-bg: color-mix(in oklab, var(--color-danger) 18%, var(--color-bg));
-  --diff-del-bg-word: color-mix(in oklab, var(--color-danger) 40%, var(--color-bg));
-  --diff-del-gutter: color-mix(in oklab, var(--color-danger) 25%, var(--color-bg));
+  --diff-del-bg: color-mix(in oklab, var(--color-danger) 15%, var(--color-bg));
+  --diff-del-bg-word: color-mix(in oklab, var(--color-danger) 28%, var(--color-bg));
+  --diff-del-gutter: color-mix(in oklab, var(--color-danger) 22%, var(--color-bg));
   --diff-del-marker: var(--color-danger);
   --diff-hunk-bg: var(--color-bg-sunken);
   --diff-hunk-fg: var(--color-fg-muted);
