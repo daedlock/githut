@@ -60,7 +60,7 @@ export const FileDiff = memo(function FileDiff({
   const showContent = !collapsed && mounted;
 
   return (
-    <section ref={sectionRef} className={cn("overflow-hidden rounded-md border border-[var(--color-border)]", className)}>
+    <section ref={sectionRef} className={cn("overflow-hidden rounded-lg border border-[var(--color-border)]", className)}>
       <header
         className={cn(
           "sticky top-[44px] z-[5]",

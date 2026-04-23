@@ -76,12 +76,7 @@ export const DiffView = memo(function DiffView({
   const singleHunk = hunks.length === 1;
 
   return (
-    <div
-      className={cn(
-        "overflow-hidden bg-[color-mix(in_oklab,var(--color-bg)_96%,var(--color-fg))]",
-        className,
-      )}
-    >
+    <div className={cn("overflow-hidden", className)}>
       <div
         className={cn("overflow-x-auto text-code font-feature-settings-code @container/diff")}
         style={{ fontFamily: "var(--font-mono)" }}
