@@ -66,7 +66,7 @@ export const FileDiff = memo(function FileDiff({
         className={cn(
           "sticky top-[44px] z-[5]",
           "flex items-center gap-2.5 px-3 py-2",
-          "bg-[var(--color-bg-subtle)] rounded-t-[2px]",
+          "bg-[var(--color-bg-sunken)] rounded-t-[2px]",
           hasVisibleBody && "border-b border-[var(--color-border)]",
         )}
       >
