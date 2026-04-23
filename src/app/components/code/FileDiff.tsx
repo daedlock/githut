@@ -67,7 +67,7 @@ export const FileDiff = memo(function FileDiff({
 
   return (
     <section ref={sectionRef} className={cn("border-b border-border", className)}>
-      <header className="sticky top-[44px] z-[5] flex items-center gap-3 border-b border-border bg-[var(--color-bg-subtle)] px-3 py-1.5">
+      <header className="sticky top-[44px] z-[5] flex items-center gap-3 border-b border-border bg-muted px-3 py-2">
         <button
           type="button"
           onClick={() => {
