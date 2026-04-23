@@ -247,10 +247,11 @@ const LineSlotContent = memo(function LineSlotContent({
     },
   );
 
-  const pendingHere = useReviewStore((s) => {
-    const list = s.pendingByPr[prKey] ?? [];
-    return list.filter((c) => c.path === path && c.side === side && c.line === line);
-  });
+  const allPendingForPr = useReviewStore((s) => s.pendingByPr[prKey]);
+  const pendingHere = useMemo(
+    () => (allPendingForPr ?? []).filter((c) => c.path === path && c.side === side && c.line === line),
+    [allPendingForPr, path, side, line],
+  );
 
   const reviewCommentsQuery = usePrReviewComments(owner, repo, number);
   const threads = useMemo(() => {
