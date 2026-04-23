@@ -189,9 +189,9 @@ export function DiffLayout({
                 style={{
                   contentVisibility: "auto",
                   containIntrinsicBlockSize: `${estimateFileHeight(file)}px`,
-                  // Must clear ALL sticky layers: app nav (~77px) + review
-                  // bar (~45px) + diff top bar (44px) + breathing room.
-                  scrollMarginTop: 176,
+                  // Clears: unified nav (40px) + review bar (~45px) +
+                  // diff top bar (44px) + breathing room.
+                  scrollMarginTop: 140,
                 }}
               >
                 <FileItem file={file} mode={mode} review={getReviewHooks?.(file.filename)} />

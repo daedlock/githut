@@ -1,10 +1,9 @@
 import { createFileRoute, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 
-import { RepoSubTabs } from "@/app/components/repo/RepoSubTabs";
 import { AppShell } from "@/app/components/shell/AppShell";
 import { ShellFooter } from "@/app/components/shell/ShellFooter";
-import { TopBar } from "@/app/components/shell/TopBar";
+import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
 import { repoQueryOptions } from "@/app/hooks/useRepo";
 import { useAuthStore } from "@/app/stores/auth";
 import { useTabsStore } from "@/app/stores/tabs";
@@ -36,12 +35,7 @@ function RepoLayout() {
 
   return (
     <AppShell
-      header={
-        <div className="flex flex-col">
-          <TopBar bordered={false} />
-          <RepoSubTabs owner={owner} repo={repo} />
-        </div>
-      }
+      header={<UnifiedNav repoContext={{ owner, repo }} />}
       footer={<ShellFooter bordered origin="localhost:5173" />}
       stickyHeader={stickyHeader}
     >

@@ -2,7 +2,7 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { RepoListWidget } from "@/app/components/repo/RepoListWidget";
 import { AppShell } from "@/app/components/shell/AppShell";
 import { ShellFooter } from "@/app/components/shell/ShellFooter";
-import { TopBar } from "@/app/components/shell/TopBar";
+import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
 import { Container } from "@/app/components/ui/Container";
 import { reposQueryOptions, useRepos } from "@/app/hooks/useRepos";
 import { useAuthStore } from "@/app/stores/auth";
@@ -26,7 +26,7 @@ function IndexPage() {
 
   return (
     <AppShell
-      header={<TopBar bordered />}
+      header={<UnifiedNav />}
       footer={<ShellFooter bordered origin="Same Github, but better" />}
     >
       <Container className="py-6">
