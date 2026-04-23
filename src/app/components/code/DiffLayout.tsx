@@ -37,7 +37,9 @@ export type DiffLayoutProps = {
 // off-screen files so the scrollbar is roughly correct before paint.
 // Once painted, the browser remembers the actual size.
 
+const NAV_H = 40;
 const TOPBAR_H = 44;
+const STICKY_TOP = NAV_H + TOPBAR_H; // 84px — below both nav + diff bar
 
 export function DiffLayout({
   files,
@@ -166,7 +168,7 @@ export function DiffLayout({
         {sidebarOpen && (
           <aside
             className="sticky z-10 hidden w-[280px] flex-shrink-0 self-stretch overflow-y-auto p-2 lg:block"
-            style={{ top: TOPBAR_H, maxHeight: `calc(100dvh - ${TOPBAR_H}px)` }}
+            style={{ top: STICKY_TOP, maxHeight: `calc(100dvh - ${STICKY_TOP}px)` }}
           >
             <ChangedFileTree files={files} activeFile={activeFile} onFileClick={scrollToFile} />
           </aside>
