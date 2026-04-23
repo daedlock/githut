@@ -73,33 +73,29 @@ export const DiffView = memo(function DiffView({
     return <DiffSkeleton />;
   }
 
+  const singleHunk = hunks.length === 1;
+
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-md border border-border bg-[color-mix(in_oklab,var(--color-bg)_94%,var(--color-bg-sunken))]",
+        "overflow-hidden bg-[color-mix(in_oklab,var(--color-bg)_96%,var(--color-fg))]",
         className,
       )}
     >
       <div
         className={cn("overflow-x-auto text-code font-feature-settings-code @container/diff")}
-        // Force the mono token inline — Tailwind's @layer utility for `font-mono`
-        // loses to body's unlayered `font-family: var(--font-sans)` rule, so an
-        // inline style is the only way to guarantee the code font wins. Same
-        // trick CodeView uses for the same reason.
         style={{ fontFamily: "var(--font-mono)" }}
       >
-        {/*
-         * Content wrapper grows to the widest row (w-max) and never shrinks
-         * below the viewport (min-w-full). All children render `w-full` of
-         * this wrapper, so hunk headers, diff rows, short lines, long lines
-         * all share the same box width — no ragged right edge when scrolled.
-         * Split mode uses `w-full` so the 50/50 grid stays within viewport.
-         */}
         <div className={mode === "split" ? "w-full" : "w-max min-w-full"}>
           {hunks.map((hunk, hIdx) => (
             <Fragment key={hIdx}>
-              {hIdx > 0 && <div className="h-px bg-border" />}
-              <HunkHeader hunk={hunk} />
+              {/* Skip hunk header when there's only one hunk */}
+              {!singleHunk && (
+                <>
+                  {hIdx > 0 && <div className="h-px bg-border" />}
+                  <HunkHeader hunk={hunk} />
+                </>
+              )}
               {mode === "unified" ? (
                 <UnifiedHunk
                   hunk={hunk}

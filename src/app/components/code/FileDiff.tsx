@@ -60,13 +60,13 @@ export const FileDiff = memo(function FileDiff({
   const showContent = !collapsed && mounted;
 
   return (
-    <section ref={sectionRef} className={className}>
+    <section ref={sectionRef} className={cn("overflow-hidden rounded-md border border-[var(--color-border)]", className)}>
       <header
         className={cn(
           "sticky top-[44px] z-[5]",
-          "flex items-center gap-2.5 px-3 py-1.5",
-          "border-y border-[var(--color-border-strong)]",
+          "flex items-center gap-2.5 px-3 py-2",
           "bg-[var(--color-bg-subtle)]",
+          showContent && "border-b border-[var(--color-border)]",
         )}
       >
         <button
@@ -103,7 +103,7 @@ export const FileDiff = memo(function FileDiff({
               Binary file — preview unavailable
             </div>
           ) : hasPatch ? (
-            <DiffView patch={patch} lang={lang} mode={mode} review={review} className="rounded-none border-0" />
+            <DiffView patch={patch} lang={lang} mode={mode} review={review} />
           ) : (
             <div className="px-4 py-6 text-center font-mono text-caption uppercase tracking-widest text-[var(--color-fg-faint)]">
               No changes
