@@ -602,7 +602,7 @@ function buildEmphasizedPieces(
 
 // ── Source assembly: collapse hunks into per-side virtual files ─────────────
 
-function buildSources(hunks: DiffHunk[]) {
+export function buildSources(hunks: DiffHunk[]) {
   // The trick: Shiki is a stateful lexer (string literals, block comments span
   // lines), so tokenizing line-by-line gives wrong highlighting. We reconstruct
   // a virtual "old file" that contains only the old lines of each hunk (context

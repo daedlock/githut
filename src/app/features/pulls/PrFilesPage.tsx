@@ -1,10 +1,14 @@
 import { AlertCircle, FileDiff as FileDiffIcon, MessageSquarePlus, Send } from "lucide-react";
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  buildSources,
+  codeTokensQueryOptions,
   DiffLayout,
   type DiffLayoutFile,
   type DiffReviewHooks,
   type FileStatus,
+  parseUnifiedDiff,
 } from "@/app/components/code";
 import { Button } from "@/app/components/ui/button";
 import { Skeleton } from "@/app/components/ui/skeleton";
@@ -37,6 +41,24 @@ export type PrFilesPageProps = {
 export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
   const filesQuery = usePrFiles(owner, repo, number);
   const prQuery = useFullPr(owner, repo, number);
+  const qc = useQueryClient();
+
+  // Prefetch Shiki tokens for ALL files as soon as the file list loads.
+  // Tokenization runs in the background via React Query; by the time the
+  // user scrolls to a file its tokens are already cached → instant render.
+  useEffect(() => {
+    const files = filesQuery.data;
+    if (!files) return;
+    for (const f of files) {
+      if (!f.patch) continue;
+      const lang = detectLang(f.filename);
+      const hunks = parseUnifiedDiff(f.patch);
+      if (hunks.length === 0) continue;
+      const { oldSource, newSource } = buildSources(hunks);
+      void qc.prefetchQuery(codeTokensQueryOptions(oldSource, lang));
+      void qc.prefetchQuery(codeTokensQueryOptions(newSource, lang));
+    }
+  }, [filesQuery.data, qc]);
 
   const reviewMode = useReviewMode(owner, repo, number);
   const pending = usePendingComments(owner, repo, number);

@@ -25,8 +25,8 @@ function plainTokenize(code: string): CodeLine[] {
   return code.split("\n").map((line) => (line ? [{ content: line }] : []));
 }
 
-export function useCodeTokens(code: string, lang: string) {
-  return useQuery({
+export function codeTokensQueryOptions(code: string, lang: string) {
+  return {
     queryKey: ["shiki-tokens", "githut-theme-v2", lang, djb2(code)],
     staleTime: Infinity,
     gcTime: 10 * 60_000,
@@ -51,5 +51,9 @@ export function useCodeTokens(code: string, lang: string) {
         return plainTokenize(code);
       }
     },
-  });
+  };
+}
+
+export function useCodeTokens(code: string, lang: string) {
+  return useQuery(codeTokensQueryOptions(code, lang));
 }
