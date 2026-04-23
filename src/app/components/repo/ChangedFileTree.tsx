@@ -117,23 +117,23 @@ export function ChangedFileTree({
   return (
     <aside
       className={cn(
-        "overflow-hidden rounded-md border border-border bg-background",
+        "bg-background",
         className,
       )}
     >
-      {/* Header */}
-      <header className="flex items-center justify-between gap-2 border-b border-border bg-muted px-3 py-2">
-        <span className="font-mono text-micro font-medium uppercase tracking-widest text-muted-foreground">
-          {title}
-        </span>
-        <span className="font-mono text-micro tabular-nums text-[var(--color-fg-faint)]">
-          {trimmedQuery ? `${visibleFileCount} / ${files.length}` : files.length}
-        </span>
-      </header>
+      {/* Header + search — sticky at top of sidebar scroll */}
+      <div className="sticky top-0 z-10 bg-background">
+        <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+          <span className="font-mono text-micro font-medium uppercase tracking-widest text-muted-foreground">
+            {title}
+          </span>
+          <span className="font-mono text-micro tabular-nums text-[var(--color-fg-faint)]">
+            {trimmedQuery ? `${visibleFileCount} / ${files.length}` : files.length}
+          </span>
+        </header>
 
-      {/* Search + expand controls */}
-      {(showSearch || showExpandControls) && (
-        <div className="flex items-center gap-1.5 border-b border-border px-2 py-1.5">
+        {(showSearch || showExpandControls) && (
+          <div className="flex items-center gap-1.5 border-b border-border px-2 py-1.5">
           {showSearch && (
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
@@ -166,7 +166,8 @@ export function ChangedFileTree({
             </div>
           )}
         </div>
-      )}
+        )}
+      </div>
 
       {/* Tree body */}
       <div className="p-1.5 text-code">
