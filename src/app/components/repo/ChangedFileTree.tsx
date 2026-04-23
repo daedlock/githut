@@ -115,14 +115,9 @@ export function ChangedFileTree({
   }, [filteredTree, files.length, trimmedQuery]);
 
   return (
-    <aside
-      className={cn(
-        "bg-background",
-        className,
-      )}
-    >
+    <aside className={cn("bg-background", className)}>
       {/* Header + search — sticky at top of sidebar scroll */}
-      <div className="sticky top-0 z-10 bg-background">
+      <div className="sticky top-0 z-10 bg-background pt-2">
         <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
           <span className="font-mono text-micro font-medium uppercase tracking-widest text-muted-foreground">
             {title}
@@ -134,38 +129,38 @@ export function ChangedFileTree({
 
         {(showSearch || showExpandControls) && (
           <div className="flex items-center gap-1.5 border-b border-border px-2 py-1.5">
-          {showSearch && (
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Filter files"
-                className="h-7 pl-6 pr-6 text-ui"
-              />
-              {query && (
-                <button
-                  type="button"
-                  onClick={() => setQuery("")}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-[var(--color-fg-faint)] outline-none hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)] focus-visible:ring-1 focus-visible:ring-foreground/15"
-                  aria-label="Clear filter"
-                >
-                  <X className="size-3" />
-                </button>
-              )}
-            </div>
-          )}
-          {showExpandControls && allDirPaths.length > 0 && (
-            <div className="flex items-center">
-              <IconBtn onClick={expandAll} title="Expand all" disabled={!!trimmedQuery}>
-                <UnfoldVertical className="size-3" />
-              </IconBtn>
-              <IconBtn onClick={collapseAll} title="Collapse all" disabled={!!trimmedQuery}>
-                <FoldVertical className="size-3" />
-              </IconBtn>
-            </div>
-          )}
-        </div>
+            {showSearch && (
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Filter files"
+                  className="h-7 pl-6 pr-6 text-ui"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-[var(--color-fg-faint)] outline-none hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)] focus-visible:ring-1 focus-visible:ring-foreground/15"
+                    aria-label="Clear filter"
+                  >
+                    <X className="size-3" />
+                  </button>
+                )}
+              </div>
+            )}
+            {showExpandControls && allDirPaths.length > 0 && (
+              <div className="flex items-center">
+                <IconBtn onClick={expandAll} title="Expand all" disabled={!!trimmedQuery}>
+                  <UnfoldVertical className="size-3" />
+                </IconBtn>
+                <IconBtn onClick={collapseAll} title="Collapse all" disabled={!!trimmedQuery}>
+                  <FoldVertical className="size-3" />
+                </IconBtn>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -228,12 +223,7 @@ function TreeNode({
   const isOpen = expanded.has(node.path);
   return (
     <>
-      <DirRow
-        node={node}
-        depth={depth}
-        isOpen={isOpen}
-        onToggle={() => onToggle(node.path)}
-      />
+      <DirRow node={node} depth={depth} isOpen={isOpen} onToggle={() => onToggle(node.path)} />
       {isOpen &&
         node.children.map((child, i) => (
           <Fragment key={i}>
@@ -355,7 +345,10 @@ function StatusGlyph({ status }: { status: FileStatus }) {
           : "text-[var(--color-fg-faint)]";
   return (
     <span
-      className={cn("flex-shrink-0 font-mono text-micro font-semibold uppercase w-3 text-center", tone)}
+      className={cn(
+        "flex-shrink-0 font-mono text-micro font-semibold uppercase w-3 text-center",
+        tone,
+      )}
       aria-label={status}
     >
       {glyph}
@@ -388,9 +381,7 @@ function buildTree(files: ChangedFile[]): Node[] {
     let cursor: DirNode = root;
     for (let i = 0; i < parts.length - 1; i++) {
       const part = parts[i]!;
-      let next = cursor.children.find(
-        (c): c is DirNode => c.type === "dir" && c.name === part,
-      );
+      let next = cursor.children.find((c): c is DirNode => c.type === "dir" && c.name === part);
       if (!next) {
         next = {
           type: "dir",
@@ -485,11 +476,7 @@ function filterTree(nodes: Node[], q: string): Node[] {
   return out;
 }
 
-function initialExpand(
-  mode: "all" | "none" | "top",
-  all: string[],
-  top: string[],
-): Set<string> {
+function initialExpand(mode: "all" | "none" | "top", all: string[], top: string[]): Set<string> {
   if (mode === "none") return new Set();
   if (mode === "top") return new Set(top);
   return new Set(all);

@@ -105,8 +105,7 @@ export function DiffLayout({
       if (e.key === "j" || e.key === "k") {
         e.preventDefault();
         const idx = files.findIndex((f) => f.filename === activeFile);
-        const nextIdx =
-          e.key === "j" ? Math.min(files.length - 1, idx + 1) : Math.max(0, idx - 1);
+        const nextIdx = e.key === "j" ? Math.min(files.length - 1, idx + 1) : Math.max(0, idx - 1);
         const next = files[nextIdx];
         if (next) scrollToFile(next.filename);
       } else if (e.key === "[") {
@@ -139,13 +138,23 @@ export function DiffLayout({
               title={sidebarOpen ? "Hide file tree" : "Show file tree"}
               aria-label={sidebarOpen ? "Hide file tree" : "Show file tree"}
             >
-              {sidebarOpen ? <PanelLeftClose className="size-3.5" /> : <PanelLeftOpen className="size-3.5" />}
+              {sidebarOpen ? (
+                <PanelLeftClose className="size-3.5" />
+              ) : (
+                <PanelLeftOpen className="size-3.5" />
+              )}
             </button>
             <div className="flex items-baseline gap-2">
-              <span className="text-ui font-medium text-foreground tabular-nums">{files.length}</span>
+              <span className="text-ui font-medium text-foreground tabular-nums">
+                {files.length}
+              </span>
               <span className="text-caption text-muted-foreground">files</span>
-              <span className="font-mono text-caption tabular-nums text-[var(--diff-add-marker)]">+{totals.add}</span>
-              <span className="font-mono text-caption tabular-nums text-[var(--diff-del-marker)]">−{totals.del}</span>
+              <span className="font-mono text-caption tabular-nums text-[var(--diff-add-marker)]">
+                +{totals.add}
+              </span>
+              <span className="font-mono text-caption tabular-nums text-[var(--diff-del-marker)]">
+                −{totals.del}
+              </span>
             </div>
           </>
         )}
@@ -153,11 +162,17 @@ export function DiffLayout({
         <div className="flex-1" />
 
         <div className="flex items-center rounded-md border border-input bg-background p-0.5">
-          <ModeBtn active={mode === "unified"} onClick={() => setMode("unified")} title="Unified view">
-            <Rows2 className="size-3" /><span>Unified</span>
+          <ModeBtn
+            active={mode === "unified"}
+            onClick={() => setMode("unified")}
+            title="Unified view"
+          >
+            <Rows2 className="size-3" />
+            <span>Unified</span>
           </ModeBtn>
           <ModeBtn active={mode === "split"} onClick={() => setMode("split")} title="Split view">
-            <Columns2 className="size-3" /><span>Split</span>
+            <Columns2 className="size-3" />
+            <span>Split</span>
           </ModeBtn>
         </div>
 
@@ -167,7 +182,7 @@ export function DiffLayout({
       <div className="flex min-h-[calc(100dvh-44px)] w-full">
         {sidebarOpen && (
           <aside
-            className="sticky z-10 hidden w-[280px] flex-shrink-0 self-stretch overflow-y-auto p-2 lg:block"
+            className="sticky z-10 hidden w-[280px] flex-shrink-0 self-stretch overflow-y-auto  lg:block"
             style={{ top: STICKY_TOP, maxHeight: `calc(100dvh - ${STICKY_TOP}px)` }}
           >
             <ChangedFileTree files={files} activeFile={activeFile} onFileClick={scrollToFile} />
@@ -244,11 +259,12 @@ function ModeBtn({
         "inline-flex h-6 items-center gap-1.5 rounded-sm px-2 text-caption",
         "outline-none transition-colors",
         "focus-visible:ring-1 focus-visible:ring-foreground/15",
-        active ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]" : "text-muted-foreground hover:text-foreground",
+        active
+          ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
       {children}
     </button>
   );
 }
-
