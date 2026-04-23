@@ -491,7 +491,7 @@ const SplitRow = memo(function SplitRow({
 
 function NopArea() {
   return (
-    <div className="h-[20px] bg-[color-mix(in_oklab,var(--color-fg)_5%,var(--color-bg))]">
+    <div className="h-[20px] bg-[color-mix(in_oklab,var(--color-fg)_12%,var(--color-bg))]">
     </div>
   );
 }
