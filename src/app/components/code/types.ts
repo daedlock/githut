@@ -20,6 +20,11 @@ export type CodeToken = {
 
 export type CodeLine = CodeToken[];
 
+export type CodeLineWithHtml = {
+  tokens: CodeToken[];
+  html: string;
+};
+
 /** Decoration applied to a single line in CodeView. Distinct from parseDiff's
  *  DiffLineKind ("add"/"del") — CodeView is older and uses the verbose forms. */
 export type LineKind = "context" | "added" | "removed";

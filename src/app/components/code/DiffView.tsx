@@ -4,7 +4,7 @@ import { cn } from "@/app/lib/cn";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { countChanges, type DiffHunk, type DiffLine, parseUnifiedDiff } from "./parseDiff";
 import { FS_BOLD, FS_ITALIC, FS_STRIKETHROUGH, FS_UNDERLINE } from "./types";
-import type { CodeLine, CodeToken } from "./types";
+import type { CodeLine, CodeLineWithHtml, CodeToken } from "./types";
 import { useCodeTokens } from "./useCodeTokens";
 import { computeLinePairs, wordDiff, type WordSegment } from "./wordDiff";
 
@@ -157,8 +157,8 @@ const UnifiedHunk = memo(function UnifiedHunk({
   review,
 }: {
   hunk: DiffHunk;
-  oldTokens: CodeLine[];
-  newTokens: CodeLine[];
+  oldTokens: CodeLineWithHtml[];
+  newTokens: CodeLineWithHtml[];
   oldLineMap: Map<number, number>;
   newLineMap: Map<number, number>;
   review?: DiffReviewHooks;
@@ -246,7 +246,7 @@ const DiffRow = memo(function DiffRow({
   kind: DiffLine["kind"];
   oldNum?: number;
   newNum?: number;
-  tokens: CodeLine;
+  tokens: CodeLineWithHtml;
   rawText: string;
   emphasis?: WordSegment[];
   onAddComment?: DiffReviewHooks["onAddComment"];
@@ -308,8 +308,8 @@ const SplitHunk = memo(function SplitHunk({
   newLineMap,
 }: {
   hunk: DiffHunk;
-  oldTokens: CodeLine[];
-  newTokens: CodeLine[];
+  oldTokens: CodeLineWithHtml[];
+  newTokens: CodeLineWithHtml[];
   oldLineMap: Map<number, number>;
   newLineMap: Map<number, number>;
 }) {
@@ -444,7 +444,7 @@ const SplitRow = memo(function SplitRow({
   side: "old" | "new";
   kind: DiffLine["kind"];
   num?: number;
-  tokens: CodeLine;
+  tokens: CodeLineWithHtml;
   rawText: string;
   emphasis?: WordSegment[];
 }) {
@@ -493,24 +493,21 @@ const RenderedLine = memo(function RenderedLine({
   rawText,
   emphasis,
 }: {
-  tokens: CodeLine;
+  tokens: CodeLineWithHtml;
   rawText: string;
   emphasis?: WordSegment[];
 }) {
-  // Fast path: no emphasis → just emit token spans
+  // Fast path: no emphasis → inject pre-built HTML string. This avoids
+  // creating React elements per token (the #1 perf bottleneck for large
+  // diffs). A 200-line file goes from ~1000 React elements to ~200.
   if (!emphasis || emphasis.length === 0) {
-    return (
-      <>
-        {tokens.map((t, i) => (
-          <TokenSpan key={i} token={t} />
-        ))}
-      </>
-    );
+    // eslint-disable-next-line react/no-danger
+    return <span dangerouslySetInnerHTML={{ __html: tokens.html }} />;
   }
 
   // Emphasis path: walk tokens AND segments together, splitting tokens at
   // segment boundaries so we can add `.diff-word` to the exact changed ranges.
-  const pieces = buildEmphasizedPieces(tokens, rawText, emphasis);
+  const pieces = buildEmphasizedPieces(tokens.tokens, rawText, emphasis);
   return (
     <>
       {pieces.map((p, i) => (
@@ -657,22 +654,22 @@ export function buildSources(hunks: DiffHunk[]) {
   };
 }
 
-function tokensForOld(line: DiffLine, oldTokens: CodeLine[], map: Map<number, number>): CodeLine {
+function tokensForOld(line: DiffLine, oldTokens: CodeLineWithHtml[], map: Map<number, number>): CodeLineWithHtml {
   if (line.oldNum == null) return plainTokens(line.content);
   const idx = map.get(line.oldNum);
   if (idx == null) return plainTokens(line.content);
   return oldTokens[idx] ?? plainTokens(line.content);
 }
 
-function tokensForNew(line: DiffLine, newTokens: CodeLine[], map: Map<number, number>): CodeLine {
+function tokensForNew(line: DiffLine, newTokens: CodeLineWithHtml[], map: Map<number, number>): CodeLineWithHtml {
   if (line.newNum == null) return plainTokens(line.content);
   const idx = map.get(line.newNum);
   if (idx == null) return plainTokens(line.content);
   return newTokens[idx] ?? plainTokens(line.content);
 }
 
-function plainTokens(content: string): CodeLine {
-  return [{ content }];
+function plainTokens(content: string): CodeLineWithHtml {
+  return { tokens: [{ content }], html: content.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] ?? c)) };
 }
 
 // ── Skeleton ────────────────────────────────────────────────────────────────

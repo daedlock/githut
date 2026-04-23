@@ -2,7 +2,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useRef } from "react";
 import { cn } from "@/app/lib/cn";
 import { FS_BOLD, FS_ITALIC, FS_STRIKETHROUGH, FS_UNDERLINE } from "./types";
-import type { CodeLine, LineKind } from "./types";
+import type { CodeLine, CodeLineWithHtml, LineKind } from "./types";
 
 const LINE_H = 20; // px — IBM Plex Mono 13px × 1.5 line-height ≈ 20px
 const MAX_H = "75vh";
@@ -27,7 +27,7 @@ type LineDecoration = {
 };
 
 export type CodeViewProps = {
-  lines: CodeLine[];
+  lines: (CodeLine | CodeLineWithHtml)[];
   /** Per-line decoration — if omitted, renders as a plain viewer with sequential line numbers */
   decorations?: LineDecoration[];
   startLine?: number;
@@ -113,20 +113,21 @@ export function CodeView({ lines, decorations, startLine = 1, className }: CodeV
 
               {/* code tokens */}
               <span className="whitespace-pre overflow-hidden">
-                {line?.map((token, i) => (
+                {line && "html" in line ? (
+                  // eslint-disable-next-line react/no-danger
+                  <span dangerouslySetInnerHTML={{ __html: line.html }} />
+                ) : line?.map((token: { content: string; color?: string; fontStyle?: number }, i: number) => (
                   <span
                     key={i}
                     style={{
-                      // Token color is already a `var(--syntax-*)` reference
-                      // (see appTheme.ts) so light/dark swaps happen at paint
-                      // time via the <html>-level token palette — no JS needed.
                       color: token.color,
                       ...fontStyleToCSS(token.fontStyle),
                     }}
                   >
                     {token.content}
                   </span>
-                ))}
+                ))
+                }
               </span>
             </div>
           );

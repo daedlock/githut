@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { bundledLanguages, type BundledLanguage, codeToTokens, isSpecialLang } from "shiki";
 import { appSyntaxTheme } from "./appTheme";
-import type { CodeLine } from "./types";
+import { FS_BOLD, FS_ITALIC, FS_STRIKETHROUGH, FS_UNDERLINE } from "./types";
+import type { CodeLine, CodeLineWithHtml } from "./types";
 
 function djb2(s: string): number {
   let h = 5381;
@@ -9,20 +10,40 @@ function djb2(s: string): number {
   return h >>> 0;
 }
 
-// Shiki can only tokenize langs it actually bundles. For anything else (e.g.
-// `org`, niche DSLs), feeding it the name causes a dynamic import that never
-// resolves — the UI sits in a skeleton forever. Resolve at call site against
-// the real bundle and drop through to plaintext when unknown.
 function resolveLang(lang: string): BundledLanguage | "text" {
   if (isSpecialLang(lang)) return "text";
   return (lang in bundledLanguages ? lang : "text") as BundledLanguage | "text";
 }
 
-// Plain single-token fallback — used when Shiki rejects the input (unknown
-// grammar, malformed source, etc.). Content is preserved so the viewer still
-// shows something readable instead of spinning on a skeleton.
-function plainTokenize(code: string): CodeLine[] {
-  return code.split("\n").map((line) => (line ? [{ content: line }] : []));
+const ESC: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+};
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"]/g, (c) => ESC[c] ?? c);
+}
+
+function tokenToHtml(content: string, color?: string, fontStyle?: number): string {
+  const esc = escapeHtml(content);
+  if (!color && (!fontStyle || fontStyle <= 0)) return esc;
+  const parts: string[] = [];
+  if (color) parts.push(`color:${color}`);
+  if (fontStyle) {
+    if (fontStyle & FS_ITALIC) parts.push("font-style:italic");
+    if (fontStyle & FS_BOLD) parts.push("font-weight:bold");
+    if (fontStyle & FS_UNDERLINE) parts.push("text-decoration:underline");
+    if (fontStyle & FS_STRIKETHROUGH) parts.push("text-decoration:line-through");
+  }
+  return `<span style="${parts.join(";")}">${esc}</span>`;
+}
+
+function plainTokenize(code: string): CodeLineWithHtml[] {
+  return code.split("\n").map((line) => ({
+    tokens: line ? [{ content: line }] : [],
+    html: line ? escapeHtml(line) : "",
+  }));
 }
 
 export function codeTokensQueryOptions(code: string, lang: string) {
@@ -30,23 +51,24 @@ export function codeTokensQueryOptions(code: string, lang: string) {
     queryKey: ["shiki-tokens", "githut-theme-v2", lang, djb2(code)],
     staleTime: Infinity,
     gcTime: 10 * 60_000,
-    queryFn: async (): Promise<CodeLine[]> => {
+    queryFn: async (): Promise<CodeLineWithHtml[]> => {
       const safeLang = resolveLang(lang);
       try {
         const { tokens } = await codeToTokens(code, {
           lang: safeLang,
-          // Custom theme emits `var(--syntax-*)` color strings. The browser
-          // resolves them against whichever palette is active on <html>, so
-          // light/dark swaps happen without re-tokenizing.
           theme: appSyntaxTheme,
         });
-        return tokens.map((lineTokens) =>
-          lineTokens.map((token) => ({
+        return tokens.map((lineTokens) => {
+          const toks = lineTokens.map((token) => ({
             content: token.content,
             color: token.color,
             fontStyle: token.fontStyle,
-          })),
-        );
+          }));
+          const html = lineTokens
+            .map((t) => tokenToHtml(t.content, t.color, t.fontStyle))
+            .join("");
+          return { tokens: toks, html };
+        });
       } catch {
         return plainTokenize(code);
       }
