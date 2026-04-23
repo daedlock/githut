@@ -76,7 +76,7 @@ export const DiffView = memo(function DiffView({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-md border border-border bg-muted",
+        "overflow-hidden rounded-md border border-border bg-[color-mix(in_oklab,var(--color-bg)_94%,var(--color-bg-sunken))]",
         className,
       )}
     >

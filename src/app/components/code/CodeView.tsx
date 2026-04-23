@@ -51,7 +51,7 @@ export function CodeView({ lines, decorations, startLine = 1, className }: CodeV
     <div
       ref={scrollRef}
       className={cn(
-        "overflow-auto bg-muted text-code",
+        "overflow-auto bg-[color-mix(in_oklab,var(--color-bg)_94%,var(--color-bg-sunken))] text-code",
         "font-feature-settings-code",
         className,
       )}
