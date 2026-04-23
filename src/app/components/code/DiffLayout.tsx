@@ -38,14 +38,6 @@ export type DiffLayoutProps = {
 // Once painted, the browser remembers the actual size.
 
 const TOPBAR_H = 44;
-const LINE_H = 20;
-const FILE_HEADER_H = 44;
-
-function estimateFileHeight(file: DiffLayoutFile): number {
-  if (!file.patch) return FILE_HEADER_H + 60;
-  const lines = file.patch.split("\n").length;
-  return FILE_HEADER_H + lines * LINE_H;
-}
 
 export function DiffLayout({
   files,
@@ -192,9 +184,7 @@ export function DiffLayout({
                 data-filename={file.filename}
                 style={{
                   contentVisibility: "auto",
-                  containIntrinsicBlockSize: `${estimateFileHeight(file)}px`,
-                  // Clears: unified nav (40px) + review bar (~45px) +
-                  // diff top bar (44px) + breathing room.
+                  containIntrinsicBlockSize: "auto 40px",
                   scrollMarginTop: 140,
                 }}
               >
