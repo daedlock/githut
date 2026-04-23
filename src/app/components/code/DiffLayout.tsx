@@ -185,7 +185,7 @@ export function DiffLayout({
                 style={{
                   contentVisibility: "auto",
                   containIntrinsicBlockSize: "auto 40px",
-                  scrollMarginTop: 140,
+                  scrollMarginTop: TOPBAR_H,
                 }}
               >
                 <FileItem file={file} mode={mode} review={getReviewHooks?.(file.filename)} />
