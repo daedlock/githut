@@ -41,7 +41,7 @@ export function UnifiedNav({ repoContext }: { repoContext?: RepoContext }) {
   const { open: openPalette } = useCommandPalette();
 
   return (
-    <header className="flex h-10 w-full items-center gap-0 border-b border-border bg-background px-3 sm:px-4">
+    <header className="flex h-10 min-h-10 w-full shrink-0 items-center gap-0 overflow-hidden border-b border-border bg-background px-3 sm:px-4">
       {/* Left: repo identity + section tabs (when in repo context) */}
       {repoContext ? (
         <RepoSection owner={repoContext.owner} repo={repoContext.repo} />
@@ -149,8 +149,7 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
         </div>
       </div>
 
-      {/* Section tabs — inline, same row, no wrap */}
-      <nav className="flex items-stretch gap-0 overflow-x-auto" aria-label="Repository sections">
+      <nav className="flex items-stretch gap-0" aria-label="Repository sections">
         {tabs.map((tab) => {
           const isActive = tab.href === activeHref;
           return (
