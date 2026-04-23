@@ -490,12 +490,22 @@ const SplitRow = memo(function SplitRow({
 });
 
 function SplitPadRow() {
-  // Empty counterpart on the other side of a split — tinted with bg-subtle so
-  // the viewer reads the asymmetry at a glance. No gutter digit, no marker.
   return (
-    <div className="flex h-[20px] items-stretch bg-muted/60">
+    <div
+      className="flex h-[20px] items-stretch"
+      style={{
+        background: `repeating-linear-gradient(
+          -45deg,
+          transparent,
+          transparent 4px,
+          color-mix(in oklab, var(--color-fg) 4%, var(--color-bg)) 4px,
+          color-mix(in oklab, var(--color-fg) 4%, var(--color-bg)) 5px
+        )`,
+      }}
+    >
       <span className="w-10 flex-shrink-0" />
-      <span className="w-5 flex-shrink-0" />
+      <span className="w-4 flex-shrink-0" />
+      <span className="w-4 flex-shrink-0" />
       <span className="flex-1" />
     </div>
   );
