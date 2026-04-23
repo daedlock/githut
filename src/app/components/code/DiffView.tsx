@@ -39,7 +39,7 @@ export type DiffViewProps = {
   review?: DiffReviewHooks;
 };
 
-export function DiffView({
+export const DiffView = memo(function DiffView({
   patch,
   lang = "text",
   mode = "unified",
@@ -124,7 +124,7 @@ export function DiffView({
       </div>
     </div>
   );
-}
+});
 
 // ── Exports for composition ─────────────────────────────────────────────────
 
@@ -133,7 +133,7 @@ export type { DiffHunk, DiffLine };
 
 // ── Hunk header ─────────────────────────────────────────────────────────────
 
-function HunkHeader({ hunk }: { hunk: DiffHunk }) {
+const HunkHeader = memo(function HunkHeader({ hunk }: { hunk: DiffHunk }) {
   return (
     <div className="flex items-center gap-3 border-b border-t border-[var(--diff-hunk-border)] bg-[var(--diff-hunk-bg)] px-3 py-1">
       <span className="font-mono text-caption tabular-nums text-[var(--diff-hunk-fg)]">
@@ -144,11 +144,11 @@ function HunkHeader({ hunk }: { hunk: DiffHunk }) {
       )}
     </div>
   );
-}
+});
 
 // ── Unified view ────────────────────────────────────────────────────────────
 
-function UnifiedHunk({
+const UnifiedHunk = memo(function UnifiedHunk({
   hunk,
   oldTokens,
   newTokens,
@@ -220,11 +220,9 @@ function UnifiedHunk({
               tokens={tokens}
               rawText={line.content}
               emphasis={showEmphasis ? segments : undefined}
-              onAddComment={
-                review?.onAddComment && lineNum != null
-                  ? () => review.onAddComment!({ side, line: lineNum })
-                  : undefined
-              }
+              onAddComment={review?.onAddComment}
+              commentSide={lineNum != null ? side : undefined}
+              commentLine={lineNum}
             />
             {trailer}
           </Fragment>
@@ -232,7 +230,7 @@ function UnifiedHunk({
       })}
     </div>
   );
-}
+});
 
 const DiffRow = memo(function DiffRow({
   kind,
@@ -242,6 +240,8 @@ const DiffRow = memo(function DiffRow({
   rawText,
   emphasis,
   onAddComment,
+  commentSide,
+  commentLine,
 }: {
   kind: DiffLine["kind"];
   oldNum?: number;
@@ -249,15 +249,18 @@ const DiffRow = memo(function DiffRow({
   tokens: CodeLine;
   rawText: string;
   emphasis?: WordSegment[];
-  onAddComment?: () => void;
+  onAddComment?: DiffReviewHooks["onAddComment"];
+  commentSide?: "LEFT" | "RIGHT";
+  commentLine?: number;
 }) {
   const lineClass = kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
+  const canComment = !!onAddComment && commentSide != null && commentLine != null;
   return (
     <div className={cn("group relative flex w-full items-stretch", lineClass)}>
-      {onAddComment && (
+      {canComment && (
         <button
           type="button"
-          onClick={onAddComment}
+          onClick={() => onAddComment!({ side: commentSide!, line: commentLine! })}
           aria-label="Add a comment on this line"
           className={cn(
             "absolute left-0 top-0 z-10 inline-flex size-5 items-center justify-center",
@@ -297,7 +300,7 @@ const DiffRow = memo(function DiffRow({
 
 // ── Split view ──────────────────────────────────────────────────────────────
 
-function SplitHunk({
+const SplitHunk = memo(function SplitHunk({
   hunk,
   oldTokens,
   newTokens,
@@ -429,9 +432,9 @@ function SplitHunk({
       </div>
     </div>
   );
-}
+});
 
-function SplitRow({
+const SplitRow = memo(function SplitRow({
   kind,
   num,
   tokens,
@@ -469,7 +472,7 @@ function SplitRow({
       </span>
     </div>
   );
-}
+});
 
 function SplitPadRow() {
   // Empty counterpart on the other side of a split — tinted with bg-subtle so
@@ -485,7 +488,7 @@ function SplitPadRow() {
 
 // ── Line renderer: Shiki tokens with optional word-level emphasis overlay ──
 
-function RenderedLine({
+const RenderedLine = memo(function RenderedLine({
   tokens,
   rawText,
   emphasis,
@@ -515,7 +518,7 @@ function RenderedLine({
       ))}
     </>
   );
-}
+});
 
 function TokenSpan({ token, emphasis }: { token: CodeToken; emphasis?: boolean }) {
   return (
@@ -528,9 +531,14 @@ function TokenSpan({ token, emphasis }: { token: CodeToken; emphasis?: boolean }
   );
 }
 
+const EMPTY_STYLE: React.CSSProperties = {};
+const FONT_STYLE_CACHE = new Map<number, React.CSSProperties>();
+
 function fontStyleToCSS(fs: number | undefined): React.CSSProperties {
-  if (!fs || fs <= 0) return {};
-  return {
+  if (!fs || fs <= 0) return EMPTY_STYLE;
+  let cached = FONT_STYLE_CACHE.get(fs);
+  if (cached) return cached;
+  cached = {
     fontStyle: fs & FS_ITALIC ? "italic" : undefined,
     fontWeight: fs & FS_BOLD ? "bold" : undefined,
     textDecoration:
@@ -538,6 +546,8 @@ function fontStyleToCSS(fs: number | undefined): React.CSSProperties {
         .filter(Boolean)
         .join(" ") || undefined,
   };
+  FONT_STYLE_CACHE.set(fs, cached);
+  return cached;
 }
 
 // Split tokens at word-diff segment boundaries so we can apply `.diff-word`

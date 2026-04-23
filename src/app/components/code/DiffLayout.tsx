@@ -20,17 +20,6 @@ export type DiffLayoutProps = {
   getReviewHooks?: (filename: string) => DiffReviewHooks | undefined;
 };
 
-// ─── DiffLayout ────────────────────────────────────────────────────────────
-//
-// Virtualized file-level rendering via useWindowVirtualizer. All files
-// appear expanded in the scrollbar, but only files near the viewport
-// actually mount their FileDiff + DiffView + Shiki tokenization. Files
-// that scroll out of the overscan window unmount entirely — their
-// tokens are still cached in React Query so re-expanding is instant.
-//
-// Page-level scroll (not internal) — matches GitHub/GitLab/Reviewable.
-// Sidebar is sticky below the top bar with its own inner scroll.
-
 const TOPBAR_H = 44;
 const ESTIMATED_FILE_H = 400;
 
@@ -46,6 +35,11 @@ export function DiffLayout({
   const [activeFile, setActiveFile] = useState<string | undefined>(files[0]?.filename);
 
   const listRef = useRef<HTMLDivElement>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+
+  useEffect(() => {
+    if (listRef.current) setScrollMargin(listRef.current.offsetTop);
+  }, []);
 
   const totals = useMemo(() => {
     let add = 0;
@@ -57,38 +51,47 @@ export function DiffLayout({
     return { add, del };
   }, [files]);
 
-  // Window virtualizer: uses page scroll, not an internal container.
-  // estimateSize gives a rough height; measureElement corrects it after
-  // first paint so the scroll thumb reflects actual content.
   const virtualizer = useWindowVirtualizer({
     count: files.length,
     estimateSize: () => ESTIMATED_FILE_H,
-    overscan: 3,
-    scrollMargin: listRef.current?.offsetTop ?? 0,
+    overscan: 2,
+    scrollMargin,
   });
 
-  const virtualItems = virtualizer.getVirtualItems();
-
-  // Scroll-spy: detect which file is near the top of the viewport.
+  // Throttled scroll-spy — RAF-gated so it fires at most once per frame.
+  const activeFileRef = useRef(activeFile);
+  activeFileRef.current = activeFile;
   useEffect(() => {
-    if (virtualItems.length === 0) return;
-    const topItem = virtualItems.find(
-      (item) => {
-        const top = item.start - virtualizer.scrollOffset!;
-        return top > -100 && top < 300;
-      },
-    );
-    if (topItem) {
-      const f = files[topItem.index];
-      if (f && f.filename !== activeFile) setActiveFile(f.filename);
-    }
-  }, [virtualItems, virtualizer.scrollOffset, files, activeFile]);
+    let rafId = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const items = virtualizer.getVirtualItems();
+        const offset = virtualizer.scrollOffset ?? 0;
+        for (const item of items) {
+          const top = item.start - offset;
+          if (top > -100 && top < 300) {
+            const f = files[item.index];
+            if (f && f.filename !== activeFileRef.current) {
+              setActiveFile(f.filename);
+            }
+            break;
+          }
+        }
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(rafId);
+    };
+  }, [files, virtualizer]);
 
   const scrollToFile = useCallback(
     (filename: string) => {
       const idx = files.findIndex((f) => f.filename === filename);
       if (idx >= 0) {
-        virtualizer.scrollToIndex(idx, { align: "start" });
+        virtualizer.scrollToIndex(idx, { align: "start", behavior: "auto" });
         setActiveFile(filename);
       }
     },
@@ -107,7 +110,7 @@ export function DiffLayout({
       if (isEditable(e.target)) return;
       if (e.key === "j" || e.key === "k") {
         e.preventDefault();
-        const idx = files.findIndex((f) => f.filename === activeFile);
+        const idx = files.findIndex((f) => f.filename === activeFileRef.current);
         const nextIdx =
           e.key === "j" ? Math.min(files.length - 1, idx + 1) : Math.max(0, idx - 1);
         const next = files[nextIdx];
@@ -119,11 +122,12 @@ export function DiffLayout({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [files, activeFile, scrollToFile]);
+  }, [files, scrollToFile]);
+
+  const virtualItems = virtualizer.getVirtualItems();
 
   return (
     <div className={cn("w-full bg-background", className)}>
-      {/* ─── Sticky top bar ───────────────────────────────────────────── */}
       <div
         className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-muted px-4 sm:px-6"
         style={{ height: TOPBAR_H }}
@@ -140,86 +144,70 @@ export function DiffLayout({
           title={sidebarOpen ? "Hide file tree  [" : "Show file tree  ["}
           aria-label={sidebarOpen ? "Hide file tree" : "Show file tree"}
         >
-          {sidebarOpen ? (
-            <PanelLeftClose className="size-3.5" />
-          ) : (
-            <PanelLeftOpen className="size-3.5" />
-          )}
+          {sidebarOpen ? <PanelLeftClose className="size-3.5" /> : <PanelLeftOpen className="size-3.5" />}
         </button>
 
         <div className="flex items-baseline gap-2.5">
-          <span className="text-ui font-medium text-foreground tabular-nums">
-            {files.length}
-          </span>
+          <span className="text-ui font-medium text-foreground tabular-nums">{files.length}</span>
           <span className="text-caption text-muted-foreground">
             {files.length === 1 ? "file changed" : "files changed"}
           </span>
           <span className="text-caption text-[var(--color-fg-faint)]">·</span>
-          <span className="font-mono text-caption tabular-nums text-[var(--diff-add-marker)]">
-            +{totals.add}
-          </span>
-          <span className="font-mono text-caption tabular-nums text-[var(--diff-del-marker)]">
-            −{totals.del}
-          </span>
+          <span className="font-mono text-caption tabular-nums text-[var(--diff-add-marker)]">+{totals.add}</span>
+          <span className="font-mono text-caption tabular-nums text-[var(--diff-del-marker)]">−{totals.del}</span>
         </div>
 
         <div className="flex-1" />
 
         <div className="flex items-center rounded-md border border-input bg-background p-0.5">
           <ModeBtn active={mode === "unified"} onClick={() => setMode("unified")} title="Unified view">
-            <Rows2 className="size-3" />
-            <span>Unified</span>
+            <Rows2 className="size-3" /><span>Unified</span>
           </ModeBtn>
           <ModeBtn active={mode === "split"} onClick={() => setMode("split")} title="Split view">
-            <Columns2 className="size-3" />
-            <span>Split</span>
+            <Columns2 className="size-3" /><span>Split</span>
           </ModeBtn>
         </div>
 
         <div className="hidden items-center gap-1 md:flex">
-          <KbdPill>j</KbdPill>
-          <KbdPill>k</KbdPill>
-          <span className="text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
-            navigate
-          </span>
+          <KbdPill>j</KbdPill><KbdPill>k</KbdPill>
+          <span className="text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">navigate</span>
         </div>
       </div>
 
-      {/* ─── Sidebar + virtualized main ────────────────────────────────── */}
       <div className="flex w-full items-start">
         {sidebarOpen && (
           <aside
             className="sticky z-10 hidden w-[280px] flex-shrink-0 overflow-y-auto border-r border-border p-2 lg:block"
             style={{ top: TOPBAR_H, maxHeight: `calc(100dvh - ${TOPBAR_H}px)` }}
           >
-            <ChangedFileTree
-              files={files}
-              activeFile={activeFile}
-              onFileClick={scrollToFile}
-            />
+            <ChangedFileTree files={files} activeFile={activeFile} onFileClick={scrollToFile} />
           </aside>
         )}
 
         <div ref={listRef} className="min-w-0 flex-1 p-4">
-          <div
-            style={{
-              height: virtualizer.getTotalSize(),
-              position: "relative",
-              width: "100%",
-            }}
-          >
+          <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
             {virtualItems.map((item) => {
               const file = files[item.index]!;
               return (
-                <VirtualFileItem
+                <div
                   key={file.filename}
-                  file={file}
-                  mode={mode}
-                  review={getReviewHooks?.(file.filename)}
-                  measureElement={virtualizer.measureElement}
-                  start={item.start - virtualizer.options.scrollMargin}
-                  index={item.index}
-                />
+                  data-index={item.index}
+                  ref={virtualizer.measureElement}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${item.start - scrollMargin}px)`,
+                  }}
+                  className="pb-3"
+                >
+                  <FileItem
+                    file={file}
+                    mode={mode}
+                    review={getReviewHooks?.(file.filename)}
+                  />
+                </div>
               );
             })}
           </div>
@@ -229,58 +217,32 @@ export function DiffLayout({
   );
 }
 
-// ─── Virtualized file item ─────────────────────────────────────────────────
-//
-// Memo'd so only the file whose data changed re-renders. The
-// measureElement callback lets the virtualizer learn the actual height
-// after Shiki tokenizes + the diff expands.
-
-const VirtualFileItem = memo(function VirtualFileItem({
+// Memo'd content — the outer positioning div changes transform on
+// scroll but this inner component only re-renders when file data,
+// mode, or review hooks actually change.
+const FileItem = memo(function FileItem({
   file,
   mode,
   review,
-  measureElement,
-  start,
-  index,
 }: {
   file: DiffLayoutFile;
   mode: DiffMode;
   review: DiffReviewHooks | undefined;
-  measureElement: (el: Element | null) => void;
-  start: number;
-  index: number;
 }) {
   return (
-    <div
-      data-index={index}
-      ref={measureElement}
-      data-filename={file.filename}
-      style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        transform: `translateY(${start}px)`,
-      }}
-      className="pb-3"
-    >
-      <FileDiff
-        key={`${file.filename}:${mode}`}
-        filename={file.filename}
-        previousFilename={file.previousFilename}
-        status={file.status}
-        additions={file.additions}
-        deletions={file.deletions}
-        patch={file.patch}
-        lang={file.lang}
-        defaultMode={mode}
-        review={review}
-      />
-    </div>
+    <FileDiff
+      filename={file.filename}
+      previousFilename={file.previousFilename}
+      status={file.status}
+      additions={file.additions}
+      deletions={file.deletions}
+      patch={file.patch}
+      lang={file.lang}
+      defaultMode={mode}
+      review={review}
+    />
   );
 });
-
-// ─── Top-bar pieces ────────────────────────────────────────────────────────
 
 function ModeBtn({
   active,
@@ -302,9 +264,7 @@ function ModeBtn({
         "inline-flex h-6 items-center gap-1.5 rounded-sm px-2 text-caption",
         "outline-none transition-colors",
         "focus-visible:ring-1 focus-visible:ring-foreground/15",
-        active
-          ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
-          : "text-muted-foreground hover:text-foreground",
+        active ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]" : "text-muted-foreground hover:text-foreground",
       )}
     >
       {children}

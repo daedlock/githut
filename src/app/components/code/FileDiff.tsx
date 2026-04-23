@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, Columns2, Rows2 } from "lucide-react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { cn } from "@/app/lib/cn";
 import { DiffView, type DiffMode, type DiffReviewHooks } from "./DiffView";
 
@@ -19,7 +19,7 @@ export type FileDiffProps = {
   review?: DiffReviewHooks;
 };
 
-export function FileDiff({
+export const FileDiff = memo(function FileDiff({
   filename,
   previousFilename,
   status,
@@ -90,7 +90,7 @@ export function FileDiff({
       )}
     </section>
   );
-}
+});
 
 // ── Header pieces ───────────────────────────────────────────────────────────
 
