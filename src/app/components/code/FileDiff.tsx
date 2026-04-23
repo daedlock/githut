@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, Columns2, Rows2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { cn } from "@/app/lib/cn";
 import { DiffView, type DiffMode, type DiffReviewHooks } from "./DiffView";
 
@@ -34,48 +34,16 @@ export function FileDiff({
 }: FileDiffProps) {
   const [mode, setMode] = useState<DiffMode>(defaultMode);
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
-  const headerRef = useRef<HTMLElement>(null);
-  const hasBeenVisible = useRef(false);
-  const [visible, setVisible] = useState(!defaultCollapsed);
-
-  // Lazy mount: only render DiffView when the file header has entered
-  // the viewport at least once. Prevents Shiki tokenization + DOM
-  // creation for off-screen files. Once visible, stays mounted (no
-  // unmounting on scroll-away — that would lose user-expanded state).
-  useEffect(() => {
-    if (hasBeenVisible.current || collapsed) return;
-    const el = headerRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          hasBeenVisible.current = true;
-          setVisible(true);
-          io.disconnect();
-        }
-      },
-      { rootMargin: "200px 0px" },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [collapsed]);
 
   const isBinary = !patch && (additions > 0 || deletions > 0);
   const hasPatch = !!patch;
-  const showContent = !collapsed && visible;
 
   return (
     <section className={cn("overflow-hidden rounded-lg border border-input bg-muted", className)}>
-      <header ref={headerRef} className="flex items-center gap-3 border-b border-border px-3 py-2">
+      <header className="flex items-center gap-3 border-b border-border px-3 py-2">
         <button
           type="button"
-          onClick={() => {
-            setCollapsed((c) => !c);
-            if (collapsed) {
-              hasBeenVisible.current = true;
-              setVisible(true);
-            }
-          }}
+          onClick={() => setCollapsed((c) => !c)}
           className={cn(
             "shrink-0 rounded-sm p-0.5 text-fg-faint",
             "outline-none transition-colors",
@@ -105,7 +73,7 @@ export function FileDiff({
         )}
       </header>
 
-      {showContent && (
+      {!collapsed && (
         <>
           {isBinary ? (
             <div className="bg-muted px-4 py-5 text-center font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]">
