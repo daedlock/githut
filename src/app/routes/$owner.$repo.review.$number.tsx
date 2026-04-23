@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import {
   buildSources,
@@ -11,11 +11,11 @@ import {
   parseUnifiedDiff,
 } from "@/app/components/code";
 import { Button } from "@/app/components/ui/button";
+import { PrStatePill } from "@/app/features/pulls/components/PrStatePill";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { InlineComposer } from "@/app/features/pulls/components/InlineComposer";
 import { InlineThread } from "@/app/features/pulls/components/InlineThread";
 import { PrReviewDialog } from "@/app/features/pulls/components/PrReviewDialog";
-import { PrStatePill } from "@/app/features/pulls/components/PrStatePill";
 import {
   prDetailQueryOptions,
   prFilesQueryOptions,
@@ -152,69 +152,7 @@ function ReviewPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      {/* Compact review header — full width */}
-      <div className="sticky top-0 z-40 flex h-10 min-h-10 shrink-0 items-center gap-3 border-b border-border bg-background px-3 sm:px-4">
-        {/* Back */}
-        <Link
-          to="/$owner/$repo/pulls/$number"
-          params={{ owner, repo, number }}
-          className="inline-flex items-center gap-1.5 text-caption text-muted-foreground outline-none transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" />
-          <span className="hidden sm:inline">Back to PR</span>
-        </Link>
-
-        {/* PR context */}
-        {pr && (
-          <div className="flex items-center gap-2 min-w-0">
-            <PrStatePill state={uiState!} size="xs" />
-            <span className="truncate font-mono text-caption text-foreground">
-              {pr.title}
-              <span className="ml-1 text-[var(--color-fg-faint)]">#{number}</span>
-            </span>
-          </div>
-        )}
-
-        <div className="flex-1" />
-
-        {/* Stats */}
-        {pr && (
-          <span className="hidden items-center gap-2 text-caption tabular-nums sm:flex">
-            <span className="text-muted-foreground">{pr.changed_files} files</span>
-            <span className="text-[var(--color-success)]">+{pr.additions}</span>
-            <span className="text-[var(--color-danger)]">−{pr.deletions}</span>
-          </span>
-        )}
-
-        {/* Review actions */}
-        {canReview && (
-          <div className="flex items-center gap-2">
-            {pending.length > 0 && (
-              <span className="text-micro tabular-nums text-muted-foreground">
-                <span className="font-medium text-foreground">{pending.length}</span> pending
-              </span>
-            )}
-            {reviewMode && (
-              <Button
-                size="xs"
-                variant="ghost"
-                onClick={() => store.cancelReview(owner, repo, number)}
-              >
-                Cancel
-              </Button>
-            )}
-            <Button
-              size="xs"
-              onClick={() => setReviewDialogOpen(true)}
-            >
-              <Send data-icon="inline-start" />
-              Submit review
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Full-width diff */}
+      {/* Full-width diff with merged review header */}
       <div className="flex-1">
         {filesQuery.isPending ? (
           <ReviewSkeleton />
@@ -227,6 +165,20 @@ function ReviewPage() {
             files={diffFiles}
             initialSidebarOpen={diffFiles.length > 1}
             getReviewHooks={getReviewHooks}
+            reviewBar={
+              <ReviewBar
+                owner={owner}
+                repo={repo}
+                number={number}
+                pr={pr}
+                uiState={uiState}
+                canReview={canReview}
+                reviewMode={reviewMode}
+                pendingCount={pending.length}
+                onCancel={() => store.cancelReview(owner, repo, number)}
+                onSubmit={() => setReviewDialogOpen(true)}
+              />
+            }
           />
         )}
       </div>
@@ -386,6 +338,71 @@ function normalizeStatus(status: PrFile["status"]): FileStatus {
     case "added": case "removed": case "modified": case "renamed": case "copied": return status;
     default: return "modified";
   }
+}
+
+// ─── ReviewBar — merged into DiffLayout's sticky top bar ─────────────────
+
+import type { PullRequest } from "@/app/features/pulls/schemas";
+import type { PrUiState } from "@/app/features/pulls/lib/prStatus";
+
+function ReviewBar({
+  owner,
+  repo,
+  number,
+  pr,
+  uiState,
+  canReview,
+  reviewMode,
+  pendingCount,
+  onCancel,
+  onSubmit,
+}: {
+  owner: string;
+  repo: string;
+  number: number;
+  pr: PullRequest | undefined;
+  uiState: PrUiState | null;
+  canReview: boolean;
+  reviewMode: boolean;
+  pendingCount: number;
+  onCancel: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <Link
+        to="/$owner/$repo/pulls/$number"
+        params={{ owner, repo, number }}
+        className="inline-flex items-center gap-1 text-caption text-muted-foreground outline-none transition-colors hover:text-foreground shrink-0"
+      >
+        <ArrowLeft className="size-3" />
+        Back to PR
+      </Link>
+      {pr && uiState && (
+        <>
+          <PrStatePill state={uiState} size="xs" />
+          <span className="truncate font-mono text-caption text-foreground">
+            {pr.title}
+            <span className="ml-1 text-[var(--color-fg-faint)]">#{number}</span>
+          </span>
+        </>
+      )}
+      <div className="flex-1" />
+      {canReview && (
+        <div className="flex items-center gap-2 shrink-0">
+          {pendingCount > 0 && (
+            <span className="text-micro tabular-nums text-muted-foreground">
+              <span className="font-medium text-foreground">{pendingCount}</span> pending
+            </span>
+          )}
+          {reviewMode && (
+            <Button size="xs" variant="ghost" onClick={onCancel}>Cancel</Button>
+          )}
+          <Button size="xs" onClick={onSubmit}>Submit review</Button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ReviewSkeleton() {
