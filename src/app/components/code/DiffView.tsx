@@ -126,12 +126,12 @@ export type { DiffHunk, DiffLine };
 
 const HunkHeader = memo(function HunkHeader({ hunk }: { hunk: DiffHunk }) {
   return (
-    <div className="flex items-center gap-3 border-y border-[var(--color-border)] bg-[var(--diff-hunk-bg)] px-4 py-0.5">
-      <span className="font-mono text-micro tabular-nums text-[var(--diff-hunk-fg)]">
+    <div className="flex items-center gap-3 border-y border-[var(--color-border)] bg-[var(--diff-hunk-bg)] px-4 py-1">
+      <span className="font-mono text-code tabular-nums text-[var(--diff-hunk-fg)]">
         @@ -{hunk.oldStart},{hunk.oldLines} +{hunk.newStart},{hunk.newLines} @@
       </span>
       {hunk.header && (
-        <span className="truncate text-micro text-[var(--color-fg-faint)]">{hunk.header}</span>
+        <span className="truncate text-code text-[var(--color-fg-faint)]">{hunk.header}</span>
       )}
     </div>
   );
