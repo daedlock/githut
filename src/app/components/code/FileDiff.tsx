@@ -28,7 +28,7 @@ export const FileDiff = memo(function FileDiff({
   deletions,
   patch,
   lang,
-  defaultMode = "unified",
+  defaultMode = "split",
   defaultCollapsed = false,
   className,
   review,

@@ -41,7 +41,7 @@ const TOPBAR_H = 44;
 
 export function DiffLayout({
   files,
-  defaultMode = "unified",
+  defaultMode = "split",
   initialSidebarOpen = true,
   className,
   getReviewHooks,
