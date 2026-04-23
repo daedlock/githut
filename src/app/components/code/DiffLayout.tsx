@@ -165,7 +165,7 @@ export function DiffLayout({
       <div className="flex min-h-[calc(100dvh-44px)] w-full">
         {sidebarOpen && (
           <aside
-            className="sticky z-10 hidden w-[280px] flex-shrink-0 self-stretch overflow-y-auto border-r border-[var(--color-border-strong)] p-2 lg:block"
+            className="sticky z-10 hidden w-[280px] flex-shrink-0 self-stretch overflow-y-auto p-2 lg:block"
             style={{ top: TOPBAR_H, maxHeight: `calc(100dvh - ${TOPBAR_H}px)` }}
           >
             <ChangedFileTree files={files} activeFile={activeFile} onFileClick={scrollToFile} />
