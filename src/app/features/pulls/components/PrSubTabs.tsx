@@ -1,22 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { CheckCircle2, FileDiff, GitCommit, MessageSquare } from "lucide-react";
+import { CheckCircle2, Code2, GitCommit, MessageSquare } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/app/lib/cn";
 
-// ─── PrSubTabs ─────────────────────────────────────────────────────────────
-//
-// Tabs inside the PR detail shell, ordered to match github.com:
-//   Conversation · Commits · Checks · Files changed          [+N -N]
-// Visual language matches `RepoSubTabs` (underline on active, muted text
-// when inactive). Counts live as pill badges next to each tab label, and
-// the total +additions/−deletions render as a right-aligned affordance
-// mirroring GitHub's own layout.
-
 type Tab = {
-  to: "/$owner/$repo/pulls/$number"
-    | "/$owner/$repo/pulls/$number/files"
-    | "/$owner/$repo/pulls/$number/commits"
-    | "/$owner/$repo/pulls/$number/checks";
+  to: string;
   label: string;
   icon: LucideIcon;
   count?: number;
@@ -33,7 +21,6 @@ export type PrSubTabsProps = {
     checks?: number;
     files?: number;
   };
-  /** Total +additions / −deletions across the PR, shown on the right. */
   deltas?: { additions: number; deletions: number };
 };
 
@@ -43,32 +30,25 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
 
   const tabs: Tab[] = [
     {
-      to: "/$owner/$repo/pulls/$number",
+      to: `${base}`,
       suffix: "",
       label: "Conversation",
       icon: MessageSquare,
       count: counts.conversation,
     },
     {
-      to: "/$owner/$repo/pulls/$number/commits",
+      to: `${base}/commits`,
       suffix: "/commits",
       label: "Commits",
       icon: GitCommit,
       count: counts.commits,
     },
     {
-      to: "/$owner/$repo/pulls/$number/checks",
+      to: `${base}/checks`,
       suffix: "/checks",
       label: "Checks",
       icon: CheckCircle2,
       count: counts.checks,
-    },
-    {
-      to: "/$owner/$repo/pulls/$number/files",
-      suffix: "/files",
-      label: "Files changed",
-      icon: FileDiff,
-      count: counts.files,
     },
   ];
 
@@ -88,7 +68,6 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
           <Link
             key={t.suffix}
             to={t.to}
-            params={{ owner, repo, number }}
             className={cn(
               "group relative inline-flex items-center gap-1.5 px-3 py-2 text-ui",
               "text-muted-foreground outline-none transition-colors hover:text-foreground",
@@ -124,13 +103,31 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
           </Link>
         );
       })}
-      {deltas && (
-        <span className="ml-auto flex items-center pr-1 text-caption tabular-nums">
-          <span className="text-[var(--color-success)]">+{deltas.additions}</span>
-          <span className="mx-1.5 text-[var(--color-fg-faint)]">·</span>
-          <span className="text-[var(--color-danger)]">−{deltas.deletions}</span>
-        </span>
-      )}
+
+      {/* Review CTA — links to the dedicated full-width review view */}
+      <a
+        href={`/${owner}/${repo}/review/${number}`}
+        className={cn(
+          "ml-auto inline-flex items-center gap-1.5 rounded-md px-3 py-1 my-1",
+          "text-caption font-medium",
+          "bg-primary text-primary-foreground",
+          "outline-none transition-colors hover:bg-primary/90",
+          "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
+        )}
+      >
+        <Code2 className="size-3.5" aria-hidden />
+        Review
+        {typeof counts.files === "number" && (
+          <span className="tabular-nums opacity-80">
+            {counts.files}
+          </span>
+        )}
+        {deltas && (
+          <span className="tabular-nums opacity-70 text-micro">
+            +{deltas.additions} −{deltas.deletions}
+          </span>
+        )}
+      </a>
     </nav>
   );
 }

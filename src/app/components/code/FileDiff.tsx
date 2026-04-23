@@ -1,7 +1,8 @@
-import { ChevronDown, ChevronRight, Columns2, Rows2 } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import { cn } from "@/app/lib/cn";
-import { DiffView, type DiffMode, type DiffReviewHooks } from "./DiffView";
+import type { DiffMode, DiffReviewHooks } from "./DiffView";
+import { DiffView } from "./DiffView";
 
 export type FileStatus = "added" | "removed" | "modified" | "renamed" | "copied" | "changed";
 
@@ -38,7 +39,7 @@ export const FileDiff = memo(function FileDiff({
   className,
   review,
 }: FileDiffProps) {
-  const [mode, setMode] = useState<DiffMode>(defaultMode);
+  const mode = defaultMode;
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const sectionRef = useRef<HTMLElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -66,7 +67,7 @@ export const FileDiff = memo(function FileDiff({
 
   return (
     <section ref={sectionRef} className={cn("overflow-hidden rounded-lg border border-input bg-muted", className)}>
-      <header className="flex items-center gap-3 border-b border-border px-3 py-2">
+      <header className="sticky top-[40px] z-10 flex items-center gap-3 border-b border-border bg-muted px-3 py-2">
         <button
           type="button"
           onClick={() => {
@@ -87,17 +88,6 @@ export const FileDiff = memo(function FileDiff({
         <StatusBadge status={status} />
         <Filename filename={filename} previousFilename={previousFilename} status={status} />
         <ChangeStats additions={additions} deletions={deletions} />
-
-        {hasPatch && (
-          <div className="ml-2 flex items-center rounded-sm border border-border bg-background p-0.5">
-            <ModeBtn active={mode === "unified"} onClick={() => setMode("unified")} title="Unified">
-              <Rows2 className="size-3" />
-            </ModeBtn>
-            <ModeBtn active={mode === "split"} onClick={() => setMode("split")} title="Split">
-              <Columns2 className="size-3" />
-            </ModeBtn>
-          </div>
-        )}
       </header>
 
       {showContent && (
@@ -174,18 +164,3 @@ function ChangeStats({ additions, deletions }: { additions: number; deletions: n
   );
 }
 
-function ModeBtn({ active, onClick, children, title }: { active: boolean; onClick: () => void; children: React.ReactNode; title: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      className={cn(
-        "inline-flex size-5 items-center justify-center rounded-sm outline-none transition-colors focus-visible:ring-1 focus-visible:ring-foreground/15",
-        active ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]" : "text-[var(--color-fg-faint)] hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
-  );
-}

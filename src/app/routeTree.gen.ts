@@ -23,6 +23,7 @@ import { Route as OwnerRepoCodeRouteImport } from './routes/$owner.$repo.code'
 import { Route as OwnerRepoActionsRouteImport } from './routes/$owner.$repo.actions'
 import { Route as OwnerRepoPullsIndexRouteImport } from './routes/$owner.$repo.pulls.index'
 import { Route as OwnerRepoActionsIndexRouteImport } from './routes/$owner.$repo.actions.index'
+import { Route as OwnerRepoReviewNumberRouteImport } from './routes/$owner.$repo.review.$number'
 import { Route as OwnerRepoPullsNumberRouteImport } from './routes/$owner.$repo.pulls.$number'
 import { Route as OwnerRepoCommitShaRouteImport } from './routes/$owner.$repo.commit.$sha'
 import { Route as OwnerRepoPullsNumberIndexRouteImport } from './routes/$owner.$repo.pulls.$number.index'
@@ -101,6 +102,11 @@ const OwnerRepoActionsIndexRoute = OwnerRepoActionsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => OwnerRepoActionsRoute,
 } as any)
+const OwnerRepoReviewNumberRoute = OwnerRepoReviewNumberRouteImport.update({
+  id: '/review/$number',
+  path: '/review/$number',
+  getParentRoute: () => OwnerRepoRoute,
+} as any)
 const OwnerRepoPullsNumberRoute = OwnerRepoPullsNumberRouteImport.update({
   id: '/$number',
   path: '/$number',
@@ -157,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/$owner/$repo/': typeof OwnerRepoIndexRoute
   '/$owner/$repo/commit/$sha': typeof OwnerRepoCommitShaRoute
   '/$owner/$repo/pulls/$number': typeof OwnerRepoPullsNumberRouteWithChildren
+  '/$owner/$repo/review/$number': typeof OwnerRepoReviewNumberRoute
   '/$owner/$repo/actions/': typeof OwnerRepoActionsIndexRoute
   '/$owner/$repo/pulls/': typeof OwnerRepoPullsIndexRoute
   '/$owner/$repo/actions/runs/$runId': typeof OwnerRepoActionsRunsRunIdRoute
@@ -176,6 +183,7 @@ export interface FileRoutesByTo {
   '/$owner/$repo/issues': typeof OwnerRepoIssuesRoute
   '/$owner/$repo': typeof OwnerRepoIndexRoute
   '/$owner/$repo/commit/$sha': typeof OwnerRepoCommitShaRoute
+  '/$owner/$repo/review/$number': typeof OwnerRepoReviewNumberRoute
   '/$owner/$repo/actions': typeof OwnerRepoActionsIndexRoute
   '/$owner/$repo/pulls': typeof OwnerRepoPullsIndexRoute
   '/$owner/$repo/actions/runs/$runId': typeof OwnerRepoActionsRunsRunIdRoute
@@ -200,6 +208,7 @@ export interface FileRoutesById {
   '/$owner/$repo/': typeof OwnerRepoIndexRoute
   '/$owner/$repo/commit/$sha': typeof OwnerRepoCommitShaRoute
   '/$owner/$repo/pulls/$number': typeof OwnerRepoPullsNumberRouteWithChildren
+  '/$owner/$repo/review/$number': typeof OwnerRepoReviewNumberRoute
   '/$owner/$repo/actions/': typeof OwnerRepoActionsIndexRoute
   '/$owner/$repo/pulls/': typeof OwnerRepoPullsIndexRoute
   '/$owner/$repo/actions/runs/$runId': typeof OwnerRepoActionsRunsRunIdRoute
@@ -225,6 +234,7 @@ export interface FileRouteTypes {
     | '/$owner/$repo/'
     | '/$owner/$repo/commit/$sha'
     | '/$owner/$repo/pulls/$number'
+    | '/$owner/$repo/review/$number'
     | '/$owner/$repo/actions/'
     | '/$owner/$repo/pulls/'
     | '/$owner/$repo/actions/runs/$runId'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
     | '/$owner/$repo/issues'
     | '/$owner/$repo'
     | '/$owner/$repo/commit/$sha'
+    | '/$owner/$repo/review/$number'
     | '/$owner/$repo/actions'
     | '/$owner/$repo/pulls'
     | '/$owner/$repo/actions/runs/$runId'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/$owner/$repo/'
     | '/$owner/$repo/commit/$sha'
     | '/$owner/$repo/pulls/$number'
+    | '/$owner/$repo/review/$number'
     | '/$owner/$repo/actions/'
     | '/$owner/$repo/pulls/'
     | '/$owner/$repo/actions/runs/$runId'
@@ -385,6 +397,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OwnerRepoActionsIndexRouteImport
       parentRoute: typeof OwnerRepoActionsRoute
     }
+    '/$owner/$repo/review/$number': {
+      id: '/$owner/$repo/review/$number'
+      path: '/review/$number'
+      fullPath: '/$owner/$repo/review/$number'
+      preLoaderRoute: typeof OwnerRepoReviewNumberRouteImport
+      parentRoute: typeof OwnerRepoRoute
+    }
     '/$owner/$repo/pulls/$number': {
       id: '/$owner/$repo/pulls/$number'
       path: '/$number'
@@ -489,6 +508,7 @@ interface OwnerRepoRouteChildren {
   OwnerRepoPullsRoute: typeof OwnerRepoPullsRouteWithChildren
   OwnerRepoIndexRoute: typeof OwnerRepoIndexRoute
   OwnerRepoCommitShaRoute: typeof OwnerRepoCommitShaRoute
+  OwnerRepoReviewNumberRoute: typeof OwnerRepoReviewNumberRoute
 }
 
 const OwnerRepoRouteChildren: OwnerRepoRouteChildren = {
@@ -499,6 +519,7 @@ const OwnerRepoRouteChildren: OwnerRepoRouteChildren = {
   OwnerRepoPullsRoute: OwnerRepoPullsRouteWithChildren,
   OwnerRepoIndexRoute: OwnerRepoIndexRoute,
   OwnerRepoCommitShaRoute: OwnerRepoCommitShaRoute,
+  OwnerRepoReviewNumberRoute: OwnerRepoReviewNumberRoute,
 }
 
 const OwnerRepoRouteWithChildren = OwnerRepoRoute._addFileChildren(
