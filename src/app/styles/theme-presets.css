@@ -40,6 +40,8 @@
   --color-accent: #ea580c;
   --color-accent-hover: #c2410c;
   --color-accent-fg: #fffbeb;
+  --color-primary: #ea580c;
+  --color-primary-foreground: #fffbeb;
   color-scheme: light;
 }
 
@@ -58,7 +60,9 @@
   /* Hero accent — the single ember in the ash */
   --color-accent: #e08060; /* coral */
   --color-accent-hover: #ec8870;
-  --color-accent-fg: #1c1b19; /* dark bg reads on coral */
+  --color-accent-fg: #1c1b19;
+  --color-primary: #e08060;
+  --color-primary-foreground: #1c1b19; /* dark bg reads on coral */
 
   /* Status — chosen from within the muted palette so errors don't shriek */
   --color-success: #8a9868; /* olive */
@@ -154,6 +158,8 @@
   --color-accent: #b84c30;
   --color-accent-hover: #9e4028;
   --color-accent-fg: #e6dac4;
+  --color-primary: #b84c30;
+  --color-primary-foreground: #e6dac4;
 
   --color-success: #4a6830; /* olive dark */
   --color-danger: #905050; /* rose dark */
@@ -240,6 +246,8 @@
   --color-accent: #b89068;
   --color-accent-hover: #c89c72;
   --color-accent-fg: #171b1e;
+  --color-primary: #b89068;
+  --color-primary-foreground: #171b1e;
 
   /* Status */
   --color-success: #80a070;
@@ -316,6 +324,8 @@
   --color-accent: #d0a0c8;
   --color-accent-hover: #daaed4;
   --color-accent-fg: #2a292e;
+  --color-primary: #d0a0c8;
+  --color-primary-foreground: #2a292e;
 
   /* Status */
   --color-success: #88a080;
@@ -392,6 +402,8 @@
   --color-accent: #e07060;
   --color-accent-hover: #e88070;
   --color-accent-fg: #101a18;
+  --color-primary: #e07060;
+  --color-primary-foreground: #101a18;
 
   /* Status */
   --color-success: #60b878;
@@ -467,7 +479,9 @@
   /* Hero accent — dark coral (mirrors dark lagoon's coral hero) */
   --color-accent: #b85540; /* H10 S55% L42% — dark coral */
   --color-accent-hover: #9e4430; /* deeper coral for hover */
-  --color-accent-fg: #d8eae6; /* seafoam reads on coral */
+  --color-accent-fg: #d8eae6;
+  --color-primary: #b85540;
+  --color-primary-foreground: #d8eae6; /* seafoam reads on coral */
 
   /* Status — darkened lagoon accents for AA on seafoam */
   --color-success: #4e7038; /* dark olive (Emacs green) */
@@ -544,6 +558,8 @@
   --color-accent: #4dcb8c;
   --color-accent-hover: #5dd89a;
   --color-accent-fg: #0c120f;
+  --color-primary: #4dcb8c;
+  --color-primary-foreground: #0c120f;
 
   /* Status */
   --color-success: #4dcb8c;
@@ -620,6 +636,8 @@
   --color-accent: #85b870;
   --color-accent-hover: #95c880;
   --color-accent-fg: #1e2421;
+  --color-primary: #85b870;
+  --color-primary-foreground: #1e2421;
 
   /* Status */
   --color-success: #85b870;
@@ -696,6 +714,8 @@
   --color-accent: #90a878;
   --color-accent-hover: #a0b888;
   --color-accent-fg: #1a1918;
+  --color-primary: #90a878;
+  --color-primary-foreground: #1a1918;
 
   /* Status */
   --color-success: #90a878;

@@ -46,14 +46,11 @@
   --sem-l: 0.55;
   --sem-c: 0.18;
 
-  --color-accent: oklch(var(--sem-l) var(--sem-c) 55);
-  --color-accent-hover: oklch(calc(var(--sem-l) - 0.08) var(--sem-c) 55);
-  --color-accent-fg: #fffbeb;
 
   --color-success: oklch(var(--sem-l) var(--sem-c) 145);
   --color-danger: oklch(var(--sem-l) var(--sem-c) 25);
   --color-warning: oklch(var(--sem-l) var(--sem-c) 85);
-  --color-focus: oklch(var(--sem-l) var(--sem-c) 55);
+  --color-focus: var(--color-accent);
 
   --color-pr-merged: oklch(var(--sem-l) var(--sem-c) 295);
   --color-pr-merged-bg: color-mix(in oklab, oklch(var(--sem-l) var(--sem-c) 295) 14%, var(--color-bg-subtle));
@@ -279,8 +276,8 @@
   --color-card-foreground: var(--color-fg);
   --color-popover: var(--color-bg);
   --color-popover-foreground: var(--color-fg);
-  --color-primary: var(--color-accent);
-  --color-primary-foreground: var(--color-accent-fg);
+  --color-primary: #ea580c;
+  --color-primary-foreground: #ffffff;
   --color-secondary: var(--color-bg-subtle);
   --color-secondary-foreground: var(--color-fg);
   --color-muted: var(--color-bg-subtle);
@@ -312,7 +309,6 @@
   /* OKLCH: brighter on dark bg, same chroma → all semantic colors adapt */
   --sem-l: 0.78;
   --sem-c: 0.18;
-  --color-accent-fg: #1c1917;
   --color-issue-closed-fg: #c084fc; /* purple-400 — 7.1:1 on closed-bg (AA) */
 
   /* syntax tokens — dark mode (300-level hues for high contrast on near-black) */

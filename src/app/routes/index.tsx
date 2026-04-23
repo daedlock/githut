@@ -25,10 +25,7 @@ function IndexPage() {
   const navigate = useNavigate();
 
   return (
-    <AppShell
-      header={<UnifiedNav />}
-      footer={<ShellFooter bordered origin="Same Github, but better" />}
-    >
+    <AppShell header={<UnifiedNav />} footer={<div></div>}>
       <Container className="py-6">
         <div className="grid grid-cols-1 gap-4">
           <RepoListWidget
