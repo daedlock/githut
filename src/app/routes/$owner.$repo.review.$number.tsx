@@ -166,12 +166,10 @@ function ReviewPage() {
             initialSidebarOpen={diffFiles.length > 1}
             getReviewHooks={getReviewHooks}
             reviewBar={
-              <ReviewBar
-                owner={owner}
-                repo={repo}
-                number={number}
-                pr={pr}
-                uiState={uiState}
+              <ReviewBarLeft owner={owner} repo={repo} number={number} pr={pr} uiState={uiState} />
+            }
+            reviewActions={
+              <ReviewBarRight
                 canReview={canReview}
                 reviewMode={reviewMode}
                 pendingCount={pending.length}
@@ -345,28 +343,11 @@ function normalizeStatus(status: PrFile["status"]): FileStatus {
 import type { PullRequest } from "@/app/features/pulls/schemas";
 import type { PrUiState } from "@/app/features/pulls/lib/prStatus";
 
-function ReviewBar({
-  owner,
-  repo,
-  number,
-  pr,
-  uiState,
-  canReview,
-  reviewMode,
-  pendingCount,
-  onCancel,
-  onSubmit,
+function ReviewBarLeft({
+  owner, repo, number, pr, uiState,
 }: {
-  owner: string;
-  repo: string;
-  number: number;
-  pr: PullRequest | undefined;
-  uiState: PrUiState | null;
-  canReview: boolean;
-  reviewMode: boolean;
-  pendingCount: number;
-  onCancel: () => void;
-  onSubmit: () => void;
+  owner: string; repo: string; number: number;
+  pr: PullRequest | undefined; uiState: PrUiState | null;
 }) {
   return (
     <div className="flex items-center gap-2 min-w-0">
@@ -376,7 +357,7 @@ function ReviewBar({
         className="inline-flex items-center gap-1 text-caption text-muted-foreground outline-none transition-colors hover:text-foreground shrink-0"
       >
         <ArrowLeft className="size-3" />
-        Back to PR
+        Back
       </Link>
       {pr && uiState && (
         <>
@@ -387,20 +368,28 @@ function ReviewBar({
           </span>
         </>
       )}
-      <div className="flex-1" />
-      {canReview && (
-        <div className="flex items-center gap-2 shrink-0">
-          {pendingCount > 0 && (
-            <span className="text-micro tabular-nums text-muted-foreground">
-              <span className="font-medium text-foreground">{pendingCount}</span> pending
-            </span>
-          )}
-          {reviewMode && (
-            <Button size="xs" variant="ghost" onClick={onCancel}>Cancel</Button>
-          )}
-          <Button size="xs" onClick={onSubmit}>Submit review</Button>
-        </div>
+    </div>
+  );
+}
+
+function ReviewBarRight({
+  canReview, reviewMode, pendingCount, onCancel, onSubmit,
+}: {
+  canReview: boolean; reviewMode: boolean; pendingCount: number;
+  onCancel: () => void; onSubmit: () => void;
+}) {
+  if (!canReview) return null;
+  return (
+    <div className="flex items-center gap-2 shrink-0">
+      {pendingCount > 0 && (
+        <span className="text-micro tabular-nums text-muted-foreground">
+          <span className="font-medium text-foreground">{pendingCount}</span> pending
+        </span>
       )}
+      {reviewMode && (
+        <Button size="xs" variant="ghost" onClick={onCancel}>Cancel</Button>
+      )}
+      <Button size="xs" onClick={onSubmit}>Submit review</Button>
     </div>
   );
 }

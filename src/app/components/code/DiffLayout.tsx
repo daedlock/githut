@@ -17,8 +17,10 @@ export type DiffLayoutProps = {
   initialSidebarOpen?: boolean;
   className?: string;
   getReviewHooks?: (filename: string) => DiffReviewHooks | undefined;
-  /** Optional review context bar to merge into the sticky top bar. */
+  /** Left portion of review context (back + title). Replaces sidebar toggle + file stats. */
   reviewBar?: ReactNode;
+  /** Right portion — review actions (submit, cancel). Placed after the mode toggle. */
+  reviewActions?: ReactNode;
 };
 
 // ─── DiffLayout ────────────────────────────────────────────────────────────
@@ -52,6 +54,7 @@ export function DiffLayout({
   className,
   getReviewHooks,
   reviewBar,
+  reviewActions,
 }: DiffLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(initialSidebarOpen);
   const [mode, setMode] = useState<DiffMode>(defaultMode);
@@ -124,46 +127,36 @@ export function DiffLayout({
   return (
     <div className={cn("w-full bg-background", className)}>
       <div
-        className="sticky top-0 z-20 flex items-center gap-2 border-b border-border bg-muted px-3 sm:px-4"
+        className="sticky top-0 z-30 flex items-center gap-2 border-b border-border bg-muted px-3 sm:px-4"
         style={{ height: TOPBAR_H }}
       >
-        {/* Review context (when in review route) replaces the left section */}
+        {/* Left: review bar or sidebar toggle + file stats */}
         {reviewBar ?? (
-          <button
-            type="button"
-            onClick={() => setSidebarOpen((v) => !v)}
-            className={cn(
-              "inline-flex size-7 flex-shrink-0 items-center justify-center rounded-sm",
-              "text-muted-foreground outline-none transition-colors",
-              "hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)]",
-              "focus-visible:ring-1 focus-visible:ring-foreground/15",
-            )}
-            title={sidebarOpen ? "Hide file tree  [" : "Show file tree  ["}
-            aria-label={sidebarOpen ? "Hide file tree" : "Show file tree"}
-          >
-            {sidebarOpen ? <PanelLeftClose className="size-3.5" /> : <PanelLeftOpen className="size-3.5" />}
-          </button>
-        )}
-
-        {!reviewBar && (
-          <div className="flex items-baseline gap-2">
-            <span className="text-ui font-medium text-foreground tabular-nums">{files.length}</span>
-            <span className="text-caption text-muted-foreground">files</span>
-            <span className="font-mono text-caption tabular-nums text-[var(--diff-add-marker)]">+{totals.add}</span>
-            <span className="font-mono text-caption tabular-nums text-[var(--diff-del-marker)]">−{totals.del}</span>
-          </div>
+          <>
+            <button
+              type="button"
+              onClick={() => setSidebarOpen((v) => !v)}
+              className={cn(
+                "inline-flex size-7 flex-shrink-0 items-center justify-center rounded-sm",
+                "text-muted-foreground outline-none transition-colors",
+                "hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)]",
+                "focus-visible:ring-1 focus-visible:ring-foreground/15",
+              )}
+              title={sidebarOpen ? "Hide file tree" : "Show file tree"}
+              aria-label={sidebarOpen ? "Hide file tree" : "Show file tree"}
+            >
+              {sidebarOpen ? <PanelLeftClose className="size-3.5" /> : <PanelLeftOpen className="size-3.5" />}
+            </button>
+            <div className="flex items-baseline gap-2">
+              <span className="text-ui font-medium text-foreground tabular-nums">{files.length}</span>
+              <span className="text-caption text-muted-foreground">files</span>
+              <span className="font-mono text-caption tabular-nums text-[var(--diff-add-marker)]">+{totals.add}</span>
+              <span className="font-mono text-caption tabular-nums text-[var(--diff-del-marker)]">−{totals.del}</span>
+            </div>
+          </>
         )}
 
         <div className="flex-1" />
-
-        {/* File count + deltas — always visible */}
-        {reviewBar && (
-          <span className="hidden items-center gap-2 text-caption tabular-nums sm:flex">
-            <span className="text-muted-foreground">{files.length} files</span>
-            <span className="text-[var(--diff-add-marker)]">+{totals.add}</span>
-            <span className="text-[var(--diff-del-marker)]">−{totals.del}</span>
-          </span>
-        )}
 
         <div className="flex items-center rounded-md border border-input bg-background p-0.5">
           <ModeBtn active={mode === "unified"} onClick={() => setMode("unified")} title="Unified view">
@@ -174,10 +167,7 @@ export function DiffLayout({
           </ModeBtn>
         </div>
 
-        <div className="hidden items-center gap-1 md:flex">
-          <KbdPill>j</KbdPill><KbdPill>k</KbdPill>
-          <span className="text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">navigate</span>
-        </div>
+        {reviewActions}
       </div>
 
       <div className="flex w-full items-start">
@@ -191,7 +181,7 @@ export function DiffLayout({
         )}
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex flex-col gap-3 p-4">
+          <div className="flex flex-col">
             {files.map((file) => (
               <div
                 key={file.filename}
@@ -270,10 +260,3 @@ function ModeBtn({
   );
 }
 
-function KbdPill({ children }: { children: React.ReactNode }) {
-  return (
-    <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded-sm border border-input bg-background px-1 font-mono text-micro text-muted-foreground">
-      {children}
-    </kbd>
-  );
-}

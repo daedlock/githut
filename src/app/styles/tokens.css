@@ -41,8 +41,8 @@
   /* PR merged state — GitHub's violet. Distinct from issue-closed violet so
      a merged PR reads differently from a closed-unmerged one. */
   --color-pr-merged: #8250df; /* matches GitHub's merged-purple */
-  --color-pr-merged-bg: color-mix(in oklab, #8250df 14%, #f5f5f4);
-  --color-pr-merged-fg: color-mix(in oklab, #8250df 80%, #1c1917);
+  --color-pr-merged-bg: color-mix(in oklab, #8250df 14%, var(--color-bg-subtle));
+  --color-pr-merged-fg: color-mix(in oklab, #8250df 80%, var(--color-fg));
 
   /*
    * Syntax highlighting tokens — consumed by our custom Shiki theme
