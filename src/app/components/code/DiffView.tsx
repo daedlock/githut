@@ -497,16 +497,12 @@ function NopArea() {
         background: `repeating-linear-gradient(
           -45deg,
           transparent,
-          transparent 4px,
-          color-mix(in oklab, var(--color-fg) 4%, var(--color-bg)) 4px,
-          color-mix(in oklab, var(--color-fg) 4%, var(--color-bg)) 5px
+          transparent 3px,
+          color-mix(in oklab, var(--color-fg) 8%, var(--color-bg)) 3px,
+          color-mix(in oklab, var(--color-fg) 8%, var(--color-bg)) 4px
         )`,
       }}
     >
-      <span className="w-10 flex-shrink-0" />
-      <span className="w-4 flex-shrink-0" />
-      <span className="w-4 flex-shrink-0" />
-      <span className="flex-1" />
     </div>
   );
 }
