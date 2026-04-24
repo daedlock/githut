@@ -15,7 +15,7 @@ import {
   PullRequestSchema,
   ReviewCommentSchema,
   ReviewSchema,
-  TimelineEventsResponseSchema,
+  TimelineEventSchema,
   type IssueCommentOnPr,
   type PrFile,
   type PullRequest,
@@ -290,7 +290,13 @@ export const prCommentsQueryOptions = (owner: string, repo: string, number: numb
         "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
         { owner, repo, issue_number: number, per_page: 100 },
       );
-      return PrCommentsResponseSchema.parse(res.data);
+      const raw = Array.isArray(res.data) ? res.data : [];
+      const comments: IssueCommentOnPr[] = [];
+      for (const item of raw) {
+        const result = IssueCommentOnPrSchema.safeParse(item);
+        if (result.success) comments.push(result.data);
+      }
+      return comments;
     },
   });
 
@@ -340,7 +346,13 @@ export const prTimelineQueryOptions = (owner: string, repo: string, number: numb
           headers: { accept: "application/vnd.github.mockingbird-preview+json" },
         },
       );
-      return TimelineEventsResponseSchema.parse(res.data);
+      const raw = Array.isArray(res.data) ? res.data : [];
+      const events: TimelineEvent[] = [];
+      for (const item of raw) {
+        const result = TimelineEventSchema.safeParse(item);
+        if (result.success) events.push(result.data);
+      }
+      return events;
     },
   });
 
