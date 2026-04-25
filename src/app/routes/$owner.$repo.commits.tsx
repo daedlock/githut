@@ -78,7 +78,7 @@ function CommitsPage() {
 
 function DayHeader({ iso, count }: { iso: string; count: number }) {
   return (
-    <div className="mt-4 first:mt-0 flex items-baseline gap-2 rounded-lg bg-muted px-3 py-1.5">
+    <div className="mt-1 first:mt-0 flex items-baseline gap-2 rounded-lg bg-muted px-3 py-2.5">
       <span className="text-caption text-muted-foreground">
         {formatFullDate(iso)}
       </span>
