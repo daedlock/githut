@@ -52,6 +52,14 @@ const EXT_TO_LANG: Record<string, string> = {
   zig: "zig",
   svelte: "svelte",
   vue: "vue",
+  proto: "protobuf",
+  dart: "dart",
+  ex: "elixir",
+  exs: "elixir",
+  erl: "erlang",
+  elm: "elm",
+  clj: "clojure",
+  scala: "scala",
 };
 
 export function detectLang(path: string): string {
