@@ -59,6 +59,7 @@ function PrDetailLayout() {
         pr={pr}
         rightSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
       />
+      <div className="pt-4"/>
       <PrSubTabs
         owner={owner}
         repo={repo}

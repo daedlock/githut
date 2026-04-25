@@ -129,7 +129,7 @@ function PlaygroundPage() {
         <Section title="Typography">
           <div className="space-y-3">
             <p className="font-sans text-body">
-              Sans — IBM Plex Sans. The quick brown fox jumps over the lazy dog.
+              Sans — Inter. The quick brown fox jumps over the lazy dog.
             </p>
             <p className="font-mono text-body">Mono — Berkeley Mono. const hash = "9f2c4b8e1a7d0"</p>
           </div>
