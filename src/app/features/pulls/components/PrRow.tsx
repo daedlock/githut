@@ -39,7 +39,7 @@ export function PrRow({ owner, repo, pr }: PrRowProps) {
     <Link
       to="/$owner/$repo/pulls/$number"
       params={{ owner, repo, number: pr.number }}
-      className="group block rounded-sm outline-none transition-colors focus-visible:bg-muted hover:bg-muted"
+      className="group block rounded-lg outline-none transition-colors focus-visible:bg-muted hover:bg-muted"
     >
       <div className="flex w-full items-start gap-3 px-4 py-2.5 text-left">
         <div className="mt-0.5 flex-shrink-0">
@@ -47,7 +47,7 @@ export function PrRow({ owner, repo, pr }: PrRowProps) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="text-body font-medium text-foreground">{pr.title}</span>
+            <span className="text-body font-[475] text-foreground">{pr.title}</span>
             {pr.labels.map((l) => (
               <LabelPill
                 key={l.id}
