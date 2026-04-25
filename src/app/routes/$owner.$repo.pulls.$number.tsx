@@ -54,17 +54,19 @@ function PrDetailLayout() {
   return (
     <>
       {/* Header */}
-      <Container className="pt-5 sm:pt-6">
-        <PrHeader
-          owner={owner}
-          repo={repo}
-          pr={pr}
-          actionsSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
-        />
-      </Container>
+      <div className="bg-muted/30">
+        <Container className="pt-5 sm:pt-6 pb-3">
+          <PrHeader
+            owner={owner}
+            repo={repo}
+            pr={pr}
+            actionsSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
+          />
+        </Container>
+      </div>
 
       {/* Sticky tabs bar */}
-      <div className="sticky top-9 z-10 border-b border-border bg-background">
+      <div className="sticky top-9 z-10 border-b border-border bg-muted/50 backdrop-blur-sm">
         <Container>
           <PrSubTabs
             owner={owner}
@@ -75,7 +77,6 @@ function PrDetailLayout() {
               commits: pr.commits,
               files: pr.changed_files,
             }}
-            deltas={{ additions: pr.additions, deletions: pr.deletions }}
           />
         </Container>
       </div>

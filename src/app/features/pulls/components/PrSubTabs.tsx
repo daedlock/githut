@@ -13,10 +13,9 @@ export type PrSubTabsProps = {
     checks?: number;
     files?: number;
   };
-  deltas?: { additions: number; deletions: number };
 };
 
-export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProps) {
+export function PrSubTabs({ owner, repo, number, counts }: PrSubTabsProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const base = `/${owner}/${repo}/pulls/${number}`;
 
@@ -45,43 +44,37 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
   ];
 
   return (
-    <nav aria-label="Pull request sections" className="flex items-center gap-1 py-3">
-      {tabs.map((t) => {
-        const target = `${base}${t.suffix}`;
-        const isActive =
-          t.suffix === ""
-            ? pathname === base || pathname === `${base}/`
-            : pathname === target || pathname.startsWith(`${target}/`);
-        const Icon = t.icon;
-        return (
-          <Button key={t.suffix} variant="ghost" asChild>
-            <Link
-              to={t.to}
-              className={cn(isActive && "bg-muted text-foreground")}
-              aria-current={isActive ? "page" : undefined}
-            >
-              <Icon className="size-4" />
-              <span>{t.label}</span>
-              {typeof t.count === "number" && (
-                <span className="tabular-nums text-muted-foreground">{t.count}</span>
-              )}
-            </Link>
-          </Button>
-        );
-      })}
+    <nav aria-label="Pull request sections" className="flex items-center py-3">
+      <div className="flex items-center gap-1">
+        {tabs.map((t) => {
+          const target = `${base}${t.suffix}`;
+          const isActive =
+            t.suffix === ""
+              ? pathname === base || pathname === `${base}/`
+              : pathname === target || pathname.startsWith(`${target}/`);
+          const Icon = t.icon;
+          return (
+            <Button key={t.suffix} variant="ghost" asChild>
+              <Link
+                to={t.to}
+                className={cn(isActive && "bg-muted text-foreground")}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <Icon className="size-4" />
+                <span>{t.label}</span>
+                {typeof t.count === "number" && (
+                  <span className="tabular-nums text-muted-foreground">{t.count}</span>
+                )}
+              </Link>
+            </Button>
+          );
+        })}
+      </div>
 
       <Button variant="default" asChild className="ml-auto">
         <a href={`/${owner}/${repo}/review/${number}`}>
           <Code2 className="size-4" />
-          <span>Review changes</span>
-          {typeof counts.files === "number" && (
-            <span className="tabular-nums opacity-80">{counts.files}</span>
-          )}
-          {deltas && (
-            <span className="tabular-nums opacity-60 text-xs">
-              +{deltas.additions} −{deltas.deletions}
-            </span>
-          )}
+          <span>Review</span>
         </a>
       </Button>
     </nav>
