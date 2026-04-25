@@ -253,21 +253,15 @@ export function useCreateIssueComment(
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
     onSuccess: (created, vars, ctx) => {
-      // Swap temp → real in place, no refetch round-trip needed
+      // Swap temp → real in place
       if (ctx) {
         queryClient.setQueryData<RepoIssueComment[]>(ctx.key, (old) =>
           (old ?? []).map((c) => (c.id === ctx.tempId ? created : c)),
         );
       }
-      // Mark related queries as stale
-      queryClient.invalidateQueries({ 
-        queryKey: issueKeys.detail(owner, repo, vars.issueNumber),
-        refetchType: 'none' 
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: issueKeys.all(owner, repo),
-        refetchType: 'none' 
-      });
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: issueKeys.detail(owner, repo, vars.issueNumber) });
+      queryClient.invalidateQueries({ queryKey: issueKeys.all(owner, repo) });
     },
   });
 }

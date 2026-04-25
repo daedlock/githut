@@ -412,16 +412,9 @@ export function usePostPrComment(
           (old ?? []).map((c) => (c.id === ctx.tempId ? created : c)),
         );
       }
-      // Mark related queries as stale so they refetch when user navigates back
-      // Don't refetch immediately - the data we have is fresh
-      queryClient.invalidateQueries({ 
-        queryKey: pullsKeys.detail(owner, repo, number),
-        refetchType: 'none' 
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: pullsKeys.timeline(owner, repo, number),
-        refetchType: 'none' 
-      });
+      // Invalidate related queries - will refetch in background
+      queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) });
+      queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) });
     },
   });
 }
@@ -690,20 +683,10 @@ export function useMergePr(owner: string, repo: string, number: number) {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
     onSuccess: () => {
-      // Merge doesn't return the updated PR, so we need to invalidate
-      // Mark as stale so it refetches when user navigates back
-      queryClient.invalidateQueries({ 
-        queryKey: pullsKeys.detail(owner, repo, number),
-        refetchType: 'none' 
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: pullsKeys.timeline(owner, repo, number),
-        refetchType: 'none' 
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: pullsKeys.counts(owner, repo),
-        refetchType: 'none' 
-      });
+      // Merge doesn't return the updated PR, so invalidate to refetch
+      queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) });
+      queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) });
+      queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) });
     },
   });
 }
@@ -736,17 +719,11 @@ export function useTogglePrState(owner: string, repo: string, number: number) {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
     onSuccess: (updated) => {
-      // Use server response to update cache - trust PATCH response
+      // Use server response to update cache
       queryClient.setQueryData(pullsKeys.detail(owner, repo, number), updated);
-      // Mark related queries as stale
-      queryClient.invalidateQueries({ 
-        queryKey: pullsKeys.timeline(owner, repo, number),
-        refetchType: 'none' 
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: pullsKeys.counts(owner, repo),
-        refetchType: 'none' 
-      });
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) });
+      queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) });
     },
   });
 }
@@ -910,6 +887,8 @@ export function useReplyToReviewComment(
       if (prev) {
         queryClient.setQueryData<ReviewComment[]>(key, [...prev, created]);
       }
+      // Invalidate to ensure consistency
+      queryClient.invalidateQueries({ queryKey: pullsKeys.reviewComments(owner, repo, number) });
     },
   });
 }

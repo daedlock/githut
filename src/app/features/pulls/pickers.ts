@@ -153,15 +153,10 @@ export function useSetPrAssignees(owner: string, repo: string, number: number) {
     },
     onSuccess: (updated) => {
       if (updated) {
-        // POST returned updated data - use it
         queryClient.setQueryData(pullsKeys.detail(owner, repo, number), updated);
-      } else {
-        // DELETE was used - mark as stale, refetch when user returns
-        queryClient.invalidateQueries({
-          queryKey: pullsKeys.detail(owner, repo, number),
-          refetchType: 'none',
-        });
       }
+      // Always invalidate to ensure consistency
+      queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) });
     },
   });
 }
@@ -224,13 +219,8 @@ export function useSetPrReviewers(owner: string, repo: string, number: number) {
     onSuccess: (updated) => {
       if (updated) {
         queryClient.setQueryData(pullsKeys.detail(owner, repo, number), updated);
-      } else {
-        // DELETE was used - mark as stale
-        queryClient.invalidateQueries({
-          queryKey: pullsKeys.detail(owner, repo, number),
-          refetchType: 'none',
-        });
       }
+      queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) });
     },
   });
 }
@@ -277,6 +267,8 @@ export function useSetPrLabels(owner: string, repo: string, number: number) {
           pr ? { ...pr, labels } : undefined
         );
       }
+      // Invalidate to ensure consistency
+      queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) });
     },
   });
 }
