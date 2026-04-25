@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
-import { Card, CardBody, CardHeader } from "@/app/components/ui/Card";
+import { Card, CardBody, CardHeader } from "@/app/components/ui/CardBlock";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { ReactionsBar } from "@/app/features/issues/components/ReactionsBar";
 import type { MyReactionsMap, ReactionContent, ReactionsMap } from "@/app/features/issues/schemas";

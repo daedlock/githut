@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Milestone, Tag, User, UserCheck } from "lucide-react";
 import { Avatar } from "@/app/components/ui/avatar";
+import { Card } from "@/app/components/ui/card";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import { SidebarPicker, type PickerItem } from "@/app/features/pulls/components/SidebarPicker";
@@ -87,122 +88,129 @@ export function PrSidebar({
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <SidebarSection
-        icon={<UserCheck className="size-3.5" />}
-        title="Reviewers"
-        picker={
-          <SidebarPicker
-            title="Request reviewers"
-            ariaLabel="Edit reviewers"
-            items={reviewerItems}
-            selectedIds={selectedReviewers}
-            onToggle={onToggleReviewer}
-            loading={collabQuery.isPending}
-            emptyText="No collaborators"
-          />
-        }
-      >
-        <ReviewerList pr={pr} reviews={reviews} />
-      </SidebarSection>
+    <div className="flex flex-col gap-3">
+      <Card variant="muted" className="p-3">
+        <SectionHeader
+          icon={<UserCheck className="size-3" />}
+          title="Reviewers"
+          picker={
+            <SidebarPicker
+              title="Request reviewers"
+              ariaLabel="Edit reviewers"
+              items={reviewerItems}
+              selectedIds={selectedReviewers}
+              onToggle={onToggleReviewer}
+              loading={collabQuery.isPending}
+              emptyText="No collaborators"
+            />
+          }
+        />
+        <div className="mt-2">
+          <ReviewerList pr={pr} reviews={reviews} />
+        </div>
+      </Card>
 
-      <SidebarSection
-        icon={<User className="size-3.5" />}
-        title="Assignees"
-        picker={
-          <SidebarPicker
-            title="Assign people"
-            ariaLabel="Edit assignees"
-            items={assigneeItems}
-            selectedIds={selectedAssignees}
-            onToggle={onToggleAssignee}
-            loading={collabQuery.isPending}
-            emptyText="No collaborators"
-          />
-        }
-      >
-        {pr.assignees.length > 0 ? (
-          <div className="flex flex-col gap-1.5">
-            {pr.assignees.map((a) => (
-              <div key={a.login} className="flex items-center gap-2">
-                <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
-                <ProfileLink login={a.login} className="text-xs text-muted-foreground">
-                  {a.login}
-                </ProfileLink>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState>No one assigned</EmptyState>
-        )}
-      </SidebarSection>
+      <Card variant="muted" className="p-3">
+        <SectionHeader
+          icon={<User className="size-3" />}
+          title="Assignees"
+          picker={
+            <SidebarPicker
+              title="Assign people"
+              ariaLabel="Edit assignees"
+              items={assigneeItems}
+              selectedIds={selectedAssignees}
+              onToggle={onToggleAssignee}
+              loading={collabQuery.isPending}
+              emptyText="No collaborators"
+            />
+          }
+        />
+        <div className="mt-2">
+          {pr.assignees.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              {pr.assignees.map((a) => (
+                <div key={a.login} className="flex items-center gap-2">
+                  <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
+                  <ProfileLink login={a.login} className="text-xs text-muted-foreground">
+                    {a.login}
+                  </ProfileLink>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState>No one assigned</EmptyState>
+          )}
+        </div>
+      </Card>
 
-      <SidebarSection
-        icon={<Tag className="size-3.5" />}
-        title="Labels"
-        picker={
-          <SidebarPicker
-            title="Apply labels"
-            ariaLabel="Edit labels"
-            items={labelItems}
-            selectedIds={selectedLabels}
-            onToggle={onToggleLabel}
-            loading={labelsQuery.isPending}
-            emptyText="No labels"
-          />
-        }
-      >
-        {pr.labels.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {pr.labels.map((l) => (
-              <LabelPill
-                key={l.id}
-                label={{ id: l.id, name: l.name, color: l.color, description: l.description ?? null }}
-                size="sm"
-              />
-            ))}
-          </div>
-        ) : (
-          <EmptyState>None yet</EmptyState>
-        )}
-      </SidebarSection>
+      <Card variant="muted" className="p-3">
+        <SectionHeader
+          icon={<Tag className="size-3" />}
+          title="Labels"
+          picker={
+            <SidebarPicker
+              title="Apply labels"
+              ariaLabel="Edit labels"
+              items={labelItems}
+              selectedIds={selectedLabels}
+              onToggle={onToggleLabel}
+              loading={labelsQuery.isPending}
+              emptyText="No labels"
+            />
+          }
+        />
+        <div className="mt-2">
+          {pr.labels.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {pr.labels.map((l) => (
+                <LabelPill
+                  key={l.id}
+                  label={{ id: l.id, name: l.name, color: l.color, description: l.description ?? null }}
+                  size="sm"
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState>None yet</EmptyState>
+          )}
+        </div>
+      </Card>
 
-      <SidebarSection icon={<Milestone className="size-3.5" />} title="Milestone">
-        {pr.milestone ? (
-          <span className="text-xs text-foreground">{pr.milestone.title}</span>
-        ) : (
-          <EmptyState>No milestone</EmptyState>
-        )}
-      </SidebarSection>
+      <Card variant="muted" className="p-3">
+        <SectionHeader icon={<Milestone className="size-3" />} title="Milestone" />
+        <div className="mt-2">
+          {pr.milestone ? (
+            <span className="text-xs text-foreground">{pr.milestone.title}</span>
+          ) : (
+            <EmptyState>No milestone</EmptyState>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }
 
-function SidebarSection({
+function SectionHeader({
   icon,
   title,
   picker,
-  children,
 }: {
   icon: React.ReactNode;
   title: string;
   picker?: React.ReactNode;
-  children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg bg-muted p-3">
-      <div className="mb-2 flex items-center gap-2">
-        <span className="text-muted-foreground">{icon}</span>
-        <span className="flex-1 text-[11px] font-medium text-muted-foreground">{title}</span>
-        {picker}
-      </div>
-      {children}
+    <div className="flex items-center gap-1.5">
+      <span className="text-muted-foreground">{icon}</span>
+      <span className="flex-1 text-xs font-medium text-muted-foreground">{title}</span>
+      {picker}
     </div>
   );
 }
 
 function EmptyState({ children }: { children: React.ReactNode }) {
-  return <span className="text-[11px] text-muted-foreground">{children}</span>;
+  return <span className="text-xs text-muted-foreground">{children}</span>;
 }
 
 function ReviewerList({ pr, reviews }: { pr: PullRequest; reviews: Review[] }) {
@@ -290,7 +298,7 @@ function ReviewStateBadge({ state }: { state: Review["state"] }) {
   };
   const c = config[state];
   return (
-    <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", c.bg, c.fg)}>
+    <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium", c.bg, c.fg)}>
       {c.label}
     </span>
   );

@@ -1,6 +1,6 @@
 import { AlertCircle, CheckCircle2, CircleDot, Plus, Search, X } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import { Card, CardBody, CardHeader } from "@/app/components/ui/Card";
+import { Card, CardBody, CardHeader } from "@/app/components/ui/CardBlock";
 import { CommentBox } from "@/app/components/ui/CommentBox";
 import { Container } from "@/app/components/ui/Container";
 import { Input } from "@/app/components/ui/input";
