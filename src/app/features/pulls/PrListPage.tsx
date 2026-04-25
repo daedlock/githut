@@ -75,7 +75,7 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
   return (
     <Container className="py-6">
       {/* Toolbar — sits on subtle surface */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted px-4 py-2.5">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted px-2 py-1">
         <div className="flex items-center">
           <PrStateTab
             state="open"
@@ -151,7 +151,7 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
       </div>
 
       {/* List — flat rows, hover surface shift */}
-      <div>
+      <div className="mt-4 flex flex-col gap-1">
         {pulls.isPending ? (
           <PrListSkeleton />
         ) : pulls.isError ? (

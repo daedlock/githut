@@ -85,16 +85,17 @@ export function PrRow({ owner, repo, pr }: PrRowProps) {
                 {pr.comments}
               </span>
             )}
-          </div>
-        </div>
-        {pr.assignees.length > 0 && (
-          <div className="mt-0.5 flex -space-x-1.5">
+{pr.assignees.length > 0 && (
+          <div className="mt-0.5 flex ">
             {pr.assignees.slice(0, 3).map((a) => (
               <Avatar key={a.login} login={a.login} avatarUrl={a.avatar_url} size="sm" />
             ))}
           </div>
         )}
-      </div>
+
+          </div>
+        </div>
+              </div>
     </Link>
   );
 }

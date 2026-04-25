@@ -14,5 +14,5 @@ export const Route = createFileRoute("/$owner/$repo/pulls")({
 });
 
 function PullsLayout() {
-  return <Outlet />;
+return <div className="w-3xl mx-auto"><Outlet /></div>;
 }

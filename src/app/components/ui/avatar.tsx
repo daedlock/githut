@@ -113,7 +113,7 @@ function AvatarGroupCount({
 // Size variants match app-specific needs (xs–lg), not shadcn's sm/default/lg.
 
 const avatarVariants = cva(
-  "relative flex shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken",
+  "relative flex shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full  after:mix-blend-darken",
   {
     variants: {
       size: {
