@@ -4,17 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GitHut</title>
+
+    <!-- Preload critical fonts so they're ready before first paint -->
+    <link rel="preload" href="/fonts/BerkeleyMono-SemiCondensed.ttf" as="font" type="font/ttf" crossorigin />
+
     <!--
-      Pre-hydration theme apply. Reads persisted zustand state and sets
-      data-theme / .dark on <html> BEFORE React paints, so the app never
-      flashes in the wrong palette on reload. Intentionally tiny + fail-safe;
-      any parse error just falls through to stone-system.
+      Pre-hydration theme + background. Reads persisted zustand state and sets
+      data-theme / .dark / background-color on <html> BEFORE React paints.
+      Background is set inline so the browser never shows white.
     -->
     <script>
       (function () {
+        var BG = {
+          "main-dark":"#111318","main-light":"#F7F8FB",
+          "ember":"#1c1b19","ember-soft":"#242320","ember-light":"#e6dac4",
+          "dune":"#171b1e","haze":"#2a292e",
+          "lagoon":"#101a18","lagoon-light":"#d8eae6",
+          "matrix":"#0c120f","moss":"#1e2421","sagecream":"#1a1918"
+        };
         try {
           var raw = localStorage.getItem("githut.theme");
-          var palette = "stone";
+          var palette = "main";
           var preference = "system";
           if (raw) {
             var parsed = JSON.parse(raw);
@@ -27,19 +37,57 @@
             resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
           }
           var dataTheme = null;
-          if (palette === "ember") dataTheme = resolved === "dark" ? "ember" : "ember-light";
+          if (palette === "main") dataTheme = resolved === "dark" ? "main-dark" : "main-light";
+          else if (palette === "ember") dataTheme = resolved === "dark" ? "ember" : "ember-light";
           else if (palette === "ember-soft") dataTheme = resolved === "dark" ? "ember-soft" : "ember-light";
+          else if (palette === "lagoon") dataTheme = resolved === "dark" ? "lagoon" : "lagoon-light";
+          else if (palette === "lagoon-light") dataTheme = resolved === "light" ? "lagoon-light" : "lagoon";
+          else if (palette === "dune") dataTheme = "dune";
+          else if (palette === "haze") dataTheme = "haze";
+          else if (palette === "matrix") dataTheme = "matrix";
+          else if (palette === "moss") dataTheme = "moss";
+          else if (palette === "sagecream") dataTheme = "sagecream";
+
           var root = document.documentElement;
           if (dataTheme) root.setAttribute("data-theme", dataTheme);
           if (resolved === "dark") root.classList.add("dark");
+
+          var bg = dataTheme && BG[dataTheme]
+            ? BG[dataTheme]
+            : resolved === "dark" ? "#0c0a09" : "#fafaf9";
+          root.style.backgroundColor = bg;
+          root.style.colorScheme = resolved;
         } catch (_) {
           /* ignore — theme store will re-apply on mount */
         }
       })();
     </script>
+
+    <!-- Inline critical styles for the app shell skeleton -->
+    <style>
+      html, body, #root { height: 100%; margin: 0 }
+      body { font-family: "Inter Variable","Inter",ui-sans-serif,system-ui,-apple-system,sans-serif }
+      #shell {
+        display: flex; flex-direction: column; height: 100%;
+        opacity: 1; transition: opacity 80ms ease-out;
+      }
+      #shell.hide { opacity: 0 }
+      #shell-bar {
+        height: 36px; flex-shrink: 0;
+        border-bottom: 1px solid var(--color-border, #e7e5e4);
+      }
+      .dark #shell-bar { border-color: var(--color-border, #292524) }
+      #shell-body { flex: 1 }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Static app shell — replaced by React on mount -->
+      <div id="shell">
+        <div id="shell-bar"></div>
+        <div id="shell-body"></div>
+      </div>
+    </div>
     <script type="module" src="/src/app/main.tsx"></script>
   </body>
 </html>

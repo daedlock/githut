@@ -26,6 +26,9 @@ declare module "@tanstack/react-router" {
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("Root element #root not found");
 
+const shell = document.getElementById("shell");
+if (shell) shell.classList.add("hide");
+
 createRoot(rootEl).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
