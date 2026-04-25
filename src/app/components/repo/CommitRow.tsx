@@ -111,8 +111,8 @@ function ShaChip({
         to="/$owner/$repo/commit/$sha"
         params={{ owner, repo, sha }}
         className={cn(
-          "rounded-md bg-muted px-2 py-0.5",
-          "font-mono text-caption tabular-nums text-muted-foreground",
+          "rounded-full bg-muted px-2.5 py-1",
+          "font-mono text-micro tabular-nums text-muted-foreground",
           "outline-none transition-colors",
           "hover:text-foreground",
           "focus-visible:ring-1 focus-visible:ring-foreground/15",
@@ -134,8 +134,8 @@ function ShaChip({
         title={copied ? "Copied!" : "Copy SHA"}
         aria-label="Copy full SHA"
         className={cn(
-          "rounded-md p-1 text-muted-foreground outline-none transition-colors",
-          "hover:bg-muted hover:text-foreground",
+          "rounded-full p-1.5 text-[var(--color-fg-faint)] outline-none transition-colors",
+          "hover:bg-muted hover:text-muted-foreground",
           "focus-visible:ring-1 focus-visible:ring-foreground/15",
         )}
       >
