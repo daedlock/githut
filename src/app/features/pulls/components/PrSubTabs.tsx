@@ -69,7 +69,7 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
             key={t.suffix}
             to={t.to}
             className={cn(
-              "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-ui",
+              "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm",
               "outline-none transition-colors",
               isActive
                 ? "bg-muted text-foreground"
@@ -79,8 +79,8 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
           >
             <Icon
               className={cn(
-                "size-3.5",
-                isActive ? "text-foreground" : "text-[var(--color-fg-faint)]",
+                "size-4",
+                isActive ? "text-foreground" : "text-muted-foreground",
               )}
               aria-hidden
             />
@@ -89,7 +89,7 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
               <span
                 className={cn(
                   "tabular-nums",
-                  isActive ? "text-muted-foreground" : "text-[var(--color-fg-faint)]",
+                  isActive ? "text-muted-foreground" : "text-muted-foreground",
                 )}
               >
                 {t.count}
@@ -104,13 +104,13 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
         href={`/${owner}/${repo}/review/${number}`}
         className={cn(
           "ml-auto inline-flex items-center gap-2 rounded-lg px-3 py-1.5",
-          "text-ui font-medium",
+          "text-sm font-medium",
           "bg-primary text-primary-foreground",
           "outline-none transition-colors hover:bg-primary/90",
           "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
         )}
       >
-        <Code2 className="size-3.5" aria-hidden />
+        <Code2 className="size-4" aria-hidden />
         <span>Review</span>
         {typeof counts.files === "number" && (
           <span className="tabular-nums opacity-80">
@@ -118,7 +118,7 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
           </span>
         )}
         {deltas && (
-          <span className="tabular-nums opacity-60 text-caption">
+          <span className="tabular-nums opacity-60 text-xs">
             +{deltas.additions} −{deltas.deletions}
           </span>
         )}
