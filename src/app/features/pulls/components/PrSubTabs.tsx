@@ -1,12 +1,11 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { CheckCircle2, Code2, GitCommit, MessageSquare } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Button } from "@/app/components/ui/button";
 import { cn } from "@/app/lib/cn";
 
 type Tab = {
   to: string;
   label: string;
-  icon: LucideIcon;
   count?: number;
   suffix: string;
 };
@@ -33,96 +32,67 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
       to: `${base}`,
       suffix: "",
       label: "Conversation",
-      icon: MessageSquare,
       count: counts.conversation,
     },
     {
       to: `${base}/commits`,
       suffix: "/commits",
       label: "Commits",
-      icon: GitCommit,
       count: counts.commits,
     },
     {
       to: `${base}/checks`,
       suffix: "/checks",
       label: "Checks",
-      icon: CheckCircle2,
       count: counts.checks,
     },
   ];
 
   return (
-    <nav
-      aria-label="Pull request sections"
-      className="flex items-center gap-1"
-    >
+    <nav aria-label="Pull request sections" className="flex items-center gap-1">
       {tabs.map((t) => {
         const target = `${base}${t.suffix}`;
         const isActive =
           t.suffix === ""
             ? pathname === base || pathname === `${base}/`
             : pathname === target || pathname.startsWith(`${target}/`);
-        const Icon = t.icon;
         return (
-          <Link
+          <Button
             key={t.suffix}
-            to={t.to}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm",
-              "outline-none transition-colors",
-              isActive
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
-            )}
-            aria-current={isActive ? "page" : undefined}
+            variant="ghost"
+            size="sm"
+            asChild
           >
-            <Icon
-              className={cn(
-                "size-4",
-                isActive ? "text-foreground" : "text-muted-foreground",
+            <Link
+              to={t.to}
+              className={cn(isActive && "bg-muted text-foreground")}
+              aria-current={isActive ? "page" : undefined}
+            >
+              <span>{t.label}</span>
+              {typeof t.count === "number" && (
+                <span className="tabular-nums text-muted-foreground">
+                  {t.count}
+                </span>
               )}
-              aria-hidden
-            />
-            <span>{t.label}</span>
-            {typeof t.count === "number" && (
-              <span
-                className={cn(
-                  "tabular-nums",
-                  isActive ? "text-muted-foreground" : "text-muted-foreground",
-                )}
-              >
-                {t.count}
-              </span>
-            )}
-          </Link>
+            </Link>
+          </Button>
         );
       })}
 
-      {/* Review CTA */}
-      <a
-        href={`/${owner}/${repo}/review/${number}`}
-        className={cn(
-          "ml-auto inline-flex items-center gap-2 rounded-lg px-3 py-1.5",
-          "text-sm font-medium",
-          "bg-primary text-primary-foreground",
-          "outline-none transition-colors hover:bg-primary/90",
-          "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
-        )}
-      >
-        <Code2 className="size-4" aria-hidden />
-        <span>Review</span>
-        {typeof counts.files === "number" && (
-          <span className="tabular-nums opacity-80">
-            {counts.files}
-          </span>
-        )}
-        {deltas && (
-          <span className="tabular-nums opacity-60 text-xs">
-            +{deltas.additions} −{deltas.deletions}
-          </span>
-        )}
-      </a>
+      <Button variant="default" size="sm" asChild className="ml-auto">
+        <a href={`/${owner}/${repo}/review/${number}`}>
+          <Code2 className="size-4" aria-hidden />
+          <span>Review</span>
+          {typeof counts.files === "number" && (
+            <span className="tabular-nums opacity-80">{counts.files}</span>
+          )}
+          {deltas && (
+            <span className="tabular-nums opacity-60 text-xs">
+              +{deltas.additions} −{deltas.deletions}
+            </span>
+          )}
+        </a>
+      </Button>
     </nav>
   );
 }
