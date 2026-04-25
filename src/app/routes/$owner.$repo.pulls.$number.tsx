@@ -43,7 +43,7 @@ function PrDetailLayout() {
       <Container className="py-10">
         <div className="flex flex-col items-center gap-2 text-center">
           <AlertCircle className="size-5 text-destructive" />
-          <p className="text-body text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {prQuery.isError ? "Could not load this pull request." : "Pull request not found."}
           </p>
         </div>
@@ -52,43 +52,51 @@ function PrDetailLayout() {
   }
 
   return (
-    <Container className="py-5 sm:py-6">
-      <PrHeader
-        owner={owner}
-        repo={repo}
-        pr={pr}
-        actionsSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
-      />
-
-      <div className="mt-4 border-b border-border pb-3">
-        <PrSubTabs
+    <>
+      {/* Header */}
+      <Container className="pt-5 sm:pt-6">
+        <PrHeader
           owner={owner}
           repo={repo}
-          number={number}
-          counts={{
-            conversation: pr.comments + pr.review_comments,
-            commits: pr.commits,
-            files: pr.changed_files,
-          }}
-          deltas={{ additions: pr.additions, deletions: pr.deletions }}
+          pr={pr}
+          actionsSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
         />
+      </Container>
+
+      {/* Sticky tabs bar */}
+      <div className="sticky top-9 z-10 border-b border-border bg-background">
+        <Container>
+          <PrSubTabs
+            owner={owner}
+            repo={repo}
+            number={number}
+            counts={{
+              conversation: pr.comments + pr.review_comments,
+              commits: pr.commits,
+              files: pr.changed_files,
+            }}
+            deltas={{ additions: pr.additions, deletions: pr.deletions }}
+          />
+        </Container>
       </div>
 
       {/* Two-column layout with sticky sidebar */}
-      <div className="mt-6 flex gap-6 lg:gap-8">
-        {/* Main content */}
-        <div className="min-w-0 flex-1">
-          <Outlet />
-        </div>
-
-        {/* Sticky sidebar */}
-        <aside className="hidden lg:block w-[328px] flex-shrink-0">
-          <div className="sticky top-20">
-            <PrSidebar owner={owner} repo={repo} pr={pr} reviews={reviews} />
+      <Container className="py-6">
+        <div className="flex gap-6 lg:gap-8">
+          {/* Main content */}
+          <div className="min-w-0 flex-1">
+            <Outlet />
           </div>
-        </aside>
-      </div>
-    </Container>
+
+          {/* Sticky sidebar */}
+          <aside className="hidden lg:block w-[328px] flex-shrink-0">
+            <div className="sticky top-20">
+              <PrSidebar owner={owner} repo={repo} pr={pr} reviews={reviews} />
+            </div>
+          </aside>
+        </div>
+      </Container>
+    </>
   );
 }
 

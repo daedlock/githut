@@ -45,7 +45,7 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
   ];
 
   return (
-    <nav aria-label="Pull request sections" className="flex items-center gap-1">
+    <nav aria-label="Pull request sections" className="flex items-center gap-1 py-2">
       {tabs.map((t) => {
         const target = `${base}${t.suffix}`;
         const isActive =
@@ -73,7 +73,7 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
       <Button variant="default" size="sm" asChild className="ml-auto">
         <a href={`/${owner}/${repo}/review/${number}`}>
           <Code2 className="size-4" />
-          <span>Review</span>
+          <span>Review changes</span>
           {typeof counts.files === "number" && (
             <span className="tabular-nums opacity-80">{counts.files}</span>
           )}
