@@ -54,7 +54,7 @@ function PrDetailLayout() {
   return (
     <>
       {/* Header */}
-      <div className="bg-muted/30">
+      <div className="bg-muted">
         <Container className="pt-5 sm:pt-6 pb-3">
           <PrHeader
             owner={owner}
