@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { AlertCircle, GitMerge } from "lucide-react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { StatusMessage } from "@/app/components/StatusMessage";
-import { CommentCardDisplay, CommentCardCompose } from "@/app/components/ui/CommentCard";
+import { CommentCardDisplay, CommentComposeCard } from "@/app/components/ui/CommentCard";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { PrMergeBox } from "@/app/features/pulls/components/PrMergeBox";
 import { PrTimelineRow } from "@/app/features/pulls/components/PrTimelineRow";
@@ -32,8 +32,6 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
   const meQuery = useMe();
   const postComment = usePostPrComment(owner, repo, number, meQuery.data);
 
-  const [draft, setDraft] = useState("");
-
   const pr = prQuery.data;
   const comments = commentsQuery.data ?? [];
   const reviews = reviewsQuery.data ?? [];
@@ -50,13 +48,9 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
     [timeline, comments],
   );
 
-  function handleSubmit() {
-    const body = draft.trim();
+  function handleSubmit(body: string) {
     if (!body || postComment.isPending) return;
-    postComment.mutate(
-      { body },
-      { onSuccess: () => setDraft("") },
-    );
+    postComment.mutate({ body });
   }
 
   if (prQuery.isPending) return <ConversationSkeleton />;
@@ -170,13 +164,11 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
             <TimelineMarker type="comment" avatarUrl={meQuery.data.avatar_url} />
           </div>
           <div className="min-w-0 flex-1">
-            <CommentCardCompose
+            <CommentComposeCard
               login={meQuery.data.login}
               avatarUrl={meQuery.data.avatar_url}
               owner={owner}
               repo={repo}
-              value={draft}
-              onChange={setDraft}
               onSubmit={handleSubmit}
               isPending={postComment.isPending}
               placeholder="Leave a comment"

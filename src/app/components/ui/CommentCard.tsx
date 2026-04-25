@@ -2,9 +2,11 @@ import type { ReactNode } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
-import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
+
+// Re-export the self-contained compose card
+export { CommentComposeCard } from "@/app/components/ui/CommentComposeCard";
 
 /**
  * Unified comment component for:
@@ -85,70 +87,6 @@ export function CommentCardDisplay({
         {actions && <div className="ml-auto">{actions}</div>}
       </div>
       <div className="p-4">{children}</div>
-    </Card>
-  );
-}
-
-/**
- * CommentCard.Compose — Editor for new comments.
- * Uses ComposeBox for @mentions and #references support.
- */
-export function CommentCardCompose({
-  login,
-  avatarUrl,
-  owner,
-  repo,
-  placeholder = "Leave a comment",
-  submitLabel = "Comment",
-  cancelLabel = "Cancel",
-  showCancel = false,
-  rows = 4,
-  value,
-  onChange,
-  onSubmit,
-  onCancel,
-  isPending,
-  className,
-}: CommentCardProps & {
-  owner: string;
-  repo: string;
-  placeholder?: string;
-  submitLabel?: string;
-  cancelLabel?: string;
-  showCancel?: boolean;
-  rows?: number;
-  value: string;
-  onChange: (value: string) => void;
-  onSubmit: () => void;
-  onCancel?: () => void;
-  isPending?: boolean;
-}) {
-  return (
-    <Card variant="muted" className={cn("overflow-hidden", className)}>
-      <div className="flex items-center gap-2 bg-muted/50 px-4 py-2">
-        <Avatar login={login} avatarUrl={avatarUrl} size="sm" />
-        <span className="text-xs font-medium text-foreground">{login}</span>
-      </div>
-      <div className="p-4">
-        <ComposeBox
-          owner={owner}
-          repo={repo}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          rows={rows}
-        />
-        <div className="mt-3 flex justify-end gap-2">
-          {showCancel && (
-            <Button variant="ghost" size="sm" onClick={onCancel} disabled={isPending}>
-              {cancelLabel}
-            </Button>
-          )}
-          <Button size="sm" disabled={!value.trim() || isPending} onClick={onSubmit}>
-            {isPending ? "Submitting…" : submitLabel}
-          </Button>
-        </div>
-      </div>
     </Card>
   );
 }
