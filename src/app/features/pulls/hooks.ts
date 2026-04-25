@@ -366,9 +366,9 @@ export function usePrTimeline(owner: string, repo: string, number: number) {
 
 // ─── Post PR comment (optimistic) ──────────────────────────────────────────
 //
-// Mirrors `useCreateIssueComment`: snapshot → temp row → swap on success
-// → rollback on error → invalidate detail so the `comments` counter and
-// sub-tab badge refresh.
+// Snapshot → temp row → swap on success → invalidate to rehydrate from server.
+// The key insight: we must invalidate the comments query so the server shape
+// becomes the source of truth after the mutation settles.
 
 export function usePostPrComment(
   owner: string,
@@ -411,18 +411,25 @@ export function usePostPrComment(
       return { prev, tempId, key };
     },
     onError: (_err, _vars, ctx) => {
+      // Roll back to previous state on error
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
     onSuccess: (created, _vars, ctx) => {
+      // Replace temp comment with real one from server
       if (ctx) {
         queryClient.setQueryData<IssueCommentOnPr[]>(ctx.key, (old) =>
           (old ?? []).map((c) => (c.id === ctx.tempId ? created : c)),
         );
       }
     },
-    onSettled: () => {
+    onSettled: (_data, _error, _vars, ctx) => {
+      // DO NOT invalidate comments - we already updated it in onSuccess
+      // Only invalidate related queries that need counts/summaries
       queryClient.invalidateQueries({
         queryKey: pullsKeys.detail(owner, repo, number),
+      });
+      queryClient.invalidateQueries({
+        queryKey: pullsKeys.timeline(owner, repo, number),
       });
     },
   });

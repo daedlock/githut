@@ -261,7 +261,8 @@ export function useCreateIssueComment(
       }
     },
     onSettled: (_data, _err, vars) => {
-      // Resync the issue's comment count (shown in the detail header + list row)
+      // DO NOT invalidate comments - we already updated it in onSuccess
+      // Only invalidate the issue detail for the comment count
       queryClient.invalidateQueries({ queryKey: issueKeys.detail(owner, repo, vars.issueNumber) });
       queryClient.invalidateQueries({ queryKey: issueKeys.all(owner, repo) });
     },
