@@ -55,7 +55,7 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
   return (
     <nav
       aria-label="Pull request sections"
-      className="mb-4 flex items-stretch gap-0 border-b border-border"
+      className="flex items-center gap-1"
     >
       {tabs.map((t) => {
         const target = `${base}${t.suffix}`;
@@ -69,10 +69,11 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
             key={t.suffix}
             to={t.to}
             className={cn(
-              "group relative inline-flex items-center gap-1.5 px-3 py-2 text-ui",
-              "text-muted-foreground outline-none transition-colors hover:text-foreground",
-              "focus-visible:text-foreground",
-              isActive && "text-foreground",
+              "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-ui",
+              "outline-none transition-colors",
+              isActive
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
             )}
             aria-current={isActive ? "page" : undefined}
           >
@@ -87,43 +88,37 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
             {typeof t.count === "number" && (
               <span
                 className={cn(
-                  "ml-1 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-micro tabular-nums",
-                  "bg-[var(--color-bg-sunken)] text-muted-foreground",
+                  "tabular-nums",
+                  isActive ? "text-muted-foreground" : "text-[var(--color-fg-faint)]",
                 )}
               >
                 {t.count}
               </span>
             )}
-            {isActive && (
-              <span
-                aria-hidden
-                className="absolute inset-x-3 -bottom-px h-[2px] bg-primary"
-              />
-            )}
           </Link>
         );
       })}
 
-      {/* Review CTA — links to the dedicated full-width review view */}
+      {/* Review CTA */}
       <a
         href={`/${owner}/${repo}/review/${number}`}
         className={cn(
-          "ml-auto inline-flex items-center gap-1.5 rounded-md px-3 py-1 my-1",
-          "text-caption font-medium",
+          "ml-auto inline-flex items-center gap-2 rounded-lg px-3 py-1.5",
+          "text-ui font-medium",
           "bg-primary text-primary-foreground",
           "outline-none transition-colors hover:bg-primary/90",
           "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
         )}
       >
         <Code2 className="size-3.5" aria-hidden />
-        Review
+        <span>Review</span>
         {typeof counts.files === "number" && (
           <span className="tabular-nums opacity-80">
             {counts.files}
           </span>
         )}
         {deltas && (
-          <span className="tabular-nums opacity-70 text-micro">
+          <span className="tabular-nums opacity-60 text-caption">
             +{deltas.additions} −{deltas.deletions}
           </span>
         )}

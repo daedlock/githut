@@ -7,6 +7,13 @@
  */
 
 @theme {
+  /* container sizes */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 896px;
+  --container-xl: 1280px;
+  --container-2xl: 1536px;
+
   /* surfaces */
   --color-bg: #fafaf9; /* stone-50 — warm off-white; fg contrast 15.6:1 */
   --color-bg-subtle: #f5f5f4; /* stone-100 — card surfaces */
@@ -154,16 +161,15 @@
    * --font-mono        → SemiCondensed — default for all monospace UI (labels, code, line nums)
    * --font-mono-condensed → Condensed — tighter; use in dense contexts (diff gutter, side-by-side)
    * --font-mono-wide   → Regular width — single weight available; use sparingly for display
-   * IBM Plex Mono kept as fallback in all stacks.
    */
   --font-mono:
-    "Berkeley Mono SemiCondensed", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Berkeley Mono SemiCondensed", ui-monospace, SFMono-Regular, Menlo, Consolas,
     monospace;
   --font-mono-condensed:
-    "Berkeley Mono Condensed", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Berkeley Mono Condensed", ui-monospace, SFMono-Regular, Menlo, Consolas,
     monospace;
   --font-mono-wide:
-    "Berkeley Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    "Berkeley Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --radius-xs: 2px;
   --radius-sm: 3px;

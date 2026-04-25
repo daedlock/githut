@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertCircle, ArrowLeft, Check, Copy } from "lucide-react";
-import { Fragment, useMemo, useState } from "react";
+import { AlertCircle, ArrowLeft } from "lucide-react";
+import { Fragment, useMemo } from "react";
 import { DiffLayout, type DiffLayoutFile, type FileStatus } from "@/app/components/code";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Skeleton } from "@/app/components/ui/skeleton";
+import { ShaChip } from "@/app/components/ui/ShaChip";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { type CommitFile, repoCommitQueryOptions, useRepoCommit } from "@/app/hooks/useRepoCommit";
 import { cn } from "@/app/lib/cn";
@@ -112,7 +113,7 @@ function CommitHeader({
         <h1 className="min-w-0 text-body font-medium leading-snug text-(--color-fg) sm:text-title">
           {title}
         </h1>
-        <ShaChip sha={commit.sha} />
+        <ShaChip sha={commit.sha} variant="compact" />
       </div>
 
       {/* Meta — single compact line */}
@@ -173,46 +174,6 @@ function CommitHeader({
         </pre>
       )}
     </section>
-  );
-}
-
-function ShaChip({ sha }: { sha: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        navigator.clipboard.writeText(sha).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1200);
-        });
-      }}
-      title={copied ? "Copied!" : "Copy full SHA"}
-      aria-label="Copy full SHA"
-      className={cn(
-        "group inline-flex h-5 shrink-0 items-center gap-1 rounded",
-        "border border-border bg-(--color-bg-subtle) pl-1.5 pr-1",
-        "font-mono text-micro tabular-nums leading-none text-(--color-fg-muted)",
-        "outline-none transition-colors",
-        "hover:border-(--color-border-strong) hover:bg-(--color-bg-sunken) hover:text-(--color-fg)",
-        "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
-      )}
-    >
-      <span>{sha.slice(0, 7)}</span>
-      {copied ? (
-        <Check
-          className="size-2.5 text-(--color-success)"
-          strokeWidth={2.5}
-          aria-hidden
-        />
-      ) : (
-        <Copy
-          className="size-2.5 text-(--color-fg-muted) transition-colors group-hover:text-(--color-fg)"
-          strokeWidth={2}
-          aria-hidden
-        />
-      )}
-    </button>
   );
 }
 

@@ -73,7 +73,7 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
   const currentState = (filters.state ?? "open") as PullsState;
 
   return (
-    <Container className="py-6">
+    <Container size="lg" className="py-6">
       {/* Toolbar — sits on subtle surface */}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted px-2 py-1">
         <div className="flex items-center">

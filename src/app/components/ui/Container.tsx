@@ -2,22 +2,27 @@ import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/app/lib/cn";
 
 /**
- * Canonical page container. Every page's main content and the inner rows
- * of the shell header/footer/tabs flow through this so vertical grid lines
- * align across the app.
+ * Page container with centered content.
  *
- * width: max-w-6xl (1152px) — wide enough for two-column repo layouts
- * gutter: px-4 / sm:px-6 — 16px mobile, 24px desktop
+ * Sizes:
+ * - lg: max-w-4xl (896px) — list pages (PRs, issues, commits)
+ * - xl: max-w-7xl (1280px) — detail pages (default)
  */
 type ContainerProps = HTMLAttributes<HTMLElement> & {
   children: ReactNode;
   className?: string;
   as?: "div" | "main" | "header" | "footer" | "nav" | "section";
+  size?: "lg" | "xl";
 };
 
-export function Container({ children, className, as: As = "div", ...rest }: ContainerProps) {
+const sizeClasses = {
+  lg: "max-w-4xl", // 896px
+  xl: "max-w-7xl", // 1280px
+} as const;
+
+export function Container({ children, className, as: As = "div", size = "xl", ...rest }: ContainerProps) {
   return (
-    <As className={cn("mx-auto w-full max-w-[1280px] px-4 sm:px-6", className)} {...rest}>
+    <As className={cn("mx-auto w-full px-4 sm:px-6", sizeClasses[size], className)} {...rest}>
       {children}
     </As>
   );

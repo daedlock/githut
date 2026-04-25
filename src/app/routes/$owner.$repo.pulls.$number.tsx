@@ -47,24 +47,26 @@ function PrDetailLayout() {
   }
 
   return (
-    <Container className="max-w-[1280px] py-5 sm:py-6">
+    <Container className="py-5 sm:py-6">
       <PrHeader
         owner={owner}
         repo={repo}
         pr={pr}
         rightSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
       />
-      <PrSubTabs
-        owner={owner}
-        repo={repo}
-        number={number}
-        counts={{
-          conversation: pr.comments + pr.review_comments,
-          commits: pr.commits,
-          files: pr.changed_files,
-        }}
-        deltas={{ additions: pr.additions, deletions: pr.deletions }}
-      />
+      <div className="mb-6">
+        <PrSubTabs
+          owner={owner}
+          repo={repo}
+          number={number}
+          counts={{
+            conversation: pr.comments + pr.review_comments,
+            commits: pr.commits,
+            files: pr.changed_files,
+          }}
+          deltas={{ additions: pr.additions, deletions: pr.deletions }}
+        />
+      </div>
       <Outlet />
     </Container>
   );

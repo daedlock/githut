@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
-import { AlertCircle, Milestone, Tag, User, UserCheck } from "lucide-react";
+import { AlertCircle, GitMerge, Milestone, Tag, User, UserCheck } from "lucide-react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
-import { Card, CardBody, CardFooter, CardHeader } from "@/app/components/ui/Card";
 import { CommentBox } from "@/app/components/ui/CommentBox";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
@@ -96,32 +95,39 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
   }
 
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
       {/* Main column */}
       <div className="min-w-0 flex-1">
-        {/* Timeline lane — left border connects events visually */}
-        <div className="relative ml-5 border-l-2 border-border pl-6">
+        {/* Timeline */}
+        <div className="relative">
+          {/* Vertical line */}
+          <div className="absolute left-[11px] top-0 bottom-0 w-0.5 bg-muted" />
+          
           {/* PR body */}
-          <div className="relative -ml-[1.8125rem] mb-4">
-            {pr.user && (
-              <PrCommentCard
-                login={pr.user.login}
-                avatarUrl={pr.user.avatar_url}
-                date={pr.created_at}
-                isAuthor
-              >
-                {pr.body?.trim() ? (
-                  <div className="readme-prose max-w-none text-body">
-                    <GithubMarkdown>{pr.body}</GithubMarkdown>
-                  </div>
-                ) : (
-                  <p className="text-body italic text-[var(--color-fg-faint)]">
-                    No description provided.
-                  </p>
-                )}
-              </PrCommentCard>
-            )}
-          </div>
+          {pr.user && (
+            <div className="relative flex gap-4">
+              <div className="pt-1">
+                <TimelineMarker type="author" avatarUrl={pr.user.avatar_url} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <PrCommentCard
+                  login={pr.user.login}
+                  date={pr.created_at}
+                  isAuthor
+                >
+                  {pr.body?.trim() ? (
+                    <div className="readme-prose max-w-none text-body">
+                      <GithubMarkdown>{pr.body}</GithubMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-body italic text-[var(--color-fg-faint)]">
+                      No description provided.
+                    </p>
+                  )}
+                </PrCommentCard>
+              </div>
+            </div>
+          )}
 
           {/* Feed */}
           {commentsQuery.isError || timelineQuery.isError ? (
@@ -130,81 +136,103 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
             (commentsQuery.isPending || timelineQuery.isPending) ? (
             <FeedSkeleton />
           ) : (
-            feed.map((item, i) => {
-              if (item.kind === "comment") {
-                return (
-                  <div key={`c-${item.id}`} className="relative -ml-[1.8125rem] mb-4">
-                    <PrCommentCard
-                      login={item.user?.login ?? "ghost"}
-                      avatarUrl={item.user?.avatar_url}
-                      date={item.at}
-                    >
-                      <div className="readme-prose max-w-none text-body">
-                        <GithubMarkdown>{item.body}</GithubMarkdown>
-                      </div>
-                    </PrCommentCard>
-                  </div>
-                );
-              }
-              if (item.event === "reviewed" && typeof item.id === "number") {
-                const full = reviewsById.get(item.id);
-                if (full) {
+            <div className="flex flex-col">
+              {feed.map((item, i) => {
+                if (item.kind === "comment") {
                   return (
-                    <div key={`r-${item.id}`} className="relative -ml-[1.8125rem] mb-4">
-                      <ReviewCardFromFeed review={full} />
+                    <div key={`c-${item.id}`} className="relative flex gap-4 pt-4">
+                      <div className="pt-1">
+                        <TimelineMarker type="comment" avatarUrl={item.user?.avatar_url} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <PrCommentCard
+                          login={item.user?.login ?? "ghost"}
+                          date={item.at}
+                        >
+                          <div className="readme-prose max-w-none text-body">
+                            <GithubMarkdown>{item.body}</GithubMarkdown>
+                          </div>
+                        </PrCommentCard>
+                      </div>
                     </div>
                   );
                 }
-              }
-              return (
-                <div key={`e-${item.id ?? i}`} className="relative mb-3 -ml-2">
-                  <TimelineDot />
-                  <PrTimelineRow event={item} />
+                if (item.event === "reviewed" && typeof item.id === "number") {
+                  const full = reviewsById.get(item.id);
+                  if (full) {
+                    return (
+                      <div key={`r-${item.id}`} className="relative flex gap-4 pt-4">
+                        <div className="pt-1">
+                          <TimelineMarker type="review" reviewState={full.state} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <ReviewCardFromFeed review={full} />
+                        </div>
+                      </div>
+                    );
+                  }
+                }
+                return (
+                  <div key={`e-${item.id ?? i}`} className="relative">
+                    <PrTimelineRow event={item} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Merge status box */}
+          <div className="relative flex gap-4 pt-4">
+            <div className="pt-1">
+              <TimelineMarker type="merge" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <PrMergeBox owner={owner} repo={repo} pr={pr} />
+            </div>
+          </div>
+
+          {/* Add a comment */}
+          {meQuery.data && (
+            <div className="relative flex gap-4 pt-4">
+              <div className="pt-1">
+                <TimelineMarker type="comment" avatarUrl={meQuery.data.avatar_url} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="rounded-lg bg-muted overflow-hidden">
+                  <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 text-caption">
+                    <Avatar
+                      login={meQuery.data.login}
+                      avatarUrl={meQuery.data.avatar_url}
+                      size="sm"
+                    />
+                    <span className="font-medium text-foreground">Add a comment</span>
+                  </div>
+                  <form onSubmit={handleSubmit}>
+                    <div className="p-4">
+                      <CommentBox
+                        owner={owner}
+                        repo={repo}
+                        value={draft}
+                        onChange={setDraft}
+                        placeholder="Leave a comment"
+                        rows={4}
+                      />
+                    </div>
+                    <div className="flex justify-end px-4 pb-4">
+                      <Button
+                        type="submit"
+                        size="sm"
+                        disabled={!draft.trim() || postComment.isPending}
+                      >
+                        {postComment.isPending ? "Posting…" : "Comment"}
+                      </Button>
+                    </div>
+                  </form>
                 </div>
-              );
-            })
+              </div>
+            </div>
           )}
         </div>
-
-        {/* Merge status box */}
-        <div className="mb-4">
-          <PrMergeBox owner={owner} repo={repo} pr={pr} />
-        </div>
-
-        {/* Add a comment */}
-        {meQuery.data && (
-          <Card as="div" radius="md" tone="default" border="strong">
-            <form onSubmit={handleSubmit}>
-              <CardHeader>
-                <Avatar
-                  login={meQuery.data.login}
-                  avatarUrl={meQuery.data.avatar_url}
-                  size="sm"
-                />
-                <span className="text-body font-medium text-foreground">Add a comment</span>
-              </CardHeader>
-              <CardBody flush>
-                <CommentBox
-                  owner={owner}
-                  repo={repo}
-                  value={draft}
-                  onChange={setDraft}
-                  placeholder="Leave a comment"
-                  rows={4}
-                />
-              </CardBody>
-              <CardFooter className="flex justify-end">
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={!draft.trim() || postComment.isPending}
-                >
-                  {postComment.isPending ? "Posting…" : "Comment"}
-                </Button>
-              </CardFooter>
-            </form>
-          </Card>
-        )}
       </div>
 
       {/* Sidebar */}
@@ -408,9 +436,8 @@ function PrSidebar({
 }
 
 /**
- * SidebarSection + gear-picker trigger in one, mirroring GitHub's own
- * sidebar-header-with-affordance pattern. The picker lives inline in the
- * header (top-right) instead of creating a new chrome row.
+ * Sidebar section with gear-picker trigger.
+ * No borders — spacing separates sections.
  */
 function PickerSection({
   icon,
@@ -425,7 +452,7 @@ function PickerSection({
 }) {
   return (
     <div>
-      <div className="mb-2 flex items-center gap-1.5 border-b border-border pb-1.5">
+      <div className="mb-2 flex items-center gap-1.5">
         <span className="text-[var(--color-fg-faint)]">{icon}</span>
         <span className="flex-1 font-mono text-micro font-medium uppercase tracking-widest text-[var(--color-fg-faint)]">
           {title}
@@ -546,7 +573,6 @@ function ReviewCardFromFeed({ review }: { review: Review }) {
   return (
     <PrCommentCard
       login={review.user?.login ?? "ghost"}
-      avatarUrl={review.user?.avatar_url}
       date={review.submitted_at ?? new Date(0).toISOString()}
       header={
         <span
@@ -607,11 +633,57 @@ function FeedSkeleton() {
   );
 }
 
-function TimelineDot() {
+// ─── Timeline Marker ────────────────────────────────────────────────────────
+
+type TimelineMarkerProps =
+  | { type: "author" | "comment"; avatarUrl?: string }
+  | { type: "review"; reviewState: Review["state"] }
+  | { type: "event"; eventType?: string }
+  | { type: "merge" };
+
+function TimelineMarker(props: TimelineMarkerProps) {
+  if (props.type === "author" || props.type === "comment") {
+    return (
+      <div className="relative z-10 shrink-0">
+        {props.avatarUrl ? (
+          <img
+            src={props.avatarUrl}
+            alt=""
+            className="size-6 rounded-full bg-background ring-2 ring-background"
+          />
+        ) : (
+          <div className="size-6 rounded-full bg-muted ring-2 ring-background" />
+        )}
+      </div>
+    );
+  }
+
+  if (props.type === "review") {
+    const tone =
+      props.reviewState === "APPROVED"
+        ? "bg-[var(--color-success)]"
+        : props.reviewState === "CHANGES_REQUESTED"
+          ? "bg-[var(--color-danger)]"
+          : "bg-muted-foreground";
+    return (
+      <div className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full bg-background ring-2 ring-background">
+        <div className={cn("size-3 rounded-full", tone)} />
+      </div>
+    );
+  }
+
+  if (props.type === "merge") {
+    return (
+      <div className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-pr-merged)] ring-2 ring-background">
+        <GitMerge className="size-3 text-white" />
+      </div>
+    );
+  }
+
+  // Event type (committed, merged, closed, etc.)
   return (
-    <span
-      aria-hidden
-      className="absolute -left-[0.4375rem] top-1 size-2.5 rounded-full border-2 border-border bg-background"
-    />
+    <div className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full bg-muted ring-2 ring-background">
+      <div className="size-2 rounded-full bg-muted-foreground" />
+    </div>
   );
 }

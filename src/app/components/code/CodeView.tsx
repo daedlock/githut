@@ -4,7 +4,7 @@ import { cn } from "@/app/lib/cn";
 import { FS_BOLD, FS_ITALIC, FS_STRIKETHROUGH, FS_UNDERLINE } from "./types";
 import type { CodeLine, CodeLineWithHtml, LineKind } from "./types";
 
-const LINE_H = 20; // px — IBM Plex Mono 13px × 1.5 line-height ≈ 20px
+const LINE_H = 20; // px — Berkeley Mono 13px × 1.5 line-height ≈ 20px
 const MAX_H = "75vh";
 
 function fontStyleToCSS(fs: number | undefined): React.CSSProperties {

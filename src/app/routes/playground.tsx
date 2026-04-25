@@ -131,7 +131,7 @@ function PlaygroundPage() {
             <p className="font-sans text-body">
               Sans — IBM Plex Sans. The quick brown fox jumps over the lazy dog.
             </p>
-            <p className="font-mono text-body">Mono — IBM Plex Mono. const hash = "9f2c4b8e1a7d0"</p>
+            <p className="font-mono text-body">Mono — Berkeley Mono. const hash = "9f2c4b8e1a7d0"</p>
           </div>
         </Section>
 

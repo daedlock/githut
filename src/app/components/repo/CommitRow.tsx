@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { Copy, GitCommit } from "lucide-react";
+import { GitCommit } from "lucide-react";
 import { useState } from "react";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
+import { ShaChip } from "@/app/components/ui/ShaChip";
 import type { CommitSummary } from "@/app/hooks/useRepoCommits";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
@@ -15,14 +16,13 @@ export type CommitRowProps = {
 export function CommitRow({ commit, owner, repo }: CommitRowProps) {
   const [bodyOpen, setBodyOpen] = useState(false);
   const { title, body } = splitMessage(commit.commit.message);
-  const shortSha = commit.sha.slice(0, 7);
 
   const displayAuthor = commit.author?.login ?? commit.commit.author.name;
   const authorLogin = commit.author?.login;
   const avatar = commit.author?.avatar_url;
 
   return (
-    <div className="group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted">
+    <div className="group flex items-start gap-3 px-3 py-2.5 transition-colors hover:bg-muted rounded-lg">
       {/* Left: title + meta */}
       <div className="min-w-0 flex-1">
         <Link
@@ -74,11 +74,11 @@ export function CommitRow({ commit, owner, repo }: CommitRowProps) {
             <GitCommit className="size-3 shrink-0 text-[var(--color-fg-faint)]" />
           )}
           {authorLogin ? (
-            <ProfileLink login={authorLogin} className="truncate font-[475] text-foreground">
+            <ProfileLink login={authorLogin} className="truncate font-[475]">
               {displayAuthor}
             </ProfileLink>
           ) : (
-            <span className="truncate font-[475] text-foreground">{displayAuthor}</span>
+            <span className="truncate font-[475]">{displayAuthor}</span>
           )}
           <span className="text-[var(--color-fg-faint)]">
             {formatRelativeTime(commit.commit.author.date)}
@@ -87,60 +87,7 @@ export function CommitRow({ commit, owner, repo }: CommitRowProps) {
       </div>
 
       {/* Right: SHA */}
-      <ShaChip sha={commit.sha} shortSha={shortSha} owner={owner} repo={repo} />
-    </div>
-  );
-}
-
-function ShaChip({
-  sha,
-  shortSha,
-  owner,
-  repo,
-}: {
-  sha: string;
-  shortSha: string;
-  owner: string;
-  repo: string;
-}) {
-  const [copied, setCopied] = useState(false);
-
-  return (
-    <div className="flex shrink-0 items-center gap-1">
-      <Link
-        to="/$owner/$repo/commit/$sha"
-        params={{ owner, repo, sha }}
-        className={cn(
-          "rounded-full bg-muted px-2.5 py-1",
-          "font-mono text-[11px] leading-none tabular-nums text-muted-foreground",
-          "outline-none transition-colors",
-          "hover:text-foreground",
-          "focus-visible:ring-1 focus-visible:ring-foreground/15",
-        )}
-        title={sha}
-      >
-        {shortSha}
-      </Link>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          navigator.clipboard.writeText(sha).then(() => {
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1200);
-          });
-        }}
-        title={copied ? "Copied!" : "Copy SHA"}
-        aria-label="Copy full SHA"
-        className={cn(
-          "rounded-full p-1.5 text-[var(--color-fg-faint)] outline-none transition-colors",
-          "hover:bg-muted hover:text-muted-foreground",
-          "focus-visible:ring-1 focus-visible:ring-foreground/15",
-        )}
-      >
-        <Copy className="size-3" />
-      </button>
+      <ShaChip sha={commit.sha} link={{ owner, repo }} />
     </div>
   );
 }

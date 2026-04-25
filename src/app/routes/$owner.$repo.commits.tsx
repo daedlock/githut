@@ -29,13 +29,13 @@ function CommitsPage() {
   );
 
   return (
-    <Container className="py-6">
-      {/* Toolbar */}
-      <div className="mb-2 flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2">
-        <div className="flex items-baseline gap-2">
+    <Container size="lg" className="py-6">
+      {/* Toolbar — sits on subtle surface */}
+      <div className="mb-2 flex items-center justify-between gap-3 rounded-lg bg-muted px-2 py-1">
+        <div className="flex items-center gap-3">
           <span className="text-caption font-medium text-foreground">Commits</span>
           {commits && (
-            <span className="text-caption tabular-nums text-muted-foreground">
+            <span className="tabular-nums text-caption text-muted-foreground">
               {commits.length}
             </span>
           )}
@@ -48,41 +48,41 @@ function CommitsPage() {
         )}
       </div>
 
-      {/* Commit list */}
-      {isPending ? (
-        <CommitListSkeleton />
-      ) : isError ? (
-        <div className="py-16 text-center">
-          <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
-          <p className="text-body text-muted-foreground">Could not load commits.</p>
-        </div>
-      ) : grouped.length === 0 ? (
-        <div className="py-16 text-center">
-          <p className="text-body text-muted-foreground">No commits yet.</p>
-        </div>
-      ) : (
-        <div className="flex flex-col">
-          {grouped.map((group) => (
+      {/* Commit list — flat rows, hover surface shift */}
+      <div className="flex flex-col gap-1">
+        {isPending ? (
+          <CommitListSkeleton />
+        ) : isError ? (
+          <div className="px-5 py-10 text-center">
+            <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
+            <p className="text-body text-muted-foreground">Could not load commits.</p>
+          </div>
+        ) : grouped.length === 0 ? (
+          <div className="px-5 py-10 text-center">
+            <p className="text-body text-muted-foreground">No commits yet.</p>
+          </div>
+        ) : (
+          grouped.map((group) => (
             <div key={group.key}>
               <DayHeader iso={group.iso} count={group.items.length} />
               {group.items.map((commit) => (
                 <CommitRow key={commit.sha} commit={commit} owner={owner} repo={repo} />
               ))}
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </Container>
   );
 }
 
 function DayHeader({ iso, count }: { iso: string; count: number }) {
   return (
-    <div className="flex items-baseline gap-2 rounded-lg bg-muted px-3 my-2 py-2.5">
-      <span className="text-caption text-muted-foreground">
+    <div className="flex items-baseline gap-2 px-3 pt-4 pb-1">
+      <span className="text-caption font-medium text-muted-foreground">
         {formatFullDate(iso)}
       </span>
-      <span className="text-caption tabular-nums text-[var(--color-fg-faint)]">
+      <span className="tabular-nums text-micro text-[var(--color-fg-faint)]">
         {count}
       </span>
     </div>
@@ -91,7 +91,7 @@ function DayHeader({ iso, count }: { iso: string; count: number }) {
 
 function CommitListSkeleton() {
   return (
-    <div className="skeleton-fade flex flex-col gap-0 pt-4">
+    <div className="skeleton-fade flex flex-col gap-1 pt-4">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="flex items-start gap-3 px-3 py-2.5">
           <div className="min-w-0 flex-1 flex flex-col gap-1.5">

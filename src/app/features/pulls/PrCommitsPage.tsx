@@ -1,11 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { AlertCircle, Copy, GitCommit } from "lucide-react";
-import { useState } from "react";
+import { AlertCircle, GitCommit } from "lucide-react";
 import { Skeleton } from "@/app/components/ui/skeleton";
+import { ShaChip } from "@/app/components/ui/ShaChip";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { usePrCommits } from "@/app/features/pulls/hooks";
 import type { PrCommit } from "@/app/features/pulls/hooks";
-import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 
 // ─── PrCommitsPage ─────────────────────────────────────────────────────────
@@ -70,7 +69,6 @@ function PrCommitRow({
   repo: string;
 }) {
   const { title, body } = splitMessage(commit.commit.message);
-  const shortSha = commit.sha.slice(0, 7);
   const displayAuthor = commit.author?.login ?? commit.commit.author.name;
   const authorLogin = commit.author?.login;
 
@@ -100,36 +98,8 @@ function PrCommitRow({
           <span>committed {formatRelativeTime(commit.commit.author.date)}</span>
         </div>
       </div>
-      <ShaChip sha={commit.sha} short={shortSha} />
+      <ShaChip sha={commit.sha} variant="inline" />
     </div>
-  );
-}
-
-function ShaChip({ sha, short }: { sha: string; short: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        navigator.clipboard.writeText(sha).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1200);
-        });
-      }}
-      className={cn(
-        "inline-flex items-center gap-1 rounded-sm border border-border px-1.5 py-0.5",
-        "font-mono text-caption text-muted-foreground outline-none transition-colors",
-        "hover:bg-background hover:text-foreground",
-        "focus-visible:ring-1 focus-visible:ring-foreground/15",
-      )}
-      aria-label={`Copy full SHA ${sha}`}
-    >
-      <span>{short}</span>
-      <Copy className="size-3" />
-      {copied && <span className="text-[var(--color-success)]">copied</span>}
-    </button>
   );
 }
 

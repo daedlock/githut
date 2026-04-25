@@ -279,19 +279,27 @@ export function PrTimelineRow({ event }: { event: TimelineEvent }) {
   const at = event.created_at ?? event.submitted_at;
 
   return (
-    <div className="flex items-center gap-2 pl-2 text-caption text-muted-foreground">
-      <Icon className={cn("size-3.5 shrink-0", TONE[resolved.tone])} aria-hidden />
-      <span className="min-w-0 truncate">
-        {resolved.label}
-        {at && (
-          <>
-            {" "}
-            <span className="text-[var(--color-fg-faint)]">
-              · {formatRelativeTime(at)}
-            </span>
-          </>
-        )}
-      </span>
-    </div>
+    <>
+      {/* Marker centered on the vertical bar */}
+      <div className="absolute left-3 -translate-x-1/2 top-4 z-10 flex size-6 items-center justify-center rounded-full bg-muted ring-2 ring-background">
+        <Icon className={cn("size-3", TONE[resolved.tone])} aria-hidden />
+      </div>
+      {/* Content */}
+      <div className="flex-1 min-w-0 pt-4 pl-10">
+        <div className="py-1.5 text-caption text-muted-foreground">
+          <span className="min-w-0 truncate">
+            {resolved.label}
+            {at && (
+              <>
+                {" "}
+                <span className="text-[var(--color-fg-faint)]">
+                  · {formatRelativeTime(at)}
+                </span>
+              </>
+            )}
+          </span>
+        </div>
+      </div>
+    </>
   );
 }

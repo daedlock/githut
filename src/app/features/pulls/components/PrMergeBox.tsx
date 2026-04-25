@@ -118,13 +118,13 @@ export function PrMergeBox({
   return (
     <Shell tone={overallTone}>
       {/* ── Checks section ───────────────────────────────────────────── */}
-      <div className="border-b border-border/50">
+      <div>
         <button
           type="button"
           onClick={() => setChecksExpanded((v) => !v)}
           className={cn(
             "flex w-full items-center gap-3 px-4 py-3 text-left",
-            "outline-none transition-colors hover:bg-[var(--color-bg-sunken)]",
+            "outline-none transition-colors hover:bg-[var(--color-bg-sunken)]/50",
           )}
         >
           {checksExpanded ? (
@@ -190,7 +190,7 @@ export function PrMergeBox({
 
         {/* Expanded check list */}
         {checksExpanded && data && (
-          <div className="border-t border-border/50">
+          <div className="bg-[var(--color-bg-sunken)]/30">
             {data.checkRuns.map((run) => (
               <CheckRunRow key={run.id} run={run} />
             ))}
@@ -278,17 +278,17 @@ function Shell({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-md border",
+        "overflow-hidden rounded-lg",
         tone === "ready" &&
-          "border-[var(--color-success)]/30 bg-[color-mix(in_oklab,var(--color-success)_4%,var(--color-bg))]",
+          "bg-[color-mix(in_oklab,var(--color-success)_8%,var(--color-bg-subtle))]",
         tone === "conflict" &&
-          "border-[var(--color-danger)]/30 bg-[color-mix(in_oklab,var(--color-danger)_4%,var(--color-bg))]",
+          "bg-[color-mix(in_oklab,var(--color-danger)_8%,var(--color-bg-subtle))]",
         tone === "pending" &&
-          "border-[var(--color-warning)]/30 bg-[color-mix(in_oklab,var(--color-warning)_4%,var(--color-bg))]",
+          "bg-[color-mix(in_oklab,var(--color-warning)_8%,var(--color-bg-subtle))]",
         tone === "merged" &&
-          "border-[var(--color-pr-merged)]/30 bg-[color-mix(in_oklab,var(--color-pr-merged)_4%,var(--color-bg))]",
+          "bg-[color-mix(in_oklab,var(--color-pr-merged)_8%,var(--color-bg-subtle))]",
         tone === "closed" &&
-          "border-border bg-[var(--color-bg-subtle)]",
+          "bg-muted",
       )}
     >
       {children}
