@@ -2,7 +2,7 @@ import { Columns2, PanelLeftClose, PanelLeftOpen, Rows2 } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { type ChangedFile, ChangedFileTree } from "@/app/components/repo/ChangedFileTree";
 import { cn } from "@/app/lib/cn";
-import type { DiffMode, DiffReviewHooks } from "./DiffView";
+import { DiffModeContext, type DiffMode, type DiffReviewHooks } from "./DiffView";
 import { FileDiff } from "./FileDiff";
 
 export type DiffLayoutFile = ChangedFile & {
@@ -184,6 +184,7 @@ export function DiffLayout({
           </aside>
         )}
 
+        <DiffModeContext value={mode}>
         <div className="min-w-0 flex-1 p-4">
           <div className="flex flex-col gap-5">
             {files.map((file) => (
@@ -200,11 +201,12 @@ export function DiffLayout({
                   scrollMarginTop: TOPBAR_H,
                 }}
               >
-                <FileItem file={file} mode={mode} review={getReviewHooks?.(file.filename)} />
+                <FileItem file={file} review={getReviewHooks?.(file.filename)} />
               </div>
             ))}
           </div>
         </div>
+        </DiffModeContext>
       </div>
     </div>
   );
@@ -212,11 +214,9 @@ export function DiffLayout({
 
 const FileItem = memo(function FileItem({
   file,
-  mode,
   review,
 }: {
   file: DiffLayoutFile;
-  mode: DiffMode;
   review: DiffReviewHooks | undefined;
 }) {
   return (
@@ -228,7 +228,6 @@ const FileItem = memo(function FileItem({
       deletions={file.deletions}
       patch={file.patch}
       lang={file.lang}
-      defaultMode={mode}
       review={review}
     />
   );

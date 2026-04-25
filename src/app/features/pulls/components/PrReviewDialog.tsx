@@ -1,61 +1,41 @@
-import { CheckCircle2, MessageSquare, XCircle } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { useState } from "react";
+import { Check, CircleAlert, MessageSquare } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/app/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/app/components/ui/dialog";
-import { Textarea } from "@/app/components/ui/textarea";
 import { useSubmitPrReview, type ReviewEvent } from "@/app/features/pulls/hooks";
 import type { PendingComment } from "@/app/features/pulls/stores/review";
 import { cn } from "@/app/lib/cn";
 
-// ─── PrReviewDialog ────────────────────────────────────────────────────────
-//
-// Minimal "Finish your review" modal: type a body, pick a verdict
-// (Comment / Approve / Request changes), submit. Matches the semantics
-// of github.com's diff-tab "Review changes" dropdown — inline diff
-// comments are layered on top in P5; this ships the top-level review
-// flow in isolation.
-
-const OPTIONS: Array<{
+const VERDICTS: Array<{
   id: ReviewEvent;
   label: string;
   hint: string;
-  icon: LucideIcon;
-  tone: string;
+  icon: typeof Check;
+  color: string;
 }> = [
   {
     id: "COMMENT",
     label: "Comment",
-    hint: "Submit general feedback without explicit approval.",
+    hint: "General feedback without approval",
     icon: MessageSquare,
-    tone: "text-[var(--color-fg-muted)]",
+    color: "--color-fg-muted",
   },
   {
     id: "APPROVE",
     label: "Approve",
-    hint: "Submit feedback and approve merging these changes.",
-    icon: CheckCircle2,
-    tone: "text-[var(--color-success)]",
+    hint: "Approve merging these changes",
+    icon: Check,
+    color: "--color-success",
   },
   {
     id: "REQUEST_CHANGES",
     label: "Request changes",
-    hint: "Submit feedback that must be addressed before merging.",
-    icon: XCircle,
-    tone: "text-[var(--color-danger)]",
+    hint: "Changes must be addressed first",
+    icon: CircleAlert,
+    color: "--color-danger",
   },
 ];
 
-export type PrReviewDialogProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+export type PrReviewPopoverProps = {
   owner: string;
   repo: string;
   number: number;
@@ -64,26 +44,43 @@ export type PrReviewDialogProps = {
   onReviewSubmitted?: () => void;
 };
 
-export function PrReviewDialog({
-  open,
-  onOpenChange,
+export function PrReviewPopover({
   owner,
   repo,
   number,
   isAuthor,
   pendingComments = [],
   onReviewSubmitted,
-}: PrReviewDialogProps) {
+}: PrReviewPopoverProps) {
+  const [open, setOpen] = useState(false);
   const [event, setEvent] = useState<ReviewEvent>("COMMENT");
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
-
   const submit = useSubmitPrReview(owner, repo, number);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const verdict = VERDICTS.find((v) => v.id === event)!;
+
+  useEffect(() => {
+    if (!open) return;
+    function onClick(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   function handleSubmit() {
     setError(null);
-    // GitHub requires a body for REQUEST_CHANGES; enforce here to save a
-    // round-trip.
     if (event === "REQUEST_CHANGES" && !body.trim()) {
       setError("A comment is required when requesting changes.");
       return;
@@ -100,97 +97,115 @@ export function PrReviewDialog({
         onSuccess: () => {
           setBody("");
           setEvent("COMMENT");
+          setOpen(false);
           onReviewSubmitted?.();
-          onOpenChange(false);
         },
         onError: (err) => {
-          setError(
-            err instanceof Error ? err.message : "Failed to submit review.",
-          );
+          setError(err instanceof Error ? err.message : "Failed to submit review.");
         },
       },
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Finish your review</DialogTitle>
-          <DialogDescription>
-            {pendingComments.length > 0
-              ? `${pendingComments.length} pending inline ${
-                  pendingComments.length === 1 ? "comment" : "comments"
-                } will be submitted with this review.`
-              : "Submit your feedback for this pull request."}
-          </DialogDescription>
-        </DialogHeader>
+    <div className="relative" ref={panelRef}>
+      <Button size="xs" onClick={() => setOpen(v => !v)}>
+        Submit review
+      </Button>
 
-        <Textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={5}
-          placeholder="Leave a review summary…"
-          className="font-mono text-caption"
-        />
-
-        <fieldset className="flex flex-col gap-2">
-          {OPTIONS.map((o) => {
-            const disabled = o.id === "APPROVE" && isAuthor;
-            return (
-              <label
-                key={o.id}
-                className={cn(
-                  "flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2",
-                  "outline-none transition-colors",
-                  event === o.id
-                    ? "border-primary bg-[var(--color-bg-sunken)]"
-                    : "border-border hover:bg-[var(--color-bg-sunken)]",
-                  disabled && "opacity-50 cursor-not-allowed",
-                )}
-              >
-                <input
-                  type="radio"
-                  name="review-event"
-                  value={o.id}
-                  checked={event === o.id}
-                  disabled={disabled}
-                  onChange={() => setEvent(o.id)}
-                  className="mt-1 accent-[var(--color-accent)]"
-                />
-                <o.icon className={cn("mt-0.5 size-4", o.tone)} aria-hidden />
-                <div className="min-w-0 flex-1">
-                  <div className="text-body font-medium text-foreground">{o.label}</div>
-                  <div className="text-caption text-muted-foreground">
-                    {disabled
-                      ? "You can't approve your own pull request."
-                      : o.hint}
-                  </div>
-                </div>
-              </label>
-            );
-          })}
-        </fieldset>
-
-        {error && (
-          <div className="rounded-md border border-[var(--color-danger)] bg-[color-mix(in_oklab,var(--color-danger)_10%,var(--color-bg))] px-3 py-2 text-caption text-[var(--color-danger)]">
-            {error}
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-1.5 flex w-[360px] flex-col gap-3 rounded-lg bg-popover p-3 ring-1 ring-foreground/5 shadow-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-ui font-semibold text-foreground">Submit review</span>
+            {pendingComments.length > 0 && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-micro font-medium text-muted-foreground tabular-nums">
+                {pendingComments.length} pending
+              </span>
+            )}
           </div>
-        )}
 
-        <DialogFooter>
-          <Button
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={submit.isPending}
-          >
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={submit.isPending}>
-            {submit.isPending ? "Submitting…" : "Submit review"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={3}
+            placeholder="Leave a summary…"
+            autoFocus
+            className="w-full resize-none rounded-lg border border-input bg-transparent px-2.5 py-2 text-ui text-foreground placeholder:text-muted-foreground/50 transition-colors focus:border-[var(--color-fg-muted)]/20 focus:bg-[var(--color-fg-muted)]/5 focus:outline-none"
+          />
+
+          <fieldset className="flex flex-col gap-1">
+            {VERDICTS.map((v) => {
+              const selected = event === v.id;
+              const disabled = v.id === "APPROVE" && isAuthor;
+              const Icon = v.icon;
+              return (
+                <label
+                  key={v.id}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 transition-all",
+                    selected
+                      ? "border"
+                      : "border border-transparent hover:bg-muted",
+                    disabled && "pointer-events-none opacity-40",
+                  )}
+                  style={selected ? {
+                    borderColor: `color-mix(in oklab, var(${v.color}) 40%, var(--color-border))`,
+                    backgroundColor: `color-mix(in oklab, var(${v.color}) 8%, var(--color-bg-subtle))`,
+                  } : undefined}
+                >
+                  <input
+                    type="radio"
+                    name="review-event"
+                    value={v.id}
+                    checked={selected}
+                    disabled={disabled}
+                    onChange={() => setEvent(v.id)}
+                    className="sr-only"
+                  />
+                  <Icon
+                    className="size-3.5 shrink-0 transition-colors"
+                    style={{ color: selected ? `var(${v.color})` : undefined }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-caption font-medium text-foreground">{v.label}</span>
+                    <span className="ml-1.5 text-caption text-muted-foreground">
+                      {disabled ? "Can't approve own PR" : v.hint}
+                    </span>
+                  </div>
+                </label>
+              );
+            })}
+          </fieldset>
+
+          {error && (
+            <p className="text-caption text-[var(--color-danger)]">{error}</p>
+          )}
+
+          <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => setOpen(false)}
+              disabled={submit.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="xs"
+              onClick={handleSubmit}
+              disabled={submit.isPending}
+              className="min-w-[6rem]"
+              style={{
+                backgroundColor: `color-mix(in oklab, var(${verdict.color}) 30%, var(--color-bg-subtle))`,
+                borderColor: `color-mix(in oklab, var(${verdict.color}) 40%, var(--color-border))`,
+                color: `var(--color-fg)`,
+              }}
+            >
+              {submit.isPending ? "Submitting…" : "Submit review"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

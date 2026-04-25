@@ -1,8 +1,8 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import { cn } from "@/app/lib/cn";
-import type { DiffMode, DiffReviewHooks } from "./DiffView";
-import { DiffView } from "./DiffView";
+import type { DiffReviewHooks } from "./DiffView";
+import { DiffView, useDiffMode } from "./DiffView";
 
 export type FileStatus = "added" | "removed" | "modified" | "renamed" | "copied" | "changed";
 
@@ -14,7 +14,6 @@ export type FileDiffProps = {
   deletions: number;
   patch: string | null | undefined;
   lang?: string;
-  defaultMode?: DiffMode;
   defaultCollapsed?: boolean;
   className?: string;
   review?: DiffReviewHooks;
@@ -28,12 +27,11 @@ export const FileDiff = memo(function FileDiff({
   deletions,
   patch,
   lang,
-  defaultMode = "split",
   defaultCollapsed = false,
   className,
   review,
 }: FileDiffProps) {
-  const mode = defaultMode;
+  const mode = useDiffMode();
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const sectionRef = useRef<HTMLElement>(null);
   const [mounted, setMounted] = useState(false);

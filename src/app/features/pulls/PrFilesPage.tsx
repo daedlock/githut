@@ -1,6 +1,6 @@
-import { AlertCircle, FileDiff as FileDiffIcon, MessageSquarePlus, Send } from "lucide-react";
+import { AlertCircle, FileDiff as FileDiffIcon, MessageSquarePlus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   buildSources,
   codeTokensQueryOptions,
@@ -14,7 +14,7 @@ import { Button } from "@/app/components/ui/button";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { InlineComposer } from "@/app/features/pulls/components/InlineComposer";
 import { InlineThread } from "@/app/features/pulls/components/InlineThread";
-import { PrReviewDialog } from "@/app/features/pulls/components/PrReviewDialog";
+import { PrReviewPopover } from "@/app/features/pulls/components/PrReviewDialog";
 import {
   useFullPr,
   usePrFiles,
@@ -64,7 +64,7 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
   const pending = usePendingComments(owner, repo, number);
   const store = useReviewStore();
 
-  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+
 
   const canReview =
     !!prQuery.data && prQuery.data.state === "open" && !prQuery.data.merged;
@@ -130,9 +130,11 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
             const key = `${filename}:${args.side}:${args.line}`;
             if (threadKeysRef.current.has(key)) return true;
             const pendingList = pendingRef.current[prKey];
-            return !!pendingList && pendingList.some(
+            if (pendingList?.some(
               (c) => c.path === filename && c.side === args.side && c.line === args.line,
-            );
+            )) return true;
+            const composer = composerRef.current[prKey];
+            return !!composer && composer.path === filename && composer.side === args.side && composer.line === args.line;
           },
           renderLineTrailer: (args) => {
             const key = `${filename}:${args.side}:${args.line}`;
@@ -226,10 +228,14 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
               >
                 Cancel review
               </Button>
-              <Button size="sm" onClick={() => setReviewDialogOpen(true)}>
-                <Send data-icon="inline-start" />
-                Finish review
-              </Button>
+              <PrReviewPopover
+                owner={owner}
+                repo={repo}
+                number={number}
+                isAuthor={isAuthor}
+                pendingComments={pending}
+                onReviewSubmitted={() => store.cancelReview(owner, repo, number)}
+              />
             </>
           )}
         </div>
@@ -243,19 +249,6 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
         />
       </div>
 
-      <PrReviewDialog
-        open={reviewDialogOpen}
-        onOpenChange={setReviewDialogOpen}
-        owner={owner}
-        repo={repo}
-        number={number}
-        isAuthor={isAuthor}
-        pendingComments={pending}
-        onReviewSubmitted={() => {
-          store.cancelReview(owner, repo, number);
-          setReviewDialogOpen(false);
-        }}
-      />
     </div>
   );
 }

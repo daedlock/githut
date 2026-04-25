@@ -15,7 +15,7 @@ import { PrStatePill } from "@/app/features/pulls/components/PrStatePill";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { InlineComposer } from "@/app/features/pulls/components/InlineComposer";
 import { InlineThread } from "@/app/features/pulls/components/InlineThread";
-import { PrReviewDialog } from "@/app/features/pulls/components/PrReviewDialog";
+import { PrReviewPopover } from "@/app/features/pulls/components/PrReviewDialog";
 import {
   prDetailQueryOptions,
   prFilesQueryOptions,
@@ -63,14 +63,7 @@ function ReviewPage() {
   const meQuery = useMe();
   const qc = useQueryClient();
 
-  const reviewMode = useReviewMode(owner, repo, number);
-  const pending = usePendingComments(owner, repo, number);
-  const store = useReviewStore();
-
-  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-
   const pr = prQuery.data;
-  const isAuthor = pr?.user?.login === meQuery.data?.login;
   const canReview = !!pr && pr.state === "open" && !pr.merged;
   const uiState = pr ? toUiState(pr) : null;
 
@@ -79,7 +72,6 @@ function ReviewPage() {
     [filesQuery.data],
   );
 
-  // Prefetch Shiki tokens for all files
   useEffect(() => {
     const files = filesQuery.data;
     if (!files) return;
@@ -98,19 +90,26 @@ function ReviewPage() {
   const reviewCommentsRef = useRef(reviewCommentsQuery.data);
   reviewCommentsRef.current = reviewCommentsQuery.data;
 
-  const prKey = `${owner}/${repo}/${number}`;
-
   const hooksCache = useRef(new Map<string, DiffReviewHooks>());
+  const meDataRef = useRef(meQuery.data);
+  meDataRef.current = meQuery.data;
 
   const getReviewHooks = useCallback(
     (filename: string): DiffReviewHooks | undefined => {
       if (!canReview) return undefined;
       let hooks = hooksCache.current.get(filename);
       if (!hooks) {
+        const prk = `${owner}/${repo}/${number}`;
         hooks = {
+          useComposerLine: () => {
+            const composer = useReviewStore(s => s.composerByPr[prk]);
+            if (!composer || composer.path !== filename) return null;
+            return { side: composer.side, line: composer.line };
+          },
           onAddComment: (args) => {
-            if (!reviewMode) store.startReview(owner, repo, number);
-            store.openComposer(owner, repo, number, { path: filename, ...args });
+            const s = useReviewStore.getState();
+            s.startReview(owner, repo, number);
+            s.openComposer(owner, repo, number, { path: filename, ...args });
           },
           hasComment: (args: { side: "LEFT" | "RIGHT"; line: number }) => {
             const comments = reviewCommentsRef.current;
@@ -119,30 +118,34 @@ function ReviewPage() {
               const cLine = c.line ?? c.original_line ?? 0;
               return c.path === filename && cSide === args.side && cLine === args.line && !c.in_reply_to_id;
             })) return true;
-            const pendingList = store.pendingByPr[prKey];
-            return !!pendingList && pendingList.some(
+            const s = useReviewStore.getState();
+            const pendingList = s.pendingByPr[prk];
+            if (pendingList?.some(
               (c: { path: string; side: string; line: number }) => c.path === filename && c.side === args.side && c.line === args.line,
+            )) return true;
+            const composer = s.composerByPr[prk];
+            return !!composer && composer.path === filename && composer.side === args.side && composer.line === args.line;
+          },
+          renderLineTrailer: (args) => {
+            if (!hooks!.hasComment!(args)) return null;
+            return (
+              <LineSlotContent owner={owner} repo={repo} number={number} path={filename} side={args.side} line={args.line} meLogin={meDataRef.current?.login} meAvatarUrl={meDataRef.current?.avatar_url} />
             );
           },
-          renderLineTrailer: (args) => (
-            <LineSlot owner={owner} repo={repo} number={number} path={filename} side={args.side} line={args.line} meLogin={meQuery.data?.login} meAvatarUrl={meQuery.data?.avatar_url} />
-          ),
         };
         hooksCache.current.set(filename, hooks);
       }
       return hooks;
     },
-    [canReview, reviewMode, owner, repo, number, store, prKey, meQuery.data],
+    [canReview, owner, repo, number],
   );
 
-  // Auto-start review mode on this page
   useEffect(() => {
-    if (canReview && !reviewMode) store.startReview(owner, repo, number);
-  }, [canReview, reviewMode, owner, repo, number, store]);
+    if (canReview) useReviewStore.getState().startReview(owner, repo, number);
+  }, [canReview, owner, repo, number]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      {/* Full-width diff with merged review header */}
       <div className="flex-1">
         {prQuery.isPending || filesQuery.isPending ? (
           <ReviewSkeleton />
@@ -163,74 +166,14 @@ function ReviewPage() {
               <ReviewBarLeft owner={owner} repo={repo} number={number} pr={pr} uiState={uiState} />
             }
             reviewActions={
-              <div className="flex items-center gap-3 shrink-0">
-                <CommentNav
-                  commentCount={
-                    (reviewCommentsQuery.data?.filter(c => !c.in_reply_to_id).length ?? 0) + pending.length
-                  }
-                />
-                <ReviewBarRight
-                  canReview={canReview}
-                  reviewMode={reviewMode}
-                  pendingCount={pending.length}
-                  onCancel={() => store.cancelReview(owner, repo, number)}
-                  onSubmit={() => setReviewDialogOpen(true)}
-                />
-              </div>
+              <ReviewActions owner={owner} repo={repo} number={number} canReview={canReview} isAuthor={!!pr && pr.user?.login === meQuery.data?.login} />
             }
           />
         )}
       </div>
-
-      <PrReviewDialog
-        open={reviewDialogOpen}
-        onOpenChange={setReviewDialogOpen}
-        owner={owner}
-        repo={repo}
-        number={number}
-        isAuthor={isAuthor}
-        pendingComments={pending}
-        onReviewSubmitted={() => {
-          store.cancelReview(owner, repo, number);
-          setReviewDialogOpen(false);
-        }}
-      />
     </div>
   );
 }
-
-// ─── Reuse LineSlot from PrFilesPage (same pattern) ─────────────────────────
-
-const LineSlot = memo(function LineSlot(props: {
-  owner: string; repo: string; number: number;
-  path: string; side: "LEFT" | "RIGHT"; line: number;
-  meLogin?: string; meAvatarUrl?: string;
-}) {
-  const { owner, repo, number, path, side, line } = props;
-  const prKey = `${owner}/${repo}/${number}`;
-
-  const isComposerHere = useReviewStore(s => {
-    const c = s.composerByPr[prKey];
-    return !!c && c.path === path && c.side === side && c.line === line;
-  });
-  const hasPending = useReviewStore(s => {
-    const list = s.pendingByPr[prKey];
-    return !!list && list.some(c => c.path === path && c.side === side && c.line === line);
-  });
-  const reviewCommentsQuery = usePrReviewComments(owner, repo, number);
-  const hasThreads = useMemo(() => {
-    const comments = reviewCommentsQuery.data;
-    if (!comments?.length) return false;
-    return comments.some(c => {
-      const cSide = c.side ?? "RIGHT";
-      const cLine = c.line ?? c.original_line ?? 0;
-      return c.path === path && cSide === side && cLine === line && !c.in_reply_to_id;
-    });
-  }, [reviewCommentsQuery.data, path, side, line]);
-
-  if (!isComposerHere && !hasPending && !hasThreads) return null;
-  return <LineSlotContent {...props} />;
-});
 
 const LineSlotContent = memo(function LineSlotContent({
   owner, repo, number, path, side, line, meLogin, meAvatarUrl,
@@ -421,24 +364,43 @@ function ReviewBarLeft({
   );
 }
 
-function ReviewBarRight({
-  canReview, reviewMode, pendingCount, onCancel, onSubmit,
+function ReviewActions({
+  owner, repo, number, canReview, isAuthor,
 }: {
-  canReview: boolean; reviewMode: boolean; pendingCount: number;
-  onCancel: () => void; onSubmit: () => void;
+  owner: string; repo: string; number: number; canReview: boolean; isAuthor: boolean;
 }) {
+  const reviewMode = useReviewMode(owner, repo, number);
+  const pending = usePendingComments(owner, repo, number);
+  const cancelReview = useReviewStore(s => s.cancelReview);
+  const reviewCommentsQuery = usePrReviewComments(owner, repo, number);
+
   if (!canReview) return null;
+
   return (
-    <div className="flex items-center gap-2 shrink-0">
-      {pendingCount > 0 && (
-        <span className="text-xs tabular-nums text-muted-foreground">
-          <span className="font-medium text-foreground">{pendingCount}</span> pending
-        </span>
-      )}
-      {reviewMode && (
-        <Button size="xs" variant="ghost" onClick={onCancel}>Cancel</Button>
-      )}
-      <Button size="xs" onClick={onSubmit}>Submit review</Button>
+    <div className="flex items-center gap-3 shrink-0">
+      <CommentNav
+        commentCount={
+          (reviewCommentsQuery.data?.filter(c => !c.in_reply_to_id).length ?? 0) + pending.length
+        }
+      />
+      <div className="flex items-center gap-2 shrink-0">
+        {pending.length > 0 && (
+          <span className="text-xs tabular-nums text-muted-foreground">
+            <span className="font-medium text-foreground">{pending.length}</span> pending
+          </span>
+        )}
+        {reviewMode && (
+          <Button size="xs" variant="ghost" onClick={() => cancelReview(owner, repo, number)}>Cancel</Button>
+        )}
+        <PrReviewPopover
+          owner={owner}
+          repo={repo}
+          number={number}
+          isAuthor={isAuthor}
+          pendingComments={pending}
+          onReviewSubmitted={() => cancelReview(owner, repo, number)}
+        />
+      </div>
     </div>
   );
 }

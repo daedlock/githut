@@ -1,4 +1,4 @@
-import { Fragment, memo, useMemo, type ReactNode } from "react";
+import { createContext, Fragment, memo, useContext, useMemo, type ReactNode } from "react";
 import { cn } from "@/app/lib/cn";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { countChanges, type DiffHunk, type DiffLine, parseUnifiedDiff } from "./parseDiff";
@@ -11,10 +11,14 @@ import { computeLinePairs, wordDiff, type WordSegment } from "./wordDiff";
 
 export type DiffMode = "unified" | "split";
 
+export const DiffModeContext = createContext<DiffMode>("split");
+export function useDiffMode() { return useContext(DiffModeContext); }
+
 export type DiffReviewHooks = {
   onAddComment?: (args: { side: "LEFT" | "RIGHT"; line: number }) => void;
   renderLineTrailer?: (args: { side: "LEFT" | "RIGHT"; line: number }) => ReactNode;
   hasComment?: (args: { side: "LEFT" | "RIGHT"; line: number }) => boolean;
+  useComposerLine?: () => { side: "LEFT" | "RIGHT"; line: number } | null;
 };
 
 export type DiffViewProps = {
@@ -154,6 +158,11 @@ const UnifiedHunk = memo(function UnifiedHunk({
   newLineMap: Map<number, number>;
   review?: DiffReviewHooks;
 }) {
+  // Subscribe to composer for this file — 1 subscription per hunk, not per line.
+  // When the composer targets a line in this hunk, we re-render so hasComment
+  // returns true and renderLineTrailer creates the slot.
+  review?.useComposerLine?.();
+
   const pairs = useMemo(() => computeLinePairs(hunk.lines), [hunk]);
   const inversePairs = useMemo(() => {
     const inv = new Map<number, number>();
@@ -188,11 +197,11 @@ const UnifiedHunk = memo(function UnifiedHunk({
       segs != null && (line.kind === "del" ? pairs.has(idx) : inversePairs.has(idx));
     const side: "LEFT" | "RIGHT" = line.kind === "del" ? "LEFT" : "RIGHT";
     const lineNum = side === "LEFT" ? line.oldNum : line.newNum;
+    const hasComment = lineNum != null && (review?.hasComment?.({ side, line: lineNum }) ?? false);
     const trailer =
       lineNum != null && review?.renderLineTrailer
         ? review.renderLineTrailer({ side, line: lineNum })
         : null;
-    const hasComment = lineNum != null && (review?.hasComment?.({ side, line: lineNum }) ?? false);
     return {
       line,
       idx,
@@ -296,16 +305,6 @@ const DiffRow = memo(function DiffRow({
           <span className="w-[18px]" />
         )}
       </div>
-      <span
-        className={cn(
-          "w-4 flex-shrink-0 select-none text-center",
-          kind === "add" && "text-[var(--diff-add-marker)]",
-          kind === "del" && "text-[var(--diff-del-marker)]",
-          kind === "context" && "text-[var(--color-fg-faint)] opacity-60",
-        )}
-      >
-        {kind === "add" ? "+" : kind === "del" ? "−" : " "}
-      </span>
       <span className="whitespace-pre pr-3">
         <RenderedLine tokens={tokens} rawText={rawText} emphasis={emphasis} />
       </span>
@@ -330,7 +329,8 @@ const SplitHunk = memo(function SplitHunk({
   newLineMap: Map<number, number>;
   review?: DiffReviewHooks;
 }) {
-  // Build paired rows: each row has an optional left (del/context) and optional right (add/context)
+  review?.useComposerLine?.();
+
   const pairs = useMemo(() => computeLinePairs(hunk.lines), [hunk]);
   const inversePairs = useMemo(() => {
     const inv = new Map<number, number>();
@@ -526,16 +526,6 @@ const SplitRow = memo(function SplitRow({
         ) : (
           <span className="w-[18px]" />
         )}
-      </span>
-      <span
-        className={cn(
-          "w-4 flex-shrink-0 select-none text-center",
-          kind === "add" && "text-[var(--diff-add-marker)]",
-          kind === "del" && "text-[var(--diff-del-marker)]",
-          kind === "context" && "text-[var(--color-fg-faint)] opacity-60",
-        )}
-      >
-        {kind === "add" ? "+" : kind === "del" ? "−" : " "}
       </span>
       <span className="min-w-0 flex-1 whitespace-pre-wrap break-all pr-3">
         <RenderedLine tokens={tokens} rawText={rawText} emphasis={emphasis} />
