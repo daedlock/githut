@@ -124,17 +124,20 @@ export function useSetPrAssignees(owner: string, repo: string, number: number) {
     }) => {
       const client = getGitHubClient();
       if (add.length > 0) {
-        await client.request(
+        const res = await client.request(
           "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees",
           { owner, repo, issue_number: number, assignees: add },
         );
+        return PullRequestSchema.parse(res.data);
       }
       if (remove.length > 0) {
-        await client.request(
+        const res = await client.request(
           "DELETE /repos/{owner}/{repo}/issues/{issue_number}/assignees",
           { owner, repo, issue_number: number, assignees: remove },
         );
+        return PullRequestSchema.parse(res.data);
       }
+      return null;
     },
     onMutate: async ({ add, remove }) => {
       await queryClient.cancelQueries({
@@ -153,10 +156,11 @@ export function useSetPrAssignees(owner: string, repo: string, number: number) {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: pullsKeys.detail(owner, repo, number),
-      });
+    onSuccess: (updated) => {
+      // Use server response to update cache
+      if (updated) {
+        queryClient.setQueryData(pullsKeys.detail(owner, repo, number), updated);
+      }
     },
   });
 }
@@ -212,10 +216,11 @@ export function useSetPrReviewers(owner: string, repo: string, number: number) {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: pullsKeys.detail(owner, repo, number),
-      });
+    onSuccess: (updated) => {
+      // Use server response to update cache
+      if (updated) {
+        queryClient.setQueryData(pullsKeys.detail(owner, repo, number), updated);
+      }
     },
   });
 }
@@ -236,7 +241,8 @@ export function useSetPrLabels(owner: string, repo: string, number: number) {
         "PUT /repos/{owner}/{repo}/issues/{issue_number}/labels",
         { owner, repo, issue_number: number, labels: names },
       );
-      return res.data;
+      // Return both the labels and parse as PR for cache update
+      return { labels: res.data } as { labels: Array<{ id: number; name: string; color: string; description: string | null }> };
     },
     onMutate: async ({ names }) => {
       await queryClient.cancelQueries({
@@ -256,9 +262,7 @@ export function useSetPrLabels(owner: string, repo: string, number: number) {
                 color: found.color,
                 description: found.description ?? null,
               }
-            : // Fallback for a just-renamed / newly-created label the client
-              // hasn't cached yet. Server will overwrite on settle.
-              pr.labels.find((l) => l.name === name) ?? {
+            : pr.labels.find((l) => l.name === name) ?? {
                 id: -Date.now(),
                 name,
                 color: "cccccc",
@@ -270,10 +274,13 @@ export function useSetPrLabels(owner: string, repo: string, number: number) {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: pullsKeys.detail(owner, repo, number),
-      });
+    onSuccess: (data, _vars, ctx) => {
+      // Update PR detail with server-returned labels
+      if (ctx?.prev) {
+        queryClient.setQueryData<PullRequest>(ctx.key, (pr) =>
+          pr ? { ...pr, labels: data.labels } : ctx.prev
+        );
+      }
     },
   });
 }

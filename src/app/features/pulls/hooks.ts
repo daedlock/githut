@@ -698,14 +698,14 @@ export function useMergePr(owner: string, repo: string, number: number) {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: pullsKeys.detail(owner, repo, number),
-      });
-      queryClient.invalidateQueries({
-        queryKey: pullsKeys.timeline(owner, repo, number),
-      });
-      queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) });
+    onSuccess: () => {
+      // Merge doesn't return the updated PR, so we need to invalidate
+      // Delay to give GitHub time to propagate
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) });
+        queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) });
+        queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) });
+      }, 500);
     },
   });
 }
@@ -729,8 +729,7 @@ export function useTogglePrState(owner: string, repo: string, number: number) {
         queryClient.setQueryData<PullRequest>(key, {
           ...prev,
           state,
-          closed_at:
-            state === "closed" ? new Date().toISOString() : null,
+          closed_at: state === "closed" ? new Date().toISOString() : null,
         });
       }
       return { key, prev };
@@ -738,13 +737,11 @@ export function useTogglePrState(owner: string, repo: string, number: number) {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: pullsKeys.detail(owner, repo, number),
-      });
-      queryClient.invalidateQueries({
-        queryKey: pullsKeys.timeline(owner, repo, number),
-      });
+    onSuccess: (updated) => {
+      // Use server response to update cache - trust PATCH response
+      queryClient.setQueryData(pullsKeys.detail(owner, repo, number), updated);
+      // Invalidate related queries (timeline, counts)
+      queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) });
       queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) });
     },
   });
@@ -810,7 +807,6 @@ export function useSetPrDraft(owner: string, repo: string, number: number) {
   return useMutation({
     mutationFn: async ({ draft, nodeId }: { draft: boolean; nodeId: string }) => {
       const client = getGitHubClient();
-      // REST doesn't expose the draft flip post-creation; GraphQL does.
       const mutation = draft
         ? `mutation($id: ID!) {
             convertPullRequestToDraft(input: { pullRequestId: $id }) {
@@ -836,14 +832,8 @@ export function useSetPrDraft(owner: string, repo: string, number: number) {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: pullsKeys.detail(owner, repo, number),
-      });
-      queryClient.invalidateQueries({
-        queryKey: pullsKeys.timeline(owner, repo, number),
-      });
-    },
+    // No onSettled invalidation - the optimistic update is authoritative
+    // GraphQL mutation confirmed success, no need to refetch
   });
 }
 
@@ -909,10 +899,13 @@ export function useReplyToReviewComment(
       );
       return ReviewCommentSchema.parse(res.data);
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: pullsKeys.reviewComments(owner, repo, number),
-      });
+    onSuccess: (created) => {
+      // Add the new reply to the review comments cache
+      const key = pullsKeys.reviewComments(owner, repo, number);
+      const prev = queryClient.getQueryData<ReviewComment[]>(key);
+      if (prev) {
+        queryClient.setQueryData<ReviewComment[]>(key, [...prev, created]);
+      }
     },
   });
 }
