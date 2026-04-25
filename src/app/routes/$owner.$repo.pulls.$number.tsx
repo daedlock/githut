@@ -27,7 +27,7 @@ function PrDetailLayout() {
 
   if (prQuery.isPending) {
     return (
-      <Container className="py-5 sm:py-6">
+      <Container className="max-w-[1280px] py-5 sm:py-6">
         <PrHeaderSkeleton />
       </Container>
     );
@@ -35,7 +35,7 @@ function PrDetailLayout() {
 
   if (prQuery.isError || !pr) {
     return (
-      <Container className="py-10">
+      <Container className="max-w-[1280px] py-10">
         <div className="flex flex-col items-center gap-2 text-center">
           <AlertCircle className="size-5 text-destructive" />
           <p className="text-body text-muted-foreground">
@@ -47,7 +47,7 @@ function PrDetailLayout() {
   }
 
   return (
-    <Container className="py-5 sm:py-6">
+    <Container className="max-w-[1280px] py-5 sm:py-6">
       <PrHeader
         owner={owner}
         repo={repo}
