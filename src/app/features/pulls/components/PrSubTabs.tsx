@@ -45,7 +45,7 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
   ];
 
   return (
-    <nav aria-label="Pull request sections" className="flex items-center gap-1 py-2">
+    <nav aria-label="Pull request sections" className="flex items-center gap-1 py-3">
       {tabs.map((t) => {
         const target = `${base}${t.suffix}`;
         const isActive =
@@ -54,7 +54,7 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
             : pathname === target || pathname.startsWith(`${target}/`);
         const Icon = t.icon;
         return (
-          <Button key={t.suffix} variant="ghost" size="sm" asChild>
+          <Button key={t.suffix} variant="ghost" asChild>
             <Link
               to={t.to}
               className={cn(isActive && "bg-muted text-foreground")}
@@ -70,7 +70,7 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
         );
       })}
 
-      <Button variant="default" size="sm" asChild className="ml-auto">
+      <Button variant="default" asChild className="ml-auto">
         <a href={`/${owner}/${repo}/review/${number}`}>
           <Code2 className="size-4" />
           <span>Review changes</span>

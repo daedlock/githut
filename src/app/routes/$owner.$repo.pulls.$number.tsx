@@ -90,7 +90,7 @@ function PrDetailLayout() {
 
           {/* Sticky sidebar */}
           <aside className="hidden lg:block w-[328px] flex-shrink-0">
-            <div className="sticky top-20">
+            <div className="sticky top-24">
               <PrSidebar owner={owner} repo={repo} pr={pr} reviews={reviews} />
             </div>
           </aside>
