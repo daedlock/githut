@@ -61,6 +61,65 @@ Color only for meaning: status, diff tints, accent actions.
 All status colors at matched perceptual lightness per palette.
 Diff tints derived via `color-mix(status N%, surface-0)`.
 
+## Active Surfaces
+
+When a card or region needs to communicate **state** (ready, error, merged,
+pending), it becomes an "active surface" — a tinted container whose border,
+background, and glow all derive from a single semantic color variable via
+`color-mix`. This keeps every palette consistent: the tint blends into the
+theme rather than painting over it.
+
+Pick the semantic color variable for the state:
+
+| State | Variable |
+|---|---|
+| Ready / success | `--color-success` |
+| Error / conflict | `--color-danger` |
+| Pending / draft | `--color-warning` |
+| Merged | `--color-pr-merged` |
+| Neutral / disabled | `--color-fg-faint` |
+
+Then apply the three layers — all use `color-mix(in oklab, var(--var) N%, base)`:
+
+| Layer | Formula | Base token | Purpose |
+|---|---|---|---|
+| **Border** | `40%` into `--color-border` | `var(--color-border)` | Visible tinted edge that reads as "this region has meaning" |
+| **Background** | `8%` into `--color-bg-subtle` | `var(--color-bg-subtle)` | Subtle fill — just enough to tint the surface |
+| **Glow** | `12%` into `transparent` | `transparent` | Outer `box-shadow 0 0 20px` — soft ambient halo |
+| **Hover** (buttons) | `20%` into `--color-bg-subtle` | `var(--color-bg-subtle)` | Stronger tint on interactive hover |
+
+### Active Surface Button (CTA inside an active card)
+
+For the primary action inside an active surface (e.g. "Merge"), use
+stronger mix ratios so the button stands out from the tinted card:
+
+```
+border:     color-mix(in oklab, var(--color) 50%, var(--color-border))
+background: color-mix(in oklab, var(--color) 12%, var(--color-bg-subtle))
+hover:      color-mix(in oklab, var(--color) 20%, var(--color-bg-subtle))
+text:       text-foreground (inherits from theme)
+```
+
+### Why `color-mix` with theme tokens, not `transparent`
+
+Mixing into `transparent` produces washed-out tints on warm palettes
+(ember, dune) because the accent hue floats over nothing. Mixing into
+`--color-border` or `--color-bg-subtle` anchors the tint to the palette's
+warmth, so green reads as green even on a brown surface.
+
+### Example (inline style)
+
+```tsx
+<div
+  className="rounded-lg border"
+  style={{
+    borderColor: `color-mix(in oklab, var(--color-success) 40%, var(--color-border))`,
+    backgroundColor: `color-mix(in oklab, var(--color-success) 8%, var(--color-bg-subtle))`,
+    boxShadow: `0 0 20px color-mix(in oklab, var(--color-success) 12%, transparent)`,
+  }}
+>
+```
+
 ## Typography
 
 | Token | Size | Weight | Use |
@@ -102,7 +161,7 @@ No 20px. The gap keeps rhythm syncopated.
 | Hover/interactive rows | `rounded-lg` (8px) | Soft, approachable hover surface |
 | Toolbar surfaces | `rounded-lg` (8px) | Matches hover rows |
 | Inputs, buttons | `rounded-md` (6px) | Slightly tighter, functional |
-| Code blocks, diff cards | `rounded-[3px]` | Technical, sharp |
+| Code blocks, diff cards | `rounded-lg` (8px) | Consistent with other cards |
 | Avatars, pills | `rounded-full` | Circular |
 
 Surfaces get generous radius. Code gets sharp radius. The contrast

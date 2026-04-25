@@ -49,7 +49,7 @@ export function InlineComposer({
       <div className="max-w-2xl flex gap-2.5">
         <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="mt-1 shrink-0" />
         <div className="min-w-0 flex-1">
-          <span className="text-xs font-medium text-foreground">{login}</span>
+          <span className="text-caption font-medium text-foreground">{login}</span>
           <textarea
             ref={textareaRef}
             value={body}
@@ -59,10 +59,10 @@ export function InlineComposer({
             rows={3}
             disabled={isPending}
             autoFocus
-            className="diff-comment-input mt-1.5 w-full resize-none rounded-lg p-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-[var(--diff-comment-border)]/40"
+            className="diff-comment-input mt-1.5 w-full resize-none rounded-lg p-2.5 text-ui text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-[var(--diff-comment-border)]/40"
           />
           <div className="mt-1.5 flex items-center justify-between">
-            <span className="text-xs text-muted-foreground/50">
+            <span className="text-caption text-muted-foreground/50">
               ⌘↵ to submit
             </span>
             <div className="flex gap-1.5">

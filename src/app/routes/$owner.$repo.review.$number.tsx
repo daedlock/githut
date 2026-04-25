@@ -281,10 +281,10 @@ function PendingCard({ comment, onRemove }: { comment: PendingComment; onRemove:
     <div className="diff-line-comment py-3 pl-4 pr-4">
       <div className="max-w-2xl">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-medium text-primary">Pending</span>
-          <button type="button" onClick={onRemove} className="text-xs text-muted-foreground transition-colors hover:text-destructive">Remove</button>
+          <span className="text-caption font-medium text-primary">Pending</span>
+          <button type="button" onClick={onRemove} className="text-caption text-muted-foreground transition-colors hover:text-destructive">Remove</button>
         </div>
-        <p className="mt-1 text-sm text-foreground [overflow-wrap:anywhere]">{comment.body}</p>
+        <p className="mt-1 text-body text-foreground [overflow-wrap:anywhere]">{comment.body}</p>
       </div>
     </div>
   );
