@@ -57,7 +57,7 @@ export function PrSubTabs({ owner, repo, number, counts }: PrSubTabsProps) {
             <Button key={t.suffix} variant="ghost" asChild>
               <Link
                 to={t.to}
-                className={cn(isActive && "bg-muted text-foreground")}
+                className={cn(isActive && "bg-muted !text-foreground font-medium")}
                 aria-current={isActive ? "page" : undefined}
               >
                 <Icon className="size-4" />
