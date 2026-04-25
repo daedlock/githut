@@ -10,10 +10,10 @@ export type PrHeaderProps = {
   owner: string;
   repo: string;
   pr: PullRequest;
-  rightSlot?: React.ReactNode;
+  actionsSlot?: React.ReactNode;
 };
 
-export function PrHeader({ owner, repo, pr, rightSlot }: PrHeaderProps) {
+export function PrHeader({ owner, repo, pr, actionsSlot }: PrHeaderProps) {
   const state = toUiState(pr);
   const verb = state === "merged" ? "merged" : state === "closed" ? "closed" : "opened";
   const actionAt =
@@ -25,54 +25,42 @@ export function PrHeader({ owner, repo, pr, rightSlot }: PrHeaderProps) {
 
   return (
     <div>
-      {/* Line 1: Back + Actions */}
-      <div className="mb-2 flex items-center justify-between">
-        <Link
-          to="/$owner/$repo/pulls"
-          params={{ owner, repo }}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-sm px-1.5 py-1",
-            "text-caption text-muted-foreground outline-none transition-colors",
-            "hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15",
-          )}
-        >
-          <ArrowLeft className="size-3" strokeWidth={2.25} />
-          <span>Back</span>
-        </Link>
-        {rightSlot && <div className="flex-shrink-0">{rightSlot}</div>}
-      </div>
+      <Link
+        to="/$owner/$repo/pulls"
+        params={{ owner, repo }}
+        className={cn(
+          "mb-3 inline-flex items-center gap-1.5 rounded-sm px-1.5 py-1 -ml-1.5",
+          "text-xs text-muted-foreground outline-none transition-colors",
+          "hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15",
+        )}
+      >
+        <ArrowLeft className="size-3" strokeWidth={2.25} />
+        <span>All pull requests</span>
+      </Link>
 
-      {/* Line 2: Title + State */}
-      <h1 className="text-heading font-[550] leading-snug text-foreground">
-        {pr.title}
-        <span className="ml-2 font-mono text-title font-normal text-muted-foreground">
-          #{pr.number}
-        </span>
-        <PrStatePill state={state} className="ml-2 align-middle" />
-      </h1>
-
-      {/* Line 3: Meta */}
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-muted-foreground">
-        <span className="font-medium text-foreground">{pr.user?.login ?? "ghost"}</span>
-        <span className="text-[var(--color-fg-faint)]">·</span>
-        <span>{verb} {formatRelativeTime(actionAt)}</span>
-        <span className="text-[var(--color-fg-faint)]">·</span>
-        <span className="inline-flex items-center gap-1 font-mono">
-          <GitBranch className="size-3 text-[var(--color-fg-faint)]" />
-          <span>{pr.base.ref}</span>
-          <span className="text-[var(--color-fg-faint)]">←</span>
-          <span>{pr.head.ref}</span>
-        </span>
-        <span className="text-[var(--color-fg-faint)]">·</span>
-        <span className="tabular-nums">{pr.commits} commits</span>
-        <span className="text-[var(--color-fg-faint)]">·</span>
-        <span className="tabular-nums">{pr.changed_files} files</span>
-        <span className="text-[var(--color-fg-faint)]">·</span>
-        <span className="tabular-nums">
-          <span className="text-[var(--color-success)]">+{pr.additions}</span>
-          <span className="text-[var(--color-fg-faint)]"> </span>
-          <span className="text-[var(--color-danger)]">−{pr.deletions}</span>
-        </span>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-semibold leading-tight text-foreground">
+            {pr.title}
+          </h1>
+          <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+            <PrStatePill state={state} />
+            <span className="opacity-50">·</span>
+            <span className="font-mono">#{pr.number}</span>
+            <span className="opacity-50">·</span>
+            <span className="font-medium text-foreground">{pr.user?.login ?? "ghost"}</span>
+            <span>{verb}</span>
+            <span>{formatRelativeTime(actionAt)}</span>
+            <span className="opacity-50">·</span>
+            <span className="inline-flex items-center gap-1 font-mono">
+              <GitBranch className="size-3 opacity-50" />
+              <span>{pr.head.ref}</span>
+              <span className="opacity-50">→</span>
+              <span>{pr.base.ref}</span>
+            </span>
+          </div>
+        </div>
+        {actionsSlot && <div className="flex-shrink-0 pt-1">{actionsSlot}</div>}
       </div>
     </div>
   );

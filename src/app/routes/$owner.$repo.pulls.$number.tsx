@@ -57,20 +57,22 @@ function PrDetailLayout() {
         owner={owner}
         repo={repo}
         pr={pr}
-        rightSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
+        actionsSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
       />
-      <div className="pt-4"/>
-      <PrSubTabs
-        owner={owner}
-        repo={repo}
-        number={number}
-        counts={{
-          conversation: pr.comments + pr.review_comments,
-          commits: pr.commits,
-          files: pr.changed_files,
-        }}
-        deltas={{ additions: pr.additions, deletions: pr.deletions }}
-      />
+
+      <div className="mt-4 border-b border-border pb-3">
+        <PrSubTabs
+          owner={owner}
+          repo={repo}
+          number={number}
+          counts={{
+            conversation: pr.comments + pr.review_comments,
+            commits: pr.commits,
+            files: pr.changed_files,
+          }}
+          deltas={{ additions: pr.additions, deletions: pr.deletions }}
+        />
+      </div>
 
       {/* Two-column layout with sticky sidebar */}
       <div className="mt-6 flex gap-6 lg:gap-8">

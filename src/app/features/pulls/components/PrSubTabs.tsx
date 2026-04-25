@@ -3,13 +3,6 @@ import { CheckCircle2, Code2, GitCommit, MessageSquare } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { cn } from "@/app/lib/cn";
 
-type Tab = {
-  to: string;
-  label: string;
-  count?: number;
-  suffix: string;
-};
-
 export type PrSubTabsProps = {
   owner: string;
   repo: string;
@@ -27,23 +20,26 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const base = `/${owner}/${repo}/pulls/${number}`;
 
-  const tabs: Tab[] = [
+  const tabs = [
     {
       to: `${base}`,
       suffix: "",
       label: "Conversation",
+      icon: MessageSquare,
       count: counts.conversation,
     },
     {
       to: `${base}/commits`,
       suffix: "/commits",
       label: "Commits",
+      icon: GitCommit,
       count: counts.commits,
     },
     {
       to: `${base}/checks`,
       suffix: "/checks",
       label: "Checks",
+      icon: CheckCircle2,
       count: counts.checks,
     },
   ];
@@ -56,23 +52,18 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
           t.suffix === ""
             ? pathname === base || pathname === `${base}/`
             : pathname === target || pathname.startsWith(`${target}/`);
+        const Icon = t.icon;
         return (
-          <Button
-            key={t.suffix}
-            variant="ghost"
-            size="sm"
-            asChild
-          >
+          <Button key={t.suffix} variant="ghost" size="sm" asChild>
             <Link
               to={t.to}
               className={cn(isActive && "bg-muted text-foreground")}
               aria-current={isActive ? "page" : undefined}
             >
+              <Icon className="size-4" />
               <span>{t.label}</span>
               {typeof t.count === "number" && (
-                <span className="tabular-nums text-muted-foreground">
-                  {t.count}
-                </span>
+                <span className="tabular-nums text-muted-foreground">{t.count}</span>
               )}
             </Link>
           </Button>
@@ -81,7 +72,7 @@ export function PrSubTabs({ owner, repo, number, counts, deltas }: PrSubTabsProp
 
       <Button variant="default" size="sm" asChild className="ml-auto">
         <a href={`/${owner}/${repo}/review/${number}`}>
-          <Code2 className="size-4" aria-hidden />
+          <Code2 className="size-4" />
           <span>Review</span>
           {typeof counts.files === "number" && (
             <span className="tabular-nums opacity-80">{counts.files}</span>
