@@ -141,6 +141,19 @@ export const ReviewCommentSchema = z.object({
   original_commit_id: z.string().optional(),
   in_reply_to_id: z.number().optional(),
   diff_hunk: z.string(),
+  reactions: z
+    .object({
+      "+1": z.number().default(0),
+      "-1": z.number().default(0),
+      laugh: z.number().default(0),
+      hooray: z.number().default(0),
+      confused: z.number().default(0),
+      heart: z.number().default(0),
+      rocket: z.number().default(0),
+      eyes: z.number().default(0),
+    })
+    .optional()
+    .default({ "+1": 0, "-1": 0, laugh: 0, hooray: 0, confused: 0, heart: 0, rocket: 0, eyes: 0 }),
 });
 export type ReviewComment = z.infer<typeof ReviewCommentSchema>;
 

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { Send } from "lucide-react";
+import { useRef, useState } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
-import { ComposeBox } from "@/app/components/ui/ComposeBox";
 
 export type InlineComposerProps = {
   login: string;
@@ -18,8 +18,6 @@ export type InlineComposerProps = {
 export function InlineComposer({
   login,
   avatarUrl,
-  owner,
-  repo,
   onSubmit,
   onCancel,
   isPending,
@@ -27,36 +25,62 @@ export function InlineComposer({
   placeholder = "Leave a comment on this line…",
 }: InlineComposerProps) {
   const [body, setBody] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  function handleSubmit() {
+    const text = body.trim();
+    if (!text || isPending) return;
+    onSubmit(text);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleSubmit();
+    }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onCancel();
+    }
+  }
 
   return (
-    <div className="diff-line-comment">
-      <div className="sticky left-0 w-[min(640px,80vw)] py-3 pl-4 pr-4">
-        <div className="flex gap-2.5">
-          <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="mt-0.5 shrink-0" />
-          <div className="min-w-0 flex-1">
-            <span className="text-xs font-medium text-foreground">{login}</span>
-            <div className="mt-1.5">
-              <ComposeBox
-                owner={owner}
-                repo={repo}
-                value={body}
-                onChange={setBody}
-                placeholder={placeholder}
-                rows={3}
-                autoFocus
+    <div className="diff-line-comment py-3 pl-4 pr-4">
+      <div className="max-w-2xl flex gap-2.5">
+        <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="mt-1 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <span className="text-xs font-medium text-foreground">{login}</span>
+          <textarea
+            ref={textareaRef}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            rows={3}
+            disabled={isPending}
+            autoFocus
+            className="diff-comment-input mt-1.5 w-full resize-none rounded-lg p-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-[var(--diff-comment-border)]/40"
+          />
+          <div className="mt-1.5 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground/50">
+              ⌘↵ to submit
+            </span>
+            <div className="flex gap-1.5">
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={onCancel}
                 disabled={isPending}
-              />
-            </div>
-            <div className="mt-2 flex justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={onCancel} disabled={isPending}>
+              >
                 Cancel
               </Button>
               <Button
-                size="sm"
+                size="xs"
                 disabled={!body.trim() || isPending}
-                onClick={() => onSubmit(body.trim())}
+                onClick={handleSubmit}
               >
-                {isPending ? "Submitting…" : submitLabel}
+                <Send data-icon="inline-start" />
+                {isPending ? "Sending…" : submitLabel}
               </Button>
             </div>
           </div>

@@ -18,16 +18,18 @@ export function ReactionsBar({
   reactions,
   myReactions,
   onToggle,
+  className,
 }: {
   reactions: ReactionsMap;
   myReactions: MyReactionsMap;
   onToggle: (content: ReactionContent, existingReactionId?: number) => void;
+  className?: string;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const hasAny = reactionsHaveAny(reactions);
 
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-1 border-t border-border pt-2.5">
+    <div className={cn("mt-3 flex flex-wrap items-center gap-1 border-t border-border pt-2.5", className)}>
       {REACTION_CONTENTS.filter((k) => (reactions[k] ?? 0) > 0).map((k) => {
         const mineId = myReactions.get(k);
         const mine = mineId != null;

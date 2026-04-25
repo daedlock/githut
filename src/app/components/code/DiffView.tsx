@@ -1,4 +1,3 @@
-import { MessageSquarePlus } from "lucide-react";
 import { Fragment, memo, useMemo, type ReactNode } from "react";
 import { cn } from "@/app/lib/cn";
 import { Skeleton } from "@/app/components/ui/skeleton";
@@ -72,26 +71,16 @@ export const DiffView = memo(function DiffView({
         className={cn("overflow-x-auto text-code font-feature-settings-code @container/diff")}
         style={{ fontFamily: "var(--font-mono)" }}
       >
-        <div className={mode === "split" ? "w-full" : "w-max min-w-full"}>
-          {hunks.map((hunk, hIdx) => (
-            <Fragment key={hIdx}>
-              {/* Skip hunk header when there's only one hunk */}
-              {!singleHunk && (
-                <>
-                  {hIdx > 0 && <div className="h-px bg-border" />}
-                  <HunkHeader hunk={hunk} />
-                </>
-              )}
-              {mode === "unified" ? (
-                <UnifiedHunk
-                  hunk={hunk}
-                  oldTokens={oldTokens}
-                  newTokens={newTokens}
-                  oldLineMap={oldLineMap}
-                  newLineMap={newLineMap}
-                  review={review}
-                />
-              ) : (
+        {mode === "split" ? (
+          <div className="w-full">
+            {hunks.map((hunk, hIdx) => (
+              <Fragment key={hIdx}>
+                {!singleHunk && (
+                  <>
+                    {hIdx > 0 && <div className="h-px bg-border" />}
+                    <HunkHeader hunk={hunk} />
+                  </>
+                )}
                 <SplitHunk
                   hunk={hunk}
                   oldTokens={oldTokens}
@@ -100,10 +89,29 @@ export const DiffView = memo(function DiffView({
                   newLineMap={newLineMap}
                   review={review}
                 />
+              </Fragment>
+            ))}
+          </div>
+        ) : (
+          hunks.map((hunk, hIdx) => (
+            <Fragment key={hIdx}>
+              {!singleHunk && (
+                <div className="w-max min-w-full">
+                  {hIdx > 0 && <div className="h-px bg-border" />}
+                  <HunkHeader hunk={hunk} />
+                </div>
               )}
+              <UnifiedHunk
+                hunk={hunk}
+                oldTokens={oldTokens}
+                newTokens={newTokens}
+                oldLineMap={oldLineMap}
+                newLineMap={newLineMap}
+                review={review}
+              />
             </Fragment>
-          ))}
-        </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -167,53 +175,76 @@ const UnifiedHunk = memo(function UnifiedHunk({
     return map;
   }, [hunk, pairs]);
 
-  return (
-    <div>
-      {hunk.lines.map((line, idx) => {
-        const emphasis = wordDiffs.get(idx);
-        const segments =
-          line.kind === "del"
-            ? emphasis?.oldSegs
-            : line.kind === "add"
-              ? emphasis?.newSegs
-              : undefined;
-        const tokens =
-          line.kind === "del"
-            ? tokensForOld(line, oldTokens, oldLineMap)
-            : tokensForNew(line, newTokens, newLineMap);
-        // Un-paired add/del: don't show word emphasis (would be misleading)
-        const showEmphasis =
-          segments != null && (line.kind === "del" ? pairs.has(idx) : inversePairs.has(idx));
+  // Build per-line render data
+  const lineData = hunk.lines.map((line, idx) => {
+    const emphasis = wordDiffs.get(idx);
+    const segs =
+      line.kind === "del" ? emphasis?.oldSegs : line.kind === "add" ? emphasis?.newSegs : undefined;
+    const tokens =
+      line.kind === "del"
+        ? tokensForOld(line, oldTokens, oldLineMap)
+        : tokensForNew(line, newTokens, newLineMap);
+    const showEmphasis =
+      segs != null && (line.kind === "del" ? pairs.has(idx) : inversePairs.has(idx));
+    const side: "LEFT" | "RIGHT" = line.kind === "del" ? "LEFT" : "RIGHT";
+    const lineNum = side === "LEFT" ? line.oldNum : line.newNum;
+    const trailer =
+      lineNum != null && review?.renderLineTrailer
+        ? review.renderLineTrailer({ side, line: lineNum })
+        : null;
+    const hasComment = lineNum != null && (review?.hasComment?.({ side, line: lineNum }) ?? false);
+    return {
+      line,
+      idx,
+      tokens,
+      segs: showEmphasis ? segs : undefined,
+      side,
+      lineNum,
+      trailer,
+      hasComment,
+    };
+  });
 
-        // Which side + line the trailer / comment affordance anchors to.
-        // Deletions live on LEFT; additions and context on RIGHT (GitHub's
-        // convention for anchoring inline threads).
-        const side: "LEFT" | "RIGHT" = line.kind === "del" ? "LEFT" : "RIGHT";
-        const lineNum = side === "LEFT" ? line.oldNum : line.newNum;
-        const trailer =
-          lineNum != null && review?.renderLineTrailer
-            ? review.renderLineTrailer({ side, line: lineNum })
-            : null;
-        const hasComment = lineNum != null && (review?.hasComment?.({ side, line: lineNum }) ?? false);
-        return (
-          <Fragment key={idx}>
-            <DiffRow
-              kind={line.kind}
-              oldNum={line.oldNum}
-              newNum={line.newNum}
-              tokens={tokens}
-              rawText={line.content}
-              emphasis={showEmphasis ? segments : undefined}
-              onAddComment={review?.onAddComment}
-              commentSide={lineNum != null ? side : undefined}
-              commentLine={lineNum}
-              hasComment={hasComment}
-            />
-            {trailer}
-          </Fragment>
-        );
-      })}
-    </div>
+  // Segment: group consecutive code lines, break after any line with a trailer.
+  // Code lines go inside w-max (horizontal scroll). Trailers sit outside
+  // w-max so they take the scroll container's visible width — no overflow.
+  type Seg = { rows: typeof lineData; trailer: ReactNode };
+  const segments: Seg[] = [];
+  let buf: typeof lineData = [];
+  for (const item of lineData) {
+    buf.push(item);
+    if (item.trailer) {
+      segments.push({ rows: buf, trailer: item.trailer });
+      buf = [];
+    }
+  }
+  if (buf.length > 0) segments.push({ rows: buf, trailer: null });
+
+  return (
+    <>
+      {segments.map((seg, i) => (
+        <Fragment key={i}>
+          <div className="w-max min-w-full">
+            {seg.rows.map((r) => (
+              <DiffRow
+                key={r.idx}
+                kind={r.line.kind}
+                oldNum={r.line.oldNum}
+                newNum={r.line.newNum}
+                tokens={r.tokens}
+                rawText={r.line.content}
+                emphasis={r.segs}
+                onAddComment={review?.onAddComment}
+                commentSide={r.lineNum != null ? r.side : undefined}
+                commentLine={r.lineNum}
+                hasComment={r.hasComment}
+              />
+            ))}
+          </div>
+          {seg.trailer}
+        </Fragment>
+      ))}
+    </>
   );
 });
 
@@ -243,22 +274,28 @@ const DiffRow = memo(function DiffRow({
   const lineClass = kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
   const canComment = !!onAddComment && commentSide != null && commentLine != null;
   return (
-    <div className={cn("group flex w-full items-stretch", lineClass, hasComment && "diff-line-comment")}>
-      <div className="diff-gutter flex flex-shrink-0 select-none font-mono tabular-nums text-[var(--color-fg-faint)]">
+    <div
+      className={cn(
+        "group flex w-full items-stretch",
+        lineClass,
+        hasComment && "diff-line-comment",
+      )}
+    >
+      <div className="diff-gutter flex flex-shrink-0 items-center select-none font-mono tabular-nums text-[var(--color-fg-faint)]">
         <span className="w-10 px-1 text-right">{newNum ?? oldNum ?? ""}</span>
-      </div>
-      <span className="flex w-5 flex-shrink-0 items-center justify-center">
         {canComment ? (
           <button
             type="button"
             onClick={() => onAddComment!({ side: commentSide!, line: commentLine! })}
             aria-label="Add comment"
-            className="inline-flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 transition-all duration-100 outline-none group-hover:opacity-100 focus-visible:opacity-100 hover:scale-125"
+            className="flex size-[18px] items-center justify-center rounded-full bg-[var(--diff-comment-border)] text-[11px] font-semibold leading-none text-white opacity-0 transition-opacity duration-75 outline-none group-hover:opacity-100 focus-visible:opacity-100"
           >
-            <MessageSquarePlus className="size-2.5" aria-hidden />
+            +
           </button>
-        ) : null}
-      </span>
+        ) : (
+          <span className="w-[18px]" />
+        )}
+      </div>
       <span
         className={cn(
           "w-4 flex-shrink-0 select-none text-center",
@@ -359,64 +396,89 @@ const SplitHunk = memo(function SplitHunk({
     return out;
   }, [hunk]);
 
+  // Pre-compute per-row data + trailers
+  const rowData = rows.map((row) => {
+    const leftTokens = row.left ? tokensForOld(row.left.line, oldTokens, oldLineMap) : EMPTY_LINE;
+    const rightTokens = row.right ? tokensForNew(row.right.line, newTokens, newLineMap) : EMPTY_LINE;
+    const leftEmphasis = row.left && row.left.line.kind === "del" && pairs.has(row.left.idx)
+      ? wordDiffs.get(row.left.idx) : undefined;
+    const rightEmphasis = row.right && row.right.line.kind === "add" && inversePairs.has(row.right.idx)
+      ? wordDiffs.get(row.right.idx) : undefined;
+    const leftTrailer = row.left?.line.oldNum != null && review?.renderLineTrailer
+      ? review.renderLineTrailer({ side: "LEFT", line: row.left.line.oldNum }) : null;
+    const rightTrailer = row.right?.line.newNum != null && review?.renderLineTrailer
+      ? review.renderLineTrailer({ side: "RIGHT", line: row.right.line.newNum }) : null;
+    return { ...row, leftTokens, rightTokens, leftEmphasis, rightEmphasis, leftTrailer, rightTrailer };
+  });
+
+  // Segment: group rows, break after any row with a trailer.
+  // Each code segment = two-column grid with flush lines.
+  // Trailers sit between segments in their own grid — both sides get equal height.
+  type Seg = { rows: typeof rowData; leftTrailer: ReactNode; rightTrailer: ReactNode };
+  const segments: Seg[] = [];
+  let buf: typeof rowData = [];
+  for (const rd of rowData) {
+    buf.push(rd);
+    if (rd.leftTrailer || rd.rightTrailer) {
+      segments.push({ rows: buf, leftTrailer: rd.leftTrailer, rightTrailer: rd.rightTrailer });
+      buf = [];
+    }
+  }
+  if (buf.length > 0) segments.push({ rows: buf, leftTrailer: null, rightTrailer: null });
+
   return (
-    // `min-w-0` on grid children is the key: it lets each column shrink to its
-    // share (50%) so overflow-x-auto can actually compute a scrollable overflow
-    // instead of the column growing to fit content and pushing the grid wider.
-    <div className="grid grid-cols-2 divide-x divide-border">
-      <div className="min-w-0 overflow-x-auto">
-        {/* Same w-max/min-w-full pattern as unified mode — all rows in this
-            column share the widest-row width so bg tints don't stop mid-row
-            when the column is scrolled. */}
-        <div className="w-max min-w-full">
-          {rows.map((row, rIdx) => {
-            if (!row.left) return <NopArea key={`l-${rIdx}`} />;
-            const { idx, line } = row.left;
-            const tokens = tokensForOld(line, oldTokens, oldLineMap);
-            const emphasis = line.kind === "del" && pairs.has(idx) ? wordDiffs.get(idx) : undefined;
-            return (
-              <SplitRow
-                key={`l-${rIdx}`}
-                side="old"
-                kind={line.kind}
-                num={line.oldNum}
-                tokens={tokens}
-                rawText={line.content}
-                emphasis={emphasis}
-                onAddComment={review?.onAddComment}
-                renderLineTrailer={review?.renderLineTrailer}
-                hasComment={line.oldNum != null && (review?.hasComment?.({ side: "LEFT", line: line.oldNum }) ?? false)}
-              />
-            );
-          })}
-        </div>
-      </div>
-      <div className="min-w-0 overflow-x-auto">
-        <div className="w-max min-w-full">
-          {rows.map((row, rIdx) => {
-            if (!row.right) return <NopArea key={`r-${rIdx}`} />;
-            const { idx, line } = row.right;
-            const tokens = tokensForNew(line, newTokens, newLineMap);
-            const emphasis =
-              line.kind === "add" && inversePairs.has(idx) ? wordDiffs.get(idx) : undefined;
-            return (
-              <SplitRow
-                key={`r-${rIdx}`}
-                side="new"
-                kind={line.kind}
-                num={line.newNum}
-                tokens={tokens}
-                rawText={line.content}
-                emphasis={emphasis}
-                onAddComment={review?.onAddComment}
-                renderLineTrailer={review?.renderLineTrailer}
-                hasComment={line.newNum != null && (review?.hasComment?.({ side: "RIGHT", line: line.newNum }) ?? false)}
-              />
-            );
-          })}
-        </div>
-      </div>
-    </div>
+    <>
+      {segments.map((seg, sIdx) => (
+        <Fragment key={sIdx}>
+          <div className="grid grid-cols-2">
+            <div className="min-w-0 overflow-hidden">
+              {seg.rows.map((r, rIdx) =>
+                r.left ? (
+                  <SplitRow
+                    key={rIdx}
+                    side="old"
+                    kind={r.left.line.kind}
+                    num={r.left.line.oldNum}
+                    tokens={r.leftTokens}
+                    rawText={r.left.line.content}
+                    emphasis={r.leftEmphasis}
+                    onAddComment={review?.onAddComment}
+                    hasComment={r.left.line.oldNum != null && (review?.hasComment?.({ side: "LEFT", line: r.left.line.oldNum }) ?? false)}
+                  />
+                ) : (
+                  <NopArea key={rIdx} />
+                ),
+              )}
+            </div>
+            <div className="min-w-0 overflow-hidden border-l border-border">
+              {seg.rows.map((r, rIdx) =>
+                r.right ? (
+                  <SplitRow
+                    key={rIdx}
+                    side="new"
+                    kind={r.right.line.kind}
+                    num={r.right.line.newNum}
+                    tokens={r.rightTokens}
+                    rawText={r.right.line.content}
+                    emphasis={r.rightEmphasis}
+                    onAddComment={review?.onAddComment}
+                    hasComment={r.right.line.newNum != null && (review?.hasComment?.({ side: "RIGHT", line: r.right.line.newNum }) ?? false)}
+                  />
+                ) : (
+                  <NopArea key={rIdx} />
+                ),
+              )}
+            </div>
+          </div>
+          {(seg.leftTrailer || seg.rightTrailer) && (
+            <div className="grid grid-cols-2">
+              <div className="min-w-0">{seg.leftTrailer ?? <div className="diff-split-spacer" />}</div>
+              <div className="min-w-0 border-l border-border">{seg.rightTrailer ?? <div className="diff-split-spacer" />}</div>
+            </div>
+          )}
+        </Fragment>
+      ))}
+    </>
   );
 });
 
@@ -428,7 +490,6 @@ const SplitRow = memo(function SplitRow({
   rawText,
   emphasis,
   onAddComment,
-  renderLineTrailer,
   hasComment,
 }: {
   side: "old" | "new";
@@ -438,49 +499,48 @@ const SplitRow = memo(function SplitRow({
   rawText: string;
   emphasis?: WordSegment[];
   onAddComment?: DiffReviewHooks["onAddComment"];
-  renderLineTrailer?: DiffReviewHooks["renderLineTrailer"];
   hasComment?: boolean;
 }) {
   const lineClass = kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
   const commentSide: "LEFT" | "RIGHT" = splitSide === "old" ? "LEFT" : "RIGHT";
   const canComment = !!onAddComment && num != null;
-  const trailer = num != null && renderLineTrailer
-    ? renderLineTrailer({ side: commentSide, line: num })
-    : null;
   return (
-    <>
-      <div className={cn("group flex w-full items-stretch", lineClass, hasComment && "diff-line-comment")}>
-        <span className="diff-gutter w-10 flex-shrink-0 select-none px-1 text-right font-mono tabular-nums text-[var(--color-fg-faint)]">
-          {num ?? ""}
-        </span>
-        <span className="flex w-5 flex-shrink-0 items-center justify-center">
-          {canComment ? (
-            <button
-              type="button"
-              onClick={() => onAddComment!({ side: commentSide, line: num! })}
-              aria-label="Add comment"
-              className="inline-flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 transition-all duration-100 outline-none group-hover:opacity-100 focus-visible:opacity-100 hover:scale-125"
-            >
-              <MessageSquarePlus className="size-2.5" aria-hidden />
-            </button>
-          ) : null}
-        </span>
-        <span
-          className={cn(
-            "w-4 flex-shrink-0 select-none text-center",
-            kind === "add" && "text-[var(--diff-add-marker)]",
-            kind === "del" && "text-[var(--diff-del-marker)]",
-            kind === "context" && "text-[var(--color-fg-faint)] opacity-60",
-          )}
-        >
-          {kind === "add" ? "+" : kind === "del" ? "−" : " "}
-        </span>
-        <span className="whitespace-pre pr-3">
-          <RenderedLine tokens={tokens} rawText={rawText} emphasis={emphasis} />
-        </span>
-      </div>
-      {trailer}
-    </>
+    <div
+      className={cn(
+        "group flex w-full items-stretch",
+        lineClass,
+        hasComment && "diff-line-comment",
+      )}
+    >
+      <span className="diff-gutter flex flex-shrink-0 items-center select-none font-mono tabular-nums text-[var(--color-fg-faint)]">
+        <span className="w-10 px-1 text-right">{num ?? ""}</span>
+        {canComment ? (
+          <button
+            type="button"
+            onClick={() => onAddComment!({ side: commentSide, line: num! })}
+            aria-label="Add comment"
+            className="flex size-[18px] items-center justify-center rounded-full bg-[var(--diff-comment-border)] text-[11px] font-semibold leading-none text-white opacity-0 transition-opacity duration-75 outline-none group-hover:opacity-100 focus-visible:opacity-100"
+          >
+            +
+          </button>
+        ) : (
+          <span className="w-[18px]" />
+        )}
+      </span>
+      <span
+        className={cn(
+          "w-4 flex-shrink-0 select-none text-center",
+          kind === "add" && "text-[var(--diff-add-marker)]",
+          kind === "del" && "text-[var(--diff-del-marker)]",
+          kind === "context" && "text-[var(--color-fg-faint)] opacity-60",
+        )}
+      >
+        {kind === "add" ? "+" : kind === "del" ? "−" : " "}
+      </span>
+      <span className="whitespace-pre pr-3">
+        <RenderedLine tokens={tokens} rawText={rawText} emphasis={emphasis} />
+      </span>
+    </div>
   );
 });
 
@@ -494,8 +554,7 @@ function NopArea() {
         backgroundPosition: "0 var(--nop-offset, 0px)",
         backgroundColor: "color-mix(in oklab, var(--color-fg) 4%, var(--color-bg))",
       }}
-    >
-    </div>
+    ></div>
   );
 }
 
@@ -541,6 +600,7 @@ function TokenSpan({ token, emphasis }: { token: CodeToken; emphasis?: boolean }
   );
 }
 
+const EMPTY_LINE: CodeLineWithHtml = { tokens: [], html: "" };
 const EMPTY_STYLE: React.CSSProperties = {};
 const FONT_STYLE_CACHE = new Map<number, React.CSSProperties>();
 
@@ -667,14 +727,22 @@ export function buildSources(hunks: DiffHunk[]) {
   };
 }
 
-function tokensForOld(line: DiffLine, oldTokens: CodeLineWithHtml[], map: Map<number, number>): CodeLineWithHtml {
+function tokensForOld(
+  line: DiffLine,
+  oldTokens: CodeLineWithHtml[],
+  map: Map<number, number>,
+): CodeLineWithHtml {
   if (line.oldNum == null) return plainTokens(line.content);
   const idx = map.get(line.oldNum);
   if (idx == null) return plainTokens(line.content);
   return oldTokens[idx] ?? plainTokens(line.content);
 }
 
-function tokensForNew(line: DiffLine, newTokens: CodeLineWithHtml[], map: Map<number, number>): CodeLineWithHtml {
+function tokensForNew(
+  line: DiffLine,
+  newTokens: CodeLineWithHtml[],
+  map: Map<number, number>,
+): CodeLineWithHtml {
   if (line.newNum == null) return plainTokens(line.content);
   const idx = map.get(line.newNum);
   if (idx == null) return plainTokens(line.content);
@@ -682,7 +750,13 @@ function tokensForNew(line: DiffLine, newTokens: CodeLineWithHtml[], map: Map<nu
 }
 
 function plainTokens(content: string): CodeLineWithHtml {
-  return { tokens: [{ content }], html: content.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] ?? c)) };
+  return {
+    tokens: [{ content }],
+    html: content.replace(
+      /[&<>"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c,
+    ),
+  };
 }
 
 // ── Skeleton ────────────────────────────────────────────────────────────────

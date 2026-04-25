@@ -897,3 +897,94 @@ export function useReplyToReviewComment(
   });
 }
 
+// ─── Review comment reactions ─────────────────────────────────────────────
+
+import type { ReactionContent, MyReactionsMap } from "@/app/features/issues/schemas";
+import { ReactionListSchema } from "@/app/features/issues/schemas";
+
+export function useMyReviewCommentReactions(
+  owner: string,
+  repo: string,
+  commentId: number,
+  meId: number | undefined,
+) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    queryKey: [...pullsKeys.all, "review-comment-reactions", owner, repo, commentId, meId ?? 0] as const,
+    staleTime: 60_000,
+    enabled: !!token && !!owner && !!repo && !!meId && commentId > 0,
+    queryFn: async (): Promise<MyReactionsMap> => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "GET /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions",
+        { owner, repo, comment_id: commentId, per_page: 100 },
+      );
+      const list = ReactionListSchema.parse(res.data);
+      const map: MyReactionsMap = new Map();
+      for (const r of list) {
+        if (r.user?.id === meId) map.set(r.content, r.id);
+      }
+      return map;
+    },
+  });
+}
+
+export function useToggleReviewCommentReaction(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  meId: number | undefined,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      commentId,
+      content,
+      existingReactionId,
+    }: {
+      commentId: number;
+      content: ReactionContent;
+      existingReactionId?: number;
+    }) => {
+      const client = getGitHubClient();
+      if (existingReactionId && existingReactionId > 0) {
+        await client.request(
+          "DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions/{reaction_id}",
+          { owner, repo, comment_id: commentId, reaction_id: existingReactionId },
+        );
+        return { newReactionId: null as number | null, content, commentId };
+      }
+      const res = await client.request(
+        "POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions",
+        { owner, repo, comment_id: commentId, content },
+      );
+      return { newReactionId: (res.data as { id: number }).id, content, commentId };
+    },
+    onMutate: async ({ commentId, content, existingReactionId }) => {
+      const key = pullsKeys.reviewComments(owner, repo, prNumber);
+      await queryClient.cancelQueries({ queryKey: key });
+      const prev = queryClient.getQueryData<ReviewComment[]>(key);
+      if (prev) {
+        queryClient.setQueryData<ReviewComment[]>(key, prev.map((c) => {
+          if (c.id !== commentId) return c;
+          const delta = existingReactionId ? -1 : 1;
+          return { ...c, reactions: { ...c.reactions, [content]: Math.max(0, (c.reactions[content] ?? 0) + delta) } };
+        }));
+      }
+      return { prev, key };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSuccess: ({ newReactionId, content, commentId }) => {
+      const myKey = [...pullsKeys.all, "review-comment-reactions", owner, repo, commentId, meId ?? 0];
+      queryClient.setQueryData<MyReactionsMap>(myKey, (old) => {
+        const next = new Map(old ?? []);
+        if (newReactionId != null) next.set(content, newReactionId);
+        else next.delete(content);
+        return next;
+      });
+    },
+  });
+}
+
