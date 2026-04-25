@@ -68,7 +68,7 @@ export function CommitRow({ commit, owner, repo }: CommitRowProps) {
               alt=""
               loading="lazy"
               decoding="async"
-              className="size-4 shrink-0 rounded-full"
+              className="size-5 shrink-0 rounded-full"
             />
           ) : (
             <GitCommit className="size-3 shrink-0 text-[var(--color-fg-faint)]" />
