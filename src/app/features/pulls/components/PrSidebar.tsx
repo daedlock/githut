@@ -88,7 +88,7 @@ export function PrSidebar({
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <Card variant="muted" className="p-3">
         <SectionHeader
           icon={<UserCheck className="size-3" />}
