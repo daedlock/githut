@@ -1,11 +1,14 @@
+import { Reply } from "lucide-react";
 import { useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
+import { Avatar } from "@/app/components/ui/avatar";
+import { Button } from "@/app/components/ui/button";
 import {
-  CommentCardDisplay,
   CommentCardReply,
 } from "@/app/components/ui/CommentCard";
 import { useReplyToReviewComment } from "@/app/features/pulls/hooks";
 import type { ReviewComment } from "@/app/features/pulls/schemas";
+import { formatRelativeTime } from "@/app/lib/time";
 
 export type InlineThreadProps = {
   owner: string;
@@ -35,55 +38,60 @@ export function InlineThread({
     );
   }
 
-  return (
-    <div className="sticky left-0 mx-4 my-2 max-w-[calc(100cqi-3rem)] overflow-hidden rounded-lg bg-muted">
-      <div className="flex flex-col gap-3 p-3">
-        <CommentCardDisplay
-          login={root.user?.login ?? "ghost"}
-          avatarUrl={root.user?.avatar_url}
-          date={root.created_at}
-          inline
-        >
-          <div className="readme-prose max-w-none text-sm">
-            <GithubMarkdown>{root.body}</GithubMarkdown>
-          </div>
-        </CommentCardDisplay>
-        {replies.map((r) => (
-          <CommentCardDisplay
-            key={r.id}
-            login={r.user?.login ?? "ghost"}
-            avatarUrl={r.user?.avatar_url}
-            date={r.created_at}
-            inline
-          >
-            <div className="readme-prose max-w-none text-sm">
-              <GithubMarkdown>{r.body}</GithubMarkdown>
-            </div>
-          </CommentCardDisplay>
-        ))}
-      </div>
+  const allComments = [root, ...replies];
 
-      {replyOpen ? (
-        <div className="bg-background/50 p-3">
-          <CommentCardReply
-            login={root.user?.login ?? "ghost"}
-            avatarUrl={root.user?.avatar_url}
-            value={body}
-            onChange={setBody}
-            onSubmit={handleReply}
-            onCancel={() => { setReplyOpen(false); setBody(""); }}
-            isPending={reply.isPending}
-          />
+  return (
+    <div className="diff-line-comment">
+      <div className="sticky left-0 w-[min(640px,80vw)] py-3 pl-4 pr-4">
+        <div className="flex flex-col gap-2.5">
+          {allComments.map((c) => (
+            <div key={c.id} className="flex gap-2.5">
+              <Avatar
+                login={c.user?.login ?? "ghost"}
+                avatarUrl={c.user?.avatar_url}
+                size="sm"
+                className="mt-0.5 shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="font-medium text-foreground">{c.user?.login ?? "ghost"}</span>
+                  <span className="text-muted-foreground">{formatRelativeTime(c.created_at)}</span>
+                </div>
+                <div className="mt-0.5 text-sm text-foreground [overflow-wrap:anywhere]">
+                  <div className="readme-prose max-w-none">
+                    <GithubMarkdown>{c.body}</GithubMarkdown>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setReplyOpen(true)}
-          className="block w-full px-3 py-2 text-xs text-muted-foreground outline-none transition-colors hover:bg-background/50 hover:text-foreground"
-        >
-          Reply…
-        </button>
-      )}
+
+        {replyOpen ? (
+          <div className="mt-2.5">
+            <CommentCardReply
+              login={root.user?.login ?? "ghost"}
+              avatarUrl={root.user?.avatar_url}
+              value={body}
+              onChange={setBody}
+              onSubmit={handleReply}
+              onCancel={() => { setReplyOpen(false); setBody(""); }}
+              isPending={reply.isPending}
+            />
+          </div>
+        ) : (
+          <div className="mt-2">
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => setReplyOpen(true)}
+            >
+              <Reply data-icon="inline-start" />
+              Reply
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

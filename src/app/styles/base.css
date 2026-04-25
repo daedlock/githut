@@ -96,6 +96,27 @@ html.dark .shiki span {
 .diff-line-del .diff-gutter {
   background: var(--diff-del-gutter);
 }
+.diff-line-comment {
+  border-left: 3px solid var(--diff-comment-border);
+  background: var(--diff-comment-bg);
+}
+.diff-line-add.diff-line-comment {
+  border-left-color: var(--diff-add-marker);
+  background: var(--diff-add-bg);
+}
+.diff-line-del.diff-line-comment {
+  border-left-color: var(--diff-del-marker);
+  background: var(--diff-del-bg);
+}
+.diff-line-comment .readme-prose code {
+  background: var(--color-bg-sunken);
+}
+.diff-line-comment .readme-prose {
+  font-family: var(--font-sans);
+}
+.diff-line-comment .readme-prose pre {
+  font-family: var(--font-mono);
+}
 
 /*
  * Word-level emphasis — the exact characters that differ within a changed line.

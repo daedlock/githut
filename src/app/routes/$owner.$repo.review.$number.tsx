@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import {
   buildSources,
@@ -94,7 +94,10 @@ function ReviewPage() {
     }
   }, [filesQuery.data, qc]);
 
-  // Review hooks (same stable-ref pattern as PrFilesPage)
+  const reviewCommentsQuery = usePrReviewComments(owner, repo, number);
+  const reviewCommentsRef = useRef(reviewCommentsQuery.data);
+  reviewCommentsRef.current = reviewCommentsQuery.data;
+
   const prKey = `${owner}/${repo}/${number}`;
 
   const hooksCache = useRef(new Map<string, DiffReviewHooks>());
@@ -108,6 +111,18 @@ function ReviewPage() {
           onAddComment: (args) => {
             if (!reviewMode) store.startReview(owner, repo, number);
             store.openComposer(owner, repo, number, { path: filename, ...args });
+          },
+          hasComment: (args: { side: "LEFT" | "RIGHT"; line: number }) => {
+            const comments = reviewCommentsRef.current;
+            if (comments?.some((c: ReviewComment) => {
+              const cSide = c.side ?? "RIGHT";
+              const cLine = c.line ?? c.original_line ?? 0;
+              return c.path === filename && cSide === args.side && cLine === args.line && !c.in_reply_to_id;
+            })) return true;
+            const pendingList = store.pendingByPr[prKey];
+            return !!pendingList && pendingList.some(
+              (c: { path: string; side: string; line: number }) => c.path === filename && c.side === args.side && c.line === args.line,
+            );
           },
           renderLineTrailer: (args) => (
             <LineSlot owner={owner} repo={repo} number={number} path={filename} side={args.side} line={args.line} meLogin={meQuery.data?.login} meAvatarUrl={meQuery.data?.avatar_url} />
@@ -148,13 +163,20 @@ function ReviewPage() {
               <ReviewBarLeft owner={owner} repo={repo} number={number} pr={pr} uiState={uiState} />
             }
             reviewActions={
-              <ReviewBarRight
-                canReview={canReview}
-                reviewMode={reviewMode}
-                pendingCount={pending.length}
-                onCancel={() => store.cancelReview(owner, repo, number)}
-                onSubmit={() => setReviewDialogOpen(true)}
-              />
+              <div className="flex items-center gap-3 shrink-0">
+                <CommentNav
+                  commentCount={
+                    (reviewCommentsQuery.data?.filter(c => !c.in_reply_to_id).length ?? 0) + pending.length
+                  }
+                />
+                <ReviewBarRight
+                  canReview={canReview}
+                  reviewMode={reviewMode}
+                  pendingCount={pending.length}
+                  onCancel={() => store.cancelReview(owner, repo, number)}
+                  onSubmit={() => setReviewDialogOpen(true)}
+                />
+              </div>
             }
           />
         )}
@@ -243,6 +265,8 @@ const LineSlotContent = memo(function LineSlotContent({
         <InlineComposer
           login={meLogin ?? "ghost"}
           avatarUrl={meAvatarUrl}
+          owner={owner}
+          repo={repo}
           onSubmit={(body: string) => { store.addPending(owner, repo, number, { path, side, line, body }); store.closeComposer(owner, repo, number); }}
           onCancel={() => store.closeComposer(owner, repo, number)}
           submitLabel="Add review comment"
@@ -254,13 +278,13 @@ const LineSlotContent = memo(function LineSlotContent({
 
 function PendingCard({ comment, onRemove }: { comment: PendingComment; onRemove: () => void }) {
   return (
-    <div className="sticky left-0 mx-4 my-2 max-w-[calc(100cqi-3rem)] overflow-hidden rounded-lg bg-muted px-3 py-2">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
+    <div className="diff-line-comment">
+      <div className="sticky left-0 w-[min(640px,80vw)] py-3 pl-4 pr-4">
+        <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium text-primary">Pending</span>
-          <p className="mt-0.5 font-mono text-xs text-foreground whitespace-pre-wrap">{comment.body}</p>
+          <button type="button" onClick={onRemove} className="text-xs text-muted-foreground transition-colors hover:text-destructive">Remove</button>
         </div>
-        <button type="button" onClick={onRemove} className="shrink-0 text-xs text-muted-foreground hover:text-destructive">Remove</button>
+        <p className="mt-1 text-sm text-foreground [overflow-wrap:anywhere]">{comment.body}</p>
       </div>
     </div>
   );
@@ -323,6 +347,50 @@ function normalizeStatus(status: PrFile["status"]): FileStatus {
 
 import type { PullRequest } from "@/app/features/pulls/schemas";
 import type { PrUiState } from "@/app/features/pulls/lib/prStatus";
+
+function CommentNav({ commentCount }: { commentCount: number }) {
+  const [currentIdx, setCurrentIdx] = useState(-1);
+
+  const getElements = () =>
+    Array.from(document.querySelectorAll<HTMLElement>(".diff-line-comment"));
+
+  function go(direction: 1 | -1) {
+    const els = getElements();
+    if (els.length === 0) return;
+    const next = direction === 1
+      ? (currentIdx + 1) % els.length
+      : (currentIdx - 1 + els.length) % els.length;
+    els[next]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setCurrentIdx(next);
+  }
+
+  if (commentCount === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1">
+      <MessageSquare className="size-3.5 text-muted-foreground" />
+      <span className="text-xs tabular-nums text-muted-foreground">
+        {currentIdx >= 0 ? `${currentIdx + 1}/` : ""}{commentCount}
+      </span>
+      <button
+        type="button"
+        onClick={() => go(-1)}
+        className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15"
+        aria-label="Previous comment"
+      >
+        <ChevronUp className="size-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => go(1)}
+        className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15"
+        aria-label="Next comment"
+      >
+        <ChevronDown className="size-3.5" />
+      </button>
+    </div>
+  );
+}
 
 function ReviewBarLeft({
   owner, repo, number, pr, uiState,

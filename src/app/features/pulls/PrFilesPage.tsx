@@ -126,6 +126,14 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
               ...args,
             });
           },
+          hasComment: (args) => {
+            const key = `${filename}:${args.side}:${args.line}`;
+            if (threadKeysRef.current.has(key)) return true;
+            const pendingList = pendingRef.current[prKey];
+            return !!pendingList && pendingList.some(
+              (c) => c.path === filename && c.side === args.side && c.line === args.line,
+            );
+          },
           renderLineTrailer: (args) => {
             const key = `${filename}:${args.side}:${args.line}`;
             // Fast path: skip mounting a component for lines with no content.
@@ -361,6 +369,8 @@ const LineSlotContent = memo(function LineSlotContent({
         <InlineComposer
           login={meLogin ?? "ghost"}
           avatarUrl={meAvatarUrl}
+          owner={owner}
+          repo={repo}
           onSubmit={(body) => {
             store.addPending(owner, repo, number, { path, side, line, body });
             store.closeComposer(owner, repo, number);
@@ -381,21 +391,19 @@ function PendingCard({
   onRemove: () => void;
 }) {
   return (
-    <div className="sticky left-0 mx-4 my-2 max-w-[calc(100cqi-3rem)] overflow-hidden rounded-lg bg-muted px-3 py-2">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <span className="text-xs font-medium text-primary">Pending review comment</span>
-          <p className="mt-0.5 font-mono text-xs text-foreground whitespace-pre-wrap">
-            {comment.body}
-          </p>
+    <div className="diff-line-comment">
+      <div className="sticky left-0 w-[min(640px,80vw)] py-3 pl-4 pr-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-medium text-primary">Pending</span>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-xs text-muted-foreground transition-colors hover:text-destructive"
+          >
+            Remove
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="shrink-0 text-xs text-muted-foreground hover:text-destructive"
-        >
-          Remove
-        </button>
+        <p className="mt-1 text-sm text-foreground [overflow-wrap:anywhere]">{comment.body}</p>
       </div>
     </div>
   );

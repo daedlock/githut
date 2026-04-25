@@ -9,7 +9,7 @@ const buttonVariants = cva(
     "group/button inline-flex shrink-0 items-center justify-center",
     "rounded-lg border border-transparent bg-clip-padding",
     "font-medium whitespace-nowrap select-none",
-    "outline-none transition-colors",
+    "cursor-pointer outline-none transition-colors",
     "focus-visible:ring-2 focus-visible:ring-ring/40",
     "active:not-aria-[haspopup]:translate-y-px",
     "disabled:pointer-events-none disabled:opacity-50",

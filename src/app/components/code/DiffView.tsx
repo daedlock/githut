@@ -12,19 +12,10 @@ import { computeLinePairs, wordDiff, type WordSegment } from "./wordDiff";
 
 export type DiffMode = "unified" | "split";
 
-/**
- * Optional review affordances. When provided, each unified-mode row shows a
- * hover "+" button that fires `onAddComment`; `renderLineTrailer` is called
- * once per rendered row and its return value is mounted directly below —
- * used to inline existing review threads and the active composer.
- * Split mode intentionally opts out; matches GitHub's own behavior.
- */
 export type DiffReviewHooks = {
   onAddComment?: (args: { side: "LEFT" | "RIGHT"; line: number }) => void;
-  renderLineTrailer?: (args: {
-    side: "LEFT" | "RIGHT";
-    line: number;
-  }) => ReactNode;
+  renderLineTrailer?: (args: { side: "LEFT" | "RIGHT"; line: number }) => ReactNode;
+  hasComment?: (args: { side: "LEFT" | "RIGHT"; line: number }) => boolean;
 };
 
 export type DiffViewProps = {
@@ -203,6 +194,7 @@ const UnifiedHunk = memo(function UnifiedHunk({
           lineNum != null && review?.renderLineTrailer
             ? review.renderLineTrailer({ side, line: lineNum })
             : null;
+        const hasComment = lineNum != null && (review?.hasComment?.({ side, line: lineNum }) ?? false);
         return (
           <Fragment key={idx}>
             <DiffRow
@@ -215,6 +207,7 @@ const UnifiedHunk = memo(function UnifiedHunk({
               onAddComment={review?.onAddComment}
               commentSide={lineNum != null ? side : undefined}
               commentLine={lineNum}
+              hasComment={hasComment}
             />
             {trailer}
           </Fragment>
@@ -234,6 +227,7 @@ const DiffRow = memo(function DiffRow({
   onAddComment,
   commentSide,
   commentLine,
+  hasComment,
 }: {
   kind: DiffLine["kind"];
   oldNum?: number;
@@ -244,27 +238,22 @@ const DiffRow = memo(function DiffRow({
   onAddComment?: DiffReviewHooks["onAddComment"];
   commentSide?: "LEFT" | "RIGHT";
   commentLine?: number;
+  hasComment?: boolean;
 }) {
   const lineClass = kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
   const canComment = !!onAddComment && commentSide != null && commentLine != null;
   return (
-    <div className={cn("group flex w-full items-stretch", lineClass)}>
+    <div className={cn("group flex w-full items-stretch", lineClass, hasComment && "diff-line-comment")}>
       <div className="diff-gutter flex flex-shrink-0 select-none font-mono tabular-nums text-[var(--color-fg-faint)]">
         <span className="w-10 px-1 text-right">{newNum ?? oldNum ?? ""}</span>
       </div>
-      {/* Comment button — inline between line number and +/- marker */}
-      <span className="flex w-4 flex-shrink-0 items-center justify-center">
+      <span className="flex w-5 flex-shrink-0 items-center justify-center">
         {canComment ? (
           <button
             type="button"
             onClick={() => onAddComment!({ side: commentSide!, line: commentLine! })}
             aria-label="Add comment"
-            className={cn(
-              "inline-flex size-3.5 items-center justify-center rounded-full",
-              "bg-primary text-primary-foreground",
-              "opacity-0 transition-opacity outline-none",
-              "group-hover:opacity-100 focus-visible:opacity-100",
-            )}
+            className="inline-flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 transition-all duration-100 outline-none group-hover:opacity-100 focus-visible:opacity-100 hover:scale-125"
           >
             <MessageSquarePlus className="size-2.5" aria-hidden />
           </button>
@@ -280,11 +269,6 @@ const DiffRow = memo(function DiffRow({
       >
         {kind === "add" ? "+" : kind === "del" ? "−" : " "}
       </span>
-      {/*
-       * Long lines: parent column is `overflow-x-auto`, so content here is
-       * just `whitespace-pre` with no per-line overflow. One horizontal
-       * scrollbar at the bottom of the whole file, not one per line.
-       */}
       <span className="whitespace-pre pr-3">
         <RenderedLine tokens={tokens} rawText={rawText} emphasis={emphasis} />
       </span>
@@ -400,6 +384,8 @@ const SplitHunk = memo(function SplitHunk({
                 rawText={line.content}
                 emphasis={emphasis}
                 onAddComment={review?.onAddComment}
+                renderLineTrailer={review?.renderLineTrailer}
+                hasComment={line.oldNum != null && (review?.hasComment?.({ side: "LEFT", line: line.oldNum }) ?? false)}
               />
             );
           })}
@@ -420,9 +406,11 @@ const SplitHunk = memo(function SplitHunk({
                 kind={line.kind}
                 num={line.newNum}
                 tokens={tokens}
-                onAddComment={review?.onAddComment}
                 rawText={line.content}
                 emphasis={emphasis}
+                onAddComment={review?.onAddComment}
+                renderLineTrailer={review?.renderLineTrailer}
+                hasComment={line.newNum != null && (review?.hasComment?.({ side: "RIGHT", line: line.newNum }) ?? false)}
               />
             );
           })}
@@ -440,6 +428,8 @@ const SplitRow = memo(function SplitRow({
   rawText,
   emphasis,
   onAddComment,
+  renderLineTrailer,
+  hasComment,
 }: {
   side: "old" | "new";
   kind: DiffLine["kind"];
@@ -448,44 +438,49 @@ const SplitRow = memo(function SplitRow({
   rawText: string;
   emphasis?: WordSegment[];
   onAddComment?: DiffReviewHooks["onAddComment"];
+  renderLineTrailer?: DiffReviewHooks["renderLineTrailer"];
+  hasComment?: boolean;
 }) {
   const lineClass = kind === "add" ? "diff-line-add" : kind === "del" ? "diff-line-del" : undefined;
   const commentSide: "LEFT" | "RIGHT" = splitSide === "old" ? "LEFT" : "RIGHT";
   const canComment = !!onAddComment && num != null;
+  const trailer = num != null && renderLineTrailer
+    ? renderLineTrailer({ side: commentSide, line: num })
+    : null;
   return (
-    <div className={cn("group flex w-full items-stretch", lineClass)}>
-      <span className="diff-gutter w-10 flex-shrink-0 select-none px-1 text-right font-mono tabular-nums text-[var(--color-fg-faint)]">
-        {num ?? ""}
-      </span>
-      <span className="flex w-4 flex-shrink-0 items-center justify-center">
-        {canComment ? (
-          <button
-            type="button"
-            onClick={() => onAddComment!({ side: commentSide, line: num! })}
-            aria-label="Add comment"
-            className="inline-flex size-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 transition-opacity outline-none group-hover:opacity-100 focus-visible:opacity-100"
-          >
-            <MessageSquarePlus className="size-2.5" aria-hidden />
-          </button>
-        ) : null}
-      </span>
-      <span
-        className={cn(
-          "w-4 flex-shrink-0 select-none text-center",
-          kind === "add" && "text-[var(--diff-add-marker)]",
-          kind === "del" && "text-[var(--diff-del-marker)]",
-          kind === "context" && "text-[var(--color-fg-faint)] opacity-60",
-        )}
-      >
-        {kind === "add" ? "+" : kind === "del" ? "−" : " "}
-      </span>
-      {/* Per-line overflow would create one scrollbar per row — ugly. The
-          parent column carries `overflow-x-auto` so one scrollbar per side
-          handles all the long lines below it. */}
-      <span className="whitespace-pre pr-3">
-        <RenderedLine tokens={tokens} rawText={rawText} emphasis={emphasis} />
-      </span>
-    </div>
+    <>
+      <div className={cn("group flex w-full items-stretch", lineClass, hasComment && "diff-line-comment")}>
+        <span className="diff-gutter w-10 flex-shrink-0 select-none px-1 text-right font-mono tabular-nums text-[var(--color-fg-faint)]">
+          {num ?? ""}
+        </span>
+        <span className="flex w-5 flex-shrink-0 items-center justify-center">
+          {canComment ? (
+            <button
+              type="button"
+              onClick={() => onAddComment!({ side: commentSide, line: num! })}
+              aria-label="Add comment"
+              className="inline-flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 transition-all duration-100 outline-none group-hover:opacity-100 focus-visible:opacity-100 hover:scale-125"
+            >
+              <MessageSquarePlus className="size-2.5" aria-hidden />
+            </button>
+          ) : null}
+        </span>
+        <span
+          className={cn(
+            "w-4 flex-shrink-0 select-none text-center",
+            kind === "add" && "text-[var(--diff-add-marker)]",
+            kind === "del" && "text-[var(--diff-del-marker)]",
+            kind === "context" && "text-[var(--color-fg-faint)] opacity-60",
+          )}
+        >
+          {kind === "add" ? "+" : kind === "del" ? "−" : " "}
+        </span>
+        <span className="whitespace-pre pr-3">
+          <RenderedLine tokens={tokens} rawText={rawText} emphasis={emphasis} />
+        </span>
+      </div>
+      {trailer}
+    </>
   );
 });
 
