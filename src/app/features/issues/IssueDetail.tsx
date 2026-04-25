@@ -8,7 +8,7 @@ import { CommentBox } from "@/app/components/ui/CommentBox";
 import { Container } from "@/app/components/ui/Container";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { AssigneeList } from "@/app/features/issues/components/AssigneeList";
-import { CommentCard } from "@/app/features/issues/components/CommentCard";
+import { IssueCommentCard } from "@/app/features/issues/components/CommentCard";
 import { IssueStatePill } from "@/app/features/issues/components/IssueStatePill";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import { SidebarSection } from "@/app/features/issues/components/SidebarSection";
@@ -142,7 +142,7 @@ export function IssueDetail({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
             {/* Main column */}
             <div className="min-w-0 flex-1 flex flex-col gap-3">
-              <CommentCard
+              <IssueCommentCard
                 login={issue.user.login}
                 avatarUrl={issue.user.avatar_url}
                 date={issue.created_at}
@@ -160,7 +160,7 @@ export function IssueDetail({
                     No description provided.
                   </p>
                 )}
-              </CommentCard>
+              </IssueCommentCard>
 
               {commentsLoading ? (
                 <StatusMessage>Loading comments…</StatusMessage>
@@ -261,7 +261,7 @@ function CommentCardWithReactions({
 }) {
   const { data: myReactions } = useMyCommentReactions(owner, repo, comment.id, meId);
   return (
-    <CommentCard
+    <IssueCommentCard
       login={comment.user.login}
       avatarUrl={comment.user.avatar_url}
       date={comment.created_at}
@@ -274,6 +274,6 @@ function CommentCardWithReactions({
       <div className="readme-prose max-w-none text-body">
         <GithubMarkdown>{comment.body}</GithubMarkdown>
       </div>
-    </CommentCard>
+    </IssueCommentCard>
   );
 }
