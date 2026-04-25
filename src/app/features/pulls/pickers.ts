@@ -151,12 +151,16 @@ export function useSetPrAssignees(owner: string, repo: string, number: number) {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSuccess: (updated) => {
+    onSuccess: async (updated) => {
       if (updated) {
         queryClient.setQueryData(pullsKeys.detail(owner, repo, number), updated);
+        await queryClient.invalidateQueries({ queryKey: pullsKeys.lists(owner, repo) });
+      } else {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
+          queryClient.invalidateQueries({ queryKey: pullsKeys.lists(owner, repo) }),
+        ]);
       }
-      // Always invalidate to ensure consistency
-      queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) });
     },
   });
 }
@@ -216,11 +220,16 @@ export function useSetPrReviewers(owner: string, repo: string, number: number) {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSuccess: (updated) => {
+    onSuccess: async (updated) => {
       if (updated) {
         queryClient.setQueryData(pullsKeys.detail(owner, repo, number), updated);
+        await queryClient.invalidateQueries({ queryKey: pullsKeys.lists(owner, repo) });
+      } else {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
+          queryClient.invalidateQueries({ queryKey: pullsKeys.lists(owner, repo) }),
+        ]);
       }
-      queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) });
     },
   });
 }
@@ -260,15 +269,13 @@ export function useSetPrLabels(owner: string, repo: string, number: number) {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSuccess: (labels, _vars, ctx) => {
-      // Update PR with the returned labels
+    onSuccess: async (labels, _vars, ctx) => {
       if (ctx?.key) {
         queryClient.setQueryData<PullRequest>(ctx.key, (pr) =>
-          pr ? { ...pr, labels } : undefined
+          pr ? { ...pr, labels } : undefined,
         );
       }
-      // Invalidate to ensure consistency
-      queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) });
+      await queryClient.invalidateQueries({ queryKey: pullsKeys.lists(owner, repo) });
     },
   });
 }

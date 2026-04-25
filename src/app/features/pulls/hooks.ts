@@ -23,7 +23,6 @@ import {
   type ReviewComment,
   type TimelineEvent,
 } from "@/app/features/pulls/schemas";
-import { toUiState, isLive as isStateLive } from "@/app/features/pulls/lib/prStatus";
 
 // ─── PR-list schema (search API `items` shape) ─────────────────────────────
 //
@@ -80,25 +79,32 @@ const PrSearchResponseSchema = z.object({
 // ─── Keys ──────────────────────────────────────────────────────────────────
 
 export const pullsKeys = {
+  all: ["pulls"] as const,
+
+  lists: (owner: string, repo: string) =>
+    [...pullsKeys.all, "list", owner, repo] as const,
   list: (owner: string, repo: string, filters: PullsFilters) =>
-    ["pulls-list", owner, repo, normalizeFilters(filters)] as const,
-  counts: (owner: string, repo: string) => ["pulls-counts", owner, repo] as const,
+    [...pullsKeys.lists(owner, repo), normalizeFilters(filters)] as const,
+
+  counts: (owner: string, repo: string) =>
+    [...pullsKeys.all, "counts", owner, repo] as const,
+
   detail: (owner: string, repo: string, number: number) =>
-    ["pulls-detail", owner, repo, number] as const,
+    [...pullsKeys.all, "detail", owner, repo, number] as const,
   comments: (owner: string, repo: string, number: number) =>
-    ["pulls-comments", owner, repo, number] as const,
+    [...pullsKeys.all, "comments", owner, repo, number] as const,
   reviews: (owner: string, repo: string, number: number) =>
-    ["pulls-reviews", owner, repo, number] as const,
+    [...pullsKeys.all, "reviews", owner, repo, number] as const,
   timeline: (owner: string, repo: string, number: number) =>
-    ["pulls-timeline", owner, repo, number] as const,
+    [...pullsKeys.all, "timeline", owner, repo, number] as const,
   files: (owner: string, repo: string, number: number) =>
-    ["pulls-files", owner, repo, number] as const,
+    [...pullsKeys.all, "files", owner, repo, number] as const,
   commits: (owner: string, repo: string, number: number) =>
-    ["pulls-commits", owner, repo, number] as const,
+    [...pullsKeys.all, "commits", owner, repo, number] as const,
   checks: (owner: string, repo: string, sha: string) =>
-    ["pulls-checks", owner, repo, sha] as const,
+    [...pullsKeys.all, "checks", owner, repo, sha] as const,
   reviewComments: (owner: string, repo: string, number: number) =>
-    ["pulls-review-comments", owner, repo, number] as const,
+    [...pullsKeys.all, "review-comments", owner, repo, number] as const,
 };
 
 // ─── Filters ───────────────────────────────────────────────────────────────
@@ -265,7 +271,6 @@ export function useFullPr(owner: string, repo: string, number: number) {
 // fetch them separately so each can cache/invalidate on its own schedule
 // and merge chronologically in the view layer (via `lib/mergeTimeline`).
 
-const PrCommentsResponseSchema = z.array(IssueCommentOnPrSchema);
 const PrReviewsResponseSchema = z.array(ReviewSchema);
 
 export const prCommentsQueryOptions = (owner: string, repo: string, number: number) =>
@@ -405,16 +410,17 @@ export function usePostPrComment(
       // Roll back to previous state on error
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSuccess: (created, _vars, ctx) => {
-      // Replace temp comment with real one from server
+    onSuccess: async (created, _vars, ctx) => {
       if (ctx) {
         queryClient.setQueryData<IssueCommentOnPr[]>(ctx.key, (old) =>
           (old ?? []).map((c) => (c.id === ctx.tempId ? created : c)),
         );
       }
-      // Invalidate related queries - will refetch in background
-      queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) });
-      queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.lists(owner, repo) }),
+      ]);
     },
   });
 }
@@ -682,11 +688,13 @@ export function useMergePr(owner: string, repo: string, number: number) {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSuccess: () => {
-      // Merge doesn't return the updated PR, so invalidate to refetch
-      queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) });
-      queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) });
-      queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.lists(owner, repo) }),
+      ]);
     },
   });
 }
@@ -718,12 +726,13 @@ export function useTogglePrState(owner: string, repo: string, number: number) {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSuccess: (updated) => {
-      // Use server response to update cache
+    onSuccess: async (updated) => {
       queryClient.setQueryData(pullsKeys.detail(owner, repo, number), updated);
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) });
-      queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.lists(owner, repo) }),
+      ]);
     },
   });
 }
@@ -766,19 +775,14 @@ export function useSubmitPrReview(owner: string, repo: string, number: number) {
       );
       return ReviewSchema.parse(res.data);
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: pullsKeys.reviews(owner, repo, number),
-      });
-      queryClient.invalidateQueries({
-        queryKey: pullsKeys.timeline(owner, repo, number),
-      });
-      queryClient.invalidateQueries({
-        queryKey: pullsKeys.detail(owner, repo, number),
-      });
-      queryClient.invalidateQueries({
-        queryKey: pullsKeys.reviewComments(owner, repo, number),
-      });
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: pullsKeys.reviews(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.reviewComments(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.lists(owner, repo) }),
+      ]);
     },
   });
 }
@@ -813,8 +817,12 @@ export function useSetPrDraft(owner: string, repo: string, number: number) {
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    // No onSettled invalidation - the optimistic update is authoritative
-    // GraphQL mutation confirmed success, no need to refetch
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.lists(owner, repo) }),
+      ]);
+    },
   });
 }
 
@@ -881,14 +889,10 @@ export function useReplyToReviewComment(
       return ReviewCommentSchema.parse(res.data);
     },
     onSuccess: (created) => {
-      // Add the new reply to the review comments cache
       const key = pullsKeys.reviewComments(owner, repo, number);
-      const prev = queryClient.getQueryData<ReviewComment[]>(key);
-      if (prev) {
-        queryClient.setQueryData<ReviewComment[]>(key, [...prev, created]);
-      }
-      // Invalidate to ensure consistency
-      queryClient.invalidateQueries({ queryKey: pullsKeys.reviewComments(owner, repo, number) });
+      queryClient.setQueryData<ReviewComment[]>(key, (old) =>
+        old ? [...old, created] : [created],
+      );
     },
   });
 }

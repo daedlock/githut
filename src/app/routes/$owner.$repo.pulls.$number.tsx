@@ -30,7 +30,11 @@ function PrDetailLayout() {
   const pr = prQuery.data;
   const reviews = reviewsQuery.data ?? [];
 
-  if (prQuery.isPending) {
+  // Show cached data immediately, even if refetching in background
+  // Only show skeleton on initial load (no data yet)
+  const isLoading = prQuery.isPending && !prQuery.data;
+
+  if (isLoading) {
     return (
       <Container className="py-5 sm:py-6">
         <PrHeaderSkeleton />
