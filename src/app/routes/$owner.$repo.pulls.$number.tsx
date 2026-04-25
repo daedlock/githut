@@ -54,19 +54,17 @@ function PrDetailLayout() {
   return (
     <>
       {/* Header */}
-      <div className="bg-muted">
-        <Container className="pt-5 sm:pt-6 pb-3">
-          <PrHeader
-            owner={owner}
-            repo={repo}
-            pr={pr}
-            actionsSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
-          />
-        </Container>
-      </div>
+      <Container className="pt-5 sm:pt-6 pb-4">
+        <PrHeader
+          owner={owner}
+          repo={repo}
+          pr={pr}
+          actionsSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
+        />
+      </Container>
 
       {/* Sticky tabs bar */}
-      <div className="sticky top-9 z-10 border-b border-border bg-muted">
+      <div className="sticky top-9 z-10 border-b border-border">
         <Container>
           <PrSubTabs
             owner={owner}
