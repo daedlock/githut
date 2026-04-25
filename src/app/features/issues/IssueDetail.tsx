@@ -4,7 +4,7 @@ import { StatusMessage } from "@/app/components/StatusMessage";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardBody, CardFooter, CardHeader } from "@/app/components/ui/CardBlock";
-import { CommentBox } from "@/app/components/ui/CommentBox";
+import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import { Container } from "@/app/components/ui/Container";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { AssigneeList } from "@/app/features/issues/components/AssigneeList";
@@ -188,7 +188,7 @@ export function IssueDetail({
                     <span className="text-body font-medium text-foreground">Add a comment</span>
                   </CardHeader>
                   <CardBody flush>
-                    <CommentBox
+                    <ComposeBox
                       owner={owner}
                       repo={repo}
                       value={newCommentBody}

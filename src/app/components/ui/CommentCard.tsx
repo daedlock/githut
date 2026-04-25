@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
-import { CommentBox } from "@/app/components/ui/CommentBox";
+import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 
@@ -12,11 +11,6 @@ import { formatRelativeTime } from "@/app/lib/time";
  * - Displaying comments (issues, PRs, reviews)
  * - Composing new comments
  * - Inline replies
- *
- * Modes:
- * - display: Show rendered comment
- * - compose: Show editor for new comment
- * - reply: Compact inline editor
  */
 
 export type CommentCardProps = {
@@ -97,7 +91,7 @@ export function CommentCardDisplay({
 
 /**
  * CommentCard.Compose — Editor for new comments.
- * Uses CommentBox for @mentions and #references support.
+ * Uses ComposeBox for @mentions and #references support.
  */
 export function CommentCardCompose({
   login,
@@ -136,7 +130,7 @@ export function CommentCardCompose({
         <span className="text-xs font-medium text-foreground">{login}</span>
       </div>
       <div className="p-4">
-        <CommentBox
+        <ComposeBox
           owner={owner}
           repo={repo}
           value={value}

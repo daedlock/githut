@@ -177,7 +177,7 @@ function Row({
 
 // ─── CommentBox ─────────────────────────────────────────────────────────────
 
-export interface CommentBoxProps {
+export interface ComposeBoxProps {
   owner: string;
   repo: string;
   value: string;
@@ -189,7 +189,7 @@ export interface CommentBoxProps {
   className?: string;
 }
 
-export function CommentBox({
+export function ComposeBox({
   owner,
   repo,
   value,
@@ -199,7 +199,7 @@ export function CommentBox({
   disabled,
   autoFocus,
   className,
-}: CommentBoxProps) {
+}: ComposeBoxProps) {
   const [mode, setMode] = useState<"write" | "preview">("write");
   const [trigger, setTrigger] = useState<Trigger | null>(null);
   const [selectedIdx, setSelectedIdx] = useState(0);

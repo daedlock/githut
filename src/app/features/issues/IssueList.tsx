@@ -1,7 +1,7 @@
 import { AlertCircle, CheckCircle2, CircleDot, Plus, Search, X } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/app/components/ui/CardBlock";
-import { CommentBox } from "@/app/components/ui/CommentBox";
+import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import { Container } from "@/app/components/ui/Container";
 import { Input } from "@/app/components/ui/input";
 import { cn } from "@/app/lib/cn";
@@ -88,7 +88,7 @@ export function IssueList({
                 autoFocus
               />
               <div className="overflow-hidden rounded-md border border-input">
-                <CommentBox
+                <ComposeBox
                   owner={owner}
                   repo={repo}
                   value={newIssueBody}
