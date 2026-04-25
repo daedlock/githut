@@ -6,7 +6,7 @@
 .readme-prose {
   color: var(--color-fg);
   line-height: 1.65;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
 }
 .readme-prose > *:first-child {
   margin-top: 0;
@@ -28,20 +28,20 @@
   line-height: 1.25;
 }
 .readme-prose h1 {
-  font-size: 1.75rem;
+  font-size: 1.375rem;
   padding-bottom: 0.3em;
   border-bottom: 1px solid var(--color-border);
 }
 .readme-prose h2 {
-  font-size: 1.375rem;
+  font-size: 1.125rem;
   padding-bottom: 0.25em;
   border-bottom: 1px solid var(--color-border);
 }
 .readme-prose h3 {
-  font-size: 1.125rem;
+  font-size: 1rem;
 }
 .readme-prose h4 {
-  font-size: 1rem;
+  font-size: 0.9375rem;
 }
 .readme-prose h5 {
   font-size: 0.875rem;
