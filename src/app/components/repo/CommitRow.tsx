@@ -32,28 +32,31 @@ export function CommitRow({ commit, owner, repo }: CommitRowProps) {
         >
           <p className="text-body font-[475] text-foreground leading-snug">
             {title}
+            {body && !bodyOpen && (
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setBodyOpen(true); }}
+                className="ml-1.5 inline-flex rounded-md bg-muted px-1.5 py-px text-micro text-muted-foreground transition-colors hover:text-foreground"
+                aria-expanded={false}
+              >
+                ···
+              </button>
+            )}
           </p>
         </Link>
 
-        {body && (
+        {body && bodyOpen && (
           <>
+            <pre className="mt-2 whitespace-pre-wrap rounded-lg bg-muted p-3 font-mono text-caption leading-relaxed text-muted-foreground">
+              {body}
+            </pre>
             <button
               type="button"
-              onClick={() => setBodyOpen((o) => !o)}
-              className={cn(
-                "mt-1 rounded-md bg-muted px-1.5 py-px",
-                "text-micro text-muted-foreground",
-                "outline-none transition-colors hover:text-foreground",
-              )}
-              aria-expanded={bodyOpen}
+              onClick={() => setBodyOpen(false)}
+              className="mt-1 rounded-md bg-muted px-1.5 py-px text-micro text-muted-foreground transition-colors hover:text-foreground"
             >
-              {bodyOpen ? "hide" : "···"}
+              collapse
             </button>
-            {bodyOpen && (
-              <pre className="mt-2 whitespace-pre-wrap rounded-lg bg-muted p-3 font-mono text-caption leading-relaxed text-muted-foreground">
-                {body}
-              </pre>
-            )}
           </>
         )}
 
