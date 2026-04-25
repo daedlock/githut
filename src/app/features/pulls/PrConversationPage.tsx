@@ -2,10 +2,7 @@ import { useMemo, useState } from "react";
 import { AlertCircle, GitMerge } from "lucide-react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { StatusMessage } from "@/app/components/StatusMessage";
-import { Avatar } from "@/app/components/ui/avatar";
-import { Button } from "@/app/components/ui/button";
-import { Comment } from "@/app/components/ui/CommentCard";
-import { CommentBox } from "@/app/components/ui/CommentBox";
+import { CommentCardDisplay, CommentCardCompose } from "@/app/components/ui/CommentCard";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { PrMergeBox } from "@/app/features/pulls/components/PrMergeBox";
 import { PrTimelineRow } from "@/app/features/pulls/components/PrTimelineRow";
@@ -53,15 +50,12 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
     [timeline, comments],
   );
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function handleSubmit() {
     const body = draft.trim();
     if (!body || postComment.isPending) return;
     postComment.mutate(
       { body },
-      {
-        onSuccess: () => setDraft(""),
-      },
+      { onSuccess: () => setDraft("") },
     );
   }
 
@@ -87,7 +81,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
             <TimelineMarker type="author" avatarUrl={pr.user.avatar_url} />
           </div>
           <div className="min-w-0 flex-1">
-            <Comment
+            <CommentCardDisplay
               login={pr.user.login}
               avatarUrl={pr.user.avatar_url}
               date={pr.created_at}
@@ -102,7 +96,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
                   No description provided.
                 </p>
               )}
-            </Comment>
+            </CommentCardDisplay>
           </div>
         </div>
       )}
@@ -110,8 +104,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
       {/* Feed */}
       {commentsQuery.isError || timelineQuery.isError ? (
         <StatusMessage tone="danger">Could not load conversation.</StatusMessage>
-      ) : feed.length === 0 &&
-        (commentsQuery.isPending || timelineQuery.isPending) ? (
+      ) : feed.length === 0 && (commentsQuery.isPending || timelineQuery.isPending) ? (
         <FeedSkeleton />
       ) : (
         <div className="flex flex-col">
@@ -123,7 +116,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
                     <TimelineMarker type="comment" avatarUrl={item.user?.avatar_url} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <Comment
+                    <CommentCardDisplay
                       login={item.user?.login ?? "ghost"}
                       avatarUrl={item.user?.avatar_url}
                       date={item.at}
@@ -131,7 +124,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
                       <div className="readme-prose max-w-none text-sm">
                         <GithubMarkdown>{item.body}</GithubMarkdown>
                       </div>
-                    </Comment>
+                    </CommentCardDisplay>
                   </div>
                 </div>
               );
@@ -177,30 +170,18 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
             <TimelineMarker type="comment" avatarUrl={meQuery.data.avatar_url} />
           </div>
           <div className="min-w-0 flex-1">
-            <Comment
+            <CommentCardCompose
               login={meQuery.data.login}
               avatarUrl={meQuery.data.avatar_url}
-            >
-              <form onSubmit={handleSubmit}>
-                <CommentBox
-                  owner={owner}
-                  repo={repo}
-                  value={draft}
-                  onChange={setDraft}
-                  placeholder="Leave a comment"
-                  rows={4}
-                />
-                <div className="mt-3 flex justify-end">
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={!draft.trim() || postComment.isPending}
-                  >
-                    {postComment.isPending ? "Posting…" : "Comment"}
-                  </Button>
-                </div>
-              </form>
-            </Comment>
+              owner={owner}
+              repo={repo}
+              value={draft}
+              onChange={setDraft}
+              onSubmit={handleSubmit}
+              isPending={postComment.isPending}
+              placeholder="Leave a comment"
+              submitLabel="Comment"
+            />
           </div>
         </div>
       )}
@@ -229,7 +210,7 @@ function ReviewCard({ review }: { review: Review }) {
             : "Review";
 
   return (
-    <Comment
+    <CommentCardDisplay
       login={review.user?.login ?? "ghost"}
       avatarUrl={review.user?.avatar_url}
       date={review.submitted_at ?? new Date(0).toISOString()}
@@ -253,7 +234,7 @@ function ReviewCard({ review }: { review: Review }) {
           {label.toLowerCase()} without a comment.
         </p>
       )}
-    </Comment>
+    </CommentCardDisplay>
   );
 }
 
@@ -309,10 +290,7 @@ function ConversationSkeleton() {
   return (
     <div className="skeleton-fade flex flex-col gap-3">
       {[80, 64, 72].map((w) => (
-        <div
-          key={w}
-          className="rounded-lg bg-muted p-4"
-        >
+        <div key={w} className="rounded-lg bg-muted p-4">
           <div className="mb-3 flex items-center gap-2">
             <Skeleton className="size-6 rounded-full" />
             <Skeleton className="h-3 w-32" />

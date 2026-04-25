@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Comment } from "@/app/components/ui/CommentCard";
+import { CommentCardDisplay } from "@/app/components/ui/CommentCard";
 import { ReactionsBar } from "@/app/features/issues/components/ReactionsBar";
 import type { MyReactionsMap, ReactionContent, ReactionsMap } from "@/app/features/issues/schemas";
 
@@ -26,7 +26,7 @@ export function IssueCommentCard({
   children: ReactNode;
 }) {
   return (
-    <Comment
+    <CommentCardDisplay
       login={login}
       avatarUrl={avatarUrl}
       date={date}
@@ -34,6 +34,6 @@ export function IssueCommentCard({
     >
       {children}
       <ReactionsBar reactions={reactions} myReactions={myReactions} onToggle={onToggleReaction} />
-    </Comment>
+    </CommentCardDisplay>
   );
 }

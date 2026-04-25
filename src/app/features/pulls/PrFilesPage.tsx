@@ -68,7 +68,10 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
 
   const canReview =
     !!prQuery.data && prQuery.data.state === "open" && !prQuery.data.merged;
-  const isAuthor = prQuery.data?.user?.login === useMe().data?.login;
+  const meQuery = useMe();
+  const isAuthor = prQuery.data?.user?.login === meQuery.data?.login;
+  const meRef = useRef(meQuery.data);
+  meRef.current = meQuery.data;
 
   const diffFiles = useMemo<DiffLayoutFile[]>(
     () => (filesQuery.data ?? []).map(toDiffLayoutFile),
@@ -153,6 +156,8 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
                 path={filename}
                 side={args.side}
                 line={args.line}
+                meLogin={meRef.current?.login}
+                meAvatarUrl={meRef.current?.avatar_url}
               />
             );
           },
@@ -261,6 +266,8 @@ type LineSlotProps = {
   path: string;
   side: "LEFT" | "RIGHT";
   line: number;
+  meLogin?: string;
+  meAvatarUrl?: string;
 };
 
 const LineSlot = memo(function LineSlot(props: LineSlotProps) {
@@ -306,6 +313,8 @@ const LineSlotContent = memo(function LineSlotContent({
   path,
   side,
   line,
+  meLogin,
+  meAvatarUrl,
 }: LineSlotProps) {
   const store = useReviewStore();
   const prKey = `${owner}/${repo}/${number}`;
@@ -350,6 +359,8 @@ const LineSlotContent = memo(function LineSlotContent({
       ))}
       {isComposerHere && (
         <InlineComposer
+          login={meLogin ?? "ghost"}
+          avatarUrl={meAvatarUrl}
           onSubmit={(body) => {
             store.addPending(owner, repo, number, { path, side, line, body });
             store.closeComposer(owner, repo, number);

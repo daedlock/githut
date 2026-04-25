@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import {
-  CommentInline,
+  CommentCardDisplay,
+  CommentCardReply,
   CommentThread,
-  CommentComposer,
 } from "@/app/components/ui/CommentCard";
 import { useReplyToReviewComment } from "@/app/features/pulls/hooks";
 import type { ReviewComment } from "@/app/features/pulls/schemas";
@@ -41,74 +41,44 @@ export function InlineThread({
     <div className="sticky left-0 mx-4 my-2 max-w-[calc(100cqi-3rem)] overflow-hidden rounded-lg border border-border bg-background">
       <CommentThread>
         <div className="p-3">
-          <CommentInline
+          <CommentCardDisplay
             login={root.user?.login ?? "ghost"}
             avatarUrl={root.user?.avatar_url}
             date={root.created_at}
+            inline
           >
             <div className="readme-prose max-w-none text-sm">
               <GithubMarkdown>{root.body}</GithubMarkdown>
             </div>
-          </CommentInline>
+          </CommentCardDisplay>
         </div>
         {replies.map((r) => (
           <div key={r.id} className="p-3 pt-0">
-            <CommentInline
+            <CommentCardDisplay
               login={r.user?.login ?? "ghost"}
               avatarUrl={r.user?.avatar_url}
               date={r.created_at}
+              inline
             >
               <div className="readme-prose max-w-none text-sm">
                 <GithubMarkdown>{r.body}</GithubMarkdown>
               </div>
-            </CommentInline>
+            </CommentCardDisplay>
           </div>
         ))}
       </CommentThread>
 
       {replyOpen ? (
         <div className="border-t border-border p-3">
-          <div className="flex gap-2.5">
-            <div className="size-6 flex-shrink-0" /> {/* Spacer for alignment */}
-            <div className="min-w-0 flex-1">
-              <textarea
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder="Reply…"
-                rows={2}
-                className={cn(
-                  "w-full resize-none rounded-lg border border-input bg-background p-2.5",
-                  "text-sm text-foreground placeholder:text-muted-foreground",
-                  "focus:outline-none focus:ring-2 focus:ring-ring/40",
-                )}
-                autoFocus
-              />
-              <div className="mt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  className={cn(
-                    "rounded-lg px-3 py-1.5 text-xs font-medium",
-                    "text-muted-foreground hover:text-foreground transition-colors",
-                  )}
-                  onClick={() => { setReplyOpen(false); setBody(""); }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className={cn(
-                    "rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground",
-                    "transition-colors hover:bg-primary/90",
-                    "disabled:pointer-events-none disabled:opacity-50",
-                  )}
-                  disabled={!body.trim() || reply.isPending}
-                  onClick={handleReply}
-                >
-                  {reply.isPending ? "Replying…" : "Reply"}
-                </button>
-              </div>
-            </div>
-          </div>
+          <CommentCardReply
+            login={root.user?.login ?? "ghost"}
+            avatarUrl={root.user?.avatar_url}
+            value={body}
+            onChange={setBody}
+            onSubmit={handleReply}
+            onCancel={() => { setReplyOpen(false); setBody(""); }}
+            isPending={reply.isPending}
+          />
         </div>
       ) : (
         <button

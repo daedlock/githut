@@ -110,14 +110,14 @@ function ReviewPage() {
             store.openComposer(owner, repo, number, { path: filename, ...args });
           },
           renderLineTrailer: (args) => (
-            <LineSlot owner={owner} repo={repo} number={number} path={filename} side={args.side} line={args.line} />
+            <LineSlot owner={owner} repo={repo} number={number} path={filename} side={args.side} line={args.line} meLogin={meQuery.data?.login} meAvatarUrl={meQuery.data?.avatar_url} />
           ),
         };
         hooksCache.current.set(filename, hooks);
       }
       return hooks;
     },
-    [canReview, reviewMode, owner, repo, number, store, prKey],
+    [canReview, reviewMode, owner, repo, number, store, prKey, meQuery.data],
   );
 
   // Auto-start review mode on this page
@@ -178,6 +178,7 @@ function ReviewPage() {
 const LineSlot = memo(function LineSlot(props: {
   owner: string; repo: string; number: number;
   path: string; side: "LEFT" | "RIGHT"; line: number;
+  meLogin?: string; meAvatarUrl?: string;
 }) {
   const { owner, repo, number, path, side, line } = props;
   const prKey = `${owner}/${repo}/${number}`;
@@ -207,8 +208,8 @@ const LineSlot = memo(function LineSlot(props: {
 });
 
 const LineSlotContent = memo(function LineSlotContent({
-  owner, repo, number, path, side, line,
-}: { owner: string; repo: string; number: number; path: string; side: "LEFT" | "RIGHT"; line: number }) {
+  owner, repo, number, path, side, line, meLogin, meAvatarUrl,
+}: { owner: string; repo: string; number: number; path: string; side: "LEFT" | "RIGHT"; line: number; meLogin?: string; meAvatarUrl?: string }) {
   const store = useReviewStore();
   const prKey = `${owner}/${repo}/${number}`;
 
@@ -237,6 +238,8 @@ const LineSlotContent = memo(function LineSlotContent({
       ))}
       {isComposerHere && (
         <InlineComposer
+          login={meLogin ?? "ghost"}
+          avatarUrl={meAvatarUrl}
           onSubmit={(body: string) => { store.addPending(owner, repo, number, { path, side, line, body }); store.closeComposer(owner, repo, number); }}
           onCancel={() => store.closeComposer(owner, repo, number)}
           submitLabel="Add review comment"
