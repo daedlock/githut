@@ -537,7 +537,7 @@ const SplitRow = memo(function SplitRow({
       >
         {kind === "add" ? "+" : kind === "del" ? "−" : " "}
       </span>
-      <span className="whitespace-pre pr-3">
+      <span className="min-w-0 flex-1 whitespace-pre-wrap break-all pr-3">
         <RenderedLine tokens={tokens} rawText={rawText} emphasis={emphasis} />
       </span>
     </div>
