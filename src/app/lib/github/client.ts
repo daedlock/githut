@@ -59,6 +59,13 @@ export function clearETagCache(): void {
   etagCache.clear();
 }
 
+function evictETagsForRepo(owner: string, repo: string): void {
+  const needle = `/${owner}/${repo}`;
+  for (const key of etagCache.keys()) {
+    if (key.includes(needle)) etagCache.delete(key);
+  }
+}
+
 // ─── Client singleton ──────────────────────────────────────────────────────
 
 let cached: { token: string; client: Octokit } | null = null;
@@ -72,11 +79,27 @@ export function getGitHubClient(): Octokit {
   // the ETag cache rather than serve a previous user's cached bodies.
   if (cached && cached.token !== token) clearETagCache();
 
-  const client = new Octokit({ auth: token, userAgent: "githut/0.1" });
+  const noCacheFetch = ((input: RequestInfo | URL, init?: RequestInit) =>
+    globalThis.fetch(input, { ...init, cache: "no-store" })) as typeof fetch;
+
+  const client = new Octokit({
+    auth: token,
+    userAgent: "githut/0.1",
+    request: { fetch: noCacheFetch },
+  });
 
   client.hook.wrap("request", async (request, options) => {
     const method = String(options.method ?? "GET").toUpperCase();
-    if (method !== "GET") return request(options);
+
+    if (method !== "GET") {
+      const response = await request(options);
+      // After any write, evict cached GET responses for the same repo so
+      // subsequent refetches bypass the ETag 304 path and get fresh data.
+      const url = String(options.url ?? "");
+      const match = url.match(/\/repos\/([^/]+)\/([^/]+)/);
+      if (match?.[1] && match[2]) evictETagsForRepo(match[1], match[2]);
+      return response;
+    }
 
     const key = buildCacheKey(options as Record<string, unknown>);
     const prev = etagCache.get(key);
@@ -86,7 +109,6 @@ export function getGitHubClient(): Octokit {
 
     try {
       const response = await request(opts);
-      // Some transports surface 304 as a non-error response with empty body.
       if (response.status === 304 && prev) {
         return {
           data: prev.data,
@@ -98,7 +120,6 @@ export function getGitHubClient(): Octokit {
       rememberETag(key, response);
       return response;
     } catch (err) {
-      // Octokit surfaces 304 as a RequestError; treat it as a cache hit.
       if (err && typeof err === "object" && "status" in err && err.status === 304 && prev) {
         return {
           data: prev.data,
