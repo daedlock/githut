@@ -28,7 +28,7 @@ export function PrStateTab({
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 px-3 py-2 text-body rounded-sm",
+        "inline-flex items-center gap-1.5 px-2.5 py-1.5 text-caption rounded-md",
         "outline-none transition-colors",
         "focus-visible:ring-1 focus-visible:ring-foreground/15",
         isActive
