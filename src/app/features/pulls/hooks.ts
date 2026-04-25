@@ -256,15 +256,6 @@ export function useFullPr(owner: string, repo: string, number: number) {
   return useQuery({
     ...prDetailQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: (q) => {
-      const pr = q.state.data;
-      if (!pr) return false;
-      const ui = toUiState(pr);
-      // Merge state and check-status can flip without user action (checks
-      // complete, mergeability recomputes) — poll at 10s while live.
-      return isStateLive(ui) ? 10_000 : false;
-    },
-    refetchIntervalInBackground: false,
   });
 }
 
@@ -421,15 +412,15 @@ export function usePostPrComment(
           (old ?? []).map((c) => (c.id === ctx.tempId ? created : c)),
         );
       }
-    },
-    onSettled: (_data, _error, _vars, ctx) => {
-      // DO NOT invalidate comments - we already updated it in onSuccess
-      // Only invalidate related queries that need counts/summaries
-      queryClient.invalidateQueries({
+      // Mark related queries as stale so they refetch when user navigates back
+      // Don't refetch immediately - the data we have is fresh
+      queryClient.invalidateQueries({ 
         queryKey: pullsKeys.detail(owner, repo, number),
+        refetchType: 'none' 
       });
-      queryClient.invalidateQueries({
+      queryClient.invalidateQueries({ 
         queryKey: pullsKeys.timeline(owner, repo, number),
+        refetchType: 'none' 
       });
     },
   });
@@ -700,12 +691,19 @@ export function useMergePr(owner: string, repo: string, number: number) {
     },
     onSuccess: () => {
       // Merge doesn't return the updated PR, so we need to invalidate
-      // Delay to give GitHub time to propagate
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) });
-        queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) });
-        queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) });
-      }, 500);
+      // Mark as stale so it refetches when user navigates back
+      queryClient.invalidateQueries({ 
+        queryKey: pullsKeys.detail(owner, repo, number),
+        refetchType: 'none' 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: pullsKeys.timeline(owner, repo, number),
+        refetchType: 'none' 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: pullsKeys.counts(owner, repo),
+        refetchType: 'none' 
+      });
     },
   });
 }
@@ -740,9 +738,15 @@ export function useTogglePrState(owner: string, repo: string, number: number) {
     onSuccess: (updated) => {
       // Use server response to update cache - trust PATCH response
       queryClient.setQueryData(pullsKeys.detail(owner, repo, number), updated);
-      // Invalidate related queries (timeline, counts)
-      queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) });
-      queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) });
+      // Mark related queries as stale
+      queryClient.invalidateQueries({ 
+        queryKey: pullsKeys.timeline(owner, repo, number),
+        refetchType: 'none' 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: pullsKeys.counts(owner, repo),
+        refetchType: 'none' 
+      });
     },
   });
 }

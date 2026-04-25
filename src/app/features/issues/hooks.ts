@@ -252,19 +252,22 @@ export function useCreateIssueComment(
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSuccess: (created, _vars, ctx) => {
+    onSuccess: (created, vars, ctx) => {
       // Swap temp → real in place, no refetch round-trip needed
       if (ctx) {
         queryClient.setQueryData<RepoIssueComment[]>(ctx.key, (old) =>
           (old ?? []).map((c) => (c.id === ctx.tempId ? created : c)),
         );
       }
-    },
-    onSettled: (_data, _err, vars) => {
-      // DO NOT invalidate comments - we already updated it in onSuccess
-      // Only invalidate the issue detail for the comment count
-      queryClient.invalidateQueries({ queryKey: issueKeys.detail(owner, repo, vars.issueNumber) });
-      queryClient.invalidateQueries({ queryKey: issueKeys.all(owner, repo) });
+      // Mark related queries as stale
+      queryClient.invalidateQueries({ 
+        queryKey: issueKeys.detail(owner, repo, vars.issueNumber),
+        refetchType: 'none' 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: issueKeys.all(owner, repo),
+        refetchType: 'none' 
+      });
     },
   });
 }

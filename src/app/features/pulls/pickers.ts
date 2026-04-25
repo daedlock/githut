@@ -10,12 +10,6 @@ import { pullsKeys } from "@/app/features/pulls/hooks";
 import { PullRequestSchema, type PullRequest } from "@/app/features/pulls/schemas";
 import { useAuthStore } from "@/app/stores/auth";
 
-// ─── Data sources ──────────────────────────────────────────────────────────
-//
-// Repo-wide lists fed into the sidebar pickers. Cached 5 min — these
-// rarely churn during a review session. Each is invalidated by its own
-// key so mutations can resync just the slice that changed.
-
 const RepoLabelSchema = z.object({
   id: z.number(),
   name: z.string(),
@@ -88,14 +82,6 @@ export function useRepoCollaborators(owner: string, repo: string) {
 }
 
 // ─── Mutations ─────────────────────────────────────────────────────────────
-//
-// Every mutation below writes through the PR detail cache optimistically
-// so the sidebar reflects the toggle before the network round-trip
-// returns. Rollback on error restores the snapshot; on settle we quietly
-// invalidate so the server shape is the source of truth eventually.
-//
-// Pattern: snapshot → optimistic write → swap on success → invalidate on
-// settle. Mirrors the Issues-feature mutation style.
 
 function patchPrDetail(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -111,6 +97,8 @@ function patchPrDetail(
 }
 
 // ─── Assignees ─────────────────────────────────────────────────────────────
+// POST returns updated issue/PR
+// DELETE returns 200 with NO body (just removes)
 
 export function useSetPrAssignees(owner: string, repo: string, number: number) {
   const queryClient = useQueryClient();
@@ -123,21 +111,28 @@ export function useSetPrAssignees(owner: string, repo: string, number: number) {
       remove: string[];
     }) => {
       const client = getGitHubClient();
+      let result: PullRequest | null = null;
+      
       if (add.length > 0) {
+        // POST returns the updated issue/PR
         const res = await client.request(
           "POST /repos/{owner}/{repo}/issues/{issue_number}/assignees",
           { owner, repo, issue_number: number, assignees: add },
         );
-        return PullRequestSchema.parse(res.data);
+        result = PullRequestSchema.parse(res.data);
       }
+      
       if (remove.length > 0) {
-        const res = await client.request(
+        // DELETE returns 200 but NO body - must refetch
+        await client.request(
           "DELETE /repos/{owner}/{repo}/issues/{issue_number}/assignees",
           { owner, repo, issue_number: number, assignees: remove },
         );
-        return PullRequestSchema.parse(res.data);
+        // If we also added, the result is stale now, need to refetch
+        result = null;
       }
-      return null;
+      
+      return result;
     },
     onMutate: async ({ add, remove }) => {
       await queryClient.cancelQueries({
@@ -157,15 +152,23 @@ export function useSetPrAssignees(owner: string, repo: string, number: number) {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
     onSuccess: (updated) => {
-      // Use server response to update cache
       if (updated) {
+        // POST returned updated data - use it
         queryClient.setQueryData(pullsKeys.detail(owner, repo, number), updated);
+      } else {
+        // DELETE was used - mark as stale, refetch when user returns
+        queryClient.invalidateQueries({
+          queryKey: pullsKeys.detail(owner, repo, number),
+          refetchType: 'none',
+        });
       }
     },
   });
 }
 
 // ─── Requested reviewers ───────────────────────────────────────────────────
+// POST returns updated PR
+// DELETE returns 200 with NO body
 
 export function useSetPrReviewers(owner: string, repo: string, number: number) {
   const queryClient = useQueryClient();
@@ -178,21 +181,25 @@ export function useSetPrReviewers(owner: string, repo: string, number: number) {
       remove: string[];
     }) => {
       const client = getGitHubClient();
+      let result: PullRequest | null = null;
+      
       if (add.length > 0) {
         const res = await client.request(
           "POST /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers",
           { owner, repo, pull_number: number, reviewers: add },
         );
-        return PullRequestSchema.parse(res.data);
+        result = PullRequestSchema.parse(res.data);
       }
+      
       if (remove.length > 0) {
-        const res = await client.request(
+        await client.request(
           "DELETE /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers",
           { owner, repo, pull_number: number, reviewers: remove },
         );
-        return PullRequestSchema.parse(res.data);
+        result = null; // Must refetch
       }
-      return null;
+      
+      return result;
     },
     onMutate: async ({ add, remove }) => {
       await queryClient.cancelQueries({
@@ -203,9 +210,7 @@ export function useSetPrReviewers(owner: string, repo: string, number: number) {
         requested_reviewers: [
           ...pr.requested_reviewers.filter((r) => !remove.includes(r.login)),
           ...add
-            .filter(
-              (login) => !pr.requested_reviewers.some((r) => r.login === login),
-            )
+            .filter((login) => !pr.requested_reviewers.some((r) => r.login === login))
             .map((login) => ({
               login,
               avatar_url: `https://github.com/${login}.png`,
@@ -217,20 +222,21 @@ export function useSetPrReviewers(owner: string, repo: string, number: number) {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
     onSuccess: (updated) => {
-      // Use server response to update cache
       if (updated) {
         queryClient.setQueryData(pullsKeys.detail(owner, repo, number), updated);
+      } else {
+        // DELETE was used - mark as stale
+        queryClient.invalidateQueries({
+          queryKey: pullsKeys.detail(owner, repo, number),
+          refetchType: 'none',
+        });
       }
     },
   });
 }
 
 // ─── Labels ────────────────────────────────────────────────────────────────
-//
-// We PUT the full name list so GitHub replaces the set in one call. The
-// optimistic shape needs the full label objects (id, color, description)
-// so the sidebar renders pills without a re-fetch — we look them up in
-// the repo-labels cache.
+// PUT returns array of labels (not full PR)
 
 export function useSetPrLabels(owner: string, repo: string, number: number) {
   const queryClient = useQueryClient();
@@ -241,8 +247,8 @@ export function useSetPrLabels(owner: string, repo: string, number: number) {
         "PUT /repos/{owner}/{repo}/issues/{issue_number}/labels",
         { owner, repo, issue_number: number, labels: names },
       );
-      // Return both the labels and parse as PR for cache update
-      return { labels: res.data } as { labels: Array<{ id: number; name: string; color: string; description: string | null }> };
+      // Returns array of label objects
+      return res.data as Array<{ id: number; name: string; color: string; description: string | null }>;
     },
     onMutate: async ({ names }) => {
       await queryClient.cancelQueries({
@@ -256,29 +262,19 @@ export function useSetPrLabels(owner: string, repo: string, number: number) {
         labels: names.map((name) => {
           const found = byName.get(name);
           return found
-            ? {
-                id: found.id,
-                name: found.name,
-                color: found.color,
-                description: found.description ?? null,
-              }
-            : pr.labels.find((l) => l.name === name) ?? {
-                id: -Date.now(),
-                name,
-                color: "cccccc",
-                description: null,
-              };
+            ? { id: found.id, name: found.name, color: found.color, description: found.description ?? null }
+            : pr.labels.find((l) => l.name === name) ?? { id: -Date.now(), name, color: "cccccc", description: null };
         }),
       }));
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSuccess: (data, _vars, ctx) => {
-      // Update PR detail with server-returned labels
-      if (ctx?.prev) {
+    onSuccess: (labels, _vars, ctx) => {
+      // Update PR with the returned labels
+      if (ctx?.key) {
         queryClient.setQueryData<PullRequest>(ctx.key, (pr) =>
-          pr ? { ...pr, labels: data.labels } : ctx.prev
+          pr ? { ...pr, labels } : undefined
         );
       }
     },
