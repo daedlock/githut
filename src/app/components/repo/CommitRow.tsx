@@ -112,7 +112,7 @@ function ShaChip({
         params={{ owner, repo, sha }}
         className={cn(
           "rounded-full bg-muted px-2.5 py-1",
-          "font-mono text-micro tabular-nums text-muted-foreground",
+          "font-mono text-[11px] leading-none tabular-nums text-muted-foreground",
           "outline-none transition-colors",
           "hover:text-foreground",
           "focus-visible:ring-1 focus-visible:ring-foreground/15",
