@@ -174,7 +174,7 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
     return (
       <div className="flex flex-col items-center gap-2 py-10 text-center">
         <AlertCircle className="size-5 text-destructive" />
-        <p className="text-body text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Could not load the diff for this pull request.
         </p>
       </div>
@@ -184,7 +184,7 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
     return (
       <div className="flex flex-col items-center gap-2 py-10 text-center">
         <FileDiffIcon className="size-5 text-[var(--color-fg-faint)]" />
-        <p className="text-body text-muted-foreground">No file changes.</p>
+        <p className="text-sm text-muted-foreground">No file changes.</p>
       </div>
     );
   }
@@ -204,7 +204,7 @@ export function PrFilesPage({ owner, repo, number }: PrFilesPageProps) {
           ) : (
             <>
               {pending.length > 0 && (
-                <span className="text-caption text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   <span className="tabular-nums font-medium text-foreground">
                     {pending.length}
                   </span>{" "}
@@ -381,18 +381,18 @@ function PendingCard({
   onRemove: () => void;
 }) {
   return (
-    <div className="sticky left-0 mx-4 my-2 max-w-[calc(100cqi-3rem)] overflow-hidden rounded-md border border-dashed border-primary/40 bg-[var(--color-bg-sunken)] px-3 py-2">
+    <div className="sticky left-0 mx-4 my-2 max-w-[calc(100cqi-3rem)] overflow-hidden rounded-lg bg-muted px-3 py-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <span className="text-micro font-medium text-primary">Pending review comment</span>
-          <p className="mt-0.5 font-mono text-caption text-foreground whitespace-pre-wrap">
+          <span className="text-xs font-medium text-primary">Pending review comment</span>
+          <p className="mt-0.5 font-mono text-xs text-foreground whitespace-pre-wrap">
             {comment.body}
           </p>
         </div>
         <button
           type="button"
           onClick={onRemove}
-          className="shrink-0 text-caption text-muted-foreground hover:text-destructive"
+          className="shrink-0 text-xs text-muted-foreground hover:text-destructive"
         >
           Remove
         </button>

@@ -84,9 +84,11 @@ html.dark .shiki span {
  */
 .diff-line-add {
   background: var(--diff-add-bg);
+  border-left: 3px solid var(--diff-add-marker);
 }
 .diff-line-del {
   background: var(--diff-del-bg);
+  border-left: 3px solid var(--diff-del-marker);
 }
 .diff-line-add .diff-gutter {
   background: var(--diff-add-gutter);

@@ -120,7 +120,7 @@ export function DiffLayout({
   return (
     <div className={cn("w-full bg-background", className)}>
       <div
-        className="sticky top-10 z-30 flex items-center gap-2 border-b border-border bg-muted px-3 sm:px-4"
+        className="sticky top-10 z-30 flex items-center gap-3 border-b border-border bg-background px-3 sm:px-4"
         style={{ height: TOPBAR_H }}
       >
         {/* Left: review bar or sidebar toggle + file stats */}
@@ -129,12 +129,7 @@ export function DiffLayout({
             <button
               type="button"
               onClick={() => setSidebarOpen((v) => !v)}
-              className={cn(
-                "inline-flex size-7 flex-shrink-0 items-center justify-center rounded-sm",
-                "text-muted-foreground outline-none transition-colors",
-                "hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)]",
-                "focus-visible:ring-1 focus-visible:ring-foreground/15",
-              )}
+              className="inline-flex size-7 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15"
               title={sidebarOpen ? "Hide file tree" : "Show file tree"}
               aria-label={sidebarOpen ? "Hide file tree" : "Show file tree"}
             >
@@ -144,15 +139,15 @@ export function DiffLayout({
                 <PanelLeftOpen className="size-3.5" />
               )}
             </button>
-            <div className="flex items-baseline gap-2">
-              <span className="text-ui font-medium text-foreground tabular-nums">
+            <div className="flex items-baseline gap-1.5 text-xs">
+              <span className="font-medium text-foreground tabular-nums">
                 {files.length}
               </span>
-              <span className="text-caption text-muted-foreground">files</span>
-              <span className="font-mono text-caption tabular-nums text-[var(--diff-add-marker)]">
+              <span className="text-muted-foreground">files</span>
+              <span className="font-mono tabular-nums text-[var(--diff-add-marker)]">
                 +{totals.add}
               </span>
-              <span className="font-mono text-caption tabular-nums text-[var(--diff-del-marker)]">
+              <span className="font-mono tabular-nums text-[var(--diff-del-marker)]">
                 −{totals.del}
               </span>
             </div>
@@ -161,7 +156,7 @@ export function DiffLayout({
 
         <div className="flex-1" />
 
-        <div className="flex items-center rounded-md border border-input bg-background p-0.5">
+        <div className="flex items-center rounded-lg bg-muted p-0.5">
           <ModeBtn
             active={mode === "unified"}
             onClick={() => setMode("unified")}
@@ -182,15 +177,15 @@ export function DiffLayout({
       <div className="flex min-h-[calc(100dvh-44px)] w-full">
         {sidebarOpen && (
           <aside
-            className="sticky z-10 hidden w-[280px] flex-shrink-0 self-stretch overflow-y-auto  lg:block"
+            className="sticky z-10 hidden w-[320px] flex-shrink-0 self-stretch overflow-y-auto lg:block"
             style={{ top: STICKY_TOP, maxHeight: `calc(100dvh - ${STICKY_TOP}px)` }}
           >
             <ChangedFileTree files={files} activeFile={activeFile} onFileClick={scrollToFile} />
           </aside>
         )}
 
-        <div className="min-w-0 flex-1 p-2">
-          <div className="flex flex-col gap-3">
+        <div className="min-w-0 flex-1 p-4">
+          <div className="flex flex-col gap-5">
             {files.map((file) => (
               <div
                 key={file.filename}
@@ -256,11 +251,11 @@ function ModeBtn({
       onClick={onClick}
       title={title}
       className={cn(
-        "inline-flex h-6 items-center gap-1.5 rounded-sm px-2 text-caption",
+        "inline-flex h-6 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium",
         "outline-none transition-colors",
         "focus-visible:ring-1 focus-visible:ring-foreground/15",
         active
-          ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
+          ? "bg-background text-foreground shadow-xs"
           : "text-muted-foreground hover:text-foreground",
       )}
     >

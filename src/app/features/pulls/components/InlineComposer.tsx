@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { CommentCardReply } from "@/app/components/ui/CommentCard";
-import { cn } from "@/app/lib/cn";
 
 export type InlineComposerProps = {
   login: string;
@@ -24,7 +23,7 @@ export function InlineComposer({
   const [body, setBody] = useState("");
 
   return (
-    <div className="sticky left-0 mx-4 my-2 max-w-[calc(100cqi-3rem)] rounded-lg border border-primary/40 bg-background p-3">
+    <div className="sticky left-0 mx-4 my-2 max-w-[calc(100cqi-3rem)] rounded-lg bg-muted p-3">
       <CommentCardReply
         login={login}
         avatarUrl={avatarUrl}

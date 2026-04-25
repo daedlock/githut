@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, FoldVertical, Search, UnfoldVertical, X } from "lucide-react";
+import { ChevronDown, ChevronRight, FoldVertical, Folder, FolderOpen, Search, UnfoldVertical, X } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import type { FileStatus } from "@/app/components/code";
 import { FileIcon } from "@/app/components/repo/FileIcon";
@@ -118,17 +118,17 @@ export function ChangedFileTree({
     <aside className={cn("bg-background", className)}>
       {/* Header + search — sticky at top of sidebar scroll */}
       <div className="sticky top-0 z-10 bg-background pt-2">
-        <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
-          <span className="font-mono text-micro font-medium uppercase tracking-widest text-muted-foreground">
+        <header className="flex items-center justify-between gap-2 px-3 py-2">
+          <span className="text-xs font-medium text-muted-foreground">
             {title}
           </span>
-          <span className="font-mono text-micro tabular-nums text-[var(--color-fg-faint)]">
+          <span className="text-xs tabular-nums text-muted-foreground">
             {trimmedQuery ? `${visibleFileCount} / ${files.length}` : files.length}
           </span>
         </header>
 
         {(showSearch || showExpandControls) && (
-          <div className="flex items-center gap-1.5 border-b border-border px-2 py-1.5">
+          <div className="flex items-center gap-1.5 px-2 py-1.5">
             {showSearch && (
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
@@ -136,13 +136,13 @@ export function ChangedFileTree({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Filter files"
-                  className="h-7 pl-6 pr-6 text-ui"
+                  className="h-7 pl-6 pr-6 text-xs"
                 />
                 {query && (
                   <button
                     type="button"
                     onClick={() => setQuery("")}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-[var(--color-fg-faint)] outline-none hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)] focus-visible:ring-1 focus-visible:ring-foreground/15"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15"
                     aria-label="Clear filter"
                   >
                     <X className="size-3" />
@@ -165,14 +165,14 @@ export function ChangedFileTree({
       </div>
 
       {/* Tree body */}
-      <div className="p-1.5 text-code">
-        <div className="mb-1 flex items-center gap-2 px-2 py-1 font-mono text-ui tabular-nums">
+      <div className="p-1.5">
+        <div className="mb-1 flex items-center gap-2 px-2 py-1 text-sm tabular-nums">
           <span className="text-[var(--diff-add-marker)]">+{totals.additions}</span>
           <span className="text-[var(--diff-del-marker)]">−{totals.deletions}</span>
         </div>
 
         {visibleFileCount === 0 ? (
-          <div className="px-2 py-6 text-center font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
+          <div className="px-2 py-6 text-center text-sm text-muted-foreground">
             {trimmedQuery ? "No matches" : "No files"}
           </div>
         ) : (
@@ -252,19 +252,21 @@ function DirRow({
   isOpen: boolean;
   onToggle: () => void;
 }) {
+  const DirIcon = isOpen ? FolderOpen : Folder;
   return (
     <button
       type="button"
       onClick={onToggle}
-      className="flex w-full items-center gap-1.5 rounded-sm px-2 py-1.5 text-left outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-1 focus-visible:ring-foreground/15"
-      style={{ paddingLeft: `${depth * 12 + 8}px` }}
+      className="flex w-full items-center gap-1.5 rounded-lg py-1 text-left outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-1 focus-visible:ring-foreground/15"
+      style={{ paddingLeft: `${depth * 16 + 8}px` }}
     >
       {isOpen ? (
-        <ChevronDown className="size-3.5 flex-shrink-0 text-[var(--color-fg-faint)]" />
+        <ChevronDown className="size-3 flex-shrink-0 text-muted-foreground" />
       ) : (
-        <ChevronRight className="size-3.5 flex-shrink-0 text-[var(--color-fg-faint)]" />
+        <ChevronRight className="size-3 flex-shrink-0 text-muted-foreground" />
       )}
-      <span className="truncate font-mono text-muted-foreground">{node.name}</span>
+      <DirIcon className="size-3.5 flex-shrink-0 text-muted-foreground" />
+      <span className="truncate text-sm text-foreground">{node.name}</span>
     </button>
   );
 }
@@ -285,18 +287,17 @@ function FileRow({
       type="button"
       onClick={() => onClick?.(file.filename)}
       className={cn(
-        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left outline-none transition-colors",
+        "flex w-full items-center gap-1.5 rounded-lg py-1 text-left outline-none transition-colors",
         "focus-visible:ring-1 focus-visible:ring-foreground/15",
         isActive
-          ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
-          : "text-foreground hover:bg-muted",
+          ? "bg-muted text-foreground font-medium"
+          : "text-foreground/80 hover:bg-muted hover:text-foreground",
       )}
-      style={{ paddingLeft: `${depth * 12 + 8}px` }}
+      style={{ paddingLeft: `${depth * 16 + 24}px` }}
       title={file.filename}
     >
       <FileIcon filename={file.filename} />
-      <StatusGlyph status={file.status} />
-      <span className="min-w-0 flex-1 truncate font-mono">{basename(file.filename)}</span>
+      <span className="min-w-0 flex-1 truncate text-sm">{basename(file.filename)}</span>
       <FileStats additions={file.additions} deletions={file.deletions} />
     </button>
   );
@@ -320,11 +321,11 @@ function IconBtn({
       title={title}
       disabled={disabled}
       className={cn(
-        "inline-flex size-6 items-center justify-center rounded-sm",
-        "text-[var(--color-fg-faint)] outline-none transition-colors",
+        "inline-flex size-6 items-center justify-center rounded-md",
+        "text-muted-foreground outline-none transition-colors",
         "hover:bg-muted hover:text-foreground",
         "focus-visible:ring-1 focus-visible:ring-foreground/15",
-        "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-[var(--color-fg-faint)]",
+        "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
       )}
     >
       {children}
@@ -332,34 +333,10 @@ function IconBtn({
   );
 }
 
-function StatusGlyph({ status }: { status: FileStatus }) {
-  const glyph =
-    status === "added" ? "A" : status === "removed" ? "D" : status === "renamed" ? "R" : "M";
-  const tone =
-    status === "added"
-      ? "text-[var(--diff-add-marker)]"
-      : status === "removed"
-        ? "text-[var(--diff-del-marker)]"
-        : status === "renamed"
-          ? "text-primary"
-          : "text-[var(--color-fg-faint)]";
-  return (
-    <span
-      className={cn(
-        "flex-shrink-0 font-mono text-micro font-semibold uppercase w-3 text-center",
-        tone,
-      )}
-      aria-label={status}
-    >
-      {glyph}
-    </span>
-  );
-}
-
 function FileStats({ additions, deletions }: { additions: number; deletions: number }) {
   if (additions === 0 && deletions === 0) return null;
   return (
-    <span className="flex-shrink-0 font-mono text-micro tabular-nums">
+    <span className="flex-shrink-0 text-xs tabular-nums">
       {additions > 0 && <span className="text-[var(--diff-add-marker)]">+{additions}</span>}
       {additions > 0 && deletions > 0 && " "}
       {deletions > 0 && <span className="text-[var(--diff-del-marker)]">−{deletions}</span>}

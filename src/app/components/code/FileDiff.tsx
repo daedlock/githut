@@ -61,13 +61,14 @@ export const FileDiff = memo(function FileDiff({
   const hasVisibleBody = showContent && (isBinary || hasPatch);
 
   return (
-    <section ref={sectionRef} className={cn("border border-[var(--color-border)] rounded-[3px]", className)}>
+    <section ref={sectionRef} className={cn("rounded-lg border border-[var(--color-border)]", className)}>
       <header
         className={cn(
           "sticky top-[84px] z-[5]",
           "flex items-center gap-2.5 px-3 py-2",
-          "bg-[var(--color-bg-sunken)] rounded-t-[2px]",
-          hasVisibleBody && "border-b border-[var(--color-border)]",
+          "bg-[var(--color-bg-sunken)]",
+          hasVisibleBody ? "border-b border-[var(--color-border)]" : "rounded-b-lg",
+          "rounded-t-lg",
         )}
       >
         <button
@@ -100,13 +101,13 @@ export const FileDiff = memo(function FileDiff({
       {showContent && (
         <>
           {isBinary ? (
-            <div className="px-4 py-6 text-center font-mono text-caption uppercase tracking-widest text-[var(--color-fg-faint)]">
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
               Binary file — preview unavailable
             </div>
           ) : hasPatch ? (
             <DiffView patch={patch} lang={lang} mode={mode} review={review} />
           ) : (
-            <div className="px-4 py-6 text-center font-mono text-caption uppercase tracking-widest text-[var(--color-fg-faint)]">
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
               No changes
             </div>
           )}
@@ -126,7 +127,7 @@ function StatusBadge({ status }: { status: FileStatus }) {
         ? "text-[var(--diff-del-marker)]"
         : "text-[var(--color-fg-faint)]";
   return (
-    <span className={cn("shrink-0 font-mono text-micro font-bold", tone)} aria-label={status}>
+    <span className={cn("shrink-0 font-mono text-xs font-bold", tone)} aria-label={status}>
       {label}
     </span>
   );
@@ -143,8 +144,8 @@ function ChangeStats({ additions, deletions }: { additions: number; deletions: n
   while (squares.length < 5) squares.push("empty");
   return (
     <div className="flex shrink-0 items-center gap-1.5">
-      <span className="font-mono text-micro tabular-nums text-[var(--diff-add-marker)]">+{additions}</span>
-      <span className="font-mono text-micro tabular-nums text-[var(--diff-del-marker)]">−{deletions}</span>
+      <span className="font-mono text-xs tabular-nums text-[var(--diff-add-marker)]">+{additions}</span>
+      <span className="font-mono text-xs tabular-nums text-[var(--diff-del-marker)]">−{deletions}</span>
       <span className="flex items-center gap-px">
         {squares.map((kind, i) => (
           <span

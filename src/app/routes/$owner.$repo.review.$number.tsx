@@ -186,7 +186,6 @@ const LineSlot = memo(function LineSlot(props: {
 }) {
   const { owner, repo, number, path, side, line } = props;
   const prKey = `${owner}/${repo}/${number}`;
-  const store = useReviewStore();
 
   const isComposerHere = useReviewStore(s => {
     const c = s.composerByPr[prKey];
@@ -255,13 +254,13 @@ const LineSlotContent = memo(function LineSlotContent({
 
 function PendingCard({ comment, onRemove }: { comment: PendingComment; onRemove: () => void }) {
   return (
-    <div className="sticky left-0 mx-4 my-2 max-w-[calc(100cqi-3rem)] overflow-hidden rounded-md border border-dashed border-primary/40 bg-[var(--color-bg-sunken)] px-3 py-2">
+    <div className="sticky left-0 mx-4 my-2 max-w-[calc(100cqi-3rem)] overflow-hidden rounded-lg bg-muted px-3 py-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <span className="text-micro font-medium text-primary">Pending</span>
-          <p className="mt-0.5 font-mono text-caption text-foreground whitespace-pre-wrap">{comment.body}</p>
+          <span className="text-xs font-medium text-primary">Pending</span>
+          <p className="mt-0.5 font-mono text-xs text-foreground whitespace-pre-wrap">{comment.body}</p>
         </div>
-        <button type="button" onClick={onRemove} className="shrink-0 text-caption text-muted-foreground hover:text-destructive">Remove</button>
+        <button type="button" onClick={onRemove} className="shrink-0 text-xs text-muted-foreground hover:text-destructive">Remove</button>
       </div>
     </div>
   );
@@ -332,21 +331,21 @@ function ReviewBarLeft({
   pr: PullRequest | undefined; uiState: PrUiState | null;
 }) {
   return (
-    <div className="flex items-center gap-2 min-w-0">
+    <div className="flex items-center gap-3 min-w-0">
       <Link
         to="/$owner/$repo/pulls/$number"
         params={{ owner, repo, number }}
-        className="inline-flex items-center gap-1 text-caption text-muted-foreground outline-none transition-colors hover:text-foreground shrink-0"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground outline-none transition-colors hover:text-foreground shrink-0"
       >
-        <ArrowLeft className="size-3" />
+        <ArrowLeft className="size-3.5" />
         Back
       </Link>
       {pr && uiState && (
         <>
-          <PrStatePill state={uiState} size="xs" />
-          <span className="truncate font-mono text-caption text-foreground">
+          <PrStatePill state={uiState} size="sm" />
+          <span className="truncate text-sm text-foreground">
             {pr.title}
-            <span className="ml-1 text-[var(--color-fg-faint)]">#{number}</span>
+            <span className="ml-1.5 text-muted-foreground">#{number}</span>
           </span>
         </>
       )}
@@ -364,7 +363,7 @@ function ReviewBarRight({
   return (
     <div className="flex items-center gap-2 shrink-0">
       {pendingCount > 0 && (
-        <span className="text-micro tabular-nums text-muted-foreground">
+        <span className="text-xs tabular-nums text-muted-foreground">
           <span className="font-medium text-foreground">{pendingCount}</span> pending
         </span>
       )}
@@ -382,7 +381,7 @@ function ReviewSkeleton() {
       <div className="skeleton-fade flex flex-col gap-4">
         <Skeleton className="h-8 w-64" />
         {[80, 60, 72].map(w => (
-          <div key={w} className="rounded-md border border-border p-3">
+          <div key={w} className="rounded-lg bg-muted p-3">
             <Skeleton className="h-4 mb-2" style={{ width: `${w}%` }} />
             <Skeleton className="h-3 w-5/6" />
           </div>
