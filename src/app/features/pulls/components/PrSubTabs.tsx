@@ -72,10 +72,10 @@ export function PrSubTabs({ owner, repo, number, counts }: PrSubTabsProps) {
       </div>
 
       <Button variant="default" asChild className="ml-auto">
-        <a href={`/${owner}/${repo}/review/${number}`}>
+        <Link to="/$owner/$repo/review/$number" params={{ owner, repo, number }}>
           <Code2 className="size-4" />
           <span>Review</span>
-        </a>
+        </Link>
       </Button>
     </nav>
   );

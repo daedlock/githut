@@ -129,10 +129,14 @@ function ReviewPage() {
     <div className="flex min-h-screen flex-col bg-background">
       {/* Full-width diff with merged review header */}
       <div className="flex-1">
-        {filesQuery.isPending ? (
+        {prQuery.isPending || filesQuery.isPending ? (
           <ReviewSkeleton />
+        ) : prQuery.isError || !pr ? (
+          <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+            Could not load this pull request.
+          </div>
         ) : filesQuery.isError ? (
-          <div className="flex items-center justify-center py-20 text-body text-muted-foreground">
+          <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
             Could not load files for this pull request.
           </div>
         ) : (
