@@ -15,17 +15,6 @@ import type { CheckRun } from "@/app/features/pulls/hooks";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 
-// ─── PrChecksPage ──────────────────────────────────────────────────────────
-//
-// Lists CI results for the PR head SHA:
-//   • GitHub Actions / Check Runs (modern — per-job granularity)
-//   • Combined statuses (legacy — Travis-era single context rollups)
-// Poll is owned by `usePrChecks` (10s while any run is non-terminal).
-//
-// A top rollup row reports "N passing · N failing · N pending" so the
-// user can triage at a glance; individual rows link out to the provider
-// for details (we don't proxy logs — that's the Actions feature's job).
-
 export type PrChecksPageProps = {
   owner: string;
   repo: string;
@@ -58,20 +47,17 @@ export function PrChecksPage({ owner, repo, number }: PrChecksPageProps) {
   return (
     <div className="flex flex-col gap-3">
       {/* Rollup */}
-      <div
-        className={cn(
-          "flex items-center gap-2 rounded-md border border-border px-3 py-2",
-          rollup.bg,
-        )}
-      >
-        <rollup.Icon className={cn("size-4 shrink-0", rollup.tone)} aria-hidden />
-        <span className="text-body font-medium text-foreground">{rollup.headline}</span>
-        <span className="text-caption text-muted-foreground">{rollup.detail}</span>
+      <div className={cn("flex items-center gap-3 rounded-lg px-4 py-3", rollup.bg)}>
+        <rollup.Icon className={cn("size-5 shrink-0", rollup.tone)} aria-hidden />
+        <div>
+          <p className="text-body font-medium text-foreground">{rollup.headline}</p>
+          <p className="text-caption text-muted-foreground">{rollup.detail}</p>
+        </div>
       </div>
 
-      {/* Check runs (modern) */}
+      {/* Check runs */}
       {checkRuns.length > 0 && (
-        <div className="overflow-hidden rounded-md border border-border">
+        <div className="flex flex-col gap-1">
           {checkRuns.map((run) => (
             <CheckRunRow key={run.id} run={run} />
           ))}
@@ -80,20 +66,20 @@ export function PrChecksPage({ owner, repo, number }: PrChecksPageProps) {
 
       {/* Combined statuses (legacy) */}
       {combined.statuses.length > 0 && (
-        <div className="overflow-hidden rounded-md border border-border">
+        <div className="flex flex-col gap-1">
           {combined.statuses.map((s) => {
             const icon = iconForState(s.state);
             return (
               <div
                 key={s.id}
-                className="flex items-start gap-3 border-b border-border px-3 py-2 last:border-b-0"
+                className="flex items-start gap-3 px-3 py-2.5 transition-colors hover:bg-muted rounded-lg"
               >
                 <icon.Icon
                   className={cn("mt-0.5 size-4 shrink-0", icon.tone)}
                   aria-hidden
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="text-body font-medium text-foreground truncate">
+                  <div className="text-body font-[475] text-foreground truncate">
                     {s.context}
                   </div>
                   {s.description && (
@@ -102,7 +88,7 @@ export function PrChecksPage({ owner, repo, number }: PrChecksPageProps) {
                     </div>
                   )}
                   <div className="mt-0.5 text-micro text-[var(--color-fg-faint)]">
-                    Updated {formatRelativeTime(s.updated_at)}
+                    {formatRelativeTime(s.updated_at)}
                   </div>
                 </div>
                 {s.target_url && (
@@ -111,9 +97,9 @@ export function PrChecksPage({ owner, repo, number }: PrChecksPageProps) {
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cn(
-                      "inline-flex items-center gap-1 rounded-sm px-2 py-1",
+                      "shrink-0 inline-flex items-center gap-1 rounded-sm px-2 py-1",
                       "text-caption text-muted-foreground outline-none transition-colors",
-                      "hover:bg-[var(--color-bg-sunken)] hover:text-foreground",
+                      "hover:bg-muted hover:text-foreground",
                       "focus-visible:ring-1 focus-visible:ring-foreground/15",
                     )}
                   >
@@ -134,16 +120,17 @@ function CheckRunRow({ run }: { run: CheckRun }) {
   const icon = iconForCheckRun(run);
   const url = run.html_url ?? run.details_url ?? undefined;
   const appName = run.app?.name;
+
   return (
-    <div className="flex items-start gap-3 border-b border-border px-3 py-2 last:border-b-0">
+    <div className="flex items-start gap-3 px-3 py-2.5 transition-colors hover:bg-muted rounded-lg">
       <icon.Icon className={cn("mt-0.5 size-4 shrink-0", icon.tone)} aria-hidden />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="text-body font-medium text-foreground truncate">
+          <span className="text-body font-[475] text-foreground truncate">
             {run.name}
           </span>
           {appName && (
-            <span className="rounded-sm border border-border bg-[var(--color-bg-subtle)] px-1.5 py-0 text-micro text-muted-foreground">
+            <span className="rounded bg-muted px-1.5 text-micro text-muted-foreground">
               {appName}
             </span>
           )}
@@ -155,7 +142,7 @@ function CheckRunRow({ run }: { run: CheckRun }) {
         )}
         {run.completed_at ? (
           <div className="mt-0.5 text-micro text-[var(--color-fg-faint)]">
-            Completed {formatRelativeTime(run.completed_at)}
+            {formatRelativeTime(run.completed_at)}
           </div>
         ) : run.started_at ? (
           <div className="mt-0.5 text-micro text-[var(--color-fg-faint)]">
@@ -169,9 +156,9 @@ function CheckRunRow({ run }: { run: CheckRun }) {
           target="_blank"
           rel="noopener noreferrer"
           className={cn(
-            "inline-flex items-center gap-1 rounded-sm px-2 py-1",
+            "shrink-0 inline-flex items-center gap-1 rounded-sm px-2 py-1",
             "text-caption text-muted-foreground outline-none transition-colors",
-            "hover:bg-[var(--color-bg-sunken)] hover:text-foreground",
+            "hover:bg-muted hover:text-foreground",
             "focus-visible:ring-1 focus-visible:ring-foreground/15",
           )}
         >
@@ -198,7 +185,6 @@ function iconForCheckRun(run: CheckRun): { Icon: LucideIcon; tone: string } {
     case "action_required":
       return { Icon: AlertCircle, tone: "text-[var(--color-warning)]" };
     case "cancelled":
-      return { Icon: MinusCircle, tone: "text-[var(--color-fg-faint)]" };
     case "skipped":
       return { Icon: MinusCircle, tone: "text-[var(--color-fg-faint)]" };
     case "neutral":
@@ -251,7 +237,7 @@ function summarize(
     return {
       Icon: XCircle,
       tone: "text-[var(--color-danger)]",
-      bg: "bg-[color-mix(in_oklab,var(--color-danger)_8%,var(--color-bg))]",
+      bg: "bg-[color-mix(in_oklab,var(--color-danger)_8%,var(--color-bg-subtle))]",
       headline: `${failing} failing ${failing === 1 ? "check" : "checks"}`,
       detail: `${passing} passing · ${pending} pending`,
     };
@@ -260,7 +246,7 @@ function summarize(
     return {
       Icon: CircleDot,
       tone: "text-[var(--color-warning)]",
-      bg: "bg-[color-mix(in_oklab,var(--color-warning)_8%,var(--color-bg))]",
+      bg: "bg-[color-mix(in_oklab,var(--color-warning)_8%,var(--color-bg-subtle))]",
       headline: `${pending} pending ${pending === 1 ? "check" : "checks"}`,
       detail: `${passing} passing · ${failing} failing`,
     };
@@ -268,9 +254,9 @@ function summarize(
   return {
     Icon: CheckCircle2,
     tone: "text-[var(--color-success)]",
-    bg: "bg-[color-mix(in_oklab,var(--color-success)_8%,var(--color-bg))]",
-    headline: passing > 0 ? "All checks have passed" : "No checks have reported yet",
-    detail: passing > 0 ? `${passing} successful ${passing === 1 ? "check" : "checks"}` : "",
+    bg: "bg-[color-mix(in_oklab,var(--color-success)_8%,var(--color-bg-subtle))]",
+    headline: passing > 0 ? "All checks passed" : "No checks",
+    detail: passing > 0 ? `${passing} successful` : "",
   };
 }
 
@@ -298,18 +284,16 @@ function StateRow({
 function ChecksSkeleton() {
   return (
     <div className="skeleton-fade flex flex-col gap-3">
-      <Skeleton className="h-9" />
-      <div className="overflow-hidden rounded-md border border-border">
-        {[80, 64, 72].map((w) => (
-          <div
-            key={w}
-            className="flex items-start gap-3 border-b border-border px-3 py-2 last:border-b-0"
-          >
-            <Skeleton className="size-4 rounded-full" />
-            <Skeleton className="h-3" style={{ width: `${w}%` }} />
+      <Skeleton className="h-14 rounded-lg" />
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="flex items-start gap-3 px-3 py-2.5">
+          <Skeleton className="size-4 rounded-full" />
+          <div className="flex-1">
+            <Skeleton className="h-3.5" style={{ width: `${50 + i * 10}%` }} />
+            <Skeleton className="mt-1.5 h-3 w-24" />
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }

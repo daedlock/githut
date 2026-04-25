@@ -4,13 +4,16 @@ import { Container } from "@/app/components/ui/Container";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { PrActions } from "@/app/features/pulls/components/PrActions";
 import { PrHeader } from "@/app/features/pulls/components/PrHeader";
+import { PrSidebar } from "@/app/features/pulls/components/PrSidebar";
 import { PrSubTabs } from "@/app/features/pulls/components/PrSubTabs";
-import { prDetailQueryOptions, useFullPr } from "@/app/features/pulls/hooks";
+import {
+  prDetailQueryOptions,
+  useFullPr,
+  usePrReviews,
+} from "@/app/features/pulls/hooks";
 
 export const Route = createFileRoute("/$owner/$repo/pulls/$number")({
   parseParams: (raw) => ({ number: Number(raw.number) }),
-  // Non-blocking prefetch so cold-nav shows the skeleton instead of a
-  // blank frame. The header reads from the same cache on mount.
   loader: ({ context, params }) => {
     if (!Number.isFinite(params.number)) return;
     void context.queryClient.prefetchQuery(
@@ -23,11 +26,13 @@ export const Route = createFileRoute("/$owner/$repo/pulls/$number")({
 function PrDetailLayout() {
   const { owner, repo, number } = Route.useParams();
   const prQuery = useFullPr(owner, repo, number);
+  const reviewsQuery = usePrReviews(owner, repo, number);
   const pr = prQuery.data;
+  const reviews = reviewsQuery.data ?? [];
 
   if (prQuery.isPending) {
     return (
-      <Container className="max-w-[1280px] py-5 sm:py-6">
+      <Container className="py-5 sm:py-6">
         <PrHeaderSkeleton />
       </Container>
     );
@@ -35,7 +40,7 @@ function PrDetailLayout() {
 
   if (prQuery.isError || !pr) {
     return (
-      <Container className="max-w-[1280px] py-10">
+      <Container className="py-10">
         <div className="flex flex-col items-center gap-2 text-center">
           <AlertCircle className="size-5 text-destructive" />
           <p className="text-body text-muted-foreground">
@@ -54,20 +59,32 @@ function PrDetailLayout() {
         pr={pr}
         rightSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
       />
-      <div className="mb-6">
-        <PrSubTabs
-          owner={owner}
-          repo={repo}
-          number={number}
-          counts={{
-            conversation: pr.comments + pr.review_comments,
-            commits: pr.commits,
-            files: pr.changed_files,
-          }}
-          deltas={{ additions: pr.additions, deletions: pr.deletions }}
-        />
+      <PrSubTabs
+        owner={owner}
+        repo={repo}
+        number={number}
+        counts={{
+          conversation: pr.comments + pr.review_comments,
+          commits: pr.commits,
+          files: pr.changed_files,
+        }}
+        deltas={{ additions: pr.additions, deletions: pr.deletions }}
+      />
+
+      {/* Two-column layout with sticky sidebar */}
+      <div className="mt-6 flex gap-6 lg:gap-8">
+        {/* Main content */}
+        <div className="min-w-0 flex-1">
+          <Outlet />
+        </div>
+
+        {/* Sticky sidebar */}
+        <aside className="hidden lg:block w-56 flex-shrink-0">
+          <div className="sticky top-20">
+            <PrSidebar owner={owner} repo={repo} pr={pr} reviews={reviews} />
+          </div>
+        </aside>
       </div>
-      <Outlet />
     </Container>
   );
 }
@@ -82,12 +99,6 @@ function PrHeaderSkeleton() {
         <Skeleton className="h-4 w-60" />
       </div>
       <Skeleton className="h-3 w-48" />
-      <div className="mt-5 flex gap-4 border-b border-border pb-3">
-        <Skeleton className="h-4 w-28" />
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-4 w-16" />
-      </div>
     </div>
   );
 }

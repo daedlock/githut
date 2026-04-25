@@ -1,23 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { AlertCircle, GitCommit } from "lucide-react";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { useState } from "react";
 import { ShaChip } from "@/app/components/ui/ShaChip";
-import { ProfileLink } from "@/app/components/user/ProfileLink";
+import { Skeleton } from "@/app/components/ui/skeleton";
 import { usePrCommits } from "@/app/features/pulls/hooks";
 import type { PrCommit } from "@/app/features/pulls/hooks";
+import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
-
-// ─── PrCommitsPage ─────────────────────────────────────────────────────────
-//
-// Flat list of the commits attached to the PR (oldest → newest per
-// GitHub's ordering). Each row links to the full commit detail view so
-// reviewers can step into a single commit's diff. Visual rhythm mirrors
-// the repo-wide commits page: title + body, short SHA chip, author meta.
-//
-// Not reusing `CommitRow` directly because its type is
-// `CommitSummary` (from `useRepoCommits`). The PR commit shape is
-// structurally identical but lives in its own zod type — a thin local
-// row keeps the dependency clean.
 
 export type PrCommitsPageProps = {
   owner: string;
@@ -28,7 +17,7 @@ export type PrCommitsPageProps = {
 export function PrCommitsPage({ owner, repo, number }: PrCommitsPageProps) {
   const commitsQuery = usePrCommits(owner, repo, number);
 
-  if (commitsQuery.isPending) return <PrCommitsSkeleton />;
+  if (commitsQuery.isPending) return <CommitsSkeleton />;
   if (commitsQuery.isError) {
     return (
       <div className="flex flex-col items-center gap-2 py-10 text-center">
@@ -51,7 +40,7 @@ export function PrCommitsPage({ owner, repo, number }: PrCommitsPageProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-border">
+    <div className="flex flex-col gap-1">
       {commits.map((commit) => (
         <PrCommitRow key={commit.sha} commit={commit} owner={owner} repo={repo} />
       ))}
@@ -68,63 +57,97 @@ function PrCommitRow({
   owner: string;
   repo: string;
 }) {
+  const [bodyOpen, setBodyOpen] = useState(false);
   const { title, body } = splitMessage(commit.commit.message);
   const displayAuthor = commit.author?.login ?? commit.commit.author.name;
   const authorLogin = commit.author?.login;
+  const avatar = commit.author?.avatar_url;
 
   return (
-    <div className="group flex items-start gap-3 border-b border-border px-4 py-3 last:border-b-0 transition-colors hover:bg-muted">
+    <div className="group flex items-start gap-3 px-3 py-2.5 transition-colors hover:bg-muted rounded-lg">
+      {/* Left: title + meta */}
       <div className="min-w-0 flex-1">
         <Link
           to="/$owner/$repo/commit/$sha"
           params={{ owner, repo, sha: commit.sha }}
-          className="block rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-foreground/15"
+          className="block outline-none rounded-sm focus-visible:ring-1 focus-visible:ring-foreground/15"
         >
-          <div className="text-body font-medium text-foreground truncate">{title}</div>
-          {body && (
-            <pre className="mt-1 whitespace-pre-wrap font-mono text-caption text-muted-foreground">
+          <p className="text-body font-[475] text-foreground leading-snug">
+            {title}
+            {body && !bodyOpen && (
+              <button
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setBodyOpen(true); }}
+                className="ml-1.5 inline-flex rounded-md bg-muted px-1.5 py-px text-micro text-muted-foreground transition-colors hover:text-foreground"
+                aria-expanded={false}
+              >
+                ···
+              </button>
+            )}
+          </p>
+        </Link>
+
+        {body && bodyOpen && (
+          <>
+            <pre className="mt-2 whitespace-pre-wrap rounded-lg bg-muted p-3 font-mono text-caption leading-relaxed text-muted-foreground">
               {body}
             </pre>
-          )}
-        </Link>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-caption text-[var(--color-fg-faint)]">
-          {authorLogin ? (
-            <ProfileLink login={authorLogin} className="text-muted-foreground">
-              {displayAuthor}
-            </ProfileLink>
+            <button
+              type="button"
+              onClick={() => setBodyOpen(false)}
+              className="mt-1 rounded-md bg-muted px-1.5 py-px text-micro text-muted-foreground transition-colors hover:text-foreground"
+            >
+              collapse
+            </button>
+          </>
+        )}
+
+        {/* Author + time */}
+        <div className="mt-1 flex items-center gap-2 text-ui text-muted-foreground">
+          {avatar ? (
+            <img
+              src={avatar}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="size-5 shrink-0 rounded-full"
+            />
           ) : (
-            <span className="text-muted-foreground">{displayAuthor}</span>
+            <GitCommit className="size-3 shrink-0 text-[var(--color-fg-faint)]" />
           )}
-          <span>committed {formatRelativeTime(commit.commit.author.date)}</span>
+          <span className="truncate font-[475]">{displayAuthor}</span>
+          <span className="text-[var(--color-fg-faint)]">
+            {formatRelativeTime(commit.commit.author.date)}
+          </span>
         </div>
       </div>
-      <ShaChip sha={commit.sha} variant="inline" />
+
+      {/* Right: SHA */}
+      <ShaChip sha={commit.sha} link={{ owner, repo }} />
     </div>
   );
 }
 
-function splitMessage(msg: string): { title: string; body: string } {
-  const firstNewline = msg.indexOf("\n");
-  if (firstNewline === -1) return { title: msg, body: "" };
+function splitMessage(message: string): { title: string; body: string } {
+  const trimmed = message.trim();
+  const splitIdx = trimmed.indexOf("\n\n");
+  if (splitIdx === -1) return { title: trimmed, body: "" };
   return {
-    title: msg.slice(0, firstNewline),
-    body: msg.slice(firstNewline + 1).trim(),
+    title: trimmed.slice(0, splitIdx).trim(),
+    body: trimmed.slice(splitIdx + 2).trim(),
   };
 }
 
-function PrCommitsSkeleton() {
+function CommitsSkeleton() {
   return (
-    <div className="skeleton-fade overflow-hidden rounded-md border border-border">
-      {[80, 60, 72].map((w) => (
-        <div
-          key={w}
-          className="flex items-start gap-3 border-b border-border px-4 py-3 last:border-b-0"
-        >
-          <div className="min-w-0 flex-1">
-            <Skeleton className="h-4" style={{ width: `${w}%` }} />
-            <Skeleton className="mt-2 h-3 w-48" />
+    <div className="skeleton-fade flex flex-col gap-1">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex items-start gap-3 px-3 py-2.5">
+          <div className="min-w-0 flex-1 flex flex-col gap-1.5">
+            <Skeleton className="h-3.5" style={{ width: `${45 + (i * 11) % 40}%` }} />
+            <Skeleton className="h-3 w-40" />
           </div>
-          <Skeleton className="h-5 w-20" />
+          <Skeleton className="h-5 w-16" />
         </div>
       ))}
     </div>
