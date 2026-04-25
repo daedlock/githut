@@ -97,12 +97,14 @@ html.dark .shiki span {
   background: var(--diff-del-gutter);
 }
 .diff-line-comment {
-  border-left: 3px solid var(--diff-comment-border);
   background: var(--diff-comment-bg);
-  font-family: var(--font-sans);
   --color-muted: color-mix(in oklab, var(--diff-comment-border) 15%, var(--color-bg));
   --color-primary: color-mix(in oklab, var(--diff-comment-border) 30%, var(--color-bg-subtle));
   --color-primary-foreground: var(--color-fg);
+}
+.diff-thread {
+  border-left: 3px solid var(--diff-comment-border);
+  font-family: var(--font-sans);
 }
 .diff-comment-input {
   background: var(--diff-comment-bg);

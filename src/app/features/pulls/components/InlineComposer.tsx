@@ -45,7 +45,7 @@ export function InlineComposer({
   }
 
   return (
-    <div className="diff-line-comment py-3 pl-4 pr-4">
+    <div className="diff-line-comment diff-thread py-3 pl-4 pr-4">
       <div className="max-w-2xl flex gap-2.5">
         <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="mt-1 shrink-0" />
         <div className="min-w-0 flex-1">

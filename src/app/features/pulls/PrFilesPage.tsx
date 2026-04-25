@@ -391,7 +391,7 @@ function PendingCard({
   onRemove: () => void;
 }) {
   return (
-    <div className="diff-line-comment py-3 pl-4 pr-4">
+    <div className="diff-line-comment diff-thread py-3 pl-4 pr-4">
       <div className="max-w-2xl">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-medium text-primary">Pending</span>

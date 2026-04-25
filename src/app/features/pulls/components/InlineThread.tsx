@@ -62,7 +62,7 @@ export function InlineThread({
   const allComments = [root, ...replies];
 
   return (
-    <div className="diff-line-comment py-3 pl-4 pr-4">
+    <div className="diff-line-comment diff-thread py-3 pl-4 pr-4">
       <div className="max-w-2xl">
         {/* Comments */}
         <div className="flex flex-col gap-3">

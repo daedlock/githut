@@ -278,7 +278,7 @@ const LineSlotContent = memo(function LineSlotContent({
 
 function PendingCard({ comment, onRemove }: { comment: PendingComment; onRemove: () => void }) {
   return (
-    <div className="diff-line-comment py-3 pl-4 pr-4">
+    <div className="diff-line-comment diff-thread py-3 pl-4 pr-4">
       <div className="max-w-2xl">
         <div className="flex items-center justify-between gap-2">
           <span className="text-caption font-medium text-primary">Pending</span>
