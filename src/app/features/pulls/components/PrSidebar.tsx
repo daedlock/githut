@@ -122,11 +122,11 @@ export function PrSidebar({
         }
       >
         {pr.assignees.length > 0 ? (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5">
             {pr.assignees.map((a) => (
               <div key={a.login} className="flex items-center gap-2">
                 <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
-                <ProfileLink login={a.login} className="text-caption text-muted-foreground">
+                <ProfileLink login={a.login} className="text-xs text-muted-foreground">
                   {a.login}
                 </ProfileLink>
               </div>
@@ -169,7 +169,7 @@ export function PrSidebar({
 
       <SidebarSection icon={<Milestone className="size-3.5" />} title="Milestone">
         {pr.milestone ? (
-          <span className="text-caption text-foreground">{pr.milestone.title}</span>
+          <span className="text-xs text-foreground">{pr.milestone.title}</span>
         ) : (
           <EmptyState>No milestone</EmptyState>
         )}
@@ -193,7 +193,7 @@ function SidebarSection({
     <div className="rounded-lg bg-muted p-3">
       <div className="mb-2 flex items-center gap-2">
         <span className="text-muted-foreground">{icon}</span>
-        <span className="flex-1 text-caption font-medium text-foreground">{title}</span>
+        <span className="flex-1 text-[11px] font-medium text-muted-foreground">{title}</span>
         {picker}
       </div>
       {children}
@@ -202,7 +202,7 @@ function SidebarSection({
 }
 
 function EmptyState({ children }: { children: React.ReactNode }) {
-  return <span className="text-caption text-muted-foreground">{children}</span>;
+  return <span className="text-[11px] text-muted-foreground">{children}</span>;
 }
 
 function ReviewerList({ pr, reviews }: { pr: PullRequest; reviews: Review[] }) {
@@ -240,7 +240,7 @@ function ReviewerList({ pr, reviews }: { pr: PullRequest; reviews: Review[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
       {people.map((p) => {
         const state = latest.get(p.login)?.state;
         return (
@@ -248,7 +248,7 @@ function ReviewerList({ pr, reviews }: { pr: PullRequest; reviews: Review[] }) {
             <Avatar login={p.login} avatarUrl={p.avatar_url} size="sm" />
             <ProfileLink
               login={p.login}
-              className="flex-1 min-w-0 truncate text-caption text-muted-foreground"
+              className="flex-1 min-w-0 truncate text-xs text-muted-foreground"
             >
               {p.login}
             </ProfileLink>
@@ -290,7 +290,7 @@ function ReviewStateBadge({ state }: { state: Review["state"] }) {
   };
   const c = config[state];
   return (
-    <span className={cn("rounded px-1.5 py-0.5 text-micro font-medium", c.bg, c.fg)}>
+    <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-medium", c.bg, c.fg)}>
       {c.label}
     </span>
   );
