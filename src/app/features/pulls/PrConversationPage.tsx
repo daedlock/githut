@@ -4,9 +4,9 @@ import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
+import { Comment } from "@/app/components/ui/CommentCard";
 import { CommentBox } from "@/app/components/ui/CommentBox";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { PrCommentCard } from "@/app/features/pulls/components/PrCommentCard";
 import { PrMergeBox } from "@/app/features/pulls/components/PrMergeBox";
 import { PrTimelineRow } from "@/app/features/pulls/components/PrTimelineRow";
 import {
@@ -86,22 +86,23 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
           <div className="pt-1">
             <TimelineMarker type="author" avatarUrl={pr.user.avatar_url} />
           </div>
-          <div className="flex-1 min-w-0">
-            <PrCommentCard
+          <div className="min-w-0 flex-1">
+            <Comment
               login={pr.user.login}
+              avatarUrl={pr.user.avatar_url}
               date={pr.created_at}
               isAuthor
             >
               {pr.body?.trim() ? (
-                <div className="readme-prose max-w-none text-body">
+                <div className="readme-prose max-w-none text-sm">
                   <GithubMarkdown>{pr.body}</GithubMarkdown>
                 </div>
               ) : (
-                <p className="text-body italic text-[var(--color-fg-faint)]">
+                <p className="text-sm italic text-muted-foreground">
                   No description provided.
                 </p>
               )}
-            </PrCommentCard>
+            </Comment>
           </div>
         </div>
       )}
@@ -121,15 +122,16 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
                   <div className="pt-1">
                     <TimelineMarker type="comment" avatarUrl={item.user?.avatar_url} />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <PrCommentCard
+                  <div className="min-w-0 flex-1">
+                    <Comment
                       login={item.user?.login ?? "ghost"}
+                      avatarUrl={item.user?.avatar_url}
                       date={item.at}
                     >
-                      <div className="readme-prose max-w-none text-body">
+                      <div className="readme-prose max-w-none text-sm">
                         <GithubMarkdown>{item.body}</GithubMarkdown>
                       </div>
-                    </PrCommentCard>
+                    </Comment>
                   </div>
                 </div>
               );
@@ -142,8 +144,8 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
                     <div className="pt-1">
                       <TimelineMarker type="review" reviewState={full.state} />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <ReviewCardFromFeed review={full} />
+                    <div className="min-w-0 flex-1">
+                      <ReviewCard review={full} />
                     </div>
                   </div>
                 );
@@ -163,7 +165,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
         <div className="pt-1">
           <TimelineMarker type="merge" />
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <PrMergeBox owner={owner} repo={repo} pr={pr} />
         </div>
       </div>
@@ -174,28 +176,21 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
           <div className="pt-1">
             <TimelineMarker type="comment" avatarUrl={meQuery.data.avatar_url} />
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="rounded-lg bg-muted overflow-hidden">
-              <div className="flex items-center gap-2 bg-muted/50 px-4 py-2 text-caption">
-                <Avatar
-                  login={meQuery.data.login}
-                  avatarUrl={meQuery.data.avatar_url}
-                  size="sm"
-                />
-                <span className="font-medium text-foreground">Add a comment</span>
-              </div>
+          <div className="min-w-0 flex-1">
+            <Comment
+              login={meQuery.data.login}
+              avatarUrl={meQuery.data.avatar_url}
+            >
               <form onSubmit={handleSubmit}>
-                <div className="p-4">
-                  <CommentBox
-                    owner={owner}
-                    repo={repo}
-                    value={draft}
-                    onChange={setDraft}
-                    placeholder="Leave a comment"
-                    rows={4}
-                  />
-                </div>
-                <div className="flex justify-end px-4 pb-4">
+                <CommentBox
+                  owner={owner}
+                  repo={repo}
+                  value={draft}
+                  onChange={setDraft}
+                  placeholder="Leave a comment"
+                  rows={4}
+                />
+                <div className="mt-3 flex justify-end">
                   <Button
                     type="submit"
                     size="sm"
@@ -205,7 +200,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
                   </Button>
                 </div>
               </form>
-            </div>
+            </Comment>
           </div>
         </div>
       )}
@@ -213,15 +208,15 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
   );
 }
 
-// ─── Review card (feed) ────────────────────────────────────────────────────
+// ─── Review card ────────────────────────────────────────────────────────────
 
-function ReviewCardFromFeed({ review }: { review: Review }) {
+function ReviewCard({ review }: { review: Review }) {
   const tone =
     review.state === "APPROVED"
       ? "text-[var(--color-success)] bg-[color-mix(in_oklab,var(--color-success)_14%,var(--color-bg-subtle))]"
       : review.state === "CHANGES_REQUESTED"
         ? "text-[var(--color-danger)] bg-[color-mix(in_oklab,var(--color-danger)_14%,var(--color-bg-subtle))]"
-        : "text-muted-foreground bg-[var(--color-bg-sunken)]";
+        : "text-muted-foreground bg-muted";
   const label =
     review.state === "APPROVED"
       ? "Approved"
@@ -232,14 +227,16 @@ function ReviewCardFromFeed({ review }: { review: Review }) {
           : review.state === "DISMISSED"
             ? "Dismissed"
             : "Review";
+
   return (
-    <PrCommentCard
+    <Comment
       login={review.user?.login ?? "ghost"}
+      avatarUrl={review.user?.avatar_url}
       date={review.submitted_at ?? new Date(0).toISOString()}
-      header={
+      actions={
         <span
           className={cn(
-            "inline-flex items-center rounded-full px-2 py-0.5 text-caption font-medium",
+            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
             tone,
           )}
         >
@@ -248,15 +245,15 @@ function ReviewCardFromFeed({ review }: { review: Review }) {
       }
     >
       {review.body?.trim() ? (
-        <div className="readme-prose max-w-none text-body">
+        <div className="readme-prose max-w-none text-sm">
           <GithubMarkdown>{review.body}</GithubMarkdown>
         </div>
       ) : (
-        <p className="text-body italic text-[var(--color-fg-faint)]">
+        <p className="text-sm italic text-muted-foreground">
           {label.toLowerCase()} without a comment.
         </p>
       )}
-    </PrCommentCard>
+    </Comment>
   );
 }
 
