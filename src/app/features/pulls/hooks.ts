@@ -105,6 +105,8 @@ export const pullsKeys = {
     [...pullsKeys.all, "checks", owner, repo, sha] as const,
   reviewComments: (owner: string, repo: string, number: number) =>
     [...pullsKeys.all, "review-comments", owner, repo, number] as const,
+  threadResolution: (owner: string, repo: string, number: number) =>
+    [...pullsKeys.all, "thread-resolution", owner, repo, number] as const,
 };
 
 // ─── Filters ───────────────────────────────────────────────────────────────
@@ -984,6 +986,89 @@ export function useToggleReviewCommentReaction(
         else next.delete(content);
         return next;
       });
+    },
+  });
+}
+
+// ─── Thread resolution (GraphQL-only) ─────────────────────────────────────
+//
+// GitHub REST doesn't expose thread resolution state. We fetch it via
+// GraphQL and return a Map<rootCommentDatabaseId, { threadNodeId, isResolved }>.
+
+export type ThreadResolutionMap = Map<number, { threadNodeId: string; isResolved: boolean }>;
+
+const THREAD_RESOLUTION_QUERY = `
+  query($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) {
+        reviewThreads(first: 100) {
+          nodes {
+            id
+            isResolved
+            comments(first: 1) {
+              nodes { databaseId }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+export function useThreadResolution(owner: string, repo: string, number: number) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    queryKey: pullsKeys.threadResolution(owner, repo, number),
+    staleTime: 15_000,
+    enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    queryFn: async (): Promise<ThreadResolutionMap> => {
+      const client = getGitHubClient();
+      const res: any = await client.graphql(THREAD_RESOLUTION_QUERY, { owner, repo, number });
+      const nodes = res.repository.pullRequest.reviewThreads.nodes as Array<{
+        id: string;
+        isResolved: boolean;
+        comments: { nodes: Array<{ databaseId: number }> };
+      }>;
+      const map: ThreadResolutionMap = new Map();
+      for (const t of nodes) {
+        const rootId = t.comments.nodes[0]?.databaseId;
+        if (rootId != null) map.set(rootId, { threadNodeId: t.id, isResolved: t.isResolved });
+      }
+      return map;
+    },
+  });
+}
+
+export function useResolveThread(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ threadNodeId, resolve }: { threadNodeId: string; resolve: boolean }) => {
+      const client = getGitHubClient();
+      const mutation = resolve
+        ? `mutation($id: ID!) { resolveReviewThread(input: { threadId: $id }) { thread { id isResolved } } }`
+        : `mutation($id: ID!) { unresolveReviewThread(input: { threadId: $id }) { thread { id isResolved } } }`;
+      return client.graphql(mutation, { id: threadNodeId });
+    },
+    onMutate: async ({ threadNodeId, resolve }) => {
+      const key = pullsKeys.threadResolution(owner, repo, number);
+      await queryClient.cancelQueries({ queryKey: key });
+      const prev = queryClient.getQueryData<ThreadResolutionMap>(key);
+      if (prev) {
+        const next = new Map(prev);
+        for (const [rootId, entry] of next) {
+          if (entry.threadNodeId === threadNodeId) {
+            next.set(rootId, { ...entry, isResolved: resolve });
+          }
+        }
+        queryClient.setQueryData<ThreadResolutionMap>(key, next);
+      }
+      return { key, prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: pullsKeys.threadResolution(owner, repo, number) });
     },
   });
 }

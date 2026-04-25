@@ -1,4 +1,4 @@
-import { Check, Reply, Send } from "lucide-react";
+import { Check, ChevronRight, Reply, RotateCcw, Send } from "lucide-react";
 import { useRef, useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { Avatar } from "@/app/components/ui/avatar";
@@ -7,6 +7,8 @@ import { ReactionsBar } from "@/app/features/issues/components/ReactionsBar";
 import {
   useMyReviewCommentReactions,
   useReplyToReviewComment,
+  useResolveThread,
+  useThreadResolution,
   useToggleReviewCommentReaction,
 } from "@/app/features/pulls/hooks";
 import type { ReviewComment } from "@/app/features/pulls/schemas";
@@ -32,11 +34,19 @@ export function InlineThread({
 }: InlineThreadProps) {
   const [replyOpen, setReplyOpen] = useState(false);
   const [body, setBody] = useState("");
+  const [expanded, setExpanded] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const replyMutation = useReplyToReviewComment(owner, repo, number);
   const meQuery = useMe();
   const meId = meQuery.data?.id;
   const toggleReaction = useToggleReviewCommentReaction(owner, repo, number, meId);
+
+  const resolutionQuery = useThreadResolution(owner, repo, number);
+  const resolveMutation = useResolveThread(owner, repo, number);
+  const resolutionLoading = resolutionQuery.isLoading;
+  const threadInfo = resolutionQuery.data?.get(root.id);
+  const isResolved = threadInfo?.isResolved ?? false;
+  const threadNodeId = threadInfo?.threadNodeId;
 
   function handleReply() {
     const text = body.trim();
@@ -45,6 +55,11 @@ export function InlineThread({
       { inReplyToId: root.id, body: text },
       { onSuccess: () => { setBody(""); setReplyOpen(false); } },
     );
+  }
+
+  function handleResolveToggle() {
+    if (!threadNodeId || resolveMutation.isPending) return;
+    resolveMutation.mutate({ threadNodeId, resolve: !isResolved });
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -60,11 +75,47 @@ export function InlineThread({
   }
 
   const allComments = [root, ...replies];
+  const lastComment = allComments[allComments.length - 1]!;
+
+  if (resolutionLoading) {
+    return (
+      <div className="diff-line-comment diff-thread py-3 pl-4 pr-4">
+        <div className="max-w-2xl">
+          <div className="h-5 w-48 animate-pulse rounded bg-muted" />
+        </div>
+      </div>
+    );
+  }
+
+  if (isResolved && !expanded) {
+    return (
+      <div className="diff-line-comment diff-thread py-2 pl-4 pr-4 opacity-60">
+        <div className="max-w-2xl">
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="flex items-center gap-1.5 text-caption text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ChevronRight className="size-3.5" />
+            <Check className="size-3 text-[var(--color-success)]" />
+            <span>Resolved by <span className="font-medium">{lastComment.user?.login ?? "ghost"}</span></span>
+            <span className="text-muted-foreground/50">— {root.body.length > 60 ? root.body.slice(0, 60) + "…" : root.body}</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="diff-line-comment diff-thread py-3 pl-4 pr-4">
       <div className="max-w-2xl">
-        {/* Comments */}
+        {isResolved && (
+          <div className="mb-2 flex items-center gap-1.5 text-caption text-[var(--color-success)]">
+            <Check className="size-3" />
+            <span>Resolved</span>
+          </div>
+        )}
+
         <div className="flex flex-col gap-3">
           {allComments.map((c) => (
             <CommentBubble
@@ -80,7 +131,6 @@ export function InlineThread({
           ))}
         </div>
 
-        {/* Reply composer */}
         {replyOpen ? (
           <div className="mt-3 flex gap-2.5">
             <Avatar
@@ -125,16 +175,36 @@ export function InlineThread({
             </div>
           </div>
         ) : (
-          /* Action bar — reply + resolve, compact single row */
           <div className="mt-2 flex items-center gap-1">
             <Button variant="ghost" size="xs" onClick={() => setReplyOpen(true)}>
               <Reply data-icon="inline-start" />
               Reply
             </Button>
-            <Button variant="ghost" size="xs">
-              <Check data-icon="inline-start" />
-              Resolve
-            </Button>
+            {threadNodeId && (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={handleResolveToggle}
+                disabled={resolveMutation.isPending}
+              >
+                {isResolved ? (
+                  <>
+                    <RotateCcw data-icon="inline-start" />
+                    Unresolve
+                  </>
+                ) : (
+                  <>
+                    <Check data-icon="inline-start" />
+                    Resolve
+                  </>
+                )}
+              </Button>
+            )}
+            {isResolved && (
+              <Button variant="ghost" size="xs" onClick={() => setExpanded(false)}>
+                Collapse
+              </Button>
+            )}
           </div>
         )}
       </div>
