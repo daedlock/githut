@@ -1,0 +1,74 @@
+[data-theme="ember-light"] {
+  color-scheme: light;
+
+  /* Surfaces — warm parchment, not clinical white */
+  --color-bg: #e6dac4; /* ivory */
+  --color-bg-subtle: #ddd0b8; /* step darker */
+  --color-bg-sunken: #d0c1a4; /* hover / inset */
+  --color-border: #c0b290;
+  --color-border-strong: #a89876;
+
+  /* Text — near-black warm brown, long-read-comfortable */
+  --color-fg: #282418; /* ~13.7:1 on bg */
+  --color-fg-muted: #5c5240; /* ~6.2:1 */
+  --color-fg-faint: #8a7c62; /* ~3.5:1 (graphics) */
+
+  /* Hero accent — coral darkened to #993d24 for AA on parchment (5.0:1) */
+  --color-accent: #993d24;
+  --color-accent-hover: #843420;
+  --color-accent-fg: #e6dac4;
+  --color-primary: #993d24;
+  --color-primary-foreground: #e6dac4;
+
+  --color-success: #4a6830; /* olive dark */
+  --color-danger: #905050; /* rose dark */
+  --color-warning: #7a6820; /* gold dark */
+  --color-focus: #993d24;
+
+  /* Issue state pills — earthy tints on parchment */
+  --color-issue-open-bg: #d5e0c0;
+  --color-issue-open-fg: #4a6830;
+  --color-issue-closed-bg: #e0c8d2;
+  --color-issue-closed-fg: #704058;
+
+  /* Syntax — accents_light variant from palette.json, all AA on parchment */
+  --syntax-keyword: #b84c30; /* coral dark */
+  --syntax-string: #4a6830; /* olive dark */
+  --syntax-number: #946030; /* orange dark */
+  --syntax-function: #7a6820; /* gold dark */
+  --syntax-type: #7a6820;
+  --syntax-property: #946030;
+  --syntax-constant: #946030;
+  --syntax-variable: #282418;
+  --syntax-operator: #5c5240;
+  --syntax-punctuation: #5c5240;
+  --syntax-tag: #905050; /* rose dark */
+  --syntax-attribute: #386858; /* sage dark */
+  --syntax-meta: #706070; /* mauve dark */
+  --syntax-comment: #8a7c62;
+  --syntax-regex: #4a6830;
+
+  /* Icons — darkened accent set */
+  --icon-ts: #3a6080;
+  --icon-js: #7a6820;
+  --icon-python: #3a6080;
+  --icon-rust: #b84c30;
+  --icon-go: #386858;
+  --icon-ruby: #905050;
+  --icon-markup: #946030;
+  --icon-style: #706070;
+  --icon-data: #7a6820;
+  --icon-image: #706070;
+  --icon-docker: #3a6080;
+  --icon-shell: #4a6830;
+  --icon-default: #8a7c62;
+
+  /* Chart slots — darkened variants */
+  --chart-slot-1: #b84c30;
+  --chart-slot-2: #3a6080;
+  --chart-slot-3: #706070;
+  --chart-slot-4: #4a6830;
+  --chart-slot-5: #905050;
+  --chart-slot-6: #7a6820;
+  --chart-other: #8a7c62;
+}

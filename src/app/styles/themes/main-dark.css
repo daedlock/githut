@@ -1,0 +1,80 @@
+[data-theme="main-dark"] {
+  color-scheme: dark;
+
+  /* Surfaces — blue-grey, L*7 → L*11 → L*15 */
+  --color-bg: #111318;
+  --color-bg-subtle: #1a1d24;
+  --color-bg-sunken: #242830;
+  --color-border: #2a2e38;
+  --color-border-strong: #363c48;
+
+  /* Text — cool white, L*91 → L*60 → L*35 */
+  --color-fg: #e2e5eb;
+  --color-fg-muted: #8b92a0;
+  --color-fg-faint: #4c5466;
+
+  /* Accent — blue (CIELAB L*62, C*45, H*270) */
+  --color-accent: #6B8CF0;
+  --color-accent-hover: #85A2F5;
+  --color-accent-fg: #111318;
+  --color-primary: #6B8CF0;
+  --color-primary-foreground: #111318;
+  --color-focus: #6B8CF0;
+
+  /* Status — all at CIELAB L*62-65 for equal visual weight */
+  --color-success: #5CB870;  /* L*65, green H*140 */
+  --color-danger: #E86B6B;   /* L*62, red H*25 */
+  --color-warning: #D4A840;  /* L*72, amber H*85 */
+
+  /* Merged — purple at L*58 */
+  --color-pr-merged: #A880E0;
+  --color-pr-merged-bg: color-mix(in oklab, #A880E0 14%, #1a1d24);
+  --color-pr-merged-fg: color-mix(in oklab, #A880E0 80%, #e2e5eb);
+
+  /* Issue pills */
+  --color-issue-open-bg: #162818;
+  --color-issue-open-fg: #6CD080;
+  --color-issue-closed-bg: #281828;
+  --color-issue-closed-fg: #B890D8;
+
+  /* Syntax — 8 hues at CIELAB L*62-72 on L*7 bg */
+  --syntax-keyword: #6B8CF0;  /* blue — hero, matches accent */
+  --syntax-string: #5CB870;   /* green */
+  --syntax-number: #E8A050;   /* orange */
+  --syntax-function: #D4A840; /* gold */
+  --syntax-type: #50B8B0;     /* teal */
+  --syntax-property: #E8A050; /* orange */
+  --syntax-constant: #A880E0; /* purple */
+  --syntax-variable: #e2e5eb; /* fg */
+  --syntax-operator: #8b92a0; /* fg-muted */
+  --syntax-punctuation: #8b92a0;
+  --syntax-tag: #E86B6B;      /* red */
+  --syntax-attribute: #50B8B0; /* teal */
+  --syntax-meta: #6B8CF0;     /* blue */
+  --syntax-comment: #4c5466;  /* fg-faint */
+  --syntax-regex: #5CB870;    /* green */
+
+  /* File icons */
+  --icon-ts: #6B8CF0;
+  --icon-js: #D4A840;
+  --icon-python: #50B8B0;
+  --icon-rust: #E8A050;
+  --icon-go: #50B8B0;
+  --icon-ruby: #E86B6B;
+  --icon-markup: #E8A050;
+  --icon-style: #A880E0;
+  --icon-data: #D4A840;
+  --icon-image: #A880E0;
+  --icon-docker: #6B8CF0;
+  --icon-shell: #5CB870;
+  --icon-default: #4c5466;
+
+  /* Chart slots */
+  --chart-slot-1: #6B8CF0;
+  --chart-slot-2: #5CB870;
+  --chart-slot-3: #E86B6B;
+  --chart-slot-4: #D4A840;
+  --chart-slot-5: #50B8B0;
+  --chart-slot-6: #A880E0;
+  --chart-other: #4c5466;
+}

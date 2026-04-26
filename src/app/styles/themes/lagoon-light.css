@@ -1,0 +1,75 @@
+[data-theme="lagoon-light"] {
+  color-scheme: light;
+
+  /* Surfaces — H170 teal, S16-22%, L78-92% seafoam paper */
+  --color-bg: #d8eae6; /* H170 S22% L88% — seafoam paper */
+  --color-bg-subtle: #cbdfda; /* H170 S20% L84% */
+  --color-bg-sunken: #bcd4cf; /* H170 S18% L78% — hover / inset */
+  --color-border: #a8c4be; /* H170 S16% L72% */
+  --color-border-strong: #7d9a95; /* H170 S14% L55% */
+
+  /* Text — warm sepia ink on seafoam: warm-on-cool preserved */
+  --color-fg: #2d2818; /* H40 S28% L14% — ~11:1 on bg */
+  --color-fg-muted: #587571; /* H170 S14% L40% — ~5.5:1 on bg */
+  --color-fg-faint: #7d9a95; /* H170 S14% L55% — ~3.2:1 (graphics) */
+
+  /* Hero accent — deep coral for AA on seafoam (5.7:1) */
+  --color-accent: #993828;
+  --color-accent-hover: #843020;
+  --color-accent-fg: #d8eae6;
+  --color-primary: #993828;
+  --color-primary-foreground: #d8eae6;
+
+  /* Status — darkened lagoon accents for AA on seafoam */
+  --color-success: #4e7038; /* dark olive (Emacs green) */
+  --color-danger: #a8384e; /* dark watermelon (Emacs magenta) */
+  --color-warning: #a46020; /* dark orange (Emacs orange) */
+  --color-focus: #993828;
+
+  /* Issue state pills — tinted seafoam surfaces */
+  --color-issue-open-bg: #c0ddd0; /* green-tinted seafoam */
+  --color-issue-open-fg: #4e7038; /* dark olive */
+  --color-issue-closed-bg: #ddc4cc; /* watermelon-tinted */
+  --color-issue-closed-fg: #7a2838; /* deep watermelon */
+
+  /* Syntax — coral / seagrass / watermelon trio, same semantic roles as dark lagoon */
+  --syntax-keyword: #b85540; /* coral — hero (keywords, return, if) */
+  --syntax-string: #8a7020; /* dark gold */
+  --syntax-number: #a46020; /* orange */
+  --syntax-function: #307860; /* seagrass — hero #2 */
+  --syntax-type: #a8384e; /* watermelon — hero #3 */
+  --syntax-property: #307864; /* cyan — near seagrass */
+  --syntax-constant: #706280; /* violet */
+  --syntax-variable: #2d2818; /* fg */
+  --syntax-operator: #587571; /* recedes (base6) */
+  --syntax-punctuation: #587571;
+  --syntax-tag: #b85540; /* coral */
+  --syntax-attribute: #307860; /* seagrass */
+  --syntax-meta: #346488; /* blue */
+  --syntax-comment: #7d9a95; /* muted (base5) */
+  --syntax-regex: #8a7020; /* shared with string */
+
+  /* File icons — lagoon accents darkened for seafoam contrast */
+  --icon-ts: #346488; /* blue */
+  --icon-js: #8a7020; /* dark gold */
+  --icon-python: #346488; /* blue */
+  --icon-rust: #b85540; /* coral */
+  --icon-go: #307860; /* seagrass */
+  --icon-ruby: #a8384e; /* watermelon */
+  --icon-markup: #a46020; /* orange */
+  --icon-style: #706280; /* violet */
+  --icon-data: #8a7020; /* gold */
+  --icon-image: #706280; /* violet */
+  --icon-docker: #244e68; /* dark blue */
+  --icon-shell: #4e7038; /* olive */
+  --icon-default: #7d9a95; /* muted */
+
+  /* Chart slots — coral hero first, then lagoon hues */
+  --chart-slot-1: #b85540; /* coral */
+  --chart-slot-2: #307860; /* seagrass */
+  --chart-slot-3: #a8384e; /* watermelon */
+  --chart-slot-4: #8a7020; /* gold */
+  --chart-slot-5: #346488; /* blue */
+  --chart-slot-6: #706280; /* violet */
+  --chart-other: #7d9a95; /* muted */
+}

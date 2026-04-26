@@ -1,0 +1,71 @@
+[data-theme="ember"],
+[data-theme="ember-soft"] {
+  --color-fg: #d8d0c0;
+  --color-fg-muted: #a0988a;
+  --color-fg-faint: #5e574c;
+  --color-border-strong: #4d4943;
+  --color-accent: #e08060;
+  --color-accent-hover: #ec8870;
+  --color-accent-fg: #1c1b19;
+  --color-primary: #e08060;
+  --color-primary-foreground: #1c1b19;
+  --color-success: #8a9868;
+  --color-danger: #b07878;
+  --color-warning: #c8b468;
+  --color-focus: #e08060;
+  --color-issue-open-bg: #2d362a;
+  --color-issue-open-fg: #a6b47a;
+  --color-issue-closed-bg: #3a2f37;
+  --color-issue-closed-fg: #c8a8bc;
+  --syntax-keyword: #e08060;
+  --syntax-string: #8a9868;
+  --syntax-number: #c09058;
+  --syntax-function: #c8b468;
+  --syntax-type: #c8b468;
+  --syntax-property: #c09058;
+  --syntax-constant: #c09058;
+  --syntax-variable: #d8d0c0;
+  --syntax-operator: #a0988a;
+  --syntax-punctuation: #a0988a;
+  --syntax-tag: #b07878;
+  --syntax-attribute: #80a090;
+  --syntax-meta: #988090;
+  --syntax-comment: #6b6357;
+  --syntax-regex: #8a9868;
+  --icon-ts: #7890a0;
+  --icon-js: #c8b468;
+  --icon-python: #7890a0;
+  --icon-rust: #e08060;
+  --icon-go: #80a090;
+  --icon-ruby: #b07878;
+  --icon-markup: #c09058;
+  --icon-style: #988090;
+  --icon-data: #c8b468;
+  --icon-image: #988090;
+  --icon-docker: #7890a0;
+  --icon-shell: #8a9868;
+  --icon-default: #5e574c;
+  --chart-slot-1: #e08060;
+  --chart-slot-2: #7890a0;
+  --chart-slot-3: #988090;
+  --chart-slot-4: #8a9868;
+  --chart-slot-5: #b07878;
+  --chart-slot-6: #c8b468;
+  --chart-other: #5e574c;
+}
+
+[data-theme="ember"] {
+  --color-bg: #1c1b19;
+  --color-bg-subtle: #242320;
+  --color-bg-sunken: #2c2a26;
+  --color-border: #35332e;
+  color-scheme: dark;
+}
+
+[data-theme="ember-soft"] {
+  --color-bg: #242320;
+  --color-bg-subtle: #2c2a26;
+  --color-bg-sunken: #35332e;
+  --color-border: #3e3a33;
+  color-scheme: dark;
+}

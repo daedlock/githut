@@ -1,0 +1,75 @@
+[data-theme="lagoon"] {
+  color-scheme: dark;
+
+  /* Surfaces — H170 dark teal */
+  --color-bg: #101a18;
+  --color-bg-subtle: #152120;
+  --color-bg-sunken: #1c2a28;
+  --color-border: #1c2a28;
+  --color-border-strong: #283836;
+
+  /* Text — dry sage warmth */
+  --color-fg: #c8c4b0;
+  --color-fg-muted: #829a96;
+  --color-fg-faint: #3e524f;
+
+  /* Hero accent — coral */
+  --color-accent: #e07060;
+  --color-accent-hover: #e88070;
+  --color-accent-fg: #101a18;
+  --color-primary: #e07060;
+  --color-primary-foreground: #101a18;
+
+  /* Status */
+  --color-success: #60b878;
+  --color-danger: #e07060;
+  --color-warning: #b8b060;
+  --color-focus: #e07060;
+
+  /* Issue pills */
+  --color-issue-open-bg: #182a1e;
+  --color-issue-open-fg: #70c888;
+  --color-issue-closed-bg: #2a1a20;
+  --color-issue-closed-fg: #d07888;
+
+  /* Syntax */
+  --syntax-keyword: #e07060;
+  --syntax-string: #b8b060;
+  --syntax-number: #d09058;
+  --syntax-function: #43aa8b;
+  --syntax-type: #d06878;
+  --syntax-property: #d09058;
+  --syntax-constant: #9080b0;
+  --syntax-variable: #c8c4b0;
+  --syntax-operator: #5a706c;
+  --syntax-punctuation: #5a706c;
+  --syntax-tag: #e07060;
+  --syntax-attribute: #50b8a0;
+  --syntax-meta: #5898b8;
+  --syntax-comment: #3e524f;
+  --syntax-regex: #b8b060;
+
+  /* File icons */
+  --icon-ts: #5898b8;
+  --icon-js: #b8b060;
+  --icon-python: #5898b8;
+  --icon-rust: #e07060;
+  --icon-go: #43aa8b;
+  --icon-ruby: #d06878;
+  --icon-markup: #d09058;
+  --icon-style: #9080b0;
+  --icon-data: #b8b060;
+  --icon-image: #9080b0;
+  --icon-docker: #407088;
+  --icon-shell: #60b878;
+  --icon-default: #3e524f;
+
+  /* Chart slots */
+  --chart-slot-1: #e07060;
+  --chart-slot-2: #43aa8b;
+  --chart-slot-3: #d06878;
+  --chart-slot-4: #b8b060;
+  --chart-slot-5: #5898b8;
+  --chart-slot-6: #9080b0;
+  --chart-other: #3e524f;
+}

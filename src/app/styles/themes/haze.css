@@ -1,0 +1,75 @@
+[data-theme="haze"] {
+  color-scheme: dark;
+
+  /* Surfaces — H260 purple-grey */
+  --color-bg: #2a292e;
+  --color-bg-subtle: #302f34;
+  --color-bg-sunken: #38373c;
+  --color-border: #38373c;
+  --color-border-strong: #46454a;
+
+  /* Text — soft lavender */
+  --color-fg: #d5d0d8;
+  --color-fg-muted: #908a96;
+  --color-fg-faint: #5c5b60;
+
+  /* Hero accent — dusty mauve */
+  --color-accent: #d0a0c8;
+  --color-accent-hover: #daaed4;
+  --color-accent-fg: #2a292e;
+  --color-primary: #d0a0c8;
+  --color-primary-foreground: #2a292e;
+
+  /* Status */
+  --color-success: #88a080;
+  --color-danger: #d8a0a8;
+  --color-warning: #b8a880;
+  --color-focus: #d0a0c8;
+
+  /* Issue pills */
+  --color-issue-open-bg: #252e25;
+  --color-issue-open-fg: #98b090;
+  --color-issue-closed-bg: #332a33;
+  --color-issue-closed-fg: #d8a0c8;
+
+  /* Syntax */
+  --syntax-keyword: #d0a0c8;
+  --syntax-string: #88a080;
+  --syntax-number: #d8a0a8;
+  --syntax-function: #90b8c8;
+  --syntax-type: #d8a0a8;
+  --syntax-property: #c09080;
+  --syntax-constant: #c09080;
+  --syntax-variable: #d5d0d8;
+  --syntax-operator: #908a96;
+  --syntax-punctuation: #908a96;
+  --syntax-tag: #d8a0a8;
+  --syntax-attribute: #70b8b0;
+  --syntax-meta: #90b8c8;
+  --syntax-comment: #747278;
+  --syntax-regex: #88a080;
+
+  /* File icons */
+  --icon-ts: #90b8c8;
+  --icon-js: #b8a880;
+  --icon-python: #90b8c8;
+  --icon-rust: #d0a0c8;
+  --icon-go: #70b8b0;
+  --icon-ruby: #d8a0a8;
+  --icon-markup: #c09080;
+  --icon-style: #d0a0c8;
+  --icon-data: #b8a880;
+  --icon-image: #d0a0c8;
+  --icon-docker: #608890;
+  --icon-shell: #88a080;
+  --icon-default: #5c5b60;
+
+  /* Chart slots */
+  --chart-slot-1: #d0a0c8;
+  --chart-slot-2: #90b8c8;
+  --chart-slot-3: #d8a0a8;
+  --chart-slot-4: #88a080;
+  --chart-slot-5: #70b8b0;
+  --chart-slot-6: #b8a880;
+  --chart-other: #5c5b60;
+}

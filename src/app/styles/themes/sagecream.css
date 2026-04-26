@@ -1,0 +1,75 @@
+[data-theme="sagecream"] {
+  color-scheme: dark;
+
+  /* Surfaces — H30 near-neutral warm grey */
+  --color-bg: #1a1918;
+  --color-bg-subtle: #201f1e;
+  --color-bg-sunken: #2d2c2a;
+  --color-border: #2d2c2a;
+  --color-border-strong: #3c3b38;
+
+  /* Text — cream warmth */
+  --color-fg: #d0cdb8;
+  --color-fg-muted: #8e8a80;
+  --color-fg-faint: #565450;
+
+  /* Hero accent — dry sage */
+  --color-accent: #90a878;
+  --color-accent-hover: #a0b888;
+  --color-accent-fg: #1a1918;
+  --color-primary: #90a878;
+  --color-primary-foreground: #1a1918;
+
+  /* Status */
+  --color-success: #90a878;
+  --color-danger: #b07870;
+  --color-warning: #b0a860;
+  --color-focus: #90a878;
+
+  /* Issue pills */
+  --color-issue-open-bg: #202820;
+  --color-issue-open-fg: #a0b888;
+  --color-issue-closed-bg: #282018;
+  --color-issue-closed-fg: #b09068;
+
+  /* Syntax */
+  --syntax-keyword: #90a878;
+  --syntax-string: #b0a860;
+  --syntax-number: #b07870;
+  --syntax-function: #b09068;
+  --syntax-type: #b0a860;
+  --syntax-property: #b09068;
+  --syntax-constant: #70a090;
+  --syntax-variable: #d0cdb8;
+  --syntax-operator: #8e8a80;
+  --syntax-punctuation: #8e8a80;
+  --syntax-tag: #b07870;
+  --syntax-attribute: #78a890;
+  --syntax-meta: #7090a0;
+  --syntax-comment: #6e6b64;
+  --syntax-regex: #b0a860;
+
+  /* File icons */
+  --icon-ts: #7090a0;
+  --icon-js: #b0a860;
+  --icon-python: #7090a0;
+  --icon-rust: #b07870;
+  --icon-go: #90a878;
+  --icon-ruby: #b07870;
+  --icon-markup: #b09068;
+  --icon-style: #a08080;
+  --icon-data: #b0a860;
+  --icon-image: #a08080;
+  --icon-docker: #506878;
+  --icon-shell: #90a878;
+  --icon-default: #565450;
+
+  /* Chart slots */
+  --chart-slot-1: #90a878;
+  --chart-slot-2: #7090a0;
+  --chart-slot-3: #b0a860;
+  --chart-slot-4: #b09068;
+  --chart-slot-5: #b07870;
+  --chart-slot-6: #70a090;
+  --chart-other: #565450;
+}
