@@ -51,11 +51,32 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
 
   const inlineByReviewId = useMemo(() => {
     const m = new Map<number, ReviewComment[]>();
+    // Two-pass:
+    //   1) Index roots by review id, replies by their root id (regardless of
+    //      which review the reply itself was posted in)
+    //   2) For each review's roots, append all replies (from any review) so
+    //      the original review card shows the full thread
+    const rootsByReview = new Map<number, ReviewComment[]>();
+    const repliesByRoot = new Map<number, ReviewComment[]>();
     for (const c of reviewComments) {
-      if (c.pull_request_review_id == null) continue;
-      const arr = m.get(c.pull_request_review_id) ?? [];
-      arr.push(c);
-      m.set(c.pull_request_review_id, arr);
+      if (c.in_reply_to_id != null) {
+        const arr = repliesByRoot.get(c.in_reply_to_id) ?? [];
+        arr.push(c);
+        repliesByRoot.set(c.in_reply_to_id, arr);
+      } else if (c.pull_request_review_id != null) {
+        const arr = rootsByReview.get(c.pull_request_review_id) ?? [];
+        arr.push(c);
+        rootsByReview.set(c.pull_request_review_id, arr);
+      }
+    }
+    for (const [reviewId, roots] of rootsByReview) {
+      const all: ReviewComment[] = [];
+      for (const root of roots) {
+        all.push(root);
+        const replies = repliesByRoot.get(root.id) ?? [];
+        all.push(...replies);
+      }
+      m.set(reviewId, all);
     }
     return m;
   }, [reviewComments]);
@@ -159,6 +180,12 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
             }
             if (item.kind === "review") {
               const inline = inlineByReviewId.get(item.review.id) ?? [];
+              // Reply-only reviews (no body, no new root threads) are noise:
+              // their replies are already visible under their parent thread
+              // in the original review card. Skip rendering entirely.
+              const hasBody = !!item.review.body?.trim();
+              const hasNewThreads = inline.some((c) => !c.in_reply_to_id);
+              if (!hasBody && !hasNewThreads) return null;
               return (
                 <div key={`r-${item.review.id}`} className="relative flex gap-4 pt-4">
                   <div className="pt-1">

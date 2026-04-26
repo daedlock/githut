@@ -134,6 +134,7 @@ export function CommentCardDisplay({
           </div>
           <BodySwap
             editing={editing}
+            instant
             display={<div className="mt-1 text-sm">{children}</div>}
             editor={
               editingAvailable && (
@@ -229,11 +230,18 @@ function BodySwap({
   editing,
   display,
   editor,
+  instant,
 }: {
   editing: boolean;
   display: ReactNode;
   editor: ReactNode;
+  /** Skip framer-motion entirely. Used in the diff view where animated
+   *  layout shifts collide with the surrounding code-line grid. */
+  instant?: boolean;
 }) {
+  if (instant) {
+    return <div className="relative">{editing ? editor : display}</div>;
+  }
   return (
     <motion.div layout transition={LAYOUT_SPRING} className="relative">
       <AnimatePresence mode="popLayout" initial={false}>

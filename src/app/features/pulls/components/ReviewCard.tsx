@@ -587,14 +587,45 @@ export function ReviewCard({
   const t = tone(review.state);
   const Icon = t.Icon;
   const fileGroups = useMemo(() => groupByFile(inlineComments), [inlineComments]);
-  const totalComments = inlineComments.length;
+  const replyOnlyCount = useMemo(
+    () => inlineComments.filter((c) => c.in_reply_to_id).length,
+    [inlineComments],
+  );
+  const newRootCount = useMemo(
+    () => inlineComments.filter((c) => !c.in_reply_to_id).length,
+    [inlineComments],
+  );
+  const newThreadCount = useMemo(
+    () => fileGroups.reduce((acc, g) => acc + g.threads.length, 0),
+    [fileGroups],
+  );
   const hasBody = !!review.body?.trim();
-  const hasInline = totalComments > 0;
+  const hasNewThreads = newRootCount > 0;
+  const hasOnlyReplies = replyOnlyCount > 0 && !hasNewThreads;
 
   const [open, setOpen] = useState(true);
 
-  // Compact strip: empty review (no body, no inline comments).
-  if (!hasBody && !hasInline) {
+  // Compact strip: empty review (no body, no inline activity) OR reply-only.
+  if (!hasBody && (replyOnlyCount === 0 || hasOnlyReplies)) {
+    const detail = hasOnlyReplies ? (
+      <>
+        replied{" "}
+        <span className="text-[var(--color-fg-faint)]">
+          to {replyOnlyCount === 1 ? "a thread" : `${replyOnlyCount} comments`}
+        </span>
+      </>
+    ) : (
+      <>
+        <span
+          className={cn(
+            review.state === "DISMISSED" && "italic line-through text-[var(--color-fg-faint)]",
+          )}
+        >
+          {t.label.toLowerCase()}
+        </span>{" "}
+        <span className="text-[var(--color-fg-faint)]">without a comment</span>
+      </>
+    );
     return (
       <div
         className={cn(
@@ -604,7 +635,11 @@ export function ReviewCard({
         )}
       >
         <span className={cn("inline-flex size-4 items-center justify-center", t.iconColor)}>
-          <Icon className="size-3.5" strokeWidth={2.5} />
+          {hasOnlyReplies ? (
+            <Reply className="size-3.5" strokeWidth={2.5} />
+          ) : (
+            <Icon className="size-3.5" strokeWidth={2.5} />
+          )}
         </span>
         <span className="text-caption text-foreground">
           <ProfileLink
@@ -613,16 +648,7 @@ export function ReviewCard({
           >
             {review.user?.login ?? "ghost"}
           </ProfileLink>{" "}
-          <span
-            className={cn(
-              review.state === "DISMISSED" && "italic line-through text-[var(--color-fg-faint)]",
-            )}
-          >
-            {t.label.toLowerCase()}
-          </span>{" "}
-          <span className="text-[var(--color-fg-faint)]">
-            without a comment
-          </span>
+          {detail}
         </span>
         {review.submitted_at && (
           <span className="ml-auto text-caption text-[var(--color-fg-faint)]">
@@ -693,7 +719,7 @@ export function ReviewCard({
       )}
 
       {/* ─── Inline thread cluster ──────────────────────────────────── */}
-      {hasInline && (
+      {hasNewThreads && (
         <div className="border-t border-border/50">
           <button
             type="button"
@@ -712,7 +738,7 @@ export function ReviewCard({
               <ChevronRight className="size-3.5" />
             </motion.span>
             <span className="font-medium text-foreground">
-              {totalComments} {totalComments === 1 ? "comment" : "comments"}
+              {newThreadCount} {newThreadCount === 1 ? "thread" : "threads"}
             </span>
             <span className="text-[var(--color-fg-faint)]">on</span>
             <span className="font-medium text-foreground">

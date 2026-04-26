@@ -11,11 +11,15 @@ export function CommentComposeCard({
   repo,
   placeholder = "Leave a comment",
   submitLabel = "Comment",
+  cancelLabel,
   onSubmit,
+  onCancel,
   isPending,
   hideAvatar,
   className,
   participants,
+  rows = 4,
+  autoFocus,
 }: {
   login: string;
   avatarUrl?: string;
@@ -23,11 +27,15 @@ export function CommentComposeCard({
   repo: string;
   placeholder?: string;
   submitLabel?: string;
+  cancelLabel?: string;
   onSubmit: (body: string) => void;
+  onCancel?: () => void;
   isPending?: boolean;
   hideAvatar?: boolean;
   className?: string;
   participants?: MentionUser[];
+  rows?: number;
+  autoFocus?: boolean;
 }) {
   const [draft, setDraft] = useState("");
 
@@ -48,11 +56,14 @@ export function CommentComposeCard({
           value={draft}
           onChange={setDraft}
           onSubmit={handleSubmit}
+          onCancel={onCancel}
           submitLabel={submitLabel}
+          cancelLabel={cancelLabel}
           submitDisabled={!draft.trim()}
           submitPending={isPending}
           placeholder={placeholder}
-          rows={4}
+          rows={rows}
+          autoFocus={autoFocus}
           participants={participants}
         />
       </div>
