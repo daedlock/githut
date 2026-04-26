@@ -36,6 +36,7 @@ import { logout } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
 import { clearRecentItems, pushRecentItem, type RecentItem } from "@/app/lib/recentItems";
 import { getTabMeta } from "@/app/lib/tabMeta";
+import { runThemeTransition } from "@/app/lib/themeTransition";
 import { formatRelativeTime } from "@/app/lib/time";
 import { useCommandPalette, useCommandPaletteStore } from "@/app/stores/commandPalette";
 import { useSettingsStore } from "@/app/stores/settings";
@@ -266,8 +267,10 @@ function buildCommands(
     icon: PaletteIcon,
     keywords: ["theme", "appearance", "color", ...t.keywords],
     run: () => {
-      useThemeStore.getState().setPalette(t.palette);
-      useThemeStore.getState().setPreference(t.preference);
+      runThemeTransition(() => {
+        useThemeStore.getState().setPalette(t.palette);
+        useThemeStore.getState().setPreference(t.preference);
+      });
       close();
     },
   }));

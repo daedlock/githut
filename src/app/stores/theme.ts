@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { runThemeTransition } from "@/app/lib/themeTransition";
 
 export type ThemePreference = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
@@ -30,12 +31,16 @@ export const useThemeStore = create<ThemeState>()(
     (set, get) => ({
       palette: "main",
       preference: "system",
-      setPalette: (palette) => set({ palette }),
-      setPreference: (preference) => set({ preference }),
+      setPalette: (palette) => runThemeTransition(() => set({ palette })),
+      setPreference: (preference) =>
+        runThemeTransition(() => set({ preference })),
       cyclePreference: () => {
-        const current = get().preference;
-        const next = PREF_ORDER[(PREF_ORDER.indexOf(current) + 1) % PREF_ORDER.length]!;
-        set({ preference: next });
+        runThemeTransition(() => {
+          const current = get().preference;
+          const next =
+            PREF_ORDER[(PREF_ORDER.indexOf(current) + 1) % PREF_ORDER.length]!;
+          set({ preference: next });
+        });
       },
     }),
     { name: "githut.theme" },
@@ -87,6 +92,15 @@ function apply(palette: Palette, resolved: ResolvedTheme) {
     root.removeAttribute("data-theme");
   }
   root.classList.toggle("dark", resolved === "dark");
+
+  // Update inline background-color to match the CSS theme.
+  // This ensures body bg updates on theme change without refresh,
+  // matching the initial inline style set in index.html to avoid white flash.
+  const bg = getComputedStyle(root).getPropertyValue("--color-bg").trim();
+  if (bg) {
+    root.style.backgroundColor = bg;
+  }
+  root.style.colorScheme = resolved;
 }
 
 export function useResolvedTheme(): ResolvedTheme {
@@ -113,7 +127,11 @@ export function bootstrapTheme() {
   media.addEventListener("change", () => {
     const state = useThemeStore.getState();
     if (state.preference === "system") {
-      apply(state.palette, resolve("system"));
+      // System color-scheme change has no store mutation — wrap apply directly
+      // so the reveal still plays. fromCenter avoids using a stale pointer.
+      runThemeTransition(() => apply(state.palette, resolve("system")), {
+        fromCenter: true,
+      });
     }
   });
 }

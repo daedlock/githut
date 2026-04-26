@@ -10,3 +10,11 @@
 
 /* Keep presets last so [data-theme] tokens override .dark tokens by source order. */
 @import "./theme-presets.css";
+
+/* Disable the default cross-fade so our clip-path reveal can drive the
+   transition uncontested (see src/app/lib/themeTransition.ts). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}

@@ -1,5 +1,6 @@
 import { Check } from "lucide-react";
 import { cn } from "@/app/lib/cn";
+import { runThemeTransition } from "@/app/lib/themeTransition";
 import { type Palette, type ThemePreference, useThemeStore } from "@/app/stores/theme";
 
 type ThemeOption = {
@@ -126,8 +127,10 @@ export function ThemePicker() {
             key={option.id}
             type="button"
             onClick={() => {
-              setPalette(option.palette);
-              setPreference(option.preference);
+              runThemeTransition(() => {
+                setPalette(option.palette);
+                setPreference(option.preference);
+              });
             }}
             className={cn(
               "flex items-center gap-3 rounded-md border px-3 py-2 text-left",
