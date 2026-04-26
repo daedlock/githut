@@ -150,7 +150,7 @@ export function IssueDetail({
               >
                 {issue.body?.trim() ? (
                   <div className="readme-prose max-w-none text-body">
-                    <GithubMarkdown>{issue.body}</GithubMarkdown>
+                    <GithubMarkdown repoContext={{ owner, repo }}>{issue.body}</GithubMarkdown>
                   </div>
                 ) : (
                   <p className="text-body italic text-[var(--color-fg-faint)]">
@@ -245,7 +245,7 @@ function CommentCardWithReactions({
       }
     >
       <div className="readme-prose max-w-none text-body">
-        <GithubMarkdown>{comment.body}</GithubMarkdown>
+        <GithubMarkdown repoContext={{ owner, repo }}>{comment.body}</GithubMarkdown>
       </div>
     </IssueCommentCard>
   );

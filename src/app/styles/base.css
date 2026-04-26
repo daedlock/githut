@@ -4,6 +4,10 @@ body,
   height: 100%;
 }
 
+/* Radix scroll-lock adds padding-right to body to compensate for the
+   scrollbar disappearing. Override it to 0 and keep the scrollbar
+   visible instead via overflow-y on html. */
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-fg-faint) transparent;

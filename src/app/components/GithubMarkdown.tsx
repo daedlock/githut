@@ -6,6 +6,8 @@ import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 
 import { toInternalHref } from "@/app/lib/githubUrl";
+import { remarkMentions, type RepoContext } from "@/app/lib/remarkMentions";
+import { detectEntity, EntityHoverLink } from "@/app/components/ui/EntityHoverCard";
 import { LightboxImage } from "@/app/components/ui/ImageLightbox";
 import { useAuthStore } from "@/app/stores/auth";
 
@@ -40,7 +42,6 @@ const sanitizeSchema = {
   },
 };
 
-const REMARK_PLUGINS = [remarkGfm];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const REHYPE_PLUGINS: any[] = [rehypeRaw, [rehypeSanitize, sanitizeSchema]];
 
@@ -111,6 +112,15 @@ function proxyGitHubImage(src: string): string {
 function buildComponents(assetContext?: MarkdownAssetContext): Components {
   return {
     a: ({ href, children, ...rest }) => {
+      const text = typeof children === "string" ? children : "";
+      const entity = href ? detectEntity(href, text) : null;
+      if (entity && href) {
+        return (
+          <EntityHoverLink entity={entity} href={href} {...rest}>
+            {children}
+          </EntityHoverLink>
+        );
+      }
       const internal = href ? toInternalHref(href) : null;
       if (internal) {
         return (
@@ -139,17 +149,19 @@ const MARKDOWN_COMPONENTS_NO_CONTEXT = buildComponents();
 export function GithubMarkdown({
   children,
   assetContext,
+  repoContext,
 }: {
   children: string;
   assetContext?: MarkdownAssetContext;
+  repoContext?: RepoContext;
 }) {
-  // When no asset context is provided (e.g. issue/comment bodies where URLs
-  // are usually absolute) reuse a shared components object to avoid churning
-  // react-markdown's memo on every render.
   const components = assetContext ? buildComponents(assetContext) : MARKDOWN_COMPONENTS_NO_CONTEXT;
+  const remarkPlugins = repoContext
+    ? [remarkGfm, remarkMentions(repoContext)]
+    : [remarkGfm, remarkMentions()];
   return (
     <ReactMarkdown
-      remarkPlugins={REMARK_PLUGINS}
+      remarkPlugins={remarkPlugins}
       rehypePlugins={REHYPE_PLUGINS}
       components={components}
     >

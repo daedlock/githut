@@ -244,7 +244,7 @@ function CommentBubble({
         </div>
         <div className="mt-1 text-body text-foreground [overflow-wrap:anywhere]">
           <div className="readme-prose max-w-none">
-            <GithubMarkdown>{comment.body}</GithubMarkdown>
+            <GithubMarkdown repoContext={{ owner, repo }}>{comment.body}</GithubMarkdown>
           </div>
         </div>
         {hasReactions && (

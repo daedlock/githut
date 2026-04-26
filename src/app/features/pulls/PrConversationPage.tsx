@@ -83,7 +83,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
             >
               {pr.body?.trim() ? (
                 <div className="readme-prose max-w-none text-sm">
-                  <GithubMarkdown>{pr.body}</GithubMarkdown>
+                  <GithubMarkdown repoContext={{ owner, repo }}>{pr.body}</GithubMarkdown>
                 </div>
               ) : (
                 <p className="text-sm italic text-muted-foreground">
@@ -116,7 +116,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
                       date={item.at}
                     >
                       <div className="readme-prose max-w-none text-sm">
-                        <GithubMarkdown>{item.body}</GithubMarkdown>
+                        <GithubMarkdown repoContext={{ owner, repo }}>{item.body}</GithubMarkdown>
                       </div>
                     </CommentCardDisplay>
                   </div>
@@ -132,7 +132,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
                       <TimelineMarker type="review" reviewState={full.state} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <ReviewCard review={full} />
+                      <ReviewCard review={full} owner={owner} repo={repo} />
                     </div>
                   </div>
                 );
@@ -184,7 +184,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
 
 // ─── Review card ────────────────────────────────────────────────────────────
 
-function ReviewCard({ review }: { review: Review }) {
+function ReviewCard({ review, owner, repo }: { review: Review; owner: string; repo: string }) {
   const tone =
     review.state === "APPROVED"
       ? "text-[var(--color-success)] bg-[color-mix(in_oklab,var(--color-success)_14%,var(--color-bg-subtle))]"
@@ -220,7 +220,7 @@ function ReviewCard({ review }: { review: Review }) {
     >
       {review.body?.trim() ? (
         <div className="readme-prose max-w-none text-sm">
-          <GithubMarkdown>{review.body}</GithubMarkdown>
+          <GithubMarkdown repoContext={{ owner, repo }}>{review.body}</GithubMarkdown>
         </div>
       ) : (
         <p className="text-sm italic text-muted-foreground">
