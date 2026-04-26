@@ -1,4 +1,5 @@
 import { CheckCircle2, CircleDot, X } from "lucide-react";
+import { useMemo } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Avatar } from "@/app/components/ui/avatar";
@@ -16,6 +17,7 @@ import {
   type RepoIssue,
   type RepoIssueComment,
 } from "@/app/features/issues/schemas";
+import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 
@@ -67,6 +69,19 @@ export function IssueDetail({
   // My reactions for the issue body itself. Per-comment fetches live inside
   // CommentCardWithReactions so each comment has an independently-keyed cache.
   const { data: myIssueReactions } = useMyIssueReactions(owner, repo, issue?.number, me?.id);
+
+  const participants = useMemo((): MentionUser[] => {
+    const seen = new Set<string>();
+    const users: MentionUser[] = [];
+    const add = (u: { login: string; avatar_url: string }) => {
+      if (seen.has(u.login)) return;
+      seen.add(u.login);
+      users.push({ kind: "@", id: u.login, login: u.login, avatar: u.avatar_url });
+    };
+    if (issue?.user) add(issue.user);
+    for (const c of comments) add(c.user);
+    return users;
+  }, [issue, comments]);
 
   return (
     <Container className="py-5 sm:py-6">
@@ -192,6 +207,7 @@ export function IssueDetail({
                     submitPending={isPostingComment}
                     placeholder="Leave a comment"
                     rows={4}
+                    participants={participants}
                   />
                 </div>
               </div>

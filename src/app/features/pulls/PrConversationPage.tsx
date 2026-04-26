@@ -18,6 +18,7 @@ import {
 import { mergeTimeline, type FeedItem } from "@/app/features/pulls/lib/mergeTimeline";
 import type { Review } from "@/app/features/pulls/schemas";
 import type { ReactionContent } from "@/app/features/issues/schemas";
+import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { useMe } from "@/app/hooks/useMe";
 import { cn } from "@/app/lib/cn";
 
@@ -50,6 +51,20 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
     () => mergeTimeline(timeline, comments),
     [timeline, comments],
   );
+
+  const participants = useMemo((): MentionUser[] => {
+    const seen = new Set<string>();
+    const users: MentionUser[] = [];
+    const add = (u: { login: string; avatar_url: string } | null | undefined) => {
+      if (!u || seen.has(u.login)) return;
+      seen.add(u.login);
+      users.push({ kind: "@", id: u.login, login: u.login, avatar: u.avatar_url });
+    };
+    add(pr?.user);
+    for (const c of comments) add(c.user);
+    for (const r of reviews) add(r.user);
+    return users;
+  }, [pr, comments, reviews]);
 
   function handleSubmit(body: string) {
     if (!body || postComment.isPending) return;
@@ -169,6 +184,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
               placeholder="Leave a comment"
               submitLabel="Comment"
               hideAvatar
+              participants={participants}
             />
           </div>
         </div>

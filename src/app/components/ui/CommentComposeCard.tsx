@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { ComposeBox } from "@/app/components/ui/ComposeBox";
+import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
 
 export function CommentComposeCard({
@@ -14,6 +15,7 @@ export function CommentComposeCard({
   isPending,
   hideAvatar,
   className,
+  participants,
 }: {
   login: string;
   avatarUrl?: string;
@@ -25,6 +27,7 @@ export function CommentComposeCard({
   isPending?: boolean;
   hideAvatar?: boolean;
   className?: string;
+  participants?: MentionUser[];
 }) {
   const [draft, setDraft] = useState("");
 
@@ -50,6 +53,7 @@ export function CommentComposeCard({
           submitPending={isPending}
           placeholder={placeholder}
           rows={4}
+          participants={participants}
         />
       </div>
     </div>

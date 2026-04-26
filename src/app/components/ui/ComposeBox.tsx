@@ -1,11 +1,11 @@
 import { CheckCircle2, CircleDot, Eye, GitPullRequest, ImagePlus, Pencil, Send } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Popover, PopoverAnchor, PopoverContent } from "@/app/components/ui/popover";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { useDebouncedValue } from "@/app/hooks/useDebouncedValue";
-import { type MentionItem, useMentionSearch } from "@/app/hooks/useMentionSearch";
+import { type MentionItem, type MentionUser, useMentionSearch } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
 import { useAuthStore } from "@/app/stores/auth";
 
@@ -167,6 +167,7 @@ export interface ComposeBoxProps {
   disabled?: boolean;
   autoFocus?: boolean;
   className?: string;
+  participants?: MentionUser[];
 }
 
 export function ComposeBox({
@@ -183,6 +184,7 @@ export function ComposeBox({
   disabled,
   autoFocus,
   className,
+  participants,
 }: ComposeBoxProps) {
   const [mode, setMode] = useState<"write" | "preview">("write");
   const [focused, setFocused] = useState(false);
@@ -213,7 +215,16 @@ export function ComposeBox({
     debouncedQuery,
   );
 
-  const dropdownItems = items ?? [];
+  const dropdownItems = useMemo((): MentionItem[] => {
+    const api = items ?? [];
+    if (!participants?.length || trigger?.type !== "@") return api;
+    const q = debouncedQuery.toLowerCase();
+    const apiLogins = new Set(api.filter((i): i is MentionUser => i.kind === "@").map((i) => i.login));
+    const seed = participants.filter(
+      (p) => !apiLogins.has(p.login) && (!q || p.login.toLowerCase().includes(q)),
+    );
+    return [...seed, ...api];
+  }, [items, participants, trigger?.type, debouncedQuery]);
 
   useEffect(() => setSelectedIdx(0), [dropdownItems]);
 
@@ -452,7 +463,7 @@ export function ComposeBox({
               sideOffset={4}
               onOpenAutoFocus={(e) => e.preventDefault()}
               onInteractOutside={(e) => e.preventDefault()}
-              className="w-[280px] gap-0 p-1.5 overflow-hidden"
+              className="w-[280px] gap-0 p-1.5 overflow-hidden data-[state=closed]:[animation-duration:0s]"
             >
               <div className="max-h-[260px] overflow-auto">
                 {showSkeleton ? (
