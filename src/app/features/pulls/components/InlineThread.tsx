@@ -39,7 +39,7 @@ export function InlineThread({
   const meId = meQuery.data?.id;
   const meLogin = meQuery.data?.login;
 
-  const replyMutation = useReplyToReviewComment(owner, repo, number);
+  const replyMutation = useReplyToReviewComment(owner, repo, number, meQuery.data);
   const toggleReaction = useToggleReviewCommentReaction(owner, repo, number, meId);
   const resolutionQuery = useThreadResolution(owner, repo, number);
   const resolveMutation = useResolveThread(owner, repo, number);
@@ -70,10 +70,10 @@ export function InlineThread({
 
   function handleReply(body: string) {
     if (!body || replyMutation.isPending) return;
-    replyMutation.mutate(
-      { inReplyToId: root.id, body },
-      { onSuccess: () => setReplyOpen(false) },
-    );
+    // Fire-and-forget: optimistic insertion happens in onMutate, so close
+    // the box immediately for instant feedback.
+    replyMutation.mutate({ inReplyToId: root.id, body });
+    setReplyOpen(false);
   }
 
   function handleResolveToggle() {

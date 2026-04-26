@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
@@ -51,11 +50,6 @@ export type CommentCardProps = {
   isSaving?: boolean;
 };
 
-// Concurrent crossfade — old fades out as new fades in (no dead pause).
-// Card height grows/shrinks via the spring-driven `layout` prop.
-const FADE = { duration: 0.09, ease: [0.32, 0.72, 0, 1] as [number, number, number, number] };
-const LAYOUT_SPRING = { type: "spring" as const, stiffness: 520, damping: 38, mass: 0.55 };
-
 export function CommentCardDisplay({
   login,
   avatarUrl,
@@ -98,14 +92,17 @@ export function CommentCardDisplay({
     setEditing(false);
   }
 
-  async function commit() {
+  function commit() {
     if (!onSave) return;
     const next = draft.trim();
     if (!next || next === (rawBody ?? "").trim()) {
       setEditing(false);
       return;
     }
-    await onSave(next);
+    // Fire-and-forget: the mutation's onMutate writes the new body to the
+    // cache synchronously, so closing the editor immediately reveals the
+    // updated content. If the request fails, onError rolls back the cache.
+    void onSave(next);
     setEditing(false);
   }
 
@@ -134,7 +131,6 @@ export function CommentCardDisplay({
           </div>
           <BodySwap
             editing={editing}
-            instant
             display={<div className="mt-1 text-sm">{children}</div>}
             editor={
               editingAvailable && (
@@ -230,50 +226,21 @@ export function CommentCardDisplay({
 }
 
 // ─── Body swap (display ↔ edit) ──────────────────────────────────────────
+//
+// Instant swap. Animating the height change collides with optimistic cache
+// updates (a new comment added to a list, an edited body that changed length)
+// and produces a visible layout spring. Plain conditional render.
 
 function BodySwap({
   editing,
   display,
   editor,
-  instant,
 }: {
   editing: boolean;
   display: ReactNode;
   editor: ReactNode;
-  /** Skip framer-motion entirely. Used in the diff view where animated
-   *  layout shifts collide with the surrounding code-line grid. */
-  instant?: boolean;
 }) {
-  if (instant) {
-    return <div className="relative">{editing ? editor : display}</div>;
-  }
-  return (
-    <motion.div layout transition={LAYOUT_SPRING} className="relative">
-      <AnimatePresence mode="popLayout" initial={false}>
-        {editing ? (
-          <motion.div
-            key="edit"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={FADE}
-          >
-            {editor}
-          </motion.div>
-        ) : (
-          <motion.div
-            key="show"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={FADE}
-          >
-            {display}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
+  return <div className="relative">{editing ? editor : display}</div>;
 }
 
 // ─── 3-dot menu ──────────────────────────────────────────────────────────

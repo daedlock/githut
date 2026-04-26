@@ -868,6 +868,7 @@ export function useReplyToReviewComment(
   owner: string,
   repo: string,
   number: number,
+  me?: { login: string; avatar_url: string },
 ) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -891,11 +892,56 @@ export function useReplyToReviewComment(
       );
       return ReviewCommentSchema.parse(res.data);
     },
-    onSuccess: (created) => {
+    onMutate: async ({ inReplyToId, body }) => {
       const key = pullsKeys.reviewComments(owner, repo, number);
-      queryClient.setQueryData<ReviewComment[]>(key, (old) =>
-        old ? [...old, created] : [created],
-      );
+      const prev = queryClient.getQueryData<ReviewComment[]>(key);
+      const parent = prev?.find((c) => c.id === inReplyToId);
+      const tempId = -Date.now();
+      const nowIso = new Date().toISOString();
+      const optimistic: ReviewComment = {
+        id: tempId,
+        node_id: `temp-${tempId}`,
+        pull_request_review_id: null,
+        url: "",
+        html_url: "",
+        user: me
+          ? { login: me.login, avatar_url: me.avatar_url, html_url: undefined }
+          : { login: "you", avatar_url: "", html_url: undefined },
+        body,
+        created_at: nowIso,
+        updated_at: nowIso,
+        path: parent?.path ?? "",
+        commit_id: parent?.commit_id ?? "",
+        in_reply_to_id: inReplyToId,
+        diff_hunk: parent?.diff_hunk ?? "",
+        reactions: {
+          "+1": 0,
+          "-1": 0,
+          laugh: 0,
+          hooray: 0,
+          confused: 0,
+          heart: 0,
+          rocket: 0,
+          eyes: 0,
+        },
+      };
+      queryClient.setQueryData<ReviewComment[]>(key, (old) => [
+        ...(old ?? []),
+        optimistic,
+      ]);
+      await queryClient.cancelQueries({ queryKey: key });
+      return { prev, tempId, key };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSuccess: (created, _vars, ctx) => {
+      // Swap temp → real in place
+      if (ctx) {
+        queryClient.setQueryData<ReviewComment[]>(ctx.key, (old) =>
+          (old ?? []).map((c) => (c.id === ctx.tempId ? created : c)),
+        );
+      }
     },
   });
 }

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Check,
   ChevronRight,
@@ -255,7 +255,7 @@ function ThreadBlock({
   const meQuery = useMe();
   const meId = meQuery.data?.id;
   const meLogin = meQuery.data?.login;
-  const replyMutation = useReplyToReviewComment(owner, repo, number);
+  const replyMutation = useReplyToReviewComment(owner, repo, number, meQuery.data);
   const toggleReaction = useToggleReviewCommentReaction(owner, repo, number, meId);
 
   const resolutionQuery = useThreadResolution(owner, repo, number);
@@ -287,10 +287,10 @@ function ThreadBlock({
 
   function handleReply(body: string) {
     if (!body || replyMutation.isPending) return;
-    replyMutation.mutate(
-      { inReplyToId: thread.root.id, body },
-      { onSuccess: () => setReplyOpen(false) },
-    );
+    // Fire-and-forget: optimistic insertion happens in onMutate, so close
+    // the box immediately for instant feedback.
+    replyMutation.mutate({ inReplyToId: thread.root.id, body });
+    setReplyOpen(false);
   }
 
   function handleResolveToggle() {
@@ -654,33 +654,19 @@ export function ReviewCard({
               {fileGroups.length} {fileGroups.length === 1 ? "file" : "files"}
             </span>
           </button>
-          <AnimatePresence initial={false}>
-            {open && (
-              <motion.div
-                key="threads"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{
-                  height: { type: "spring", stiffness: 400, damping: 30, mass: 0.6 },
-                  opacity: { duration: 0.12 },
-                }}
-                className="overflow-hidden"
-              >
-                <div className="space-y-4 px-4 pt-1 pb-4">
-                  {fileGroups.map((g) => (
-                    <FileSection
-                      key={g.path}
-                      group={g}
-                      owner={owner}
-                      repo={repo}
-                      number={number}
-                    />
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {open && (
+            <div className="space-y-4 px-4 pt-1 pb-4">
+              {fileGroups.map((g) => (
+                <FileSection
+                  key={g.path}
+                  group={g}
+                  owner={owner}
+                  repo={repo}
+                  number={number}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
