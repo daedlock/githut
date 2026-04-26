@@ -119,7 +119,7 @@ function Row({
       className={cn(
         "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left outline-hidden select-none",
         "transition-colors duration-75",
-        selected ? "bg-[var(--color-bg-sunken)] text-foreground" : "hover:bg-[var(--color-bg-sunken)]",
+        selected ? "bg-[var(--color-popover-active)] text-foreground" : "hover:bg-[var(--color-popover-active)]",
       )}
     >
       {item.kind === "@" ? (
@@ -557,7 +557,7 @@ function TabPill({
         "relative inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-caption font-medium",
         "outline-none transition-all duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]",
         active
-          ? "bg-[var(--color-bg-sunken)] text-foreground"
+          ? "bg-[var(--color-popover-active)] text-foreground"
           : "text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-subtle)] disabled:cursor-not-allowed disabled:opacity-40",
       )}
     >

@@ -15,19 +15,19 @@
   --container-2xl: 1536px;
 
   /* surfaces */
-  --color-bg: #fafaf9; /* stone-50 — warm off-white; fg contrast 15.6:1 */
-  --color-bg-subtle: #f5f5f4; /* stone-100 — card surfaces */
-  --color-bg-sunken: #e7e5e4; /* stone-200 — inset / hover */
+  --color-bg: oklch(0.98483 0.00148 107.8294); /* stone-50 — warm off-white; fg contrast 15.6:1 */
+  --color-bg-subtle: oklch(0.96987 0.00149 107.8299); /* stone-100 — card surfaces */
+  --color-bg-sunken: oklch(0.92318 0.00262 52.1716); /* stone-200 — inset / hover */
   --color-code-bg: color-mix(in oklab, var(--color-bg) 94%, var(--color-bg-sunken));
 
   /* text */
-  --color-fg: #1c1917; /* stone-900 — 15.6:1 on bg */
-  --color-fg-muted: #57534e; /* stone-600 — 7.5:1 on bg (AA for body text) */
-  --color-fg-faint: #a8a29e; /* stone-400 — 3.3:1 on bg (AA for graphics/large text only) */
+  --color-fg: oklch(0.21612 0.00636 59.9540); /* stone-900 — 15.6:1 on bg */
+  --color-fg-muted: oklch(0.44442 0.01034 77.6726); /* stone-600 — 7.5:1 on bg (AA for body text) */
+  --color-fg-faint: oklch(0.71609 0.00940 60.1548); /* stone-400 — 3.3:1 on bg (AA for graphics/large text only) */
 
   /* borders */
-  --color-border: #e7e5e4; /* stone-200 — subtle separator */
-  --color-border-strong: #d6d3d1; /* stone-300 — form controls, focused borders */
+  --color-border: oklch(0.92318 0.00262 52.1716); /* stone-200 — subtle separator */
+  --color-border-strong: oklch(0.86866 0.00447 60.2545); /* stone-300 — form controls, focused borders */
 
   /*
    * ── OKLCH semantic color system ──────────────────────────────────────
@@ -79,21 +79,21 @@
    * not "red" / "green" / "blue". That's what lets someone swap palettes by
    * editing this block alone. Each color has a WCAG 4.5:1+ against --color-bg.
    */
-  --syntax-comment: #78716c; /* stone-500 — 4.7:1 on bg, italic by convention */
-  --syntax-keyword: #b45309; /* amber-700 — 4.9:1; warm hue anchors code in our palette */
-  --syntax-string: #166534; /* green-800 — 8.2:1 */
-  --syntax-number: #a16207; /* yellow-700 — 4.9:1 */
-  --syntax-function: #1d4ed8; /* blue-700 — 6.1:1 */
-  --syntax-type: #0f766e; /* teal-700 — 5.3:1 */
-  --syntax-property: #0369a1; /* sky-700 — 5.4:1 */
-  --syntax-constant: #a16207; /* yellow-700 — shares with number; distinct from keyword */
+  --syntax-comment: oklch(0.55341 0.01210 62.0521); /* stone-500 — 4.7:1 on bg, italic by convention */
+  --syntax-keyword: oklch(0.55533 0.14907 52.4919); /* amber-700 — 4.9:1; warm hue anchors code in our palette */
+  --syntax-string: oklch(0.44798 0.11869 148.2276); /* green-800 — 8.2:1 */
+  --syntax-number: oklch(0.55384 0.12957 71.3298); /* yellow-700 — 4.9:1 */
+  --syntax-function: oklch(0.48812 0.23263 266.9781); /* blue-700 — 6.1:1 */
+  --syntax-type: oklch(0.51095 0.08671 185.3826); /* teal-700 — 5.3:1 */
+  --syntax-property: oklch(0.49994 0.12478 246.3727); /* sky-700 — 5.4:1 */
+  --syntax-constant: oklch(0.55384 0.12957 71.3298); /* yellow-700 — shares with number; distinct from keyword */
   --syntax-variable: var(--color-fg);
   --syntax-operator: var(--color-fg-muted);
   --syntax-punctuation: var(--color-fg-muted);
-  --syntax-tag: #be123c; /* rose-700 — 5.8:1 */
-  --syntax-attribute: #c2410c; /* orange-700 — 5.3:1 */
-  --syntax-meta: #7c3aed; /* violet-600 — 5.7:1; imports / directives */
-  --syntax-regex: #0f766e; /* teal-700 — shares with type */
+  --syntax-tag: oklch(0.51424 0.19869 15.8099); /* rose-700 — 5.8:1 */
+  --syntax-attribute: oklch(0.55345 0.17487 40.2463); /* orange-700 — 5.3:1 */
+  --syntax-meta: oklch(0.54124 0.26762 293.4915); /* violet-600 — 5.7:1; imports / directives */
+  --syntax-regex: oklch(0.51095 0.08671 185.3826); /* teal-700 — shares with type */
 
   /*
    * File-icon language colors — stable hues so TypeScript is always "TS blue"
@@ -102,19 +102,19 @@
    * clash with our warm stone palette). All verified >= 3:1 against --color-bg
    * for decorative graphic elements (WCAG 1.4.11 non-text contrast).
    */
-  --icon-ts: #2f74c0; /* TypeScript blue — 4.7:1 on bg */
-  --icon-js: #c18f1a; /* JavaScript yellow-amber — 4.1:1 (reduced from pure #f7df1e for readability) */
-  --icon-python: #3572a5; /* Python blue — 5.9:1 on bg */
-  --icon-rust: #b6592d; /* Rust red-orange — 4.7:1 on bg */
-  --icon-go: #0899c2; /* Go cyan — 3.7:1 on bg */
-  --icon-ruby: #a91401; /* Ruby red — 7.4:1 on bg */
-  --icon-markup: #c6531f; /* HTML/XML orange — 4.6:1 on bg */
-  --icon-style: #6a4b92; /* CSS/SCSS purple — 6.8:1 on bg */
-  --icon-data: #b0892e; /* JSON/YAML gold — 4.4:1 on bg */
-  --icon-image: #7c6da5; /* image purple-grey — 4.8:1 on bg */
-  --icon-docker: #1d63ed; /* Docker blue — 4.5:1 on bg */
-  --icon-shell: #5d8c3a; /* shell green — 4.4:1 on bg */
-  --icon-default: #a8a29e; /* stone-400 — muted fallback */
+  --icon-ts: oklch(0.55363 0.14568 256.7716); /* TypeScript blue — 4.7:1 on bg */
+  --icon-js: oklch(0.68070 0.14997 86.7335); /* JavaScript yellow-amber — 4.1:1 (reduced from pure oklch(0.89605 0.21255 103.8282) for readability) */
+  --icon-python: oklch(0.53537 0.10766 250.1740); /* Python blue — 5.9:1 on bg */
+  --icon-rust: oklch(0.57000 0.13561 46.9650); /* Rust red-orange — 4.7:1 on bg */
+  --icon-go: oklch(0.63615 0.12226 228.8921); /* Go cyan — 3.7:1 on bg */
+  --icon-ruby: oklch(0.46877 0.18250 31.2280); /* Ruby red — 7.4:1 on bg */
+  --icon-markup: oklch(0.58403 0.16135 44.2763); /* HTML/XML orange — 4.6:1 on bg */
+  --icon-style: oklch(0.47840 0.12551 302.1522); /* CSS/SCSS purple — 6.8:1 on bg */
+  --icon-data: oklch(0.65105 0.12993 88.8933); /* JSON/YAML gold — 4.4:1 on bg */
+  --icon-image: oklch(0.57105 0.09526 296.1739); /* image purple-grey — 4.8:1 on bg */
+  --icon-docker: oklch(0.54588 0.23452 264.8101); /* Docker blue — 4.5:1 on bg */
+  --icon-shell: oklch(0.58758 0.14196 131.8895); /* shell green — 4.4:1 on bg */
+  --icon-default: oklch(0.71609 0.00940 60.1548); /* stone-400 — muted fallback */
 
   /*
    * Diff tokens — derived from --color-success/--color-danger via color-mix.
@@ -148,13 +148,13 @@
    * roughly uniform lightness (~50-60 in light, ~65-75 in dark) to keep chart
    * weight balanced regardless of category size. All >= 3:1 on bg for graphics.
    */
-  --chart-slot-1: #ea580c; /* orange-600 — primary, brand accent */
-  --chart-slot-2: #0e7490; /* cyan-700  — cool complement */
-  --chart-slot-3: #7c3aed; /* violet-600 */
-  --chart-slot-4: #16a34a; /* green-600 */
-  --chart-slot-5: #db2777; /* pink-600 */
-  --chart-slot-6: #ca8a04; /* yellow-600 */
-  --chart-other: #a8a29e; /* stone-400 — muted catch-all */
+  --chart-slot-1: oklch(0.64611 0.19616 43.4169); /* orange-600 — primary, brand accent */
+  --chart-slot-2: oklch(0.51974 0.09494 226.1398); /* cyan-700  — cool complement */
+  --chart-slot-3: oklch(0.54124 0.26762 293.4915); /* violet-600 */
+  --chart-slot-4: oklch(0.62714 0.18797 146.0722); /* green-600 */
+  --chart-slot-5: oklch(0.59161 0.22251 358.5086); /* pink-600 */
+  --chart-slot-6: oklch(0.68073 0.15705 80.7188); /* yellow-600 */
+  --chart-other: oklch(0.71609 0.00940 60.1548); /* stone-400 — muted catch-all */
 
   --font-sans:
     "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -283,10 +283,11 @@
   --color-foreground: var(--color-fg);
   --color-card: var(--color-bg);
   --color-card-foreground: var(--color-fg);
-  --color-popover: var(--color-bg-subtle);
+  --color-popover: color-mix(in oklab, var(--color-bg) 90%, white);
+  --color-popover-active: color-mix(in oklab, var(--color-popover) 97%, black);
   --color-popover-foreground: var(--color-fg);
-  --color-primary: #c2410c;
-  --color-primary-foreground: #ffffff;
+  --color-primary: oklch(0.55345 0.17487 40.2463);
+  --color-primary-foreground: oklch(1.00000 0.00000 89.8756);
   --color-secondary: var(--color-bg-subtle);
   --color-secondary-foreground: var(--color-fg);
   --color-muted: var(--color-bg-subtle);
@@ -301,64 +302,67 @@
 }
 
 .dark {
+  --color-popover: color-mix(in oklab, var(--color-bg-subtle) 98%, white);
+  --color-popover-active: color-mix(in oklab, var(--color-popover) 96%, white);
+
   /* surfaces */
-  --color-bg: #0c0a09; /* stone-950 — warm near-black; fg contrast 17.4:1 */
-  --color-bg-subtle: #1c1917; /* stone-900 */
-  --color-bg-sunken: #292524; /* stone-800 */
+  --color-bg: oklch(0.14690 0.00423 52.7554); /* stone-950 — warm near-black; fg contrast 17.4:1 */
+  --color-bg-subtle: oklch(0.21612 0.00636 59.9540); /* stone-900 */
+  --color-bg-sunken: oklch(0.26849 0.00631 36.3601); /* stone-800 */
   --color-code-bg: color-mix(in oklab, var(--color-bg) 94%, var(--color-bg-sunken));
 
   /* text */
-  --color-fg: #fafaf9; /* stone-50  — 17.4:1 on bg */
-  --color-fg-muted: #a8a29e; /* stone-400 — 7.6:1 on bg */
-  --color-fg-faint: #57534e; /* stone-600 — 3.3:1 on bg (graphics only) */
+  --color-fg: oklch(0.98483 0.00148 107.8294); /* stone-50  — 17.4:1 on bg */
+  --color-fg-muted: oklch(0.71609 0.00940 60.1548); /* stone-400 — 7.6:1 on bg */
+  --color-fg-faint: oklch(0.44442 0.01034 77.6726); /* stone-600 — 3.3:1 on bg (graphics only) */
 
   /* borders */
-  --color-border: #292524; /* stone-800 */
-  --color-border-strong: #44403c; /* stone-700 */
+  --color-border: oklch(0.26849 0.00631 36.3601); /* stone-800 */
+  --color-border-strong: oklch(0.37412 0.00923 71.6978); /* stone-700 */
 
   /* OKLCH: brighter on dark bg, same chroma → all semantic colors adapt */
   --sem-l: 0.78;
   --sem-c: 0.18;
-  --color-issue-closed-fg: #c084fc; /* purple-400 — 7.1:1 on closed-bg (AA) */
+  --color-issue-closed-fg: oklch(0.72161 0.19322 304.9561); /* purple-400 — 7.1:1 on closed-bg (AA) */
 
   /* syntax tokens — dark mode (300-level hues for high contrast on near-black) */
-  --syntax-comment: #78716c; /* stone-500 — 3.3:1 graphic, intentionally muted */
-  --syntax-keyword: #fb923c; /* orange-400 — 7.9:1; matches dark accent */
-  --syntax-string: #86efac; /* green-300 — 11.2:1 */
-  --syntax-number: #fcd34d; /* amber-300 — 12.8:1 */
-  --syntax-function: #93c5fd; /* blue-300 — 9.3:1 */
-  --syntax-type: #5eead4; /* teal-300 — 11.8:1 */
-  --syntax-property: #7dd3fc; /* sky-300 — 10.4:1 */
-  --syntax-constant: #fcd34d; /* amber-300 — shared */
+  --syntax-comment: oklch(0.55341 0.01210 62.0521); /* stone-500 — 3.3:1 graphic, intentionally muted */
+  --syntax-keyword: oklch(0.75770 0.16563 60.1479); /* orange-400 — 7.9:1; matches dark accent */
+  --syntax-string: oklch(0.87122 0.14706 151.5199); /* green-300 — 11.2:1 */
+  --syntax-number: oklch(0.87907 0.17487 95.2111); /* amber-300 — 12.8:1 */
+  --syntax-function: oklch(0.80903 0.10188 255.5178); /* blue-300 — 9.3:1 */
+  --syntax-type: oklch(0.85490 0.12702 179.4659); /* teal-300 — 11.8:1 */
+  --syntax-property: oklch(0.82756 0.10391 233.7899); /* sky-300 — 10.4:1 */
+  --syntax-constant: oklch(0.87907 0.17487 95.2111); /* amber-300 — shared */
   --syntax-variable: var(--color-fg);
   --syntax-operator: var(--color-fg-muted);
   --syntax-punctuation: var(--color-fg-muted);
-  --syntax-tag: #fda4af; /* rose-300 — 8.2:1 */
-  --syntax-attribute: #fdba74; /* orange-300 — 9.4:1 */
-  --syntax-meta: #c4b5fd; /* violet-300 — 9.1:1 */
-  --syntax-regex: #5eead4; /* teal-300 — shared with type */
+  --syntax-tag: oklch(0.80966 0.10665 10.7322); /* rose-300 — 8.2:1 */
+  --syntax-attribute: oklch(0.83663 0.12437 70.8167); /* orange-300 — 9.4:1 */
+  --syntax-meta: oklch(0.81111 0.11224 294.1149); /* violet-300 — 9.1:1 */
+  --syntax-regex: oklch(0.85490 0.12702 179.4659); /* teal-300 — shared with type */
 
   /* file-icon language colors — dark mode (shifted lighter for contrast on stone-950) */
-  --icon-ts: #6aaff2; /* TS blue-300 — 7.6:1 on bg */
-  --icon-js: #f5d041; /* JS yellow-400 — 12.4:1 on bg */
-  --icon-python: #6aa4d2; /* Python blue-300 — 7.2:1 on bg */
-  --icon-rust: #e08b5b; /* Rust orange-300 — 8.0:1 on bg */
-  --icon-go: #4fc3e8; /* Go cyan-300 — 8.5:1 on bg */
-  --icon-ruby: #e85d5d; /* Ruby red-400 — 6.7:1 on bg */
-  --icon-markup: #e78a5f; /* HTML orange-300 — 7.4:1 on bg */
-  --icon-style: #b491d6; /* CSS purple-300 — 8.1:1 on bg */
-  --icon-data: #ddbe60; /* JSON gold-300 — 9.8:1 on bg */
-  --icon-image: #a695cc; /* image purple-300 — 7.9:1 on bg */
-  --icon-docker: #5b92ff; /* Docker blue-400 — 6.9:1 on bg */
-  --icon-shell: #88bc63; /* shell green-300 — 7.4:1 on bg */
-  --icon-default: #57534e; /* stone-600 — muted fallback */
+  --icon-ts: oklch(0.73576 0.12748 252.7755); /* TS blue-300 — 7.6:1 on bg */
+  --icon-js: oklch(0.86562 0.18096 97.3238); /* JS yellow-400 — 12.4:1 on bg */
+  --icon-python: oklch(0.69685 0.09566 247.3260); /* Python blue-300 — 7.2:1 on bg */
+  --icon-rust: oklch(0.71562 0.12487 52.9473); /* Rust orange-300 — 8.0:1 on bg */
+  --icon-go: oklch(0.76610 0.11703 225.5611); /* Go cyan-300 — 8.5:1 on bg */
+  --icon-ruby: oklch(0.65716 0.17317 23.1153); /* Ruby red-400 — 6.7:1 on bg */
+  --icon-markup: oklch(0.72315 0.12988 48.1153); /* HTML orange-300 — 7.4:1 on bg */
+  --icon-style: oklch(0.71378 0.11543 306.3932); /* CSS purple-300 — 8.1:1 on bg */
+  --icon-data: oklch(0.80960 0.13468 94.8231); /* JSON gold-300 — 9.8:1 on bg */
+  --icon-image: oklch(0.70438 0.08989 298.5404); /* image purple-300 — 7.9:1 on bg */
+  --icon-docker: oklch(0.67440 0.18484 265.5084); /* Docker blue-400 — 6.9:1 on bg */
+  --icon-shell: oklch(0.73822 0.14949 131.7802); /* shell green-300 — 7.4:1 on bg */
+  --icon-default: oklch(0.44442 0.01034 77.6726); /* stone-600 — muted fallback */
 
   /* chart slots — same hues, shifted to 400-level for dark contrast */
-  --chart-slot-1: #fb923c; /* orange-400 */
-  --chart-slot-2: #22d3ee; /* cyan-400 */
-  --chart-slot-3: #a78bfa; /* violet-400 */
-  --chart-slot-4: #4ade80; /* green-400 */
-  --chart-slot-5: #f472b6; /* pink-400 */
-  --chart-slot-6: #facc15; /* yellow-400 */
-  --chart-other: #57534e; /* stone-600 */
+  --chart-slot-1: oklch(0.75770 0.16563 60.1479); /* orange-400 */
+  --chart-slot-2: oklch(0.79710 0.13416 213.5056); /* cyan-400 */
+  --chart-slot-3: oklch(0.70890 0.17496 294.0468); /* violet-400 */
+  --chart-slot-4: oklch(0.80044 0.19900 148.6447); /* green-400 */
+  --chart-slot-5: oklch(0.72522 0.18152 347.3992); /* pink-400 */
+  --chart-slot-6: oklch(0.86068 0.19877 95.6748); /* yellow-400 */
+  --chart-other: oklch(0.44442 0.01034 77.6726); /* stone-600 */
 }

@@ -89,7 +89,7 @@ export function SidebarPicker({
               placeholder={placeholder}
               aria-label={title}
               className={cn(
-                "w-full rounded-md bg-[var(--color-bg-sunken)] px-2.5 py-1.5",
+                "w-full rounded-md bg-[var(--color-popover-active)] px-2.5 py-1.5",
                 "text-xs text-foreground placeholder:text-muted-foreground",
                 "outline-none",
               )}
