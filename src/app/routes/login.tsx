@@ -1,9 +1,6 @@
 import { createFileRoute, redirect, useSearch } from "@tanstack/react-router";
 import { z } from "zod";
 import { LoginCard } from "@/app/components/LoginCard";
-import { AppShell } from "@/app/components/shell/AppShell";
-import { ShellFooter } from "@/app/components/shell/ShellFooter";
-import { ShellHeader } from "@/app/components/shell/ShellHeader";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 import { startLogin } from "@/app/lib/auth";
 import { useAuthStore } from "@/app/stores/auth";
@@ -33,13 +30,45 @@ function LoginPage() {
   const errorMessage = error ? (ERROR_COPY[error] ?? error) : undefined;
 
   return (
-    <AppShell
-      header={<ShellHeader right={<ThemeToggle />} />}
-      footer={<ShellFooter origin="localhost:5173" showHelpHint={false} />}
-    >
-      <div className="flex flex-1 items-center justify-center px-6 pb-16">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4">
+      {/* Theme toggle — fixed top-right */}
+      <div className="absolute top-0 right-0 flex h-9 items-center px-3">
+        <ThemeToggle />
+      </div>
+
+      {/* Logo — sits on the page surface, above the card */}
+      <div className="mb-6 flex flex-col items-center gap-3">
+        <svg
+          width={60}
+          height={60}
+          viewBox="0 0 100 100"
+          aria-label="GitHut"
+          className="text-foreground"
+        >
+          <path
+            fillRule="evenodd"
+            fill="currentColor"
+            d="M50 4 A46 46 0 1 1 50 96 A46 46 0 1 1 50 4 Z M54 32 L67 43 Q71 47 71 52 L71 62 Q71 68 65 68 L35 68 Q29 68 29 62 L29 52 Q29 47 33 43 L46 32 Q50 28 54 32 Z"
+          />
+        </svg>
+        <span
+          className="text-foreground"
+          style={{
+            fontFamily: '"Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif',
+            fontSize: 20,
+            fontWeight: 800,
+            letterSpacing: "-0.04em",
+            lineHeight: 1,
+          }}
+        >
+          githut
+        </span>
+      </div>
+
+      {/* Card — raised surface */}
+      <div className="w-full max-w-[320px] rounded-xl bg-muted p-6">
         <LoginCard onLogin={startLogin} errorMessage={errorMessage} />
       </div>
-    </AppShell>
+    </div>
   );
 }

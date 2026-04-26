@@ -35,6 +35,19 @@ const RepoSchema = z.object({
     html_url: z.string(),
     type: z.enum(["User", "Organization"]),
   }),
+  parent: z
+    .object({
+      full_name: z.string(),
+      html_url: z.string(),
+      owner: z.object({ login: z.string(), avatar_url: z.string() }),
+    })
+    .optional(),
+  source: z
+    .object({
+      full_name: z.string(),
+      html_url: z.string(),
+    })
+    .optional(),
 });
 
 export type Repo = z.infer<typeof RepoSchema>;

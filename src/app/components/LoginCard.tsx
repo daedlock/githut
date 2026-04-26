@@ -1,5 +1,4 @@
 import { Button } from "@/app/components/ui/button";
-import { Kbd } from "@/app/components/ui/kbd";
 
 function GitHubMark({ className }: { className?: string }) {
   return (
@@ -19,54 +18,39 @@ export type LoginCardProps = {
 
 export function LoginCard({ errorMessage, onLogin }: LoginCardProps) {
   return (
-    <div className="w-full max-w-[360px]">
-      <div className="mb-10 flex flex-col gap-3">
-        <div className="inline-flex items-center gap-2 font-mono text-ui uppercase tracking-widest text-[var(--color-fg-faint)]">
-          <span className="h-px w-6 bg-input" />
-          <span>v0.1 — dev</span>
-        </div>
-        <h1 className="font-mono text-display font-medium text-foreground">
-          Sign&nbsp;in
-          <span className="text-primary">_</span>
+    <div className="flex flex-col gap-4">
+      <div className="mb-1">
+        <h1 className="text-title font-[600] tracking-tight text-foreground">
+          Sign in
         </h1>
-        <p className="text-body text-muted-foreground">
-          A faster read-path for GitHub. Built for engineers who live in issues, PRs, and diffs.
+        <p className="mt-1 text-body text-muted-foreground">
+          A faster read-path for GitHub — built for engineers who live in PRs and diffs.
         </p>
       </div>
 
+      {/* Error */}
       {errorMessage ? (
         <div
           role="alert"
-          className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 font-mono text-ui text-destructive"
+          className="rounded-md border px-3 py-2 font-mono text-ui"
+          style={{
+            borderColor: `color-mix(in oklab, var(--color-danger) 40%, var(--color-border))`,
+            backgroundColor: `color-mix(in oklab, var(--color-danger) 8%, var(--color-bg-subtle))`,
+            color: `var(--color-danger)`,
+          }}
         >
           {errorMessage}
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-3">
-        <Button size="lg" className="w-full" onClick={onLogin}>
-          <GitHubMark className="size-4" />
-          Continue with GitHub
-        </Button>
+      <Button size="lg" className="w-full" onClick={onLogin}>
+        <GitHubMark className="size-[15px]" />
+        Continue with GitHub
+      </Button>
 
-        <p className="flex items-center justify-center gap-1.5 pt-1 text-center text-ui text-[var(--color-fg-faint)]">
-          <span>No password.</span>
-          <span>No server-held tokens.</span>
-        </p>
-      </div>
-
-      <div className="mt-16 flex items-center gap-3 border-t border-border pt-5 text-caption text-[var(--color-fg-faint)]">
-        <span className="font-mono uppercase tracking-widest">Shortcuts</span>
-        <div className="ml-auto flex items-center gap-1.5">
-          <Kbd>?</Kbd>
-          <span>help</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Kbd>⌘</Kbd>
-          <Kbd>K</Kbd>
-          <span>command</span>
-        </div>
-      </div>
+      <p className="text-center text-caption text-[var(--color-fg-faint)]">
+        No passwords · No server-held tokens
+      </p>
     </div>
   );
 }
