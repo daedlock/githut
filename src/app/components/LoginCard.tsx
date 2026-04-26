@@ -24,7 +24,7 @@ export function LoginCard({ errorMessage, onLogin }: LoginCardProps) {
           Sign in
         </h1>
         <p className="mt-1 text-body text-muted-foreground">
-          A faster read-path for GitHub — built for engineers who live in PRs and diffs.
+          GitHub, but blazingly faster. Built for modern code review.
         </p>
       </div>
 
@@ -43,7 +43,11 @@ export function LoginCard({ errorMessage, onLogin }: LoginCardProps) {
         </div>
       ) : null}
 
-      <Button size="lg" className="w-full" onClick={onLogin}>
+      <Button
+        size="lg"
+        className="w-full bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90"
+        onClick={onLogin}
+      >
         <GitHubMark className="size-[15px]" />
         Continue with GitHub
       </Button>

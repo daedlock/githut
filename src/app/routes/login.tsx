@@ -2,6 +2,7 @@ import { createFileRoute, redirect, useSearch } from "@tanstack/react-router";
 import { z } from "zod";
 import { LoginCard } from "@/app/components/LoginCard";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
+import { DotPattern } from "@/app/components/ui/dot-pattern";
 import { startLogin } from "@/app/lib/auth";
 import { useAuthStore } from "@/app/stores/auth";
 
@@ -30,14 +31,21 @@ function LoginPage() {
   const errorMessage = error ? (ERROR_COPY[error] ?? error) : undefined;
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-4">
+      <DotPattern
+        width={20}
+        height={20}
+        cr={1}
+        className="z-0 text-foreground/30 [mask-image:radial-gradient(ellipse_at_center,white,transparent_70%)]"
+      />
+
       {/* Theme toggle — fixed top-right */}
-      <div className="absolute top-0 right-0 flex h-9 items-center px-3">
+      <div className="absolute top-0 right-0 z-10 flex h-9 items-center px-3">
         <ThemeToggle />
       </div>
 
       {/* Logo — sits on the page surface, above the card */}
-      <div className="mb-6 flex flex-col items-center gap-3">
+      <div className="relative z-10 mb-6 flex flex-col items-center gap-3">
         <svg
           width={60}
           height={60}
@@ -66,7 +74,7 @@ function LoginPage() {
       </div>
 
       {/* Card — raised surface */}
-      <div className="w-full max-w-[320px] rounded-xl bg-muted p-6">
+      <div className="relative z-10 w-full max-w-[320px] rounded-xl bg-muted p-6">
         <LoginCard onLogin={startLogin} errorMessage={errorMessage} />
       </div>
     </div>

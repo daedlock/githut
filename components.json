@@ -12,6 +12,8 @@
   },
   "iconLibrary": "lucide",
   "rtl": false,
+  "menuColor": "default",
+  "menuAccent": "subtle",
   "aliases": {
     "components": "@/app/components",
     "utils": "@/app/lib/cn",
@@ -19,7 +21,7 @@
     "lib": "@/app/lib",
     "hooks": "@/app/hooks"
   },
-  "menuColor": "default",
-  "menuAccent": "subtle",
-  "registries": {}
+  "registries": {
+    "@magicui": "https://magicui.design/r/{name}"
+  }
 }
