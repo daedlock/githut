@@ -8,13 +8,16 @@ import { PrMergeBox } from "@/app/features/pulls/components/PrMergeBox";
 import { PrTimelineRow } from "@/app/features/pulls/components/PrTimelineRow";
 import {
   useFullPr,
+  useMyPrCommentReactions,
   usePostPrComment,
   usePrComments,
   usePrReviews,
   usePrTimeline,
+  useTogglePrCommentReaction,
 } from "@/app/features/pulls/hooks";
 import { mergeTimeline, type FeedItem } from "@/app/features/pulls/lib/mergeTimeline";
 import type { Review } from "@/app/features/pulls/schemas";
+import type { ReactionContent } from "@/app/features/issues/schemas";
 import { useMe } from "@/app/hooks/useMe";
 import { cn } from "@/app/lib/cn";
 
@@ -105,22 +108,14 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
           {feed.map((item, i) => {
             if (item.kind === "comment") {
               return (
-                <div key={`c-${item.id}`} className="relative flex gap-4 pt-4">
-                  <div className="pt-1">
-                    <TimelineMarker type="comment" avatarUrl={item.user?.avatar_url} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <CommentCardDisplay
-                      login={item.user?.login ?? "ghost"}
-                      avatarUrl={item.user?.avatar_url}
-                      date={item.at}
-                    >
-                      <div className="readme-prose max-w-none text-sm">
-                        <GithubMarkdown repoContext={{ owner, repo }}>{item.body}</GithubMarkdown>
-                      </div>
-                    </CommentCardDisplay>
-                  </div>
-                </div>
+                <PrCommentRow
+                  key={`c-${item.id}`}
+                  item={item}
+                  owner={owner}
+                  repo={repo}
+                  number={number}
+                  meId={meQuery.data?.id}
+                />
               );
             }
             if (item.event === "reviewed" && typeof item.id === "number") {
@@ -183,6 +178,49 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
 }
 
 // ─── Review card ────────────────────────────────────────────────────────────
+
+function PrCommentRow({
+  item,
+  owner,
+  repo,
+  number,
+  meId,
+}: {
+  item: FeedItem & { kind: "comment" };
+  owner: string;
+  repo: string;
+  number: number;
+  meId: number | undefined;
+}) {
+  const myReactions = useMyPrCommentReactions(owner, repo, item.id, meId);
+  const toggleReaction = useTogglePrCommentReaction(owner, repo, number, meId);
+
+  const handleToggle = (content: ReactionContent, existingReactionId?: number) => {
+    toggleReaction.mutate({ commentId: item.id, content, existingReactionId });
+  };
+
+  return (
+    <div className="relative flex gap-4 pt-4">
+      <div className="pt-1">
+        <TimelineMarker type="comment" avatarUrl={item.user?.avatar_url} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <CommentCardDisplay
+          login={item.user?.login ?? "ghost"}
+          avatarUrl={item.user?.avatar_url}
+          date={item.at}
+          reactions={item.reactions}
+          myReactions={myReactions.data}
+          onToggleReaction={handleToggle}
+        >
+          <div className="readme-prose max-w-none text-sm">
+            <GithubMarkdown repoContext={{ owner, repo }}>{item.body}</GithubMarkdown>
+          </div>
+        </CommentCardDisplay>
+      </div>
+    </div>
+  );
+}
 
 function ReviewCard({ review, owner, repo }: { review: Review; owner: string; repo: string }) {
   const tone =

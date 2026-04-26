@@ -161,6 +161,17 @@ export const ReviewCommentsResponseSchema = z.array(ReviewCommentSchema);
 
 // ─── Issue comment (PR conversation level) ─────────────────────────────────
 
+const CommentReactionsSchema = z.object({
+  "+1": z.number().default(0),
+  "-1": z.number().default(0),
+  laugh: z.number().default(0),
+  hooray: z.number().default(0),
+  confused: z.number().default(0),
+  heart: z.number().default(0),
+  rocket: z.number().default(0),
+  eyes: z.number().default(0),
+}).optional().default({ "+1": 0, "-1": 0, laugh: 0, hooray: 0, confused: 0, heart: 0, rocket: 0, eyes: 0 });
+
 export const IssueCommentOnPrSchema = z.object({
   id: z.number(),
   node_id: z.string(),
@@ -170,6 +181,7 @@ export const IssueCommentOnPrSchema = z.object({
   body: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
+  reactions: CommentReactionsSchema,
 });
 export type IssueCommentOnPr = z.infer<typeof IssueCommentOnPrSchema>;
 

@@ -401,6 +401,7 @@ export function usePostPrComment(
         user: me
           ? { login: me.login, avatar_url: me.avatar_url, html_url: undefined }
           : null,
+        reactions: { "+1": 0, "-1": 0, laugh: 0, hooray: 0, confused: 0, heart: 0, rocket: 0, eyes: 0 },
       };
       queryClient.setQueryData<IssueCommentOnPr[]>(key, (old) => [
         ...(old ?? []),
@@ -901,8 +902,7 @@ export function useReplyToReviewComment(
 
 // ─── Review comment reactions ─────────────────────────────────────────────
 
-import type { ReactionContent, MyReactionsMap } from "@/app/features/issues/schemas";
-import { ReactionListSchema } from "@/app/features/issues/schemas";
+import { EMPTY_MY_REACTIONS, ReactionListSchema, type ReactionContent, type MyReactionsMap } from "@/app/features/issues/schemas";
 
 export function useMyReviewCommentReactions(
   owner: string,
@@ -1073,3 +1073,121 @@ export function useResolveThread(owner: string, repo: string, number: number) {
   });
 }
 
+// ─── PR comment reactions ─────────────────────────────────────────────────
+//
+// PR conversation comments use the same /issues/comments/{id}/reactions API
+// as issue comments. These hooks handle cache invalidation for PR-specific
+// query keys.
+
+function buildMyReactionsMap(
+  reactions: Array<{ id: number; content: string; user: { id: number } | null }>,
+  meId: number,
+): MyReactionsMap {
+  const m: MyReactionsMap = new Map();
+  for (const r of reactions) {
+    if (r.user?.id === meId) m.set(r.content as ReactionContent, r.id);
+  }
+  return m;
+}
+
+export function useMyPrCommentReactions(
+  owner: string,
+  repo: string,
+  commentId: number,
+  meId: number | undefined,
+) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    queryKey: [...pullsKeys.all, "comment-reactions", owner, repo, commentId, meId ?? 0] as const,
+    enabled: !!token && !!owner && !!repo && commentId > 0 && !!meId,
+    staleTime: 60_000,
+    queryFn: async (): Promise<MyReactionsMap> => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "GET /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions",
+        { owner, repo, comment_id: commentId, per_page: 100, headers: { accept: "application/vnd.github+json" } },
+      );
+      return buildMyReactionsMap(ReactionListSchema.parse(res.data), meId as number);
+    },
+  });
+}
+
+export function useTogglePrCommentReaction(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  meId: number | undefined,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      commentId,
+      content,
+      existingReactionId,
+    }: {
+      commentId: number;
+      content: ReactionContent;
+      existingReactionId?: number;
+    }) => {
+      const client = getGitHubClient();
+      if (existingReactionId && existingReactionId > 0) {
+        await client.request(
+          "DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions/{reaction_id}",
+          { owner, repo, comment_id: commentId, reaction_id: existingReactionId, headers: { accept: "application/vnd.github+json" } },
+        );
+        return { newReactionId: null as number | null, content };
+      }
+      const res = await client.request(
+        "POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions",
+        { owner, repo, comment_id: commentId, content, headers: { accept: "application/vnd.github+json" } },
+      );
+      return { newReactionId: (res.data as { id: number }).id, content };
+    },
+    onMutate: async ({ commentId, content, existingReactionId }) => {
+      const commentsKey = pullsKeys.comments(owner, repo, prNumber);
+      const myKey = [...pullsKeys.all, "comment-reactions", owner, repo, commentId, meId ?? 0] as const;
+      await queryClient.cancelQueries({ queryKey: commentsKey });
+      await queryClient.cancelQueries({ queryKey: myKey });
+
+      const prevList = queryClient.getQueryData<IssueCommentOnPr[]>(commentsKey);
+      const prevMy = queryClient.getQueryData<MyReactionsMap>(myKey);
+      const delta = existingReactionId ? -1 : 1;
+
+      if (prevList) {
+        queryClient.setQueryData<IssueCommentOnPr[]>(
+          commentsKey,
+          prevList.map((c) =>
+            c.id === commentId
+              ? { ...c, reactions: { ...c.reactions, [content]: Math.max(0, (c.reactions[content] ?? 0) + delta) } }
+              : c,
+          ),
+        );
+      }
+      const nextMy: MyReactionsMap = new Map(prevMy ?? EMPTY_MY_REACTIONS);
+      if (existingReactionId) nextMy.delete(content);
+      else nextMy.set(content, -Date.now());
+      queryClient.setQueryData(myKey, nextMy);
+
+      return { prevList, prevMy, commentsKey, myKey };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prevList) queryClient.setQueryData(ctx.commentsKey, ctx.prevList);
+      if (ctx?.prevMy !== undefined) queryClient.setQueryData(ctx.myKey, ctx.prevMy);
+    },
+    onSuccess: (data, vars, ctx) => {
+      if (!ctx) return;
+      const current = queryClient.getQueryData<MyReactionsMap>(ctx.myKey);
+      if (!current) return;
+      const next = new Map(current);
+      if (data.newReactionId) next.set(vars.content, data.newReactionId);
+      else next.delete(vars.content);
+      queryClient.setQueryData(ctx.myKey, next);
+    },
+    onSettled: (_data, _err, vars) => {
+      queryClient.invalidateQueries({ queryKey: pullsKeys.comments(owner, repo, prNumber) });
+      queryClient.invalidateQueries({
+        queryKey: [...pullsKeys.all, "comment-reactions", owner, repo, vars.commentId, meId ?? 0],
+      });
+    },
+  });
+}

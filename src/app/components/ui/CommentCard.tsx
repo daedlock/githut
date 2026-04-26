@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
+import { ReactionsBar } from "@/app/features/issues/components/ReactionsBar";
+import { EMPTY_MY_REACTIONS, type MyReactionsMap, type ReactionContent, type ReactionsMap } from "@/app/features/issues/schemas";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 
@@ -16,20 +18,16 @@ export { CommentComposeCard } from "@/app/components/ui/CommentComposeCard";
  */
 
 export type CommentCardProps = {
-  /** Author login */
   login: string;
-  /** Author avatar URL */
   avatarUrl?: string;
-  /** Comment timestamp (display mode only) */
   date?: string;
-  /** Show "Author" badge */
   isAuthor?: boolean;
-  /** Right-side header actions */
   actions?: ReactNode;
-  /** Additional class names */
   className?: string;
-  /** Inline variant (no card wrapper) */
   inline?: boolean;
+  reactions?: ReactionsMap;
+  myReactions?: MyReactionsMap;
+  onToggleReaction?: (content: ReactionContent, existingReactionId?: number) => void;
 };
 
 /**
@@ -44,7 +42,12 @@ export function CommentCardDisplay({
   children,
   className,
   inline = false,
+  reactions,
+  myReactions,
+  onToggleReaction,
 }: CommentCardProps & { children: ReactNode }) {
+  const showReactions = !!reactions;
+
   if (inline) {
     return (
       <div className={cn("flex gap-2.5", className)}>
@@ -63,6 +66,9 @@ export function CommentCardDisplay({
             {actions}
           </div>
           <div className="mt-1 text-sm">{children}</div>
+          {showReactions && (
+            <ReactionsBar reactions={reactions} myReactions={myReactions ?? EMPTY_MY_REACTIONS} onToggle={onToggleReaction} />
+          )}
         </div>
       </div>
     );
@@ -86,7 +92,12 @@ export function CommentCardDisplay({
         )}
         {actions && <div className="ml-auto">{actions}</div>}
       </div>
-      <div className="p-4">{children}</div>
+      <div className="p-4">
+        {children}
+        {showReactions && (
+          <ReactionsBar reactions={reactions} myReactions={myReactions ?? EMPTY_MY_REACTIONS} onToggle={onToggleReaction} />
+        )}
+      </div>
     </Card>
   );
 }
