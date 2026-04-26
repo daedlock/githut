@@ -133,6 +133,37 @@ app.get("/api/github-image", async (c) => {
     return c.json({ error: "disallowed_host", host: parsedHost }, 400);
   }
 
+  // Badge SVGs don't support token auth. Detect the pattern and generate
+  // a badge from the GitHub API instead.
+  const badgeMatch = url.match(/github\.com\/([^/]+)\/([^/]+)\/actions\/workflows\/([^/]+)\/badge\.svg/);
+  if (badgeMatch) {
+    const [, bOwner, bRepo, bWorkflow] = badgeMatch;
+    try {
+      const apiRes = await fetch(
+        `https://api.github.com/repos/${bOwner}/${bRepo}/actions/workflows/${bWorkflow}/runs?per_page=1&status=completed`,
+        { headers: { Authorization: `token ${token}`, Accept: "application/vnd.github+json", "User-Agent": "githut/0.1" } },
+      );
+      let status = "unknown";
+      let color = "#8b8a85";
+      if (apiRes.ok) {
+        const data = (await apiRes.json()) as { workflow_runs?: Array<{ conclusion: string | null }> };
+        const conclusion = data.workflow_runs?.[0]?.conclusion ?? "unknown";
+        if (conclusion === "success") { status = "passing"; color = "#22863a"; }
+        else if (conclusion === "failure") { status = "failing"; color = "#cb2431"; }
+        else if (conclusion === "cancelled") { status = "cancelled"; color = "#8b8a85"; }
+        else { status = conclusion; color = "#dbab09"; }
+      }
+      const label = (bWorkflow as string).replace(/\.yml$|\.yaml$/i, "");
+      const svg = renderBadgeSvg(label, status, color);
+      return new Response(svg, {
+        status: 200,
+        headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=120" },
+      });
+    } catch {
+      // Fall through to normal fetch on error
+    }
+  }
+
   // Step 1: hit GitHub with token auth to get the 302 → signed S3 URL.
   // Must NOT auto-follow — S3 rejects the Authorization header.
   const gh = await fetch(url, {
@@ -330,4 +361,27 @@ async function verifyState(token: string, secret: string): Promise<boolean> {
   const sigBuffer = new ArrayBuffer(sig.byteLength);
   new Uint8Array(sigBuffer).set(sig);
   return crypto.subtle.verify("HMAC", key, sigBuffer, encoder.encode(`${nonceB64}.${issuedStr}`));
+}
+
+function renderBadgeSvg(label: string, status: string, color: string): string {
+  const labelW = label.length * 6.5 + 12;
+  const statusW = status.length * 6.5 + 12;
+  const totalW = labelW + statusW;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="20" role="img">
+  <linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient>
+  <clipPath id="r"><rect width="${totalW}" height="20" rx="3" fill="#fff"/></clipPath>
+  <g clip-path="url(#r)">
+    <rect width="${labelW}" height="20" fill="#555"/>
+    <rect x="${labelW}" width="${statusW}" height="20" fill="${color}"/>
+    <rect width="${totalW}" height="20" fill="url(#s)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="11">
+    <text x="${labelW / 2}" y="14">${escapeXml(label)}</text>
+    <text x="${labelW + statusW / 2}" y="14">${escapeXml(status)}</text>
+  </g>
+</svg>`;
+}
+
+function escapeXml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }

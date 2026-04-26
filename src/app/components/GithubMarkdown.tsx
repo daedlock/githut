@@ -99,8 +99,6 @@ function proxyGitHubImage(src: string): string {
     const u = new URL(src);
     const host = u.hostname;
     if (host !== "github.com" && !host.endsWith(".githubusercontent.com")) return src;
-    // Badge SVGs don't support token auth — skip them
-    if (src.includes("/badge.svg") || src.includes("/badge/")) return src;
   } catch {
     return src;
   }
