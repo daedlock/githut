@@ -63,6 +63,57 @@ app.get("/api/auth/manage", (c) => {
   );
 });
 
+// ─── Image upload (R2) ────────────────────────────────────────────────────
+//
+// Accepts a binary upload from the browser, stores it in R2, and returns a
+// public URL. The caller must be authenticated (Bearer token checked against
+// GitHub to confirm identity). Max 10MB, images only.
+
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"]);
+
+app.post("/api/upload", async (c) => {
+  const auth = c.req.header("Authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) {
+    return c.json({ error: "missing_auth" }, 401);
+  }
+
+  const contentType = c.req.header("Content-Type") ?? "";
+  if (!ALLOWED_TYPES.has(contentType)) {
+    return c.json({ error: "unsupported_type", allowed: [...ALLOWED_TYPES] }, 400);
+  }
+
+  const body = await c.req.arrayBuffer();
+  if (body.byteLength > MAX_UPLOAD_BYTES) {
+    return c.json({ error: "too_large", max: MAX_UPLOAD_BYTES }, 413);
+  }
+
+  const ext = contentType.split("/")[1]?.replace("svg+xml", "svg") ?? "bin";
+  const key = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+
+  if (!c.env.UPLOADS) {
+    return c.json({ error: "uploads_not_configured" }, 503);
+  }
+
+  await c.env.UPLOADS.put(key, body, {
+    httpMetadata: { contentType },
+  });
+
+  const url = `${c.env.APP_URL}/api/uploads/${key}`;
+  return c.json({ url }, 201);
+});
+
+app.get("/api/uploads/:key", async (c) => {
+  const key = c.req.param("key");
+  const obj = await c.env.UPLOADS.get(key);
+  if (!obj) return c.json({ error: "not_found" }, 404);
+
+  const headers = new Headers();
+  headers.set("Content-Type", obj.httpMetadata?.contentType ?? "application/octet-stream");
+  headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  return new Response(obj.body, { headers });
+});
+
 // ─── Actions log proxy ─────────────────────────────────────────────────────
 //
 // GitHub's job-logs endpoint returns a 302 to a short-lived Azure Blob URL

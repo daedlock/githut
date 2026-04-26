@@ -173,6 +173,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
               isPending={postComment.isPending}
               placeholder="Leave a comment"
               submitLabel="Comment"
+              hideAvatar
             />
           </div>
         </div>

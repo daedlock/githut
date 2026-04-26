@@ -55,58 +55,47 @@ export function IssueList({
   return (
     <Container size="lg" className="py-6">
       {isComposing ? (
-        <form onSubmit={onSubmitIssue}>
-          <div className="mb-4 rounded-lg border border-input bg-background">
-            <div className="flex items-center gap-2.5 overflow-hidden rounded-t-lg border-b border-border bg-muted px-4 py-2.5">
-              <span className="font-mono text-micro font-medium uppercase tracking-widest text-muted-foreground">
-                New issue
-              </span>
-              <button
-                type="button"
-                onClick={onToggleCompose}
-                aria-label="Cancel"
-                className={cn(
-                  "ml-auto rounded-sm p-1 text-[var(--color-fg-faint)]",
-                  "outline-none transition-colors",
-                  "hover:bg-accent hover:text-foreground",
-                  "focus-visible:ring-1 focus-visible:ring-foreground/15",
-                )}
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-            <div className="flex flex-col gap-3 p-4">
-              <Input
-                value={newIssueTitle}
-                onChange={(e) => onNewIssueTitleChange(e.target.value)}
-                placeholder="Issue title"
-                className="h-9 text-body font-medium"
-                autoFocus
-              />
-              <div className="overflow-hidden rounded-md border border-input">
-                <ComposeBox
-                  owner={owner}
-                  repo={repo}
-                  value={newIssueBody}
-                  onChange={onNewIssueBodyChange}
-                  placeholder="Describe the issue"
-                  rows={6}
-                />
-              </div>
-              <div className="flex items-center justify-end gap-2">
-                <Button type="button" variant="ghost" size="sm" onClick={onToggleCompose}>
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={!newIssueTitle.trim() || isSubmittingIssue}
-                >
-                  {isSubmittingIssue ? "Opening…" : "Open issue"}
-                </Button>
-              </div>
-            </div>
+        <form onSubmit={onSubmitIssue} className="mb-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-micro font-medium uppercase tracking-widest text-muted-foreground">
+              New issue
+            </span>
+            <button
+              type="button"
+              onClick={onToggleCompose}
+              aria-label="Cancel"
+              className={cn(
+                "rounded-sm p-1 text-[var(--color-fg-faint)]",
+                "outline-none transition-colors",
+                "hover:bg-muted hover:text-foreground",
+                "focus-visible:ring-1 focus-visible:ring-foreground/15",
+              )}
+            >
+              <X className="size-3.5" />
+            </button>
           </div>
+          <Input
+            value={newIssueTitle}
+            onChange={(e) => onNewIssueTitleChange(e.target.value)}
+            placeholder="Issue title"
+            className="h-9 text-body font-medium"
+            autoFocus
+          />
+          <ComposeBox
+            owner={owner}
+            repo={repo}
+            value={newIssueBody}
+            onChange={onNewIssueBodyChange}
+            onSubmit={() => {
+              const form = document.querySelector<HTMLFormElement>("form");
+              form?.requestSubmit();
+            }}
+            submitLabel="Open issue"
+            submitDisabled={!newIssueTitle.trim()}
+            submitPending={isSubmittingIssue}
+            placeholder="Describe the issue"
+            rows={6}
+          />
         </form>
       ) : (
         <>

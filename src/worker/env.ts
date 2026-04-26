@@ -1,5 +1,6 @@
 export type Env = {
   ASSETS: Fetcher;
+  UPLOADS: R2Bucket;
   APP_URL: string;
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;

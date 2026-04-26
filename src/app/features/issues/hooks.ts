@@ -1,4 +1,5 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type RepoLabel, repoLabelsKey } from "@/app/features/pulls/pickers";
 import {
   EMPTY_MY_REACTIONS,
   IssueCommentSchema,
@@ -535,6 +536,95 @@ export function useToggleCommentReaction(
       queryClient.invalidateQueries({
         queryKey: issueKeys.myCommentReactions(owner, repo, vars.commentId, meId),
       });
+    },
+  });
+}
+
+// ─── Issue assignees ──────────────────────────────────────────────────────
+
+function patchIssueDetail(
+  queryClient: ReturnType<typeof useQueryClient>,
+  owner: string,
+  repo: string,
+  number: number,
+  mutator: (issue: RepoIssue) => RepoIssue,
+) {
+  const key = issueKeys.detail(owner, repo, number);
+  const prev = queryClient.getQueryData<RepoIssue>(key);
+  if (prev) queryClient.setQueryData<RepoIssue>(key, mutator(prev));
+  return { key, prev };
+}
+
+export function useSetIssueAssignees(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ add, remove }: { add: string[]; remove: string[] }) => {
+      const client = getGitHubClient();
+      if (add.length > 0) {
+        await client.request("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", {
+          owner, repo, issue_number: number, assignees: add,
+        });
+      }
+      if (remove.length > 0) {
+        await client.request("DELETE /repos/{owner}/{repo}/issues/{issue_number}/assignees", {
+          owner, repo, issue_number: number, assignees: remove,
+        });
+      }
+    },
+    onMutate: async ({ add, remove }) => {
+      await queryClient.cancelQueries({ queryKey: issueKeys.detail(owner, repo, number) });
+      return patchIssueDetail(queryClient, owner, repo, number, (issue) => ({
+        ...issue,
+        assignees: [
+          ...issue.assignees.filter((a) => !remove.includes(a.login)),
+          ...add
+            .filter((login) => !issue.assignees.some((a) => a.login === login))
+            .map((login) => ({ login, avatar_url: `https://github.com/${login}.png`, html_url: `https://github.com/${login}` })),
+        ],
+      }));
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: issueKeys.detail(owner, repo, number) });
+      queryClient.invalidateQueries({ queryKey: issueKeys.all(owner, repo) });
+    },
+  });
+}
+
+// ─── Issue labels ─────────────────────────────────────────────────────────
+
+export function useSetIssueLabels(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ names }: { names: string[] }) => {
+      const client = getGitHubClient();
+      const res = await client.request("PUT /repos/{owner}/{repo}/issues/{issue_number}/labels", {
+        owner, repo, issue_number: number, labels: names,
+      });
+      return res.data as Array<{ id: number; name: string; color: string; description: string | null }>;
+    },
+    onMutate: async ({ names }) => {
+      await queryClient.cancelQueries({ queryKey: issueKeys.detail(owner, repo, number) });
+      const repoLabels = queryClient.getQueryData<RepoLabel[]>(repoLabelsKey(owner, repo)) ?? [];
+      const byName = new Map(repoLabels.map((l) => [l.name, l]));
+      return patchIssueDetail(queryClient, owner, repo, number, (issue) => ({
+        ...issue,
+        labels: names.map((name) => {
+          const found = byName.get(name);
+          return found
+            ? { id: found.id, name: found.name, color: found.color, description: found.description ?? null }
+            : issue.labels.find((l) => l.name === name) ?? { id: -Date.now(), name, color: "cccccc", description: null };
+        }),
+      }));
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: issueKeys.detail(owner, repo, number) });
+      queryClient.invalidateQueries({ queryKey: issueKeys.all(owner, repo) });
     },
   });
 }

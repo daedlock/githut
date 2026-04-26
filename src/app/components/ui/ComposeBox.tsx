@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleDot, Eye, GitPullRequest, Pencil } from "lucide-react";
+import { CheckCircle2, CircleDot, Eye, GitPullRequest, ImagePlus, Pencil, Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { Avatar } from "@/app/components/ui/avatar";
@@ -8,6 +8,7 @@ import { Skeleton } from "@/app/components/ui/skeleton";
 import { useDebouncedValue } from "@/app/hooks/useDebouncedValue";
 import { type MentionItem, useMentionSearch } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
+import { useAuthStore } from "@/app/stores/auth";
 
 // ─── Trigger detection ───────────────────────────────────────────────────────
 
@@ -28,11 +29,6 @@ function detectTrigger(text: string, cursorPos: number): Trigger | null {
 }
 
 // ─── Caret pixel coords (mirror-div technique) ───────────────────────────────
-// Textareas don't expose a native "where is the caret in screen space" API.
-// We create an off-screen div with the textarea's computed text styles, fill
-// it with the text up to the caret, drop a marker span, and read the marker's
-// bounding rect. Returns a DOMRect in viewport coordinates — what Radix
-// Popover's virtualRef expects from getBoundingClientRect().
 
 const CARET_STYLE_PROPS = [
   "boxSizing",
@@ -81,7 +77,7 @@ function getCaretCoords(textarea: HTMLTextAreaElement, position: number): DOMRec
   mirror.textContent = textarea.value.slice(0, position);
 
   const marker = document.createElement("span");
-  marker.textContent = "\u200b";
+  marker.textContent = "​";
   mirror.appendChild(marker);
 
   const markerRect = marker.getBoundingClientRect();
@@ -117,7 +113,6 @@ function Row({
   return (
     <button
       type="button"
-      // mousedown fires before blur, so we can intercept before focus leaves textarea
       onMouseDown={(e) => {
         e.preventDefault();
         onSelect(item);
@@ -175,13 +170,17 @@ function Row({
   );
 }
 
-// ─── CommentBox ─────────────────────────────────────────────────────────────
+// ─── ComposeBox ─────────────────────────────────────────────────────────────
 
 export interface ComposeBoxProps {
   owner: string;
   repo: string;
   value: string;
   onChange: (value: string) => void;
+  onSubmit?: () => void;
+  submitLabel?: string;
+  submitDisabled?: boolean;
+  submitPending?: boolean;
   placeholder?: string;
   rows?: number;
   disabled?: boolean;
@@ -194,6 +193,10 @@ export function ComposeBox({
   repo,
   value,
   onChange,
+  onSubmit,
+  submitLabel = "Comment",
+  submitDisabled,
+  submitPending,
   placeholder = "Leave a comment",
   rows = 5,
   disabled,
@@ -201,14 +204,14 @@ export function ComposeBox({
   className,
 }: ComposeBoxProps) {
   const [mode, setMode] = useState<"write" | "preview">("write");
+  const [focused, setFocused] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [trigger, setTrigger] = useState<Trigger | null>(null);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Virtual anchor for Radix Popover — resolves to the caret's viewport rect
-  // at position-time. Mutable ref-object, NOT React state, so updates to
-  // `trigger` don't re-render the popover; Radix only calls
-  // getBoundingClientRect() when it needs to position.
   const triggerRef = useRef(trigger);
   triggerRef.current = trigger;
   const virtualAnchorRef = useRef<{ getBoundingClientRect(): DOMRect }>({
@@ -252,6 +255,74 @@ export function ComposeBox({
     [trigger, value, onChange],
   );
 
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
+  const uploadFile = useCallback(
+    async (file: File) => {
+      const token = useAuthStore.getState().token;
+      if (!token || !file.type.startsWith("image/")) return;
+
+      setUploading(true);
+      const ta = textareaRef.current;
+      const cursor = ta?.selectionStart ?? valueRef.current.length;
+      const placeholder = `![Uploading ${file.name}…]()`;
+      const before = valueRef.current.slice(0, cursor);
+      const after = valueRef.current.slice(cursor);
+      onChange(before + placeholder + after);
+
+      try {
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": file.type },
+          body: await file.arrayBuffer(),
+        });
+        if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+        const { url } = (await res.json()) as { url: string };
+        const markdown = `![${file.name}](${url})`;
+        onChange(valueRef.current.replace(placeholder, markdown));
+      } catch {
+        onChange(valueRef.current.replace(placeholder, ""));
+      } finally {
+        setUploading(false);
+      }
+    },
+    [onChange],
+  );
+
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const items = e.clipboardData?.items;
+    if (!items?.length) return;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item?.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) uploadFile(file);
+        return;
+      }
+    }
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLTextAreaElement>) {
+    const files = e.dataTransfer?.files;
+    if (!files?.length) return;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file?.type.startsWith("image/")) {
+        e.preventDefault();
+        uploadFile(file);
+        return;
+      }
+    }
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) uploadFile(file);
+    e.target.value = "";
+  }
+
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const next = e.target.value;
     onChange(next);
@@ -260,6 +331,11 @@ export function ComposeBox({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      onSubmit?.();
+      return;
+    }
     if (!trigger) return;
     if (e.key === "Escape") {
       e.preventDefault();
@@ -286,123 +362,216 @@ export function ComposeBox({
     setTrigger(detectTrigger(el.value, el.selectionStart ?? el.value.length));
   }
 
-  function handleBlur() {
-    // Delay so onMouseDown inside the popover can fire first
+  function handleBlur(e: React.FocusEvent) {
     setTimeout(() => setTrigger(null), 150);
+    if (!containerRef.current?.contains(e.relatedTarget as Node)) {
+      setFocused(false);
+    }
+  }
+
+  function handleFocusCapture() {
+    setFocused(true);
   }
 
   const isSearching = isFetching && dropdownItems.length > 0;
   const showSkeleton = !!trigger && isFetching && dropdownItems.length === 0;
   const showEmpty = !!trigger && !isFetching && dropdownItems.length === 0;
+  const hasContent = value.trim().length > 0;
+  const canSubmit = hasContent && !submitDisabled && !submitPending;
 
   return (
-    <div className={cn("flex flex-col", className)}>
-      <div className="flex items-center border-b border-border">
-        <TabBtn active={mode === "write"} onClick={() => setMode("write")}>
-          <Pencil className="size-3" />
-          Write
-        </TabBtn>
-        <TabBtn
-          active={mode === "preview"}
-          onClick={() => setMode("preview")}
-          disabled={!value.trim()}
-        >
-          <Eye className="size-3" />
-          Preview
-        </TabBtn>
-        <span className="ml-auto select-none pr-3 font-mono text-micro text-[var(--color-fg-faint)]">
-          @ mention &nbsp;·&nbsp; # reference
-        </span>
+    <div
+      ref={containerRef}
+      onFocusCapture={handleFocusCapture}
+      className={cn(
+        "group/compose flex flex-col rounded-lg border transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
+        focused
+          ? "border-[var(--color-border-strong)] ring-1 ring-[var(--color-focus)]/20"
+          : "border-[var(--color-border)] hover:border-[var(--color-border-strong)]",
+        className,
+      )}
+    >
+      {/* ── Toolbar ──────────────────────────────────────────────────── */}
+      <div className="flex items-center px-1 py-0.5">
+        <div className="relative flex">
+          <TabPill active={mode === "write"} onClick={() => setMode("write")}>
+            <Pencil className="size-3" />
+            Write
+          </TabPill>
+          <TabPill
+            active={mode === "preview"}
+            onClick={() => setMode("preview")}
+            disabled={!hasContent}
+          >
+            <Eye className="size-3" />
+            Preview
+          </TabPill>
+        </div>
+        <div className="flex-1" />
+        <div className={cn(
+          "flex items-center gap-2 pr-1 transition-opacity duration-200",
+          focused ? "opacity-100" : "opacity-0",
+        )}>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[var(--color-fg-faint)]",
+              "outline-none transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-foreground",
+              uploading && "animate-pulse",
+            )}
+            title="Attach an image"
+          >
+            <ImagePlus className="size-3" />
+            <span className="font-mono text-micro">{uploading ? "Uploading…" : "Attach"}</span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+          <span className="select-none font-mono text-micro text-[var(--color-fg-faint)]">
+            @ mention &middot; # reference
+          </span>
+        </div>
       </div>
 
-      {mode === "write" && (
-        <Popover open={!!trigger}>
-          <PopoverAnchor virtualRef={virtualAnchorRef} />
-          <textarea
-            ref={textareaRef}
-            value={value}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            onSelect={handleSelect}
-            onBlur={handleBlur}
-            placeholder={placeholder}
-            rows={rows}
-            disabled={disabled}
-            autoFocus={autoFocus}
-            className="w-full resize-y bg-background px-3 py-2.5 text-body text-foreground placeholder:text-[var(--color-fg-faint)] focus:outline-none disabled:opacity-50"
-          />
-          <PopoverContent
-            align="start"
-            sideOffset={4}
-            // Don't steal focus from the textarea when the popover opens —
-            // the user is still typing their query.
-            onOpenAutoFocus={(e) => e.preventDefault()}
-            // Keep popover open across textarea interactions; we manage
-            // dismissal via trigger state (blur / Escape / selection).
-            onInteractOutside={(e) => e.preventDefault()}
-            className="w-[320px] gap-0 p-0 overflow-hidden"
-          >
-            <div className="flex items-center gap-2 border-b border-border bg-muted px-3 py-1.5">
-              <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
-                {trigger?.type === "@" ? "Mention a user" : "Reference an issue or PR"}
-              </span>
-              {isSearching && (
-                <span className="ml-auto flex items-center gap-1">
-                  <span className="h-1 w-1 rounded-full bg-primary animate-pulse" />
-                  <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
-                    searching
-                  </span>
+      {/* ── Divider ──────────────────────────────────────────────────── */}
+      <div className="mx-3 border-t border-[var(--color-border)]" />
+
+      {/* ── Write / Preview area ─────────────────────────────────────── */}
+      <div className="relative min-h-0">
+        {mode === "write" && (
+          <Popover open={!!trigger}>
+            <PopoverAnchor virtualRef={virtualAnchorRef} />
+            <textarea
+              ref={textareaRef}
+              value={value}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              onSelect={handleSelect}
+              onBlur={handleBlur}
+              onPaste={handlePaste}
+              onDrop={handleDrop}
+              placeholder={placeholder}
+              rows={rows}
+              disabled={disabled}
+              autoFocus={autoFocus}
+              className={cn(
+                "w-full resize-y rounded-b-lg bg-transparent px-3 py-2.5 text-body text-foreground",
+                "placeholder:text-[var(--color-fg-faint)] placeholder:transition-opacity placeholder:duration-200",
+                "focus:outline-none disabled:opacity-50",
+                focused ? "placeholder:opacity-100" : "placeholder:opacity-60",
+              )}
+            />
+            <PopoverContent
+              align="start"
+              sideOffset={4}
+              onOpenAutoFocus={(e) => e.preventDefault()}
+              onInteractOutside={(e) => e.preventDefault()}
+              className="w-[320px] gap-0 p-0 overflow-hidden"
+            >
+              <div className="flex items-center gap-2 border-b border-border bg-muted px-3 py-1.5">
+                <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
+                  {trigger?.type === "@" ? "Mention a user" : "Reference an issue or PR"}
                 </span>
-              )}
-            </div>
+                {isSearching && (
+                  <span className="ml-auto flex items-center gap-1">
+                    <span className="h-1 w-1 rounded-full bg-primary animate-pulse" />
+                    <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
+                      searching
+                    </span>
+                  </span>
+                )}
+              </div>
 
-            <div className="max-h-[260px] overflow-auto p-1">
-              {showSkeleton ? (
-                <div className="flex flex-col gap-0.5">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-2.5 px-2 py-1.5">
-                      <Skeleton className="size-5 rounded-full" />
-                      <Skeleton className="h-3.5 flex-1 max-w-[60%]" />
-                    </div>
-                  ))}
-                </div>
-              ) : showEmpty ? (
-                <div className="px-2 py-3 font-mono text-ui text-muted-foreground text-center">
-                  No matches
-                </div>
-              ) : (
-                dropdownItems.map((item, i) => (
-                  <Row
-                    key={item.id}
-                    item={item}
-                    selected={i === selectedIdx}
-                    onSelect={insertCompletion}
-                  />
-                ))
-              )}
-            </div>
-          </PopoverContent>
-        </Popover>
-      )}
+              <div className="max-h-[260px] overflow-auto p-1">
+                {showSkeleton ? (
+                  <div className="flex flex-col gap-0.5">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-2.5 px-2 py-1.5">
+                        <Skeleton className="size-5 rounded-full" />
+                        <Skeleton className="h-3.5 flex-1 max-w-[60%]" />
+                      </div>
+                    ))}
+                  </div>
+                ) : showEmpty ? (
+                  <div className="px-2 py-3 font-mono text-ui text-muted-foreground text-center">
+                    No matches
+                  </div>
+                ) : (
+                  dropdownItems.map((item, i) => (
+                    <Row
+                      key={item.id}
+                      item={item}
+                      selected={i === selectedIdx}
+                      onSelect={insertCompletion}
+                    />
+                  ))
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
 
-      {mode === "preview" && (
-        <div className="min-h-[80px] px-3 py-2.5">
-          {value.trim() ? (
-            <div className="readme-prose max-w-none text-body">
-              <GithubMarkdown>{value}</GithubMarkdown>
-            </div>
-          ) : (
-            <p className="text-body italic text-muted-foreground">Nothing to preview.</p>
-          )}
+        {mode === "preview" && (
+          <div className="animate-in fade-in-0 duration-150 min-h-[80px] px-3 py-2.5">
+            {hasContent ? (
+              <div className="readme-prose max-w-none text-body">
+                <GithubMarkdown>{value}</GithubMarkdown>
+              </div>
+            ) : (
+              <p className="text-body italic text-muted-foreground">Nothing to preview.</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Footer ───────────────────────────────────────────────────── */}
+      {onSubmit && (
+        <div className="flex items-center justify-between border-t border-[var(--color-border)] px-3 py-2">
+
+          <span className="font-mono text-micro text-[var(--color-fg-faint)] select-none">
+            {navigator.platform?.includes("Mac") ? "⌘" : "Ctrl"}+Enter to submit
+          </span>
+          <button
+            type="button"
+            disabled={!canSubmit}
+            onClick={onSubmit}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-caption font-medium",
+              "outline-none transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
+              "focus-visible:ring-2 focus-visible:ring-ring/40",
+              "disabled:pointer-events-none",
+              canSubmit
+                ? "bg-primary text-primary-foreground hover:bg-primary/85 active:translate-y-px"
+                : "bg-muted text-muted-foreground",
+            )}
+          >
+            {submitPending ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                Submitting
+              </span>
+            ) : (
+              <>
+                <Send className="size-3" />
+                {submitLabel}
+              </>
+            )}
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-// ─── Tab button ─────────────────────────────────────────────────────────────
+// ─── Tab pill ─────────────────────────────────────────────────────────────
 
-function TabBtn({
+function TabPill({
   active,
   onClick,
   disabled,
@@ -419,11 +588,11 @@ function TabBtn({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-ui font-medium",
-        "outline-none transition-colors",
+        "relative inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-caption font-medium",
+        "outline-none transition-all duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]",
         active
-          ? "border-primary text-foreground"
-          : "border-transparent text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40",
+          ? "bg-[var(--color-bg-sunken)] text-foreground"
+          : "text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-subtle)] disabled:cursor-not-allowed disabled:opacity-40",
       )}
     >
       {children}

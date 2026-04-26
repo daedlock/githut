@@ -1,17 +1,14 @@
-import { CheckCircle2, CircleDot, Tag, User, X } from "lucide-react";
+import { CheckCircle2, CircleDot, X } from "lucide-react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
-import { Card, CardBody, CardFooter, CardHeader } from "@/app/components/ui/CardBlock";
 import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import { Container } from "@/app/components/ui/Container";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
-import { AssigneeList } from "@/app/features/issues/components/AssigneeList";
 import { IssueCommentCard } from "@/app/features/issues/components/CommentCard";
+import { IssueSidebar } from "@/app/features/issues/components/IssueSidebar";
 import { IssueStatePill } from "@/app/features/issues/components/IssueStatePill";
-import { LabelPill } from "@/app/features/issues/components/LabelPill";
-import { SidebarSection } from "@/app/features/issues/components/SidebarSection";
 import { useMyCommentReactions, useMyIssueReactions } from "@/app/features/issues/hooks";
 import {
   EMPTY_MY_REACTIONS,
@@ -33,7 +30,7 @@ export type IssueDetailProps = {
   commentsError: boolean;
   newCommentBody: string;
   onNewCommentChange: (s: string) => void;
-  onSubmitComment: (e: React.FormEvent<HTMLFormElement>) => void;
+  onSubmitComment: () => void;
   onToggleState: () => void;
   isTogglingState: boolean;
   isPostingComment: boolean;
@@ -139,7 +136,7 @@ export function IssueDetail({
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
             {/* Main column */}
             <div className="min-w-0 flex-1 flex flex-col gap-3">
               <IssueCommentCard
@@ -179,55 +176,31 @@ export function IssueDetail({
                 ))
               )}
 
-              <Card as="div" radius="md" tone="default" border="strong">
-                <form onSubmit={onSubmitComment}>
-                  <CardHeader>
-                    {me?.avatar_url && (
-                      <Avatar login={me.login} avatarUrl={me.avatar_url} size="sm" />
-                    )}
-                    <span className="text-body font-medium text-foreground">Add a comment</span>
-                  </CardHeader>
-                  <CardBody flush>
-                    <ComposeBox
-                      owner={owner}
-                      repo={repo}
-                      value={newCommentBody}
-                      onChange={onNewCommentChange}
-                      placeholder="Leave a comment"
-                      rows={4}
-                    />
-                  </CardBody>
-                  <CardFooter className="flex justify-end">
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={!newCommentBody.trim() || isPostingComment}
-                    >
-                      {isPostingComment ? "Posting…" : "Comment"}
-                    </Button>
-                  </CardFooter>
-                </form>
-              </Card>
+              <div className="flex gap-3">
+                {me?.avatar_url && (
+                  <Avatar login={me.login} avatarUrl={me.avatar_url} size="sm" className="mt-2 shrink-0" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <ComposeBox
+                    owner={owner}
+                    repo={repo}
+                    value={newCommentBody}
+                    onChange={onNewCommentChange}
+                    onSubmit={onSubmitComment}
+                    submitLabel="Comment"
+                    submitDisabled={!newCommentBody.trim()}
+                    submitPending={isPostingComment}
+                    placeholder="Leave a comment"
+                    rows={4}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Sidebar */}
-            <aside className="w-full lg:w-52 lg:flex-shrink-0">
-              <div className="flex flex-col gap-5">
-                <SidebarSection icon={<Tag className="size-3.5" />} title="Labels">
-                  {issue.labels.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {issue.labels.map((label) => (
-                        <LabelPill key={label.id} label={label} size="sm" />
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-caption text-[var(--color-fg-faint)]">None yet</span>
-                  )}
-                </SidebarSection>
-
-                <SidebarSection icon={<User className="size-3.5" />} title="Assignees">
-                  <AssigneeList assignees={issue.assignees} variant="rows" />
-                </SidebarSection>
+            <aside className="w-full lg:w-[328px] lg:flex-shrink-0 self-stretch">
+              <div className="sticky top-14">
+                <IssueSidebar owner={owner} repo={repo} issue={issue} />
               </div>
             </aside>
           </div>

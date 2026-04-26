@@ -10,4 +10,9 @@ not_found_handling = "single-page-application"
 run_worker_first = ["/api/*"]
 
 [vars]
-APP_URL = "http://localhost:5173"
+APP_URL = "https://githut.hossam-saraya.workers.dev"
+
+
+[[r2_buckets]]
+bucket_name = "githut-uploads"
+binding = "UPLOADS"

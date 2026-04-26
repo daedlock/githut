@@ -101,11 +101,9 @@ function IssuesPage() {
         commentsError={commentsQuery.isError}
         newCommentBody={newCommentBody}
         onNewCommentChange={setNewCommentBody}
-        onSubmitComment={(e) => {
-          e.preventDefault();
+        onSubmitComment={() => {
           const body = newCommentBody.trim();
           if (!selectedIssueNumber || !body) return;
-          // Optimistic append happens in onMutate — clear the textbox immediately
           setNewCommentBody("");
           createCommentMutation.mutate({ issueNumber: selectedIssueNumber, body });
         }}
