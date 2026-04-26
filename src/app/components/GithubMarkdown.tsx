@@ -6,6 +6,7 @@ import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 
 import { toInternalHref } from "@/app/lib/githubUrl";
+import { LightboxImage } from "@/app/components/ui/ImageLightbox";
 import { useAuthStore } from "@/app/stores/auth";
 
 // Extended sanitize schema — GitHub-compatible HTML subset.
@@ -128,7 +129,7 @@ function buildComponents(assetContext?: MarkdownAssetContext): Components {
       let resolved = assetContext && typeof src === "string" ? rewriteAssetUrl(src, assetContext) : src;
       if (typeof resolved === "string") resolved = proxyGitHubImage(resolved);
       // biome-ignore lint/a11y/useAltText: alt is preserved from the source markdown
-      return <img src={resolved as string | undefined} alt={alt} {...rest} />;
+      return <LightboxImage src={resolved as string | undefined} alt={alt} {...rest} />;
     },
   };
 }
