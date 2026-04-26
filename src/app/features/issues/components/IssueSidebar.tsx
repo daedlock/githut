@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Tag, User } from "lucide-react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Card } from "@/app/components/ui/card";
@@ -8,6 +9,11 @@ import { SidebarPicker, type PickerItem } from "@/app/features/pulls/components/
 import { useRepoCollaborators, useRepoLabels } from "@/app/features/pulls/pickers";
 import { useSetIssueAssignees, useSetIssueLabels } from "@/app/features/issues/hooks";
 import type { RepoIssue } from "@/app/features/issues/schemas";
+
+const ITEM_SPRING = { type: "spring" as const, stiffness: 540, damping: 30, mass: 0.5 };
+const ITEM_INIT = { opacity: 0, scale: 0.85, y: -2 };
+const ITEM_IN = { opacity: 1, scale: 1, y: 0 };
+const ITEM_OUT = { opacity: 0, scale: 0.85, y: -2 };
 
 export function IssueSidebar({
   owner,
@@ -83,9 +89,20 @@ export function IssueSidebar({
         <div className="mt-2">
           {issue.labels.length > 0 ? (
             <div className="flex flex-wrap gap-1">
-              {issue.labels.map((l) => (
-                <LabelPill key={l.id} label={l} size="sm" />
-              ))}
+              <AnimatePresence mode="popLayout" initial={false}>
+                {issue.labels.map((l) => (
+                  <motion.div
+                    key={l.id}
+                    layout
+                    initial={ITEM_INIT}
+                    animate={ITEM_IN}
+                    exit={ITEM_OUT}
+                    transition={ITEM_SPRING}
+                  >
+                    <LabelPill label={l} size="sm" />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           ) : (
             <EmptyState>None yet</EmptyState>
@@ -112,14 +129,24 @@ export function IssueSidebar({
         <div className="mt-2">
           {issue.assignees.length > 0 ? (
             <div className="flex flex-col gap-1.5">
-              {issue.assignees.map((a) => (
-                <div key={a.login} className="flex items-center gap-2">
-                  <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
-                  <ProfileLink login={a.login} className="text-xs text-muted-foreground">
-                    {a.login}
-                  </ProfileLink>
-                </div>
-              ))}
+              <AnimatePresence mode="popLayout" initial={false}>
+                {issue.assignees.map((a) => (
+                  <motion.div
+                    key={a.login}
+                    layout
+                    initial={ITEM_INIT}
+                    animate={ITEM_IN}
+                    exit={ITEM_OUT}
+                    transition={ITEM_SPRING}
+                    className="flex items-center gap-2"
+                  >
+                    <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
+                    <ProfileLink login={a.login} className="text-xs text-muted-foreground">
+                      {a.login}
+                    </ProfileLink>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           ) : (
             <EmptyState>No one assigned</EmptyState>

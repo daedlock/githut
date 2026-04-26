@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Milestone, Tag, User, UserCheck } from "lucide-react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Card } from "@/app/components/ui/card";
@@ -14,6 +15,12 @@ import {
 } from "@/app/features/pulls/pickers";
 import type { PullRequest, Review } from "@/app/features/pulls/schemas";
 import { cn } from "@/app/lib/cn";
+
+// Snappy spring with a touch of overshoot — items pop in/out cleanly.
+const ITEM_SPRING = { type: "spring" as const, stiffness: 540, damping: 30, mass: 0.5 };
+const ITEM_INIT = { opacity: 0, scale: 0.85, y: -2 };
+const ITEM_IN = { opacity: 1, scale: 1, y: 0 };
+const ITEM_OUT = { opacity: 0, scale: 0.85, y: -2 };
 
 export function PrSidebar({
   owner,
@@ -129,14 +136,24 @@ export function PrSidebar({
         <div className="mt-2">
           {pr.assignees.length > 0 ? (
             <div className="flex flex-col gap-1.5">
-              {pr.assignees.map((a) => (
-                <div key={a.login} className="flex items-center gap-2">
-                  <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
-                  <ProfileLink login={a.login} className="text-xs text-muted-foreground">
-                    {a.login}
-                  </ProfileLink>
-                </div>
-              ))}
+              <AnimatePresence mode="popLayout" initial={false}>
+                {pr.assignees.map((a) => (
+                  <motion.div
+                    key={a.login}
+                    layout
+                    initial={ITEM_INIT}
+                    animate={ITEM_IN}
+                    exit={ITEM_OUT}
+                    transition={ITEM_SPRING}
+                    className="flex items-center gap-2"
+                  >
+                    <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
+                    <ProfileLink login={a.login} className="text-xs text-muted-foreground">
+                      {a.login}
+                    </ProfileLink>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           ) : (
             <EmptyState>No one assigned</EmptyState>
@@ -163,13 +180,23 @@ export function PrSidebar({
         <div className="mt-2">
           {pr.labels.length > 0 ? (
             <div className="flex flex-wrap gap-1">
-              {pr.labels.map((l) => (
-                <LabelPill
-                  key={l.id}
-                  label={{ id: l.id, name: l.name, color: l.color, description: l.description ?? null }}
-                  size="sm"
-                />
-              ))}
+              <AnimatePresence mode="popLayout" initial={false}>
+                {pr.labels.map((l) => (
+                  <motion.div
+                    key={l.id}
+                    layout
+                    initial={ITEM_INIT}
+                    animate={ITEM_IN}
+                    exit={ITEM_OUT}
+                    transition={ITEM_SPRING}
+                  >
+                    <LabelPill
+                      label={{ id: l.id, name: l.name, color: l.color, description: l.description ?? null }}
+                      size="sm"
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           ) : (
             <EmptyState>None yet</EmptyState>
@@ -249,21 +276,31 @@ function ReviewerList({ pr, reviews }: { pr: PullRequest; reviews: Review[] }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      {people.map((p) => {
-        const state = latest.get(p.login)?.state;
-        return (
-          <div key={p.login} className="flex items-center gap-2">
-            <Avatar login={p.login} avatarUrl={p.avatar_url} size="sm" />
-            <ProfileLink
-              login={p.login}
-              className="flex-1 min-w-0 truncate text-xs text-muted-foreground"
+      <AnimatePresence mode="popLayout" initial={false}>
+        {people.map((p) => {
+          const state = latest.get(p.login)?.state;
+          return (
+            <motion.div
+              key={p.login}
+              layout
+              initial={ITEM_INIT}
+              animate={ITEM_IN}
+              exit={ITEM_OUT}
+              transition={ITEM_SPRING}
+              className="flex items-center gap-2"
             >
-              {p.login}
-            </ProfileLink>
-            {state && <ReviewStateBadge state={state} />}
-          </div>
-        );
-      })}
+              <Avatar login={p.login} avatarUrl={p.avatar_url} size="sm" />
+              <ProfileLink
+                login={p.login}
+                className="flex-1 min-w-0 truncate text-xs text-muted-foreground"
+              >
+                {p.login}
+              </ProfileLink>
+              {state && <ReviewStateBadge state={state} />}
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
     </div>
   );
 }
