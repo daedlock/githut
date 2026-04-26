@@ -1,22 +1,24 @@
 import { useMemo } from "react";
-import { AlertCircle, GitMerge } from "lucide-react";
+import { AlertCircle, Check, EyeOff, GitMerge, MessageSquare, X } from "lucide-react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { CommentCardDisplay, CommentComposeCard } from "@/app/components/ui/CommentCard";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { PrMergeBox } from "@/app/features/pulls/components/PrMergeBox";
 import { PrTimelineRow } from "@/app/features/pulls/components/PrTimelineRow";
+import { ReviewCard } from "@/app/features/pulls/components/ReviewCard";
 import {
   useFullPr,
   useMyPrCommentReactions,
   usePostPrComment,
   usePrComments,
+  usePrReviewComments,
   usePrReviews,
   usePrTimeline,
   useTogglePrCommentReaction,
 } from "@/app/features/pulls/hooks";
 import { mergeTimeline, type FeedItem } from "@/app/features/pulls/lib/mergeTimeline";
-import type { Review } from "@/app/features/pulls/schemas";
+import type { Review, ReviewComment } from "@/app/features/pulls/schemas";
 import type { ReactionContent } from "@/app/features/issues/schemas";
 import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { useMe } from "@/app/hooks/useMe";
@@ -32,6 +34,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
   const prQuery = useFullPr(owner, repo, number);
   const commentsQuery = usePrComments(owner, repo, number);
   const reviewsQuery = usePrReviews(owner, repo, number);
+  const reviewCommentsQuery = usePrReviewComments(owner, repo, number);
   const timelineQuery = usePrTimeline(owner, repo, number);
   const meQuery = useMe();
   const postComment = usePostPrComment(owner, repo, number, meQuery.data);
@@ -39,17 +42,23 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
   const pr = prQuery.data;
   const comments = commentsQuery.data ?? [];
   const reviews = reviewsQuery.data ?? [];
+  const reviewComments = reviewCommentsQuery.data ?? [];
   const timeline = timelineQuery.data ?? [];
 
-  const reviewsById = useMemo(() => {
-    const m = new Map<number, Review>();
-    for (const r of reviews) m.set(r.id, r);
+  const inlineByReviewId = useMemo(() => {
+    const m = new Map<number, ReviewComment[]>();
+    for (const c of reviewComments) {
+      if (c.pull_request_review_id == null) continue;
+      const arr = m.get(c.pull_request_review_id) ?? [];
+      arr.push(c);
+      m.set(c.pull_request_review_id, arr);
+    }
     return m;
-  }, [reviews]);
+  }, [reviewComments]);
 
   const feed = useMemo<FeedItem[]>(
-    () => mergeTimeline(timeline, comments),
-    [timeline, comments],
+    () => mergeTimeline(timeline, comments, reviews),
+    [timeline, comments, reviews],
   );
 
   const participants = useMemo((): MentionUser[] => {
@@ -133,20 +142,24 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
                 />
               );
             }
-            if (item.event === "reviewed" && typeof item.id === "number") {
-              const full = reviewsById.get(item.id);
-              if (full) {
-                return (
-                  <div key={`r-${item.id}`} className="relative flex gap-4 pt-4">
-                    <div className="pt-1">
-                      <TimelineMarker type="review" reviewState={full.state} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <ReviewCard review={full} owner={owner} repo={repo} />
-                    </div>
+            if (item.kind === "review") {
+              const inline = inlineByReviewId.get(item.review.id) ?? [];
+              return (
+                <div key={`r-${item.review.id}`} className="relative flex gap-4 pt-4">
+                  <div className="pt-1">
+                    <TimelineMarker type="review" reviewState={item.review.state} />
                   </div>
-                );
-              }
+                  <div className="min-w-0 flex-1">
+                    <ReviewCard
+                      review={item.review}
+                      inlineComments={inline}
+                      owner={owner}
+                      repo={repo}
+                      number={number}
+                    />
+                  </div>
+                </div>
+              );
             }
             return (
               <div key={`e-${item.id ?? i}`} className="relative">
@@ -238,53 +251,6 @@ function PrCommentRow({
   );
 }
 
-function ReviewCard({ review, owner, repo }: { review: Review; owner: string; repo: string }) {
-  const tone =
-    review.state === "APPROVED"
-      ? "text-[var(--color-success)] bg-[color-mix(in_oklab,var(--color-success)_14%,var(--color-bg-subtle))]"
-      : review.state === "CHANGES_REQUESTED"
-        ? "text-[var(--color-danger)] bg-[color-mix(in_oklab,var(--color-danger)_14%,var(--color-bg-subtle))]"
-        : "text-muted-foreground bg-muted";
-  const label =
-    review.state === "APPROVED"
-      ? "Approved"
-      : review.state === "CHANGES_REQUESTED"
-        ? "Requested changes"
-        : review.state === "COMMENTED"
-          ? "Commented"
-          : review.state === "DISMISSED"
-            ? "Dismissed"
-            : "Review";
-
-  return (
-    <CommentCardDisplay
-      login={review.user?.login ?? "ghost"}
-      avatarUrl={review.user?.avatar_url}
-      date={review.submitted_at ?? new Date(0).toISOString()}
-      actions={
-        <span
-          className={cn(
-            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-            tone,
-          )}
-        >
-          {label}
-        </span>
-      }
-    >
-      {review.body?.trim() ? (
-        <div className="readme-prose max-w-none text-sm">
-          <GithubMarkdown repoContext={{ owner, repo }}>{review.body}</GithubMarkdown>
-        </div>
-      ) : (
-        <p className="text-sm italic text-muted-foreground">
-          {label.toLowerCase()} without a comment.
-        </p>
-      )}
-    </CommentCardDisplay>
-  );
-}
-
 // ─── Timeline Marker ────────────────────────────────────────────────────────
 
 type TimelineMarkerProps =
@@ -310,15 +276,34 @@ function TimelineMarker(props: TimelineMarkerProps) {
   }
 
   if (props.type === "review") {
-    const tone =
+    const Icon =
       props.reviewState === "APPROVED"
-        ? "bg-[var(--color-success)]"
+        ? Check
         : props.reviewState === "CHANGES_REQUESTED"
-          ? "bg-[var(--color-danger)]"
-          : "bg-muted-foreground";
+          ? X
+          : props.reviewState === "DISMISSED"
+            ? EyeOff
+            : MessageSquare;
+    const fg =
+      props.reviewState === "APPROVED"
+        ? "text-[var(--color-success)]"
+        : props.reviewState === "CHANGES_REQUESTED"
+          ? "text-[var(--color-danger)]"
+          : "text-muted-foreground";
+    const ring =
+      props.reviewState === "APPROVED"
+        ? "ring-[color-mix(in_oklab,var(--color-success)_45%,transparent)]"
+        : props.reviewState === "CHANGES_REQUESTED"
+          ? "ring-[color-mix(in_oklab,var(--color-danger)_45%,transparent)]"
+          : "ring-border";
     return (
-      <div className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full bg-background ring-2 ring-background">
-        <div className={cn("size-3 rounded-full", tone)} />
+      <div
+        className={cn(
+          "relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full bg-background ring-2",
+          ring,
+        )}
+      >
+        <Icon className={cn("size-3", fg)} strokeWidth={2.5} />
       </div>
     );
   }
