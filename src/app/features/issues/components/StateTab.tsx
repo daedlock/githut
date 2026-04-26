@@ -14,12 +14,15 @@ export function StateTab({
   isActive: boolean;
   onClick: () => void;
 }) {
+  const Icon = state === "open" ? CircleDot : CheckCircle2;
+  const activeIconTone =
+    state === "open" ? "text-[var(--color-success)]" : "text-muted-foreground";
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 px-3 py-2 text-body rounded-sm",
+        "inline-flex items-center gap-1.5 px-2.5 py-1.5 text-caption rounded-md",
         "outline-none transition-colors",
         "focus-visible:ring-1 focus-visible:ring-foreground/15",
         isActive
@@ -27,21 +30,12 @@ export function StateTab({
           : "text-muted-foreground hover:text-foreground",
       )}
     >
-      {state === "open" ? (
-        <CircleDot
-          className={cn(
-            "size-4",
-            isActive ? "text-[var(--color-success)]" : "text-[var(--color-fg-faint)]",
-          )}
-        />
-      ) : (
-        <CheckCircle2
-          className={cn(
-            "size-4",
-            isActive ? "text-muted-foreground" : "text-[var(--color-fg-faint)]",
-          )}
-        />
-      )}
+      <Icon
+        className={cn(
+          "size-4",
+          isActive ? activeIconTone : "text-[var(--color-fg-faint)]",
+        )}
+      />
       <span className="tabular-nums">{count}</span>
       <span className="capitalize">{state}</span>
     </button>

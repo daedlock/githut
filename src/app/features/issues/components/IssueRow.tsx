@@ -1,7 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { CheckCircle2, CircleDot, MessageSquare } from "lucide-react";
+import { Avatar } from "@/app/components/ui/avatar";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
-import { AssigneeList } from "@/app/features/issues/components/AssigneeList";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import type { RepoIssue } from "@/app/features/issues/schemas";
 import { REACTION_CONTENTS, REACTION_EMOJIS, reactionsHaveAny } from "@/app/features/issues/utils";
@@ -14,16 +15,12 @@ export function IssueRow({
   issue,
   owner,
   repo,
-  onClick,
 }: {
   issue: RepoIssue;
   owner: string;
   repo: string;
-  onClick: () => void;
 }) {
   const qc = useQueryClient();
-  // Detail view is a same-route search-param change, so router preload can't
-  // help here — populate the detail+comments cache entries manually.
   const prefetch = () => {
     qc.prefetchQuery({
       queryKey: issueKeys.detail(owner, repo, issue.number),
@@ -48,20 +45,23 @@ export function IssueRow({
       },
     });
   };
-  return (
-    <div className="group relative">
-      <button
-        type="button"
-        onClick={onClick}
-        onMouseEnter={prefetch}
-        onFocus={prefetch}
-        aria-label={`Open issue #${issue.number}: ${issue.title}`}
-        className="absolute inset-0 rounded-none outline-none transition-colors hover:bg-muted focus-visible:bg-muted"
-      />
 
-      <div className="pointer-events-none relative flex w-full items-start gap-3 px-4 py-3.5 text-left sm:px-5">
+  const isOpen = issue.state === "open";
+  const timeAt = isOpen ? issue.created_at : (issue.closed_at ?? issue.updated_at);
+  const timeVerb = isOpen ? "opened" : "closed";
+
+  return (
+    <Link
+      to="/$owner/$repo/issues"
+      params={{ owner, repo }}
+      search={{ issue: issue.number }}
+      className="group block rounded-lg outline-none transition-colors hover:bg-muted focus-visible:bg-muted"
+      onMouseEnter={prefetch}
+      onFocus={prefetch}
+    >
+      <div className="flex w-full items-start gap-3 px-4 py-2.5 text-left">
         <div className="mt-0.5 flex-shrink-0">
-          {issue.state === "open" ? (
+          {isOpen ? (
             <CircleDot className="size-4 text-[var(--color-success)]" />
           ) : (
             <CheckCircle2 className="size-4 text-[var(--color-fg-faint)]" />
@@ -69,23 +69,21 @@ export function IssueRow({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="text-body font-medium text-foreground">{issue.title}</span>
+            <span className="text-body font-[475] text-foreground">{issue.title}</span>
             {issue.labels.map((label) => (
               <LabelPill key={label.id} label={label} size="xs" />
             ))}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-caption text-[var(--color-fg-faint)]">
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-ui text-muted-foreground">
             <span>
               <span className="font-mono">#{issue.number}</span>
               {" · "}
-              {issue.state === "open" ? "opened" : "closed"}{" "}
-              {formatRelativeTime(
-                issue.state === "open" ? issue.created_at : (issue.closed_at ?? issue.updated_at),
-              )}
+              {timeVerb} {formatRelativeTime(timeAt)}
               {" by "}
               <ProfileLink
                 login={issue.user.login}
-                className="pointer-events-auto text-muted-foreground"
+                stopPropagation
+                className="text-muted-foreground"
               >
                 {issue.user.login}
               </ProfileLink>
@@ -111,11 +109,13 @@ export function IssueRow({
           </div>
         </div>
         {issue.assignees.length > 0 && (
-          <div className="mt-0.5">
-            <AssigneeList assignees={issue.assignees} variant="stack" max={3} />
+          <div className="mt-0.5 flex">
+            {issue.assignees.slice(0, 3).map((a) => (
+              <Avatar key={a.login} login={a.login} avatarUrl={a.avatar_url} size="sm" />
+            ))}
           </div>
         )}
       </div>
-    </div>
+    </Link>
   );
 }

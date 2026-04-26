@@ -175,7 +175,6 @@ function IssuesPage() {
         );
       }}
       isSubmittingIssue={createIssueMutation.isPending}
-      onOpenIssue={(n) => navigate({ search: { issue: n } })}
     />
   );
 }

@@ -1,6 +1,5 @@
 import { AlertCircle, CheckCircle2, CircleDot, Plus, Search, X } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import { Card, CardBody, CardHeader } from "@/app/components/ui/CardBlock";
 import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import { Container } from "@/app/components/ui/Container";
 import { Input } from "@/app/components/ui/input";
@@ -30,7 +29,6 @@ export type IssueListProps = {
   onNewIssueBodyChange: (s: string) => void;
   onSubmitIssue: (e: React.FormEvent<HTMLFormElement>) => void;
   isSubmittingIssue: boolean;
-  onOpenIssue: (n: number) => void;
 };
 
 export function IssueList({
@@ -53,15 +51,13 @@ export function IssueList({
   onNewIssueBodyChange,
   onSubmitIssue,
   isSubmittingIssue,
-  onOpenIssue,
 }: IssueListProps) {
   return (
-    <Container className="py-5 sm:py-6">
-      {isComposing && (
-        <Card as="div" radius="lg" tone="default" border="strong" className="mb-4">
-          {/* New-issue compose form. Uses a plain form inside so onSubmit wires up. */}
-          <form onSubmit={onSubmitIssue}>
-            <CardHeader>
+    <Container size="lg" className="py-6">
+      {isComposing ? (
+        <form onSubmit={onSubmitIssue}>
+          <div className="mb-4 rounded-lg border border-input bg-background">
+            <div className="flex items-center gap-2.5 overflow-hidden rounded-t-lg border-b border-border bg-muted px-4 py-2.5">
               <span className="font-mono text-micro font-medium uppercase tracking-widest text-muted-foreground">
                 New issue
               </span>
@@ -72,14 +68,14 @@ export function IssueList({
                 className={cn(
                   "ml-auto rounded-sm p-1 text-[var(--color-fg-faint)]",
                   "outline-none transition-colors",
-                  "hover:bg-[var(--color-bg-sunken)] hover:text-[var(--color-fg)]",
+                  "hover:bg-accent hover:text-foreground",
                   "focus-visible:ring-1 focus-visible:ring-foreground/15",
                 )}
               >
                 <X className="size-3.5" />
               </button>
-            </CardHeader>
-            <CardBody flush className="flex flex-col gap-3 p-4">
+            </div>
+            <div className="flex flex-col gap-3 p-4">
               <Input
                 value={newIssueTitle}
                 onChange={(e) => onNewIssueTitleChange(e.target.value)}
@@ -109,51 +105,46 @@ export function IssueList({
                   {isSubmittingIssue ? "Opening…" : "Open issue"}
                 </Button>
               </div>
-            </CardBody>
-          </form>
-        </Card>
-      )}
-
-      {!isComposing && (
-        <Card radius="lg" tone="subtle" border="strong">
-          <CardHeader className="sm:px-5">
-            <div className="flex w-full flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center">
-                <StateTab
-                  state="open"
-                  count={openCount}
-                  isActive={stateFilter === "open"}
-                  onClick={() => onStateFilter("open")}
-                />
-                <StateTab
-                  state="closed"
-                  count={closedCount}
-                  isActive={stateFilter === "closed"}
-                  onClick={() => onStateFilter("closed")}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={searchText}
-                    onChange={(e) => onSearch(e.target.value)}
-                    placeholder="Search issues…"
-                    className="h-8 w-52 pl-8 text-ui"
-                  />
-                </div>
-                <Button size="sm" variant="default" onClick={onToggleCompose}>
-                  <Plus data-icon="inline-start" />
-                  New issue
-                </Button>
-              </div>
             </div>
-          </CardHeader>
+          </div>
+        </form>
+      ) : (
+        <>
+          {/* Toolbar — sits on subtle surface */}
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted px-2 py-1">
+            <div className="flex items-center">
+              <StateTab
+                state="open"
+                count={openCount}
+                isActive={stateFilter === "open"}
+                onClick={() => onStateFilter("open")}
+              />
+              <StateTab
+                state="closed"
+                count={closedCount}
+                isActive={stateFilter === "closed"}
+                onClick={() => onStateFilter("closed")}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchText}
+                  onChange={(e) => onSearch(e.target.value)}
+                  placeholder="Search…"
+                  className="h-7 w-44 pl-8 text-ui"
+                />
+              </div>
+              <Button size="sm" variant="default" onClick={onToggleCompose}>
+                <Plus data-icon="inline-start" />
+                New issue
+              </Button>
+            </div>
+          </div>
 
-          <CardBody
-            flush
-            className="divide-y divide-border overflow-hidden rounded-b-[var(--radius-lg)] bg-background"
-          >
+          {/* List — flat rows, hover surface shift */}
+          <div className="mt-4 flex flex-col gap-1">
             {isLoading ? (
               <IssueListSkeleton />
             ) : isError ? (
@@ -162,30 +153,37 @@ export function IssueList({
                 <p className="text-body text-muted-foreground">Could not load issues.</p>
               </div>
             ) : issues.length === 0 ? (
-              <div className="px-5 py-12 text-center">
-                {stateFilter === "open" ? (
-                  <CircleDot className="mx-auto mb-3 size-6 text-[var(--color-fg-faint)]" />
-                ) : (
-                  <CheckCircle2 className="mx-auto mb-3 size-6 text-[var(--color-fg-faint)]" />
-                )}
-                <p className="text-body font-medium text-muted-foreground">
-                  {searchText ? "No issues match your search." : `No ${stateFilter} issues.`}
-                </p>
-              </div>
+              <EmptyState hasSearch={!!searchText} state={stateFilter} />
             ) : (
               issues.map((issue) => (
-                <IssueRow
-                  key={issue.id}
-                  issue={issue}
-                  owner={owner}
-                  repo={repo}
-                  onClick={() => onOpenIssue(issue.number)}
-                />
+                <IssueRow key={issue.id} issue={issue} owner={owner} repo={repo} />
               ))
             )}
-          </CardBody>
-        </Card>
+          </div>
+        </>
       )}
     </Container>
+  );
+}
+
+function EmptyState({
+  hasSearch,
+  state,
+}: {
+  hasSearch: boolean;
+  state: StateFilter;
+}) {
+  const Icon = state === "open" ? CircleDot : CheckCircle2;
+  return (
+    <div className="px-5 py-16 text-center">
+      <Icon className="mx-auto mb-3 size-5 text-[var(--color-fg-faint)]" />
+      <p className="text-body text-muted-foreground">
+        {hasSearch
+          ? "No issues match your search."
+          : state === "open"
+            ? "No open issues."
+            : "No closed issues."}
+      </p>
+    </div>
   );
 }
