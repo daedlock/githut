@@ -41,7 +41,7 @@ export function UnifiedNav({ repoContext }: { repoContext?: RepoContext }) {
   const { open: openPalette } = useCommandPalette();
 
   return (
-    <header className="flex h-10 min-h-10 w-full shrink-0 items-center gap-0 overflow-hidden border-b border-border bg-background px-3 sm:px-4">
+    <header className="flex h-11 min-h-11 w-full shrink-0 items-center gap-0 overflow-hidden border-b border-border bg-background px-3 sm:px-4">
       {/* Left: repo identity + section tabs (when in repo context) */}
       {repoContext ? (
         <RepoSection owner={repoContext.owner} repo={repoContext.repo} />
@@ -130,7 +130,7 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
             size="sm"
           />
         </Link>
-        <div className="flex items-baseline gap-0.5 font-mono text-caption leading-none">
+        <div className="flex items-baseline gap-1 font-mono text-ui">
           <Link
             to="/$username"
             params={{ username: owner }}
@@ -158,7 +158,7 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
               type="button"
               onClick={() => handleTabClick(tab.href)}
               className={cn(
-                "group relative flex items-center whitespace-nowrap px-2.5 text-caption",
+                "group relative flex items-center whitespace-nowrap px-2.5 text-sm",
                 "text-muted-foreground outline-none transition-colors",
                 "hover:text-foreground focus-visible:text-foreground",
                 isActive && "text-foreground",

@@ -7,7 +7,7 @@
   --color-bg-sunken: oklch(0.32865 0.02096 148.4347);
   --color-border: oklch(0.32865 0.02096 148.4347);
   --color-border-strong: oklch(0.40017 0.02712 153.1436);
-  --color-code-bg: color-mix(in oklab, var(--color-bg) 80%, black 5%);
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 100%, black 2%);
 
   /* Text — warm tan */
   --color-fg: oklch(0.83287 0.03756 94.7033);
