@@ -1,7 +1,7 @@
 import { Palette as PaletteIcon } from "lucide-react";
 import { useRef } from "react";
 import { cn } from "@/app/lib/cn";
-import { type Palette, useThemeStore } from "@/app/stores/theme";
+import { type Palette, useResolvedTheme, useThemeStore } from "@/app/stores/theme";
 
 /**
  * Palette picker — 10 theme chips in a 5×2 grid, each rendered in its own
@@ -22,6 +22,7 @@ type PaletteDef = {
 };
 
 const PALETTES: PaletteDef[] = [
+  { id: "main", name: "main" },
   { id: "stone", name: "stone" },
   { id: "ember", name: "ember" },
   { id: "ember-soft", name: "ember-soft" },
@@ -34,7 +35,7 @@ const PALETTES: PaletteDef[] = [
   { id: "sagecream", name: "sagecream" },
 ];
 
-const COLS = 5;
+const COLS = 6;
 
 export function ThemePalettePicker() {
   const palette = useThemeStore((s) => s.palette);
@@ -102,7 +103,7 @@ export function ThemePalettePicker() {
         role="radiogroup"
         aria-labelledby="palette-heading"
         onKeyDown={handleKeyDown}
-        className="grid grid-cols-5 gap-1"
+        className="grid grid-cols-6 gap-1"
       >
         {PALETTES.map((p, i) => (
           <PaletteChip
@@ -131,6 +132,11 @@ function PaletteChip({
   onSelect: () => void;
   delayMs: number;
 }) {
+  const resolved = useResolvedTheme();
+  const chipTheme = p.id === "main"
+    ? (resolved === "dark" ? "main-dark" : "main-light")
+    : p.id;
+
   return (
     <button
       type="button"
@@ -144,14 +150,12 @@ function PaletteChip({
         "group flex flex-col items-center gap-1 rounded-[var(--radius-sm)] p-0.5",
         "outline-none",
         "focus-visible:bg-(--color-bg-sunken)",
-        // Staggered reveal — plays once per dropdown mount
         "animate-[chip-in_200ms_ease-out_backwards]",
       )}
       style={{ animationDelay: `${delayMs}ms` }}
     >
-      {/* The chip itself — painted in its own theme scope */}
       <div
-        data-theme={p.id}
+        data-theme={chipTheme}
         className={cn(
           "relative flex h-7 w-full items-center justify-center overflow-hidden",
           "rounded-[var(--radius-xs)] border bg-(--color-bg)",
