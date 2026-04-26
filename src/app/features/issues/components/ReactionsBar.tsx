@@ -68,7 +68,7 @@ export function ReactionsBar({
               aria-pressed={mine}
               title={mine ? "Remove your reaction" : `React with ${k}`}
               className={cn(
-                "inline-flex h-5 items-center gap-1 rounded-full border px-2 leading-none",
+                "inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 leading-none",
                 "outline-none transition-colors",
                 "focus-visible:ring-1 focus-visible:ring-foreground/15",
                 mine
@@ -77,8 +77,19 @@ export function ReactionsBar({
               )}
             >
               <span className="text-[11px] leading-none">{REACTION_EMOJIS[k]}</span>
-              <span className={cn("font-mono text-[10px] leading-none tabular-nums", mine && "font-semibold")}>
-                {reactions[k]}
+              <span className={cn("inline-flex font-mono text-[10px] tabular-nums leading-none", mine && "font-semibold")}>
+                <AnimatePresence mode="popLayout" initial={false}>
+                  <motion.span
+                    key={reactions[k]}
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.5 }}
+                    transition={{ type: "spring", stiffness: 800, damping: 30, mass: 0.3 }}
+                    className="inline-block"
+                  >
+                    {reactions[k]}
+                  </motion.span>
+                </AnimatePresence>
               </span>
             </motion.button>
           );
