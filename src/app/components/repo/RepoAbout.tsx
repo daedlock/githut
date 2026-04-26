@@ -221,7 +221,7 @@ function ReleasesCard({
 
 // ─── Contributors ─────────────────────────────────────────────────────────
 
-const PER_ROW = 9; // overlapping avatars per line — tuned for w-64 sidebar
+const PER_ROW = 11; // overlapping avatars per line — tuned for w-64 sidebar with size-md avatars
 const DEFAULT_ROWS = 2;
 
 function ContributorsCard({
@@ -289,8 +289,8 @@ function ContributorsCard({
       <div className="mt-2">
         {pending && !contributors ? (
           <div className="flex -space-x-1.5">
-            {Array.from({ length: 9 }).map((_, i) => (
-              <Skeleton key={i} className="size-7 rounded-full ring-2 ring-(--color-bg-subtle)" />
+            {Array.from({ length: 11 }).map((_, i) => (
+              <Skeleton key={i} className="size-6 rounded-full ring-2 ring-(--color-bg-subtle)" />
             ))}
           </div>
         ) : (
@@ -321,7 +321,7 @@ function ContributorsCard({
                               <Avatar
                                 login={c.login}
                                 avatarUrl={c.avatar_url}
-                                size="lg"
+                                size="md"
                                 className="ring-2 ring-(--color-bg-subtle) transition-transform hover:scale-110 hover:z-10"
                               />
                             </ProfileLink>
@@ -329,7 +329,7 @@ function ContributorsCard({
                         ) : (
                           <span
                             title={`${c.contributions} commits (anonymous)`}
-                            className="flex size-7 items-center justify-center rounded-full bg-[var(--color-bg-sunken)] font-mono text-micro text-muted-foreground ring-2 ring-(--color-bg-subtle)"
+                            className="flex size-6 items-center justify-center rounded-full bg-[var(--color-bg-sunken)] font-mono text-micro text-muted-foreground ring-2 ring-(--color-bg-subtle)"
                           >
                             ?
                           </span>
@@ -348,7 +348,7 @@ function ContributorsCard({
                         exit={animateEntry ? { opacity: 0, scale: 0.5 } : undefined}
                         transition={SECTION_SPRING}
                         className={cn(
-                          "relative flex size-7 items-center justify-center rounded-full",
+                          "relative flex size-6 items-center justify-center rounded-full",
                           "bg-(--color-bg-sunken) text-foreground/85",
                           "ring-2 ring-(--color-bg-subtle)",
                           "font-mono text-[10px] font-medium tabular-nums",
