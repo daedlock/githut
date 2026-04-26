@@ -1,81 +1,81 @@
 [data-theme="main-light"] {
   color-scheme: light;
 
-  /* Surfaces — blue-grey, L*98 → L*95 → L*90 */
-  --color-bg: #F7F8FB;
-  --color-bg-subtle: #EEF0F5;
-  --color-bg-sunken: #E0E3EB;
-  --color-border: #D8DBE4;
-  --color-border-strong: #C0C5D0;
-  --color-code-bg: color-mix(in oklab, var(--color-bg) 94%, var(--color-bg-sunken));
+  /* Surfaces — pure neutral gray, L*98 → L*93 → L*87 */
+  --color-bg: #f8f8f8;
+  --color-bg-subtle: #ededed;
+  --color-bg-sunken: #e0e0e0;
+  --color-border: #d4d4d4;
+  --color-border-strong: #b8b8b8;
+  --color-code-bg: #f2f2f2;
 
-  /* Text — cool near-black, L*14 → L*42 → L*65 */
-  --color-fg: #1C2030;
-  --color-fg-muted: #5C6378;
-  --color-fg-faint: #98A0B0;
+  /* Text — neutral near-black, L*12 → L*40 → L*62 */
+  --color-fg: #1a1a1a;
+  --color-fg-muted: #606060;
+  --color-fg-faint: #999999;
 
-  /* Accent — deeper blue for contrast on light (CIELAB L*45, C*50, H*270) */
-  --color-accent: #4060E0;
-  --color-accent-hover: #3350C8;
-  --color-accent-fg: #FFFFFF;
-  --color-primary: #4060E0;
-  --color-primary-foreground: #FFFFFF;
-  --color-focus: #4060E0;
+  /* Accent — clean blue */
+  --color-accent: #2e7dd6;
+  --color-accent-hover: #2568b8;
+  --color-accent-fg: #ffffff;
+  --color-primary: #2e7dd6;
+  --color-primary-foreground: #ffffff;
+  --color-focus: #2e7dd6;
 
-  /* Status — all at CIELAB L*42-48 for equal weight on light bg */
-  --color-success: #1E8C42;  /* L*48, green */
-  --color-danger: #D03030;   /* L*44, red */
-  --color-warning: #A07810;  /* L*52, amber */
+  /* Status — darker for light bg readability */
+  --color-success: #1e8c42;
+  --color-danger: #d03030;
+  --color-warning: #a07810;
 
   /* Merged */
-  --color-pr-merged: #7040C0;
-  --color-pr-merged-bg: color-mix(in oklab, #7040C0 12%, #EEF0F5);
-  --color-pr-merged-fg: color-mix(in oklab, #7040C0 80%, #1C2030);
+  --color-pr-merged: #6838b8;
+  --color-pr-merged-bg: color-mix(in oklab, #6838b8 12%, #ebebeb);
+  --color-pr-merged-fg: color-mix(in oklab, #6838b8 80%, #1a1a1a);
 
   /* Issue pills */
-  --color-issue-open-bg: #D8F0E0;
-  --color-issue-open-fg: #1A7838;
-  --color-issue-closed-bg: #E8D8F0;
-  --color-issue-closed-fg: #6030A8;
+  --color-issue-open-bg: #d8f0e0;
+  --color-issue-open-fg: #1a7838;
+  --color-issue-closed-bg: #e8d8f0;
+  --color-issue-closed-fg: #5828a0;
 
-  /* Syntax — 8 hues at CIELAB L*38-48 on L*98 bg */
-  --syntax-keyword: #4060E0;  /* blue */
-  --syntax-string: #1E8C42;   /* green */
-  --syntax-number: #B86820;   /* orange */
-  --syntax-function: #8A6810;  /* gold-brown */
-  --syntax-type: #187878;     /* teal */
-  --syntax-property: #B86820;  /* orange */
-  --syntax-constant: #7040C0;  /* purple */
-  --syntax-variable: #1C2030;  /* fg */
-  --syntax-operator: #5C6378;  /* fg-muted */
-  --syntax-punctuation: #5C6378;
-  --syntax-tag: #D03030;       /* red */
-  --syntax-attribute: #187878;  /* teal */
-  --syntax-meta: #4060E0;      /* blue */
-  --syntax-comment: #98A0B0;   /* fg-faint */
-  --syntax-regex: #1E8C42;     /* green */
+  /* Syntax — L*38-48 on light bg */
+  --syntax-keyword: #2e7dd6;
+  --syntax-string: #1e8c42;
+  --syntax-number: #b86820;
+  --syntax-function: #886810;
+  --syntax-type: #187878;
+  --syntax-property: #b86820;
+  --syntax-constant: #6838b8;
+  --syntax-variable: #1a1a1a;
+  --syntax-operator: #606060;
+  --syntax-punctuation: #606060;
+  --syntax-tag: #d03030;
+  --syntax-attribute: #187878;
+  --syntax-meta: #2e7dd6;
+  --syntax-comment: #999999;
+  --syntax-regex: #1e8c42;
 
   /* File icons */
-  --icon-ts: #4060E0;
-  --icon-js: #8A6810;
+  --icon-ts: #2e7dd6;
+  --icon-js: #886810;
   --icon-python: #187878;
-  --icon-rust: #B86820;
+  --icon-rust: #b86820;
   --icon-go: #187878;
-  --icon-ruby: #D03030;
-  --icon-markup: #B86820;
-  --icon-style: #7040C0;
-  --icon-data: #8A6810;
-  --icon-image: #7040C0;
-  --icon-docker: #4060E0;
-  --icon-shell: #1E8C42;
-  --icon-default: #98A0B0;
+  --icon-ruby: #d03030;
+  --icon-markup: #b86820;
+  --icon-style: #6838b8;
+  --icon-data: #886810;
+  --icon-image: #6838b8;
+  --icon-docker: #2e7dd6;
+  --icon-shell: #1e8c42;
+  --icon-default: #999999;
 
   /* Chart slots */
-  --chart-slot-1: #4060E0;
-  --chart-slot-2: #1E8C42;
-  --chart-slot-3: #D03030;
-  --chart-slot-4: #8A6810;
+  --chart-slot-1: #2e7dd6;
+  --chart-slot-2: #1e8c42;
+  --chart-slot-3: #d03030;
+  --chart-slot-4: #886810;
   --chart-slot-5: #187878;
-  --chart-slot-6: #7040C0;
-  --chart-other: #98A0B0;
+  --chart-slot-6: #6838b8;
+  --chart-other: #999999;
 }

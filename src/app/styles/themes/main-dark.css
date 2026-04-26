@@ -1,81 +1,81 @@
 [data-theme="main-dark"] {
   color-scheme: dark;
 
-  /* Surfaces — blue-grey, L*7 → L*11 → L*15 */
-  --color-bg: #111318;
-  --color-bg-subtle: #1a1d24;
-  --color-bg-sunken: #242830;
-  --color-border: #2a2e38;
-  --color-border-strong: #363c48;
-  --color-code-bg: color-mix(in oklab, var(--color-bg) 94%, var(--color-bg-sunken));
+  /* Surfaces — desaturated blue-grey, Linear-style, moss-level lightness */
+  --color-bg: #1c1d24;
+  --color-bg-subtle: #24252e;
+  --color-bg-sunken: #2c2d38;
+  --color-border: #33343f;
+  --color-border-strong: #40424f;
+  --color-code-bg: #191a20;
 
-  /* Text — cool white, L*91 → L*60 → L*35 */
-  --color-fg: #e2e5eb;
-  --color-fg-muted: #8b92a0;
-  --color-fg-faint: #4c5466;
+  /* Text — cool off-white */
+  --color-fg: #dfe1e8;
+  --color-fg-muted: #8a8ea0;
+  --color-fg-faint: #505468;
 
-  /* Accent — blue (CIELAB L*62, C*45, H*270) */
-  --color-accent: #6B8CF0;
-  --color-accent-hover: #85A2F5;
-  --color-accent-fg: #111318;
-  --color-primary: #6B8CF0;
-  --color-primary-foreground: #111318;
-  --color-focus: #6B8CF0;
+  /* Accent — clean blue */
+  --color-accent: #5ba4f5;
+  --color-accent-hover: #74b4f7;
+  --color-accent-fg: #1c1d24;
+  --color-primary: #5ba4f5;
+  --color-primary-foreground: #1c1d24;
+  --color-focus: #5ba4f5;
 
-  /* Status — all at CIELAB L*62-65 for equal visual weight */
-  --color-success: #5CB870;  /* L*65, green H*140 */
-  --color-danger: #E86B6B;   /* L*62, red H*25 */
-  --color-warning: #D4A840;  /* L*72, amber H*85 */
+  /* Status */
+  --color-success: #5cba6e;
+  --color-danger: #e06060;
+  --color-warning: #d0a840;
 
-  /* Merged — purple at L*58 */
-  --color-pr-merged: #A880E0;
-  --color-pr-merged-bg: color-mix(in oklab, #A880E0 14%, #1a1d24);
-  --color-pr-merged-fg: color-mix(in oklab, #A880E0 80%, #e2e5eb);
+  /* Merged */
+  --color-pr-merged: #a080e0;
+  --color-pr-merged-bg: color-mix(in oklab, #a080e0 14%, #24252e);
+  --color-pr-merged-fg: color-mix(in oklab, #a080e0 80%, #dfe1e8);
 
   /* Issue pills */
-  --color-issue-open-bg: #162818;
-  --color-issue-open-fg: #6CD080;
-  --color-issue-closed-bg: #281828;
-  --color-issue-closed-fg: #B890D8;
+  --color-issue-open-bg: #182818;
+  --color-issue-open-fg: #6cd080;
+  --color-issue-closed-bg: #261a30;
+  --color-issue-closed-fg: #b890d8;
 
-  /* Syntax — 8 hues at CIELAB L*62-72 on L*7 bg */
-  --syntax-keyword: #6B8CF0;  /* blue — hero, matches accent */
-  --syntax-string: #5CB870;   /* green */
-  --syntax-number: #E8A050;   /* orange */
-  --syntax-function: #D4A840; /* gold */
-  --syntax-type: #50B8B0;     /* teal */
-  --syntax-property: #E8A050; /* orange */
-  --syntax-constant: #A880E0; /* purple */
-  --syntax-variable: #e2e5eb; /* fg */
-  --syntax-operator: #8b92a0; /* fg-muted */
-  --syntax-punctuation: #8b92a0;
-  --syntax-tag: #E86B6B;      /* red */
-  --syntax-attribute: #50B8B0; /* teal */
-  --syntax-meta: #6B8CF0;     /* blue */
-  --syntax-comment: #4c5466;  /* fg-faint */
-  --syntax-regex: #5CB870;    /* green */
+  /* Syntax */
+  --syntax-keyword: #5ba4f5;
+  --syntax-string: #5cba6e;
+  --syntax-number: #e0a050;
+  --syntax-function: #d0a840;
+  --syntax-type: #50b8b8;
+  --syntax-property: #e0a050;
+  --syntax-constant: #a080e0;
+  --syntax-variable: #dfe1e8;
+  --syntax-operator: #8a8ea0;
+  --syntax-punctuation: #8a8ea0;
+  --syntax-tag: #e06060;
+  --syntax-attribute: #50b8b8;
+  --syntax-meta: #5ba4f5;
+  --syntax-comment: #505468;
+  --syntax-regex: #5cba6e;
 
   /* File icons */
-  --icon-ts: #6B8CF0;
-  --icon-js: #D4A840;
-  --icon-python: #50B8B0;
-  --icon-rust: #E8A050;
-  --icon-go: #50B8B0;
-  --icon-ruby: #E86B6B;
-  --icon-markup: #E8A050;
-  --icon-style: #A880E0;
-  --icon-data: #D4A840;
-  --icon-image: #A880E0;
-  --icon-docker: #6B8CF0;
-  --icon-shell: #5CB870;
-  --icon-default: #4c5466;
+  --icon-ts: #5ba4f5;
+  --icon-js: #d0a840;
+  --icon-python: #50b8b8;
+  --icon-rust: #e0a050;
+  --icon-go: #50b8b8;
+  --icon-ruby: #e06060;
+  --icon-markup: #e0a050;
+  --icon-style: #a080e0;
+  --icon-data: #d0a840;
+  --icon-image: #a080e0;
+  --icon-docker: #5ba4f5;
+  --icon-shell: #5cba6e;
+  --icon-default: #505468;
 
   /* Chart slots */
-  --chart-slot-1: #6B8CF0;
-  --chart-slot-2: #5CB870;
-  --chart-slot-3: #E86B6B;
-  --chart-slot-4: #D4A840;
-  --chart-slot-5: #50B8B0;
-  --chart-slot-6: #A880E0;
-  --chart-other: #4c5466;
+  --chart-slot-1: #5ba4f5;
+  --chart-slot-2: #5cba6e;
+  --chart-slot-3: #e06060;
+  --chart-slot-4: #d0a840;
+  --chart-slot-5: #50b8b8;
+  --chart-slot-6: #a080e0;
+  --chart-other: #505468;
 }

@@ -16,7 +16,7 @@
     <script>
       (function () {
         var BG = {
-          "main-dark":"#111318","main-light":"#F7F8FB",
+          "main-dark":"#1c1d24","main-light":"#f8f8f8",
           "ember":"#1c1b19","ember-soft":"#242320","ember-light":"#e6dac4",
           "dune":"#171b1e","haze":"#2a292e",
           "lagoon":"#101a18","lagoon-light":"#d8eae6",
@@ -54,7 +54,7 @@
 
           var bg = dataTheme && BG[dataTheme]
             ? BG[dataTheme]
-            : resolved === "dark" ? "#0c0a09" : "#fafaf9";
+            : resolved === "dark" ? "#1c1d24" : "#f8f8f8";
           root.style.backgroundColor = bg;
           root.style.colorScheme = resolved;
         } catch (_) {

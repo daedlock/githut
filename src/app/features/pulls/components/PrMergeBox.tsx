@@ -49,8 +49,8 @@ export function PrMergeBox({
       <div
         className="flex items-center gap-3 rounded-lg border p-4"
         style={{
-          borderColor: "color-mix(in oklab, var(--color-pr-merged) 40%, var(--color-border))",
-          backgroundColor: "color-mix(in oklab, var(--color-pr-merged) 8%, var(--color-bg-subtle))",
+          borderColor: "color-mix(in oklab, var(--color-pr-merged) 50%, var(--color-border))",
+          backgroundColor: "color-mix(in oklab, var(--color-pr-merged) 14%, var(--color-bg-subtle))",
           boxShadow: "0 0 20px color-mix(in oklab, var(--color-pr-merged) 12%, transparent)",
         }}
       >
@@ -72,8 +72,8 @@ export function PrMergeBox({
       <div
         className="flex items-center gap-3 rounded-lg border p-4"
         style={{
-          borderColor: "color-mix(in oklab, var(--color-danger) 40%, var(--color-border))",
-          backgroundColor: "color-mix(in oklab, var(--color-danger) 8%, var(--color-bg-subtle))",
+          borderColor: "color-mix(in oklab, var(--color-danger) 50%, var(--color-border))",
+          backgroundColor: "color-mix(in oklab, var(--color-danger) 14%, var(--color-bg-subtle))",
           boxShadow: "0 0 20px color-mix(in oklab, var(--color-danger) 12%, transparent)",
         }}
       >
@@ -110,8 +110,8 @@ export function PrMergeBox({
     <div
       className="rounded-lg border overflow-hidden"
       style={{
-        borderColor: `color-mix(in oklab, var(${accentVar}) 40%, var(--color-border))`,
-        backgroundColor: `color-mix(in oklab, var(${accentVar}) 8%, var(--color-bg-subtle))`,
+        borderColor: `color-mix(in oklab, var(${accentVar}) 50%, var(--color-border))`,
+        backgroundColor: `color-mix(in oklab, var(${accentVar}) 14%, var(--color-bg-subtle))`,
         boxShadow: `0 0 20px color-mix(in oklab, var(${accentVar}) 12%, transparent)`,
       }}
     >
