@@ -72,7 +72,7 @@ export const DiffView = memo(function DiffView({
   return (
     <div className={cn("overflow-hidden", className)}>
       <div
-        className={cn("overflow-x-auto text-code font-feature-settings-code @container/diff")}
+        className={cn("overflow-x-auto bg-[var(--color-code-bg)] text-code font-feature-settings-code @container/diff")}
         style={{ fontFamily: "var(--font-mono)" }}
       >
         {mode === "split" ? (

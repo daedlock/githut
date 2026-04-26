@@ -7,6 +7,7 @@
   --color-bg-sunken: #38373c;
   --color-border: #38373c;
   --color-border-strong: #46454a;
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 80%, black 5%);
 
   /* Text — soft lavender */
   --color-fg: #d5d0d8;

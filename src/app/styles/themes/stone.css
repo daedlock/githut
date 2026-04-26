@@ -7,6 +7,7 @@
   --color-fg-faint: #a8a29e;
   --color-border: #e7e5e4;
   --color-border-strong: #d6d3d1;
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 94%, var(--color-bg-sunken));
   --color-accent: #c2410c;
   --color-accent-hover: #a5380a;
   --color-accent-fg: #fffbeb;

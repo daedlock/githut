@@ -2,74 +2,75 @@
   color-scheme: dark;
 
   /* Surfaces — H145 dark forest green */
-  --color-bg: #1e2421;
-  --color-bg-subtle: #252d28;
-  --color-bg-sunken: #2e3830;
-  --color-border: #2e3830;
-  --color-border-strong: #3d4c42;
+  --color-bg: oklch(0.25317 0.01084 161.3498);
+  --color-bg-subtle: oklch(0.28764 0.01528 155.1958);
+  --color-bg-sunken: oklch(0.32865 0.02096 148.4347);
+  --color-border: oklch(0.32865 0.02096 148.4347);
+  --color-border-strong: oklch(0.40017 0.02712 153.1436);
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 80%, black 5%);
 
   /* Text — warm tan */
-  --color-fg: #d0c8b0;
-  --color-fg-muted: #99ad9c;
-  --color-fg-faint: #5a6e5e;
+  --color-fg: oklch(0.83287 0.03756 94.7033);
+  --color-fg-muted: oklch(0.72723 0.03568 147.0683);
+  --color-fg-faint: oklch(0.51693 0.03739 148.2929);
 
   /* Hero accent — sage green */
-  --color-accent: #85b870;
-  --color-accent-hover: #95c880;
-  --color-accent-fg: #1e2421;
-  --color-primary: #85b870;
-  --color-primary-foreground: #1e2421;
+  --color-accent: oklch(0.72897 0.12750 134.9376);
+  --color-accent-hover: oklch(0.77930 0.12585 134.9029);
+  --color-accent-fg: oklch(0.25317 0.01084 161.3498);
+  --color-primary: oklch(0.72897 0.12750 134.9376);
+  --color-primary-foreground: oklch(0.25317 0.01084 161.3498);
 
   /* Status */
-  --color-success: #85b870;
-  --color-danger: #c47070;
-  --color-warning: #b0a860;
-  --color-focus: #85b870;
+  --color-success: oklch(0.72897 0.12750 134.9376);
+  --color-danger: oklch(0.63837 0.10655 20.4560);
+  --color-warning: oklch(0.72232 0.10763 104.9897);
+  --color-focus: oklch(0.72897 0.12750 134.9376);
 
   /* Issue pills */
-  --color-issue-open-bg: #223022;
-  --color-issue-open-fg: #95c880;
-  --color-issue-closed-bg: #2a1e2a;
-  --color-issue-closed-fg: #c098b8;
+  --color-issue-open-bg: oklch(0.29175 0.03455 142.2385);
+  --color-issue-open-fg: oklch(0.77930 0.12585 134.9029);
+  --color-issue-closed-bg: oklch(0.25466 0.03044 324.2161);
+  --color-issue-closed-fg: oklch(0.72654 0.06881 330.8075);
 
   /* Syntax */
-  --syntax-keyword: #85b870;
-  --syntax-string: #b0a860;
-  --syntax-number: #bf9060;
-  --syntax-function: #70b8a0;
-  --syntax-type: #60b090;
-  --syntax-property: #bf9060;
-  --syntax-constant: #9080b0;
-  --syntax-variable: #d0c8b0;
-  --syntax-operator: #7a9080;
-  --syntax-punctuation: #7a9080;
-  --syntax-tag: #c47070;
-  --syntax-attribute: #60b090;
-  --syntax-meta: #6daaa0;
-  --syntax-comment: #5a6e5e;
-  --syntax-regex: #b0a860;
+  --syntax-keyword: oklch(0.72897 0.12750 134.9376);
+  --syntax-string: oklch(0.72232 0.10763 104.9897);
+  --syntax-number: oklch(0.68753 0.09138 70.6424);
+  --syntax-function: oklch(0.72821 0.08405 168.2477);
+  --syntax-type: oklch(0.69687 0.09743 163.1489);
+  --syntax-property: oklch(0.68753 0.09138 70.6424);
+  --syntax-constant: oklch(0.63191 0.08086 299.5512);
+  --syntax-variable: oklch(0.83287 0.03756 94.7033);
+  --syntax-operator: oklch(0.63124 0.03719 151.0329);
+  --syntax-punctuation: oklch(0.63124 0.03719 151.0329);
+  --syntax-tag: oklch(0.63837 0.10655 20.4560);
+  --syntax-attribute: oklch(0.69687 0.09743 163.1489);
+  --syntax-meta: oklch(0.69347 0.06595 181.4266);
+  --syntax-comment: oklch(0.51693 0.03739 148.2929);
+  --syntax-regex: oklch(0.72232 0.10763 104.9897);
 
   /* File icons */
-  --icon-ts: #6daaa0;
-  --icon-js: #b0a860;
-  --icon-python: #6daaa0;
-  --icon-rust: #c47070;
-  --icon-go: #85b870;
-  --icon-ruby: #c47070;
-  --icon-markup: #bf9060;
-  --icon-style: #b088a8;
-  --icon-data: #b0a860;
-  --icon-image: #b088a8;
-  --icon-docker: #508878;
-  --icon-shell: #85b870;
-  --icon-default: #5a6e5e;
+  --icon-ts: oklch(0.69347 0.06595 181.4266);
+  --icon-js: oklch(0.72232 0.10763 104.9897);
+  --icon-python: oklch(0.69347 0.06595 181.4266);
+  --icon-rust: oklch(0.63837 0.10655 20.4560);
+  --icon-go: oklch(0.72897 0.12750 134.9376);
+  --icon-ruby: oklch(0.63837 0.10655 20.4560);
+  --icon-markup: oklch(0.68753 0.09138 70.6424);
+  --icon-style: oklch(0.67494 0.07000 330.9323);
+  --icon-data: oklch(0.72232 0.10763 104.9897);
+  --icon-image: oklch(0.67494 0.07000 330.9323);
+  --icon-docker: oklch(0.58308 0.06663 171.4450);
+  --icon-shell: oklch(0.72897 0.12750 134.9376);
+  --icon-default: oklch(0.51693 0.03739 148.2929);
 
   /* Chart slots */
-  --chart-slot-1: #85b870;
-  --chart-slot-2: #70b8a0;
-  --chart-slot-3: #b0a860;
-  --chart-slot-4: #60b090;
-  --chart-slot-5: #c47070;
-  --chart-slot-6: #bf9060;
-  --chart-other: #5a6e5e;
+  --chart-slot-1: oklch(0.72897 0.12750 134.9376);
+  --chart-slot-2: oklch(0.72821 0.08405 168.2477);
+  --chart-slot-3: oklch(0.72232 0.10763 104.9897);
+  --chart-slot-4: oklch(0.69687 0.09743 163.1489);
+  --chart-slot-5: oklch(0.63837 0.10655 20.4560);
+  --chart-slot-6: oklch(0.68753 0.09138 70.6424);
+  --chart-other: oklch(0.51693 0.03739 148.2929);
 }

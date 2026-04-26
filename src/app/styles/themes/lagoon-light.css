@@ -7,6 +7,7 @@
   --color-bg-sunken: #bcd4cf; /* H170 S18% L78% — hover / inset */
   --color-border: #a8c4be; /* H170 S16% L72% */
   --color-border-strong: #7d9a95; /* H170 S14% L55% */
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 94%, var(--color-bg-sunken));
 
   /* Text — warm sepia ink on seafoam: warm-on-cool preserved */
   --color-fg: #2d2818; /* H40 S28% L14% — ~11:1 on bg */

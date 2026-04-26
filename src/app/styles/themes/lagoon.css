@@ -7,6 +7,7 @@
   --color-bg-sunken: #1c2a28;
   --color-border: #1c2a28;
   --color-border-strong: #283836;
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 80%, black 5%);
 
   /* Text — dry sage warmth */
   --color-fg: #c8c4b0;

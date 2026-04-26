@@ -59,6 +59,7 @@
   --color-bg-subtle: #242320;
   --color-bg-sunken: #2c2a26;
   --color-border: #35332e;
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 80%, black 5%);
   color-scheme: dark;
 }
 
@@ -67,5 +68,6 @@
   --color-bg-subtle: #2c2a26;
   --color-bg-sunken: #35332e;
   --color-border: #3e3a33;
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 94%, var(--color-bg-sunken));
   color-scheme: dark;
 }
