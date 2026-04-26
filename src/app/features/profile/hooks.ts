@@ -4,10 +4,12 @@ import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
 import type { RepoSummary } from "@/shared/types";
 import {
+  GitHubEventSchema,
   GitHubProfileSchema,
   OrgMemberSchema,
   ProfileRepoSchema,
   UserOrgSchema,
+  type GitHubEvent,
   type GitHubProfile,
   type OrgMember,
   type UserOrg,
@@ -21,6 +23,7 @@ export const profileKeys = {
   orgs: (login: string) => ["profile-orgs", login] as const,
   members: (org: string) => ["profile-members", org] as const,
   readme: (login: string, isOrg: boolean) => ["profile-readme", login, isOrg] as const,
+  events: (login: string, isOrg: boolean) => ["profile-events", login, isOrg] as const,
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -132,6 +135,36 @@ export const profileReadmeQueryOptions = (login: string, isOrg: boolean) =>
     },
   });
 
+/**
+ * Last ~90 days of public events for a user/org. Powers the activity
+ * heatmap and the "Latest activity" widget. Returns `[]` rather than
+ * throwing for 404/private profiles — empty heatmap is the right UX.
+ */
+export const userEventsQueryOptions = (login: string, isOrg: boolean) =>
+  queryOptions({
+    queryKey: profileKeys.events(login, isOrg),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+    queryFn: async (): Promise<GitHubEvent[]> => {
+      const client = getGitHubClient();
+      try {
+        const res = isOrg
+          ? await client.request("GET /orgs/{org}/events", {
+              org: login,
+              per_page: 100,
+            })
+          : await client.request("GET /users/{username}/events/public", {
+              username: login,
+              per_page: 100,
+            });
+        const parsed = z.array(GitHubEventSchema).safeParse(res.data);
+        return parsed.success ? parsed.data : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
 export const orgMembersQueryOptions = (org: string) =>
   queryOptions({
     queryKey: profileKeys.members(org),
@@ -189,6 +222,15 @@ export function useProfileReadme(login: string, isOrg: boolean | undefined) {
   const token = useAuthStore((s) => s.token);
   return useQuery({
     ...profileReadmeQueryOptions(login, !!isOrg),
+    enabled: !!token && !!login && isOrg !== undefined,
+  });
+}
+
+/** Fetch the last ~90 days of public events. Empty array on error. */
+export function useUserEvents(login: string, isOrg: boolean | undefined) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...userEventsQueryOptions(login, !!isOrg),
     enabled: !!token && !!login && isOrg !== undefined,
   });
 }

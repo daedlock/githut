@@ -49,6 +49,33 @@ export const UserOrgSchema = z.object({
 
 export type UserOrg = z.infer<typeof UserOrgSchema>;
 
+// ─── Events ────────────────────────────────────────────────────────────────
+// GET /users/{username}/events/public  or  GET /orgs/{org}/events.
+// Used for the activity heatmap and the "Latest activity" widget.
+// We accept the payload as opaque and pull out only the bits we render.
+
+export const GitHubEventSchema = z.object({
+  id: z.string(),
+  type: z.string().nullable(),
+  actor: z
+    .object({
+      login: z.string(),
+      avatar_url: z.string().optional(),
+    })
+    .optional(),
+  repo: z
+    .object({
+      id: z.number(),
+      name: z.string(), // "owner/repo"
+    })
+    .optional(),
+  payload: z.unknown().optional(),
+  public: z.boolean().optional(),
+  created_at: z.string().nullable(),
+});
+
+export type GitHubEvent = z.infer<typeof GitHubEventSchema>;
+
 // ─── Repos from profile endpoints ──────────────────────────────────────────
 // Same GitHub shape as useRepos; transformed to RepoSummary in the hook.
 
