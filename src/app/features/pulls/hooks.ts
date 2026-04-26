@@ -1191,3 +1191,195 @@ export function useTogglePrCommentReaction(
     },
   });
 }
+
+// ─── Edit / delete: PR body, conversation comments, reviews, inline comments
+
+export function useUpdatePr(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ body }: { body: string }) => {
+      const client = getGitHubClient();
+      const res = await client.request("PATCH /repos/{owner}/{repo}/pulls/{pull_number}", {
+        owner,
+        repo,
+        pull_number: number,
+        body,
+      });
+      return PullRequestSchema.parse(res.data);
+    },
+    onMutate: async ({ body }) => {
+      const key = pullsKeys.detail(owner, repo, number);
+      const prev = queryClient.getQueryData<PullRequest>(key);
+      if (prev) {
+        queryClient.setQueryData<PullRequest>(key, {
+          ...prev,
+          body,
+          updated_at: new Date().toISOString(),
+        });
+      }
+      await queryClient.cancelQueries({ queryKey: key });
+      return { prev, key };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(pullsKeys.detail(owner, repo, number), updated);
+    },
+  });
+}
+
+export function useUpdatePrComment(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ commentId, body }: { commentId: number; body: string }) => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        { owner, repo, comment_id: commentId, body },
+      );
+      return IssueCommentOnPrSchema.parse(res.data);
+    },
+    onMutate: async ({ commentId, body }) => {
+      const key = pullsKeys.comments(owner, repo, number);
+      const prev = queryClient.getQueryData<IssueCommentOnPr[]>(key);
+      const nowIso = new Date().toISOString();
+      queryClient.setQueryData<IssueCommentOnPr[]>(key, (old) =>
+        (old ?? []).map((c) => (c.id === commentId ? { ...c, body, updated_at: nowIso } : c)),
+      );
+      await queryClient.cancelQueries({ queryKey: key });
+      return { prev, key };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSuccess: (updated, _vars, ctx) => {
+      if (ctx) {
+        queryClient.setQueryData<IssueCommentOnPr[]>(ctx.key, (old) =>
+          (old ?? []).map((c) => (c.id === updated.id ? updated : c)),
+        );
+      }
+    },
+  });
+}
+
+export function useDeletePrComment(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ commentId }: { commentId: number }) => {
+      const client = getGitHubClient();
+      await client.request("DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+        owner,
+        repo,
+        comment_id: commentId,
+      });
+      return commentId;
+    },
+    onMutate: async ({ commentId }) => {
+      const key = pullsKeys.comments(owner, repo, number);
+      const prev = queryClient.getQueryData<IssueCommentOnPr[]>(key);
+      queryClient.setQueryData<IssueCommentOnPr[]>(key, (old) =>
+        (old ?? []).filter((c) => c.id !== commentId),
+      );
+      await queryClient.cancelQueries({ queryKey: key });
+      return { prev, key };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+  });
+}
+
+export function useUpdateReview(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ reviewId, body }: { reviewId: number; body: string }) => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "PUT /repos/{owner}/{repo}/pulls/{pull_number}/reviews/{review_id}",
+        { owner, repo, pull_number: number, review_id: reviewId, body },
+      );
+      return ReviewSchema.parse(res.data);
+    },
+    onMutate: async ({ reviewId, body }) => {
+      const key = pullsKeys.reviews(owner, repo, number);
+      const prev = queryClient.getQueryData<Review[]>(key);
+      queryClient.setQueryData<Review[]>(key, (old) =>
+        (old ?? []).map((r) => (r.id === reviewId ? { ...r, body } : r)),
+      );
+      await queryClient.cancelQueries({ queryKey: key });
+      return { prev, key };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSuccess: (updated, _vars, ctx) => {
+      if (ctx) {
+        queryClient.setQueryData<Review[]>(ctx.key, (old) =>
+          (old ?? []).map((r) => (r.id === updated.id ? updated : r)),
+        );
+      }
+    },
+  });
+}
+
+export function useUpdateReviewComment(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ commentId, body }: { commentId: number; body: string }) => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "PATCH /repos/{owner}/{repo}/pulls/comments/{comment_id}",
+        { owner, repo, comment_id: commentId, body },
+      );
+      return ReviewCommentSchema.parse(res.data);
+    },
+    onMutate: async ({ commentId, body }) => {
+      const key = pullsKeys.reviewComments(owner, repo, number);
+      const prev = queryClient.getQueryData<ReviewComment[]>(key);
+      const nowIso = new Date().toISOString();
+      queryClient.setQueryData<ReviewComment[]>(key, (old) =>
+        (old ?? []).map((c) => (c.id === commentId ? { ...c, body, updated_at: nowIso } : c)),
+      );
+      await queryClient.cancelQueries({ queryKey: key });
+      return { prev, key };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSuccess: (updated, _vars, ctx) => {
+      if (ctx) {
+        queryClient.setQueryData<ReviewComment[]>(ctx.key, (old) =>
+          (old ?? []).map((c) => (c.id === updated.id ? updated : c)),
+        );
+      }
+    },
+  });
+}
+
+export function useDeleteReviewComment(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ commentId }: { commentId: number }) => {
+      const client = getGitHubClient();
+      await client.request("DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}", {
+        owner,
+        repo,
+        comment_id: commentId,
+      });
+      return commentId;
+    },
+    onMutate: async ({ commentId }) => {
+      const key = pullsKeys.reviewComments(owner, repo, number);
+      const prev = queryClient.getQueryData<ReviewComment[]>(key);
+      queryClient.setQueryData<ReviewComment[]>(key, (old) =>
+        (old ?? []).filter((c) => c.id !== commentId),
+      );
+      await queryClient.cancelQueries({ queryKey: key });
+      return { prev, key };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+  });
+}

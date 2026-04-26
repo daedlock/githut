@@ -628,3 +628,101 @@ export function useSetIssueLabels(owner: string, repo: string, number: number) {
     },
   });
 }
+
+// ─── Edit / delete: issue body + issue comments ────────────────────────────
+
+export function useUpdateIssue(owner: string, repo: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ issueNumber, body }: { issueNumber: number; body: string }) => {
+      const client = getGitHubClient();
+      const res = await client.request("PATCH /repos/{owner}/{repo}/issues/{issue_number}", {
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body,
+      });
+      return IssueDetailSchema.parse(res.data);
+    },
+    onMutate: async ({ issueNumber, body }) => {
+      const iKey = issueKeys.detail(owner, repo, issueNumber);
+      const prev = queryClient.getQueryData<RepoIssue>(iKey);
+      if (prev) {
+        queryClient.setQueryData<RepoIssue>(iKey, {
+          ...prev,
+          body,
+          updated_at: new Date().toISOString(),
+        });
+      }
+      await queryClient.cancelQueries({ queryKey: iKey });
+      return { prev, iKey };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.iKey, ctx.prev);
+    },
+    onSuccess: (updated, vars) => {
+      queryClient.setQueryData(issueKeys.detail(owner, repo, vars.issueNumber), updated);
+    },
+  });
+}
+
+export function useUpdateIssueComment(owner: string, repo: string, issueNumber: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ commentId, body }: { commentId: number; body: string }) => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
+        { owner, repo, comment_id: commentId, body },
+      );
+      return IssueCommentSchema.parse(res.data);
+    },
+    onMutate: async ({ commentId, body }) => {
+      const key = issueKeys.comments(owner, repo, issueNumber);
+      const prev = queryClient.getQueryData<RepoIssueComment[]>(key);
+      const nowIso = new Date().toISOString();
+      queryClient.setQueryData<RepoIssueComment[]>(key, (old) =>
+        (old ?? []).map((c) => (c.id === commentId ? { ...c, body, updated_at: nowIso } : c)),
+      );
+      await queryClient.cancelQueries({ queryKey: key });
+      return { prev, key };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSuccess: (updated, _vars, ctx) => {
+      if (ctx) {
+        queryClient.setQueryData<RepoIssueComment[]>(ctx.key, (old) =>
+          (old ?? []).map((c) => (c.id === updated.id ? updated : c)),
+        );
+      }
+    },
+  });
+}
+
+export function useDeleteIssueComment(owner: string, repo: string, issueNumber: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ commentId }: { commentId: number }) => {
+      const client = getGitHubClient();
+      await client.request("DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+        owner,
+        repo,
+        comment_id: commentId,
+      });
+      return commentId;
+    },
+    onMutate: async ({ commentId }) => {
+      const key = issueKeys.comments(owner, repo, issueNumber);
+      const prev = queryClient.getQueryData<RepoIssueComment[]>(key);
+      queryClient.setQueryData<RepoIssueComment[]>(key, (old) =>
+        (old ?? []).filter((c) => c.id !== commentId),
+      );
+      await queryClient.cancelQueries({ queryKey: key });
+      return { prev, key };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+  });
+}

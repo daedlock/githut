@@ -159,7 +159,9 @@ export interface ComposeBoxProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit?: () => void;
+  onCancel?: () => void;
   submitLabel?: string;
+  cancelLabel?: string;
   submitDisabled?: boolean;
   submitPending?: boolean;
   placeholder?: string;
@@ -176,7 +178,9 @@ export function ComposeBox({
   value,
   onChange,
   onSubmit,
+  onCancel,
   submitLabel = "Comment",
+  cancelLabel = "Cancel",
   submitDisabled,
   submitPending,
   placeholder = "Leave a comment",
@@ -328,7 +332,13 @@ export function ComposeBox({
       onSubmit?.();
       return;
     }
-    if (!trigger) return;
+    if (!trigger) {
+      if (e.key === "Escape" && onCancel) {
+        e.preventDefault();
+        onCancel();
+      }
+      return;
+    }
     if (e.key === "Escape") {
       e.preventDefault();
       setTrigger(null);
@@ -514,32 +524,50 @@ export function ComposeBox({
           <span className="font-mono text-micro text-[var(--color-fg-faint)] select-none">
             {navigator.platform?.includes("Mac") ? "⌘" : "Ctrl"}+Enter to submit
           </span>
-          <button
-            type="button"
-            disabled={!canSubmit}
-            onClick={onSubmit}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-caption font-medium",
-              "outline-none transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
-              "focus-visible:ring-2 focus-visible:ring-ring/40",
-              "disabled:pointer-events-none",
-              canSubmit
-                ? "bg-primary text-primary-foreground hover:bg-primary/85 active:translate-y-px"
-                : "bg-muted text-muted-foreground",
+          <div className="flex items-center gap-2">
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                disabled={submitPending}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-caption font-medium",
+                  "outline-none transition-colors duration-150",
+                  "focus-visible:ring-2 focus-visible:ring-ring/40",
+                  "text-muted-foreground hover:bg-[var(--color-bg-sunken)] hover:text-foreground",
+                  "disabled:pointer-events-none disabled:opacity-50",
+                )}
+              >
+                {cancelLabel}
+              </button>
             )}
-          >
-            {submitPending ? (
-              <span className="inline-flex items-center gap-1.5">
-                <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Submitting
-              </span>
-            ) : (
-              <>
-                <Send className="size-3" />
-                {submitLabel}
-              </>
-            )}
-          </button>
+            <button
+              type="button"
+              disabled={!canSubmit}
+              onClick={onSubmit}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-caption font-medium",
+                "outline-none transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                "focus-visible:ring-2 focus-visible:ring-ring/40",
+                "disabled:pointer-events-none",
+                canSubmit
+                  ? "bg-primary text-primary-foreground hover:bg-primary/85 active:translate-y-px"
+                  : "bg-muted text-muted-foreground",
+              )}
+            >
+              {submitPending ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Submitting
+                </span>
+              ) : (
+                <>
+                  <Send className="size-3" />
+                  {submitLabel}
+                </>
+              )}
+            </button>
+          </div>
         </div>
       )}
     </div>

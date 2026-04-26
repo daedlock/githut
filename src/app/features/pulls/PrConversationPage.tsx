@@ -8,6 +8,7 @@ import { PrMergeBox } from "@/app/features/pulls/components/PrMergeBox";
 import { PrTimelineRow } from "@/app/features/pulls/components/PrTimelineRow";
 import { ReviewCard } from "@/app/features/pulls/components/ReviewCard";
 import {
+  useDeletePrComment,
   useFullPr,
   useMyPrCommentReactions,
   usePostPrComment,
@@ -16,6 +17,8 @@ import {
   usePrReviews,
   usePrTimeline,
   useTogglePrCommentReaction,
+  useUpdatePr,
+  useUpdatePrComment,
 } from "@/app/features/pulls/hooks";
 import { mergeTimeline, type FeedItem } from "@/app/features/pulls/lib/mergeTimeline";
 import type { Review, ReviewComment } from "@/app/features/pulls/schemas";
@@ -38,6 +41,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
   const timelineQuery = usePrTimeline(owner, repo, number);
   const meQuery = useMe();
   const postComment = usePostPrComment(owner, repo, number, meQuery.data);
+  const updatePr = useUpdatePr(owner, repo, number);
 
   const pr = prQuery.data;
   const comments = commentsQuery.data ?? [];
@@ -107,6 +111,15 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
               avatarUrl={pr.user.avatar_url}
               date={pr.created_at}
               isAuthor
+              canEdit={!!meQuery.data && meQuery.data.login === pr.user.login}
+              rawBody={pr.body ?? ""}
+              onSave={async (next) => {
+                await updatePr.mutateAsync({ body: next });
+              }}
+              participants={participants}
+              repoOwner={owner}
+              repoName={repo}
+              isSaving={updatePr.isPending}
             >
               {pr.body?.trim() ? (
                 <div className="readme-prose max-w-none text-sm">
@@ -139,6 +152,8 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
                   repo={repo}
                   number={number}
                   meId={meQuery.data?.id}
+                  meLogin={meQuery.data?.login}
+                  participants={participants}
                 />
               );
             }
@@ -214,19 +229,27 @@ function PrCommentRow({
   repo,
   number,
   meId,
+  meLogin,
+  participants,
 }: {
   item: FeedItem & { kind: "comment" };
   owner: string;
   repo: string;
   number: number;
   meId: number | undefined;
+  meLogin: string | undefined;
+  participants?: MentionUser[];
 }) {
   const myReactions = useMyPrCommentReactions(owner, repo, item.id, meId);
   const toggleReaction = useTogglePrCommentReaction(owner, repo, number, meId);
+  const updateComment = useUpdatePrComment(owner, repo, number);
+  const deleteComment = useDeletePrComment(owner, repo, number);
 
   const handleToggle = (content: ReactionContent, existingReactionId?: number) => {
     toggleReaction.mutate({ commentId: item.id, content, existingReactionId });
   };
+
+  const isMine = !!meLogin && !!item.user && meLogin === item.user.login;
 
   return (
     <div className="relative flex gap-4 pt-4">
@@ -241,6 +264,18 @@ function PrCommentRow({
           reactions={item.reactions}
           myReactions={myReactions.data}
           onToggleReaction={handleToggle}
+          canEdit={isMine}
+          rawBody={item.body}
+          onSave={async (next) => {
+            await updateComment.mutateAsync({ commentId: item.id, body: next });
+          }}
+          onDelete={async () => {
+            await deleteComment.mutateAsync({ commentId: item.id });
+          }}
+          participants={participants}
+          repoOwner={owner}
+          repoName={repo}
+          isSaving={updateComment.isPending || deleteComment.isPending}
         >
           <div className="readme-prose max-w-none text-sm">
             <GithubMarkdown repoContext={{ owner, repo }}>{item.body}</GithubMarkdown>
