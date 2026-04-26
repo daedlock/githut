@@ -57,11 +57,12 @@ export function EntityHoverLink({
   const to = entity.kind === "mention"
     ? `/${entity.login}`
     : `/${entity.owner}/${entity.repo}/issues`;
+  const search = entity.kind === "issue" ? { issue: entity.number } : undefined;
 
   return (
     <HoverCard openDelay={300} closeDelay={100}>
       <HoverCardTrigger asChild>
-        <Link to={to} {...rest}>
+        <Link to={to} search={search} {...rest}>
           {children}
         </Link>
       </HoverCardTrigger>

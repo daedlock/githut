@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { StateFilter } from "@/app/features/issues/components/StateTab";
 import {
   repoIssuesQueryOptions,
@@ -85,6 +85,14 @@ function IssuesPage() {
   }, [issuesQuery.data, stateFilter, searchText]);
 
   const selectedIssue = issueQuery.data;
+
+  // If the number resolves to a PR, redirect to the pulls page.
+  useEffect(() => {
+    if (selectedIssue?.pull_request && selectedIssueNumber) {
+      void navigate({ to: "/$owner/$repo/pulls/$number", params: { owner, repo, number: selectedIssueNumber }, replace: true });
+    }
+  }, [selectedIssue, selectedIssueNumber, owner, repo, navigate]);
+
   const isDetailView =
     !!selectedIssueNumber && (issueQuery.isPending || issueQuery.isError || !!selectedIssue);
 

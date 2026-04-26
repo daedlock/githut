@@ -103,11 +103,19 @@ function Overlay({
   const panRef = useRef({ x: 0, y: 0 });
   const dragRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
 
-  // Lock body scroll
+  // Lock body scroll without layout shift
   useEffect(() => {
-    const prev = document.body.style.overflow;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    const prevOverflow = document.body.style.overflow;
+    const prevPadding = document.body.style.paddingRight;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.paddingRight = prevPadding;
+    };
   }, []);
 
   function applyTransform() {
