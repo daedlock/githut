@@ -41,14 +41,14 @@ export function PrActions({
           <MoreHorizontal className="size-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="min-w-[180px]">
         {state === "open" && (
           <DropdownMenuItem
             disabled={setDraft.isPending}
             onClick={() => setDraft.mutate({ draft: true, nodeId: pr.node_id })}
           >
-            <GitPullRequestDraft />
-            Convert to draft
+            <GitPullRequestDraft className="text-muted-foreground" />
+            <span className="whitespace-nowrap">Convert to draft</span>
           </DropdownMenuItem>
         )}
 
@@ -57,18 +57,19 @@ export function PrActions({
             disabled={setDraft.isPending}
             onClick={() => setDraft.mutate({ draft: false, nodeId: pr.node_id })}
           >
-            <CheckCircle2 />
-            Ready for review
+            <CheckCircle2 className="text-muted-foreground" />
+            <span className="whitespace-nowrap">Ready for review</span>
           </DropdownMenuItem>
         )}
 
         {(state === "open" || state === "draft") && (
           <DropdownMenuItem
+            variant="destructive"
             disabled={toggleState.isPending}
             onClick={() => toggleState.mutate({ state: "closed" })}
           >
             <GitPullRequestClosed />
-            Close pull request
+            <span className="whitespace-nowrap">Close pull request</span>
           </DropdownMenuItem>
         )}
 
@@ -77,8 +78,8 @@ export function PrActions({
             disabled={toggleState.isPending}
             onClick={() => toggleState.mutate({ state: "open" })}
           >
-            <CircleDot />
-            Reopen pull request
+            <CircleDot className="text-[var(--color-success)]" />
+            <span className="whitespace-nowrap">Reopen pull request</span>
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

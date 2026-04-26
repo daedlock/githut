@@ -13,7 +13,7 @@ body,
   scrollbar-color: var(--color-fg-faint) transparent;
 }
 
-button, [role="button"], a, summary, [type="submit"], [type="reset"], [type="button"] {
+button, [role="button"], [role="menuitem"], [role="option"], [role="menuitemcheckbox"], [role="menuitemradio"], a, summary, [type="submit"], [type="reset"], [type="button"] {
   cursor: pointer;
 }
 
