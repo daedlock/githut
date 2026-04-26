@@ -37,10 +37,10 @@
   --color-fg-faint: #a8a29e;
   --color-border: #e7e5e4;
   --color-border-strong: #d6d3d1;
-  --color-accent: #ea580c;
-  --color-accent-hover: #c2410c;
+  --color-accent: #c2410c;
+  --color-accent-hover: #a5380a;
   --color-accent-fg: #fffbeb;
-  --color-primary: #ea580c;
+  --color-primary: #c2410c;
   --color-primary-foreground: #fffbeb;
   color-scheme: light;
 }
@@ -154,17 +154,17 @@
   --color-fg-muted: #5c5240; /* ~6.2:1 */
   --color-fg-faint: #8a7c62; /* ~3.5:1 (graphics) */
 
-  /* Hero accent — coral darkened from #e08060 to #b84c30 for AA on parchment */
-  --color-accent: #b84c30;
-  --color-accent-hover: #9e4028;
+  /* Hero accent — coral darkened to #993d24 for AA on parchment (5.0:1) */
+  --color-accent: #993d24;
+  --color-accent-hover: #843420;
   --color-accent-fg: #e6dac4;
-  --color-primary: #b84c30;
+  --color-primary: #993d24;
   --color-primary-foreground: #e6dac4;
 
   --color-success: #4a6830; /* olive dark */
   --color-danger: #905050; /* rose dark */
   --color-warning: #7a6820; /* gold dark */
-  --color-focus: #b84c30;
+  --color-focus: #993d24;
 
   /* Issue state pills — earthy tints on parchment */
   --color-issue-open-bg: #d5e0c0;
@@ -476,18 +476,18 @@
   --color-fg-muted: #587571; /* H170 S14% L40% — ~5.5:1 on bg */
   --color-fg-faint: #7d9a95; /* H170 S14% L55% — ~3.2:1 (graphics) */
 
-  /* Hero accent — dark coral (mirrors dark lagoon's coral hero) */
-  --color-accent: #b85540; /* H10 S55% L42% — dark coral */
-  --color-accent-hover: #9e4430; /* deeper coral for hover */
+  /* Hero accent — deep coral for AA on seafoam (5.7:1) */
+  --color-accent: #993828;
+  --color-accent-hover: #843020;
   --color-accent-fg: #d8eae6;
-  --color-primary: #b85540;
-  --color-primary-foreground: #d8eae6; /* seafoam reads on coral */
+  --color-primary: #993828;
+  --color-primary-foreground: #d8eae6;
 
   /* Status — darkened lagoon accents for AA on seafoam */
   --color-success: #4e7038; /* dark olive (Emacs green) */
   --color-danger: #a8384e; /* dark watermelon (Emacs magenta) */
   --color-warning: #a46020; /* dark orange (Emacs orange) */
-  --color-focus: #b85540;
+  --color-focus: #993828;
 
   /* Issue state pills — tinted seafoam surfaces */
   --color-issue-open-bg: #c0ddd0; /* green-tinted seafoam */
