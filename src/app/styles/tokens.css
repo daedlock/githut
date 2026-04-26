@@ -283,7 +283,7 @@
   --color-foreground: var(--color-fg);
   --color-card: var(--color-bg);
   --color-card-foreground: var(--color-fg);
-  --color-popover: var(--color-bg);
+  --color-popover: var(--color-bg-subtle);
   --color-popover-foreground: var(--color-fg);
   --color-primary: #c2410c;
   --color-primary-foreground: #ffffff;

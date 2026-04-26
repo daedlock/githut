@@ -141,12 +141,11 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "group/command-item relative flex cursor-default items-center gap-2 rounded-md py-1.5 pr-2 pl-2.5 text-sm outline-hidden select-none",
-        "border-l-2 border-l-transparent",
-        "transition-all duration-100",
+        "group/command-item relative flex cursor-default items-center gap-2 rounded-md py-1.5 pr-2 pl-2 text-sm outline-hidden select-none",
+        "transition-colors duration-75",
         "data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50",
-        "hover:bg-(--palette-hover) hover:border-l-(--color-focus)",
-        "data-[selected=true]:bg-(--palette-selected) data-[selected=true]:border-l-(--color-focus) data-[selected=true]:text-foreground",
+        "hover:bg-[var(--color-bg-sunken)]",
+        "data-[selected=true]:bg-[var(--color-bg-sunken)] data-[selected=true]:text-foreground",
         "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}

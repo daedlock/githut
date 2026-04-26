@@ -2,7 +2,6 @@ import { CheckCircle2, CircleDot, Eye, GitPullRequest, ImagePlus, Pencil, Send }
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { Avatar } from "@/app/components/ui/avatar";
-import { Badge } from "@/app/components/ui/badge";
 import { Popover, PopoverAnchor, PopoverContent } from "@/app/components/ui/popover";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { useDebouncedValue } from "@/app/hooks/useDebouncedValue";
@@ -118,28 +117,15 @@ function Row({
         onSelect(item);
       }}
       className={cn(
-        "group relative flex w-full cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-hidden select-none",
+        "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left outline-hidden select-none",
         "transition-colors duration-75",
-        selected
-          ? "bg-[var(--color-bg-sunken)] text-[var(--color-fg)]"
-          : "hover:bg-[var(--color-bg-sunken)]",
+        selected ? "bg-[var(--color-bg-sunken)] text-foreground" : "hover:bg-[var(--color-bg-sunken)]",
       )}
     >
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-y-1.5 left-0 w-[2px] rounded-full transition-opacity duration-75",
-          selected ? "bg-primary opacity-100" : "opacity-0",
-        )}
-      />
-
       {item.kind === "@" ? (
         <>
           <Avatar login={item.login} avatarUrl={item.avatar} size="sm" />
-          <span className="truncate font-medium text-foreground">{item.login}</span>
-          <Badge variant="secondary" className="ml-auto font-mono uppercase tracking-widest">
-            member
-          </Badge>
+          <span className="min-w-0 flex-1 truncate text-xs text-foreground">{item.login}</span>
         </>
       ) : (
         <>
@@ -155,15 +141,10 @@ function Row({
           ) : (
             <CheckCircle2 className="size-3.5 shrink-0 text-muted-foreground" />
           )}
-          <span className="font-mono text-ui text-muted-foreground tabular-nums">
+          <span className="font-mono text-xs text-muted-foreground tabular-nums">
             #{item.number}
           </span>
-          <span className="min-w-0 flex-1 truncate text-foreground">{item.title}</span>
-          {item.isPR && (
-            <Badge variant="outline" className="ml-auto font-mono uppercase tracking-wider">
-              PR
-            </Badge>
-          )}
+          <span className="min-w-0 flex-1 truncate text-xs text-foreground">{item.title}</span>
         </>
       )}
     </button>
@@ -373,7 +354,6 @@ export function ComposeBox({
     setFocused(true);
   }
 
-  const isSearching = isFetching && dropdownItems.length > 0;
   const showSkeleton = !!trigger && isFetching && dropdownItems.length === 0;
   const showEmpty = !!trigger && !isFetching && dropdownItems.length === 0;
   const hasContent = value.trim().length > 0;
@@ -472,34 +452,20 @@ export function ComposeBox({
               sideOffset={4}
               onOpenAutoFocus={(e) => e.preventDefault()}
               onInteractOutside={(e) => e.preventDefault()}
-              className="w-[320px] gap-0 p-0 overflow-hidden"
+              className="w-[280px] gap-0 p-1.5 overflow-hidden"
             >
-              <div className="flex items-center gap-2 border-b border-border bg-muted px-3 py-1.5">
-                <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
-                  {trigger?.type === "@" ? "Mention a user" : "Reference an issue or PR"}
-                </span>
-                {isSearching && (
-                  <span className="ml-auto flex items-center gap-1">
-                    <span className="h-1 w-1 rounded-full bg-primary animate-pulse" />
-                    <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
-                      searching
-                    </span>
-                  </span>
-                )}
-              </div>
-
-              <div className="max-h-[260px] overflow-auto p-1">
+              <div className="max-h-[260px] overflow-auto">
                 {showSkeleton ? (
                   <div className="flex flex-col gap-0.5">
                     {Array.from({ length: 4 }).map((_, i) => (
                       <div key={i} className="flex items-center gap-2.5 px-2 py-1.5">
                         <Skeleton className="size-5 rounded-full" />
-                        <Skeleton className="h-3.5 flex-1 max-w-[60%]" />
+                        <Skeleton className="h-2.5 flex-1 max-w-[60%]" />
                       </div>
                     ))}
                   </div>
                 ) : showEmpty ? (
-                  <div className="px-2 py-3 font-mono text-ui text-muted-foreground text-center">
+                  <div className="px-2 py-4 text-center text-xs text-muted-foreground">
                     No matches
                   </div>
                 ) : (

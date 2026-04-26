@@ -49,9 +49,8 @@ export function PrMergeBox({
       <div
         className="flex items-center gap-3 rounded-lg border p-4"
         style={{
-          borderColor: "color-mix(in oklab, var(--color-pr-merged) 50%, var(--color-border))",
-          backgroundColor: "color-mix(in oklab, var(--color-pr-merged) 14%, var(--color-bg-subtle))",
-          boxShadow: "0 0 20px color-mix(in oklab, var(--color-pr-merged) 12%, transparent)",
+          borderColor: "color-mix(in oklab, var(--color-pr-merged) 40%, var(--color-border))",
+          backgroundColor: "color-mix(in oklab, var(--color-pr-merged) 6%, var(--color-bg))",
         }}
       >
         <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-pr-merged)]">
@@ -72,9 +71,8 @@ export function PrMergeBox({
       <div
         className="flex items-center gap-3 rounded-lg border p-4"
         style={{
-          borderColor: "color-mix(in oklab, var(--color-danger) 50%, var(--color-border))",
-          backgroundColor: "color-mix(in oklab, var(--color-danger) 14%, var(--color-bg-subtle))",
-          boxShadow: "0 0 20px color-mix(in oklab, var(--color-danger) 12%, transparent)",
+          borderColor: "color-mix(in oklab, var(--color-danger) 40%, var(--color-border))",
+          backgroundColor: "color-mix(in oklab, var(--color-danger) 6%, var(--color-bg))",
         }}
       >
         <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-danger)]">
@@ -110,9 +108,8 @@ export function PrMergeBox({
     <div
       className="rounded-lg border overflow-hidden"
       style={{
-        borderColor: `color-mix(in oklab, var(${accentVar}) 50%, var(--color-border))`,
-        backgroundColor: `color-mix(in oklab, var(${accentVar}) 14%, var(--color-bg-subtle))`,
-        boxShadow: `0 0 20px color-mix(in oklab, var(${accentVar}) 12%, transparent)`,
+        borderColor: `color-mix(in oklab, var(${accentVar}) 40%, var(--color-border))`,
+        backgroundColor: `color-mix(in oklab, var(${accentVar}) 6%, var(--color-bg))`,
       }}
     >
       {/* Checks section */}
@@ -169,7 +166,7 @@ export function PrMergeBox({
 
       {/* Expanded check list */}
       {checksExpanded && data && (
-        <div className="border-t border-border/20">
+        <div className="border-t border-border/40">
           {data.checkRuns.map((run) => (
             <CheckRunRow key={run.id} run={run} owner={owner} repo={repo} />
           ))}
@@ -180,7 +177,7 @@ export function PrMergeBox({
       )}
 
       {/* Merge readiness */}
-      <div className="flex items-center gap-3 border-t border-border/20 px-4 py-3">
+      <div className="flex items-center gap-3 border-t border-border/40 px-4 py-3">
         {hasConflicts ? (
           <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-danger)]">
             <XCircle className="size-4 text-white" />

@@ -4,7 +4,6 @@ import {
   Command,
   CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
 } from "@/app/components/ui/command";
@@ -15,37 +14,15 @@ import {
 } from "@/app/components/ui/popover";
 import { cn } from "@/app/lib/cn";
 
-// ─── SidebarPicker ─────────────────────────────────────────────────────────
-//
-// Generic gear-popover picker used by the PR sidebar sections (Reviewers,
-// Assignees, Labels). GitHub's sidebar toggles sections via a gear; we
-// mirror that affordance.
-//
-// Shape:
-//   <SidebarPicker
-//     items={…}
-//     selectedIds={Set}
-//     onToggle={(id, next) => …}
-//     placeholder="Filter…"
-//     loading={isFetching}
-//   />
-//
-// Items can render with a swatch (labels), avatar (users), or neither.
-// Toggle is fire-and-update — consumers wire in optimistic mutations so
-// the popover feels instant.
-
 export type PickerItem = {
   id: string;
   label: string;
   description?: string | null;
-  /** Hex color swatch for labels (no leading #). */
   color?: string;
-  /** Avatar URL for users. */
   avatarUrl?: string;
 };
 
 export type SidebarPickerProps = {
-  /** Title shown at the top of the popover (mirrors GitHub's "Assign up to …"). */
   title: string;
   items: PickerItem[];
   selectedIds: Set<string>;
@@ -54,7 +31,6 @@ export type SidebarPickerProps = {
   emptyText?: string;
   disabled?: boolean;
   loading?: boolean;
-  /** Custom trigger; defaults to a gear button that sits next to the header. */
   trigger?: ReactNode;
   ariaLabel: string;
 };
@@ -104,20 +80,30 @@ export function SidebarPicker({
           </button>
         )}
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={4} className="w-64 p-0">
-        <div className="border-b border-border px-3 py-2 text-caption font-medium text-foreground">
-          {title}
-        </div>
+      <PopoverContent align="end" sideOffset={4} className="w-56 p-0">
         <Command shouldFilter={false}>
-          <CommandInput
-            value={query}
-            onValueChange={setQuery}
-            placeholder={placeholder}
-          />
-          <CommandList className="max-h-72">
+          <div className="p-1.5">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={placeholder}
+              aria-label={title}
+              className={cn(
+                "w-full rounded-md bg-[var(--color-bg-sunken)] px-2.5 py-1.5",
+                "text-xs text-foreground placeholder:text-muted-foreground",
+                "outline-none",
+              )}
+            />
+          </div>
+          <CommandList className="max-h-64 px-1.5 pb-1.5">
             {loading ? (
-              <div className="px-3 py-4 text-caption text-muted-foreground">
-                Loading…
+              <div className="flex flex-col gap-0.5">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-2.5 rounded-md px-2 py-1.5">
+                    <div className="size-5 animate-pulse rounded-full bg-muted" />
+                    <div className="h-2.5 animate-pulse rounded bg-muted" style={{ width: `${50 + ((i * 17) % 35)}%` }} />
+                  </div>
+                ))}
               </div>
             ) : filtered.length === 0 ? (
               <CommandEmpty>{emptyText}</CommandEmpty>
@@ -130,39 +116,34 @@ export function SidebarPicker({
                       key={item.id}
                       value={item.id}
                       onSelect={() => onToggle(item.id, !isSelected)}
-                      className="flex items-center gap-2"
+                      className="gap-2.5 px-2 py-1.5"
                     >
-                      <Check
-                        className={cn(
-                          "size-3.5 shrink-0",
-                          isSelected ? "opacity-100" : "opacity-0",
-                        )}
-                        aria-hidden
-                      />
-                      {item.color && (
+                      {item.color ? (
                         <span
                           aria-hidden
-                          className="size-3 shrink-0 rounded-full border border-black/10"
+                          className="size-3 shrink-0 rounded-full ring-1 ring-inset ring-black/10 dark:ring-white/10"
                           style={{ backgroundColor: `#${item.color}` }}
                         />
-                      )}
-                      {item.avatarUrl && (
+                      ) : item.avatarUrl ? (
                         <img
                           src={item.avatarUrl}
                           alt=""
-                          className="size-4 shrink-0 rounded-full"
+                          className="size-5 shrink-0 rounded-full"
                         />
+                      ) : null}
+                      <span className="min-w-0 flex-1 truncate text-xs">
+                        {item.label}
+                      </span>
+                      {item.description && (
+                        <span className="hidden" />
                       )}
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-caption font-medium text-foreground">
-                          {item.label}
-                        </div>
-                        {item.description && (
-                          <div className="truncate text-micro text-muted-foreground">
-                            {item.description}
-                          </div>
+                      <Check
+                        className={cn(
+                          "size-3 shrink-0 transition-opacity duration-75",
+                          isSelected ? "opacity-100 text-[var(--color-success)]" : "opacity-0",
                         )}
-                      </div>
+                        aria-hidden
+                      />
                     </CommandItem>
                   );
                 })}
