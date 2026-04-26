@@ -158,7 +158,12 @@ export function CommentCardDisplay({
             }
           />
           {!editing && showReactions && (
-            <ReactionsBar reactions={reactions} myReactions={myReactions ?? EMPTY_MY_REACTIONS} onToggle={onToggleReaction} />
+            <ReactionsBar
+              reactions={reactions}
+              myReactions={myReactions ?? EMPTY_MY_REACTIONS}
+              onToggle={onToggleReaction}
+              className="mt-1.5 border-t-0 pt-0"
+            />
           )}
         </div>
       </div>

@@ -8,24 +8,25 @@ import {
   MessageSquare,
   Reply,
   RotateCcw,
-  Send,
   X,
 } from "lucide-react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
-import { Avatar } from "@/app/components/ui/avatar";
+import { CommentCardDisplay } from "@/app/components/ui/CommentCard";
+import { CommentComposeCard } from "@/app/components/ui/CommentComposeCard";
 import { Button } from "@/app/components/ui/button";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
-import { ReactionsBar } from "@/app/features/issues/components/ReactionsBar";
 import {
+  useDeleteReviewComment,
   useMyReviewCommentReactions,
   useReplyToReviewComment,
   useResolveThread,
   useThreadResolution,
   useToggleReviewCommentReaction,
+  useUpdateReviewComment,
 } from "@/app/features/pulls/hooks";
 import type { Review, ReviewComment, ReviewState } from "@/app/features/pulls/schemas";
 import { EMPTY_MY_REACTIONS, type ReactionContent } from "@/app/features/issues/schemas";
-import { reactionsHaveAny } from "@/app/features/issues/utils";
+import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { useMe } from "@/app/hooks/useMe";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
@@ -179,129 +180,63 @@ function HunkExcerpt({ hunk }: { hunk: string }) {
   );
 }
 
-// ─── Comment bubble ────────────────────────────────────────────────────────
+// ─── Comment row (single comment in a thread) ────────────────────────────
 
-function CommentBubble({
+function ThreadComment({
   comment,
   owner,
   repo,
+  number,
   meId,
+  meLogin,
+  participants,
   onToggleReaction,
 }: {
   comment: ReviewComment;
   owner: string;
   repo: string;
+  number: number;
   meId: number | undefined;
+  meLogin: string | undefined;
+  participants: MentionUser[];
   onToggleReaction: (content: ReactionContent, existingId?: number) => void;
 }) {
   const myReactionsQuery = useMyReviewCommentReactions(owner, repo, comment.id, meId);
   const myReactions = myReactionsQuery.data ?? EMPTY_MY_REACTIONS;
-  const hasReactions = reactionsHaveAny(comment.reactions);
+  const updateMutation = useUpdateReviewComment(owner, repo, number);
+  const deleteMutation = useDeleteReviewComment(owner, repo, number);
+  const isMine = !!meLogin && !!comment.user && meLogin === comment.user.login;
 
   return (
-    <div className="flex gap-2.5">
-      <Avatar
-        login={comment.user?.login ?? "ghost"}
-        avatarUrl={comment.user?.avatar_url}
-        size="sm"
-        className="mt-0.5 shrink-0"
-      />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-1.5">
-          <ProfileLink
-            login={comment.user?.login ?? "ghost"}
-            className="text-caption font-medium text-foreground"
-          >
-            {comment.user?.login ?? "ghost"}
-          </ProfileLink>
-          <span className="text-caption text-[var(--color-fg-faint)]">
-            {formatRelativeTime(comment.created_at)}
-          </span>
-        </div>
-        <div className="mt-0.5 readme-prose max-w-none text-body [overflow-wrap:anywhere]">
-          <GithubMarkdown repoContext={{ owner, repo }}>{comment.body}</GithubMarkdown>
-        </div>
-        {hasReactions && (
-          <ReactionsBar
-            reactions={comment.reactions}
-            myReactions={myReactions}
-            onToggle={onToggleReaction}
-            className="mt-1.5 border-t-0 pt-0"
-          />
-        )}
+    <CommentCardDisplay
+      inline
+      login={comment.user?.login ?? "ghost"}
+      avatarUrl={comment.user?.avatar_url}
+      date={comment.created_at}
+      reactions={comment.reactions}
+      myReactions={myReactions}
+      onToggleReaction={onToggleReaction}
+      canEdit={isMine}
+      rawBody={comment.body}
+      onSave={async (next) => {
+        await updateMutation.mutateAsync({ commentId: comment.id, body: next });
+      }}
+      onDelete={async () => {
+        await deleteMutation.mutateAsync({ commentId: comment.id });
+      }}
+      participants={participants}
+      repoOwner={owner}
+      repoName={repo}
+      isSaving={updateMutation.isPending || deleteMutation.isPending}
+    >
+      <div className="readme-prose max-w-none [overflow-wrap:anywhere]">
+        <GithubMarkdown repoContext={{ owner, repo }}>{comment.body}</GithubMarkdown>
       </div>
-    </div>
-  );
-}
-
-// ─── Reply composer ────────────────────────────────────────────────────────
-
-function ReplyComposer({
-  meLogin,
-  meAvatarUrl,
-  body,
-  onChange,
-  onSubmit,
-  onCancel,
-  isPending,
-}: {
-  meLogin: string;
-  meAvatarUrl?: string;
-  body: string;
-  onChange: (s: string) => void;
-  onSubmit: () => void;
-  onCancel: () => void;
-  isPending?: boolean;
-}) {
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      onSubmit();
-    }
-    if (e.key === "Escape") {
-      e.preventDefault();
-      onCancel();
-    }
-  }
-  return (
-    <div className="flex gap-2.5">
-      <Avatar login={meLogin} avatarUrl={meAvatarUrl} size="sm" className="mt-1 shrink-0" />
-      <div className="min-w-0 flex-1">
-        <textarea
-          value={body}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Reply…"
-          rows={2}
-          disabled={isPending}
-          autoFocus
-          className={cn(
-            "w-full resize-none rounded-md border border-border bg-background p-2.5 text-body text-foreground",
-            "placeholder:text-muted-foreground/60",
-            "focus:outline-none focus:ring-1 focus:ring-foreground/15",
-          )}
-        />
-        <div className="mt-1.5 flex items-center justify-between">
-          <span className="text-caption text-[var(--color-fg-faint)]">⌘↵ to send</span>
-          <div className="flex gap-1.5">
-            <Button variant="ghost" size="xs" onClick={onCancel} disabled={isPending}>
-              Cancel
-            </Button>
-            <Button size="xs" disabled={!body.trim() || isPending} onClick={onSubmit}>
-              <Send data-icon="inline-start" />
-              {isPending ? "Sending…" : "Reply"}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+    </CommentCardDisplay>
   );
 }
 
 // ─── Thread block — interactive (reply, resolve, reactions) ────────────────
-
-const SPRING_HEIGHT = { type: "spring" as const, stiffness: 380, damping: 32, mass: 0.6 };
-const SPRING_POP = { type: "spring" as const, stiffness: 500, damping: 22, mass: 0.5 };
 
 function ThreadBlock({
   thread,
@@ -315,11 +250,11 @@ function ThreadBlock({
   number: number;
 }) {
   const [replyOpen, setReplyOpen] = useState(false);
-  const [body, setBody] = useState("");
   const [expandedAfterResolve, setExpandedAfterResolve] = useState(false);
 
   const meQuery = useMe();
   const meId = meQuery.data?.id;
+  const meLogin = meQuery.data?.login;
   const replyMutation = useReplyToReviewComment(owner, repo, number);
   const toggleReaction = useToggleReviewCommentReaction(owner, repo, number, meId);
 
@@ -329,21 +264,32 @@ function ThreadBlock({
   const isResolved = threadInfo?.isResolved ?? false;
   const threadNodeId = threadInfo?.threadNodeId;
 
-  const allComments = [thread.root, ...thread.replies];
+  const allComments = useMemo(() => [thread.root, ...thread.replies], [thread]);
   const lastComment = allComments[allComments.length - 1]!;
   const showCollapsed = isResolved && !expandedAfterResolve;
 
-  function handleReply() {
-    const text = body.trim();
-    if (!text || replyMutation.isPending) return;
+  // Seed @ autocomplete with thread participants
+  const participants = useMemo((): MentionUser[] => {
+    const seen = new Set<string>();
+    const list: MentionUser[] = [];
+    for (const c of allComments) {
+      if (!c.user || seen.has(c.user.login)) continue;
+      seen.add(c.user.login);
+      list.push({
+        kind: "@",
+        id: c.user.login,
+        login: c.user.login,
+        avatar: c.user.avatar_url,
+      });
+    }
+    return list;
+  }, [allComments]);
+
+  function handleReply(body: string) {
+    if (!body || replyMutation.isPending) return;
     replyMutation.mutate(
-      { inReplyToId: thread.root.id, body: text },
-      {
-        onSuccess: () => {
-          setBody("");
-          setReplyOpen(false);
-        },
-      },
+      { inReplyToId: thread.root.id, body },
+      { onSuccess: () => setReplyOpen(false) },
     );
   }
 
@@ -355,26 +301,18 @@ function ThreadBlock({
   // ── Collapsed resolved strip ─────────────────────────────────────────────
   if (showCollapsed) {
     return (
-      <motion.button
+      <button
         type="button"
-        layout
         onClick={() => setExpandedAfterResolve(true)}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={SPRING_POP}
         className={cn(
           "group flex w-full items-center gap-2 rounded-md border border-border/60 bg-background px-3 py-2",
           "text-left outline-none transition-colors",
           "hover:bg-[var(--color-bg-sunken)] focus-visible:ring-1 focus-visible:ring-foreground/15",
         )}
       >
-        <motion.span
-          className="inline-flex size-4 items-center justify-center"
-          whileHover={{ rotate: 90 }}
-          transition={SPRING_POP}
-        >
+        <span className="inline-flex size-4 items-center justify-center">
           <ChevronRight className="size-3.5 text-[var(--color-fg-faint)] transition-colors group-hover:text-muted-foreground" />
-        </motion.span>
+        </span>
         <span className="inline-flex size-4 items-center justify-center rounded-full bg-[color-mix(in_oklab,var(--color-success)_20%,transparent)]">
           <Check className="size-2.5 text-[var(--color-success)]" strokeWidth={3} />
         </span>
@@ -394,15 +332,13 @@ function ThreadBlock({
               : thread.root.body}
           </span>
         </span>
-      </motion.button>
+      </button>
     );
   }
 
   // ── Full expanded thread ────────────────────────────────────────────────
   return (
-    <motion.div
-      layout
-      transition={SPRING_HEIGHT}
+    <div
       className={cn(
         "rounded-md border bg-background",
         isResolved
@@ -411,35 +347,27 @@ function ThreadBlock({
       )}
     >
       {/* Resolved chip at top */}
-      <AnimatePresence initial={false}>
-        {isResolved && (
-          <motion.div
-            key="resolved-chip"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={SPRING_HEIGHT}
-            className="overflow-hidden"
-          >
-            <div className="flex items-center gap-1.5 border-b border-border/60 bg-[color-mix(in_oklab,var(--color-success)_8%,var(--color-bg-subtle))] px-3 py-1.5 text-caption text-[var(--color-success)]">
-              <Check className="size-3" strokeWidth={3} />
-              <span className="font-medium uppercase tracking-wider">Resolved</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {isResolved && (
+        <div className="flex items-center gap-1.5 border-b border-border/60 bg-[color-mix(in_oklab,var(--color-success)_8%,var(--color-bg-subtle))] px-3 py-1.5 text-caption text-[var(--color-success)]">
+          <Check className="size-3" strokeWidth={3} />
+          <span className="font-medium uppercase tracking-wider">Resolved</span>
+        </div>
+      )}
 
       <div className="space-y-3 p-3">
         <HunkExcerpt hunk={thread.root.diff_hunk} />
 
         <div className="space-y-3">
           {allComments.map((c) => (
-            <CommentBubble
+            <ThreadComment
               key={c.id}
               comment={c}
               owner={owner}
               repo={repo}
+              number={number}
               meId={meId}
+              meLogin={meLogin}
+              participants={participants}
               onToggleReaction={(content, existingId) =>
                 toggleReaction.mutate({
                   commentId: c.id,
@@ -452,69 +380,47 @@ function ThreadBlock({
         </div>
 
         {/* Reply composer / actions row */}
-        <AnimatePresence initial={false} mode="wait">
-          {replyOpen ? (
-            <motion.div
-              key="composer"
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.16 }}
-              className="border-t border-border/60 pt-3"
-            >
-              <ReplyComposer
-                meLogin={meQuery.data?.login ?? "ghost"}
-                meAvatarUrl={meQuery.data?.avatar_url}
-                body={body}
-                onChange={setBody}
-                onSubmit={handleReply}
-                onCancel={() => {
-                  setReplyOpen(false);
-                  setBody("");
-                }}
-                isPending={replyMutation.isPending}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="actions"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.12 }}
-              className="-mx-1 flex items-center gap-1 border-t border-border/60 pt-2"
-            >
-              <Button variant="ghost" size="xs" onClick={() => setReplyOpen(true)}>
-                <Reply data-icon="inline-start" />
-                Reply
+        {replyOpen ? (
+          <div className="border-t border-border/60 pt-3">
+            <CommentComposeCard
+              login={meQuery.data?.login ?? "ghost"}
+              avatarUrl={meQuery.data?.avatar_url}
+              owner={owner}
+              repo={repo}
+              onSubmit={handleReply}
+              onCancel={() => setReplyOpen(false)}
+              isPending={replyMutation.isPending}
+              placeholder="Reply to this thread…"
+              submitLabel="Reply"
+              participants={participants}
+              rows={3}
+              autoFocus
+            />
+          </div>
+        ) : (
+          <div className="-mx-1 flex items-center gap-1 border-t border-border/60 pt-2">
+            <Button variant="ghost" size="xs" onClick={() => setReplyOpen(true)}>
+              <Reply data-icon="inline-start" />
+              Reply
+            </Button>
+            {threadNodeId && (
+              <Button
+                variant="ghost"
+                size="xs"
+                onClick={handleResolveToggle}
+                disabled={resolveMutation.isPending}
+                className={cn(
+                  isResolved && "text-[var(--color-fg-faint)] hover:text-foreground",
+                )}
+              >
+                {isResolved ? (
+                  <RotateCcw data-icon="inline-start" />
+                ) : (
+                  <Check data-icon="inline-start" />
+                )}
+                {isResolved ? "Unresolve" : "Resolve"}
               </Button>
-              {threadNodeId && (
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={handleResolveToggle}
-                  disabled={resolveMutation.isPending}
-                  className={cn(
-                    isResolved && "text-[var(--color-fg-faint)] hover:text-foreground",
-                  )}
-                >
-                  <motion.span
-                    key={isResolved ? "unresolve" : "resolve"}
-                    initial={{ scale: 0.7, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={SPRING_POP}
-                    className="inline-flex"
-                    data-icon="inline-start"
-                  >
-                    {isResolved ? (
-                      <RotateCcw className="size-3" />
-                    ) : (
-                      <Check className="size-3" />
-                    )}
-                  </motion.span>
-                  {isResolved ? "Unresolve" : "Resolve"}
-                </Button>
-              )}
+            )}
               {isResolved && expandedAfterResolve && (
                 <Button
                   variant="ghost"
@@ -524,11 +430,10 @@ function ThreadBlock({
                   Collapse
                 </Button>
               )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+          </div>
+        )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -554,7 +459,7 @@ function FileSection({
           · {group.threads.length} {group.threads.length === 1 ? "thread" : "threads"}
         </span>
       </div>
-      <motion.div layout className="space-y-2">
+      <div className="space-y-2">
         {group.threads.map((t) => (
           <ThreadBlock
             key={t.root.id}
@@ -564,7 +469,7 @@ function FileSection({
             number={number}
           />
         ))}
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -605,8 +510,12 @@ export function ReviewCard({
 
   const [open, setOpen] = useState(true);
 
-  // Compact strip: empty review (no body, no inline activity) OR reply-only.
-  if (!hasBody && (replyOnlyCount === 0 || hasOnlyReplies)) {
+  // Compact strip when there's no full content to show:
+  //   - truly empty review (no body, no inline activity), or
+  //   - reply-only review (only replies, no root threads, no body).
+  // A review with a root inline comment (even if no body) gets the full card.
+  const isEmpty = !hasBody && newRootCount === 0 && replyOnlyCount === 0;
+  if (isEmpty || (!hasBody && hasOnlyReplies)) {
     const detail = hasOnlyReplies ? (
       <>
         replied{" "}
