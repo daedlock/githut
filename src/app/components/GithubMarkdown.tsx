@@ -6,6 +6,7 @@ import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 
 import { toInternalHref } from "@/app/lib/githubUrl";
+import { useAuthStore } from "@/app/stores/auth";
 
 // Extended sanitize schema — GitHub-compatible HTML subset.
 // Adds: details/summary, kbd, sup, sub, mark, del, ins, align/width/height attrs.
@@ -93,11 +94,23 @@ export function rewriteAssetUrl(src: string, ctx: MarkdownAssetContext): string 
   }
 }
 
+function proxyGitHubImage(src: string): string {
+  try {
+    const u = new URL(src);
+    const host = u.hostname;
+    if (host !== "github.com" && !host.endsWith(".githubusercontent.com")) return src;
+    // Badge SVGs don't support token auth — skip them
+    if (src.includes("/badge.svg") || src.includes("/badge/")) return src;
+  } catch {
+    return src;
+  }
+  const token = useAuthStore.getState().token;
+  if (!token) return src;
+  return `/api/github-image?url=${encodeURIComponent(src)}&token=${encodeURIComponent(token)}`;
+}
+
 function buildComponents(assetContext?: MarkdownAssetContext): Components {
   return {
-    // Rewrite github.com links that have an in-app equivalent to our own
-    // routes, and navigate them via TanStack Router's <Link> so clicks stay
-    // client-side. External links keep their original <a> rendering.
     a: ({ href, children, ...rest }) => {
       const internal = href ? toInternalHref(href) : null;
       if (internal) {
@@ -113,10 +126,9 @@ function buildComponents(assetContext?: MarkdownAssetContext): Components {
         </a>
       );
     },
-    // Rewrite relative image srcs to raw.githubusercontent.com so they load
-    // from GitHub instead of our own origin. Absolute URLs pass through.
     img: ({ src, alt, ...rest }) => {
-      const resolved = assetContext && typeof src === "string" ? rewriteAssetUrl(src, assetContext) : src;
+      let resolved = assetContext && typeof src === "string" ? rewriteAssetUrl(src, assetContext) : src;
+      if (typeof resolved === "string") resolved = proxyGitHubImage(resolved);
       // biome-ignore lint/a11y/useAltText: alt is preserved from the source markdown
       return <img src={resolved as string | undefined} alt={alt} {...rest} />;
     },

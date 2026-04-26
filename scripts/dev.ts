@@ -8,7 +8,7 @@ type Proc = { name: string; color: string; cmd: string[] };
 
 const procs: Proc[] = [
   { name: "vite", color: "\x1b[36m", cmd: ["bunx", "vite"] },
-  { name: "wrgl", color: "\x1b[33m", cmd: ["bunx", "wrangler", "dev", "--port", "8787", "--no-assets", "--persist-to", ".wrangler/state", "--var", "APP_URL:http://localhost:5173"] },
+  { name: "wrgl", color: "\x1b[33m", cmd: ["bunx", "wrangler", "dev", "--port", "8787", "--persist-to", ".wrangler/state", "--var", "APP_URL:http://localhost:5173"] },
 ];
 
 const RESET = "\x1b[0m";

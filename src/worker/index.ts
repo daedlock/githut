@@ -114,6 +114,67 @@ app.get("/api/uploads/:key", async (c) => {
   return new Response(obj.body, { headers });
 });
 
+// ─── GitHub image proxy ───────────────────────────────────────────────────
+//
+// GitHub's user-attachments URLs return 404 without a session cookie.
+// <img> tags can't send Authorization headers, so the token comes via
+// query param. The Worker fetches the image server-side and streams it back.
+
+app.get("/api/github-image", async (c) => {
+  const reqUrl = new URL(c.req.url);
+  const token = reqUrl.searchParams.get("token");
+  const url = reqUrl.searchParams.get("url");
+  if (!token || !url) return c.json({ error: "missing_params", debug: { hasToken: !!token, hasUrl: !!url } }, 400);
+
+  const ALLOWED_HOSTS = ["github.com", "private-user-images.githubusercontent.com", "user-images.githubusercontent.com", "raw.githubusercontent.com"];
+  let parsedHost: string;
+  try { parsedHost = new URL(url).hostname; } catch { return c.json({ error: "invalid_url" }, 400); }
+  if (!ALLOWED_HOSTS.some((h) => parsedHost === h || parsedHost.endsWith(`.${h}`))) {
+    return c.json({ error: "disallowed_host", host: parsedHost }, 400);
+  }
+
+  // Step 1: hit GitHub with token auth to get the 302 → signed S3 URL.
+  // Must NOT auto-follow — S3 rejects the Authorization header.
+  const gh = await fetch(url, {
+    redirect: "manual",
+    headers: {
+      Authorization: `token ${token}`,
+      Accept: "application/octet-stream",
+      "User-Agent": "githut/0.1",
+    },
+  });
+
+  if (gh.status === 302 || gh.status === 301) {
+    const location = gh.headers.get("location");
+    if (!location) return new Response(null, { status: 502 });
+
+    // Step 2: fetch the signed S3 URL WITHOUT auth headers.
+    const img = await fetch(location);
+    if (!img.ok) return new Response(null, { status: img.status as 400 });
+
+    return new Response(img.body, {
+      status: 200,
+      headers: {
+        "Content-Type": img.headers.get("Content-Type") ?? "image/png",
+        "Cache-Control": "public, max-age=300",
+      },
+    });
+  }
+
+  // Some assets return the body inline (small files, public repos).
+  if (gh.ok) {
+    return new Response(gh.body, {
+      status: 200,
+      headers: {
+        "Content-Type": gh.headers.get("Content-Type") ?? "image/png",
+        "Cache-Control": "public, max-age=300",
+      },
+    });
+  }
+
+  return new Response(null, { status: gh.status as 400 });
+});
+
 // ─── Actions log proxy ─────────────────────────────────────────────────────
 //
 // GitHub's job-logs endpoint returns a 302 to a short-lived Azure Blob URL
