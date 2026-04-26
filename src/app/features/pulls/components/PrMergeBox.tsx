@@ -4,7 +4,6 @@ import {
   Circle,
   CircleDot,
   Clock,
-  ExternalLink,
   GitMerge,
   GitPullRequestClosed,
   Loader2,
@@ -23,6 +22,7 @@ import {
 } from "@/app/features/pulls/hooks";
 import { toUiState } from "@/app/features/pulls/lib/prStatus";
 import type { PullRequest } from "@/app/features/pulls/schemas";
+import { CheckRunPeek } from "@/app/features/pulls/components/CheckRunPeek";
 import { PrMergeDialog } from "@/app/features/pulls/components/PrMergeDialog";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
@@ -171,7 +171,7 @@ export function PrMergeBox({
       {checksExpanded && data && (
         <div className="border-t border-border/20">
           {data.checkRuns.map((run) => (
-            <CheckRunRow key={run.id} run={run} />
+            <CheckRunRow key={run.id} run={run} owner={owner} repo={repo} />
           ))}
           {data.combined.statuses.map((s) => (
             <StatusRow key={s.id} status={s} />
@@ -281,7 +281,7 @@ function SummaryIcon({ summary }: { summary: CheckSummary }) {
 
 // ─── Individual check rows ─────────────────────────────────────────────────
 
-function CheckRunRow({ run }: { run: CheckRun }) {
+function CheckRunRow({ run, owner, repo }: { run: CheckRun; owner: string; repo: string }) {
   const { Icon, tone } = iconForCheckRun(run);
   const url = run.html_url ?? run.details_url ?? undefined;
   return (
@@ -294,11 +294,16 @@ function CheckRunRow({ run }: { run: CheckRun }) {
       {run.completed_at && (
         <span className="shrink-0 text-xs text-[var(--color-fg-faint)]">{formatRelativeTime(run.completed_at)}</span>
       )}
-      {url && (
-        <a href={url} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted px-1.5 py-0.5">
-          Details <ExternalLink className="inline size-3" />
-        </a>
-      )}
+      {url ? (
+        <CheckRunPeek owner={owner} repo={repo} checkUrl={url} checkName={run.name}>
+          <button
+            type="button"
+            className="shrink-0 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted px-1.5 py-0.5 transition-colors duration-75"
+          >
+            Details
+          </button>
+        </CheckRunPeek>
+      ) : null}
     </div>
   );
 }
@@ -314,8 +319,8 @@ function StatusRow({ status }: { status: { id: number; state: "pending" | "succe
       )}
       <span className="shrink-0 text-xs text-[var(--color-fg-faint)]">{formatRelativeTime(status.updated_at)}</span>
       {status.target_url && (
-        <a href={status.target_url} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted px-1.5 py-0.5">
-          Details <ExternalLink className="inline size-3" />
+        <a href={status.target_url} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted px-1.5 py-0.5 transition-colors duration-75">
+          Details
         </a>
       )}
     </div>

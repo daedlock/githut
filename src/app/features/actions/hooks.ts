@@ -208,6 +208,27 @@ export function useRunJobs(owner: string, repo: string, runId: number) {
   });
 }
 
+// ─── Single job by ID ─────────────────────────────────────────────────────
+
+import { JobSchema } from "./schemas";
+
+export function useJob(owner: string, repo: string, jobId: number) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    queryKey: ["actions-job", owner, repo, jobId] as const,
+    staleTime: 30_000,
+    enabled: !!token && !!owner && !!repo && Number.isFinite(jobId) && jobId > 0,
+    queryFn: async (): Promise<Job> => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "GET /repos/{owner}/{repo}/actions/jobs/{job_id}",
+        { owner, repo, job_id: jobId },
+      );
+      return JobSchema.parse(res.data);
+    },
+  });
+}
+
 // ─── Artifacts for a run ───────────────────────────────────────────────────
 
 export const runArtifactsQueryOptions = (owner: string, repo: string, runId: number) =>

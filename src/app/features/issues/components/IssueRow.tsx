@@ -106,15 +106,15 @@ export function IssueRow({
                   ))}
               </span>
             )}
+            {issue.assignees.length > 0 && (
+              <span className="inline-flex items-center">
+                {issue.assignees.slice(0, 3).map((a) => (
+                  <Avatar key={a.login} login={a.login} avatarUrl={a.avatar_url} size="sm" className="-ml-1 first:ml-0 ring-1 ring-background" />
+                ))}
+              </span>
+            )}
           </div>
         </div>
-        {issue.assignees.length > 0 && (
-          <div className="mt-0.5 flex">
-            {issue.assignees.slice(0, 3).map((a) => (
-              <Avatar key={a.login} login={a.login} avatarUrl={a.avatar_url} size="sm" />
-            ))}
-          </div>
-        )}
       </div>
     </Link>
   );
