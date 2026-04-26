@@ -255,6 +255,45 @@ html.dark .shiki span {
   }
 }
 
+/* ProfileActivity — heatmap cells fade-in on mount with stagger */
+@keyframes activity-cell-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.activity-cell-in {
+  animation: activity-cell-in 220ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .activity-cell-in {
+    animation: none;
+  }
+}
+
+/* ProfileActivity — today's cell breathes a quiet pulse so the present
+   anchors the eye on a strip that's otherwise flat-on-page. */
+@keyframes activity-today-pulse {
+  0%, 100% {
+    box-shadow: 0 0 8px 0 color-mix(in oklab, var(--color-success) 32%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 14px 2px color-mix(in oklab, var(--color-success) 16%, transparent);
+  }
+}
+.activity-today-pulse {
+  animation: activity-today-pulse 2400ms cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .activity-today-pulse {
+    animation: none;
+  }
+}
+
 /* TerminalNav — steady cursor blink on the active tab */
 @keyframes caret-blink {
   0%,
