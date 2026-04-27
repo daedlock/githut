@@ -288,18 +288,18 @@ function ContributorsCard({
 
       <div className="mt-2">
         {pending && !contributors ? (
-          <div className="flex -space-x-1.5">
+          <div className="flex -space-x-1">
             {Array.from({ length: 11 }).map((_, i) => (
               <Skeleton key={i} className="size-6 rounded-full ring-2 ring-(--color-bg-subtle)" />
             ))}
           </div>
         ) : (
-          <motion.div layout transition={SECTION_SPRING} className="flex flex-col gap-1.5">
+          <motion.div layout transition={SECTION_SPRING} className="flex flex-col gap-3">
             {rows.map((row, rowIdx) => {
               const isLastVisibleRow = rowIdx === rows.length - 1;
               const showMorePill = !expanded && hasOverflow && isLastVisibleRow;
               return (
-                <div key={rowIdx} className="flex -space-x-1.5">
+                <div key={rowIdx} className="flex -space-x-1">
                   <AnimatePresence initial={false}>
                     {row.map((c, i) => (
                       <motion.span
@@ -315,16 +315,17 @@ function ContributorsCard({
                         {c.login && c.avatar_url ? (
                           <span
                             title={`${c.login} · ${c.contributions} commit${c.contributions === 1 ? "" : "s"}`}
-                            className="block"
+                            className="contributor-avatar-wrap"
                           >
                             <ProfileLink login={c.login} className="block">
                               <Avatar
                                 login={c.login}
                                 avatarUrl={c.avatar_url}
                                 size="md"
-                                className="ring-2 ring-(--color-bg-subtle) transition-transform hover:scale-110 hover:z-10"
+                                className="ring-2 ring-(--color-bg-subtle) transition-transform hover:scale-110"
                               />
                             </ProfileLink>
+                            <span className="tint-overlay" />
                           </span>
                         ) : (
                           <span

@@ -306,6 +306,24 @@ html.dark .shiki span {
   }
 }
 
+/* Contributors avatar tint overlay */
+.contributor-avatar-wrap {
+  position: relative;
+  display: block;
+}
+.contributor-avatar-wrap .tint-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background-color: var(--color-bg);
+  opacity: 0.35;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+.contributor-avatar-wrap:hover .tint-overlay {
+  opacity: 0;
+}
+
 body {
   font-family: var(--font-sans);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
