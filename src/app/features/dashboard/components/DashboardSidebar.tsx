@@ -1,5 +1,5 @@
-import { cn } from "@/app/lib/cn";
 import type { DashboardCategory, RepoCount } from "@/app/features/dashboard/lib/filter";
+import { cn } from "@/app/lib/cn";
 
 // ─── DashboardSidebar ─────────────────────────────────────────────────────
 //
@@ -11,9 +11,7 @@ import type { DashboardCategory, RepoCount } from "@/app/features/dashboard/lib/
 //      "Review + alice/api" is expressible by selecting both.
 //
 // Same surface as the page (bg-background), per DESIGN.md. Separation from
-// the main column comes from a single hairline + spacing, not from a
-// different background. Section eyebrows use the mono micro token so
-// nothing competes with the category labels themselves.
+// the main column comes from spacing, not a different background.
 
 export type DashboardSidebarProps = {
   category: DashboardCategory;
@@ -63,14 +61,9 @@ export function DashboardSidebar({
   }
 
   return (
-    // Sidebar shares the page surface (bg-background, no chrome) and sticks
-    // below the top nav. DESIGN.md: sidebars use the SAME surface as the
-    // page; separation comes from spacing, not from a different bg or a
-    // border. The raised main panel sits next to us at bg-muted — that
-    // contrast is enough.
-    <aside
-      className="sticky top-[44px] flex h-[calc(100vh-44px)] w-56 shrink-0 flex-col gap-5 overflow-y-auto py-6 pr-3"
-    >
+    // Sidebar shares the page surface (bg-background, no chrome). On desktop
+    // it sticks below the top nav; on mobile it stacks above the list content.
+    <aside className="flex w-full shrink-0 flex-col gap-5 overflow-y-auto lg:sticky lg:top-[44px] lg:h-[calc(100vh-44px)] lg:w-56 lg:pt-[52px] lg:pr-3">
       {grouped.map(({ group, items }) => {
         const heading = GROUP_LABELS[group];
         return (
@@ -97,7 +90,6 @@ export function DashboardSidebar({
             count={null}
             selected={repo === null}
             onClick={() => onRepoChange(null)}
-            mono
           />
           {repoCounts.map((r) => (
             <CategoryButton
@@ -117,8 +109,9 @@ export function DashboardSidebar({
 
 function SectionEyebrow({ label }: { label: string }) {
   return (
-    <div className="mb-1 px-2 font-mono text-micro uppercase tracking-widest text-(--color-fg-faint)">
-      {label}
+    <div className="mb-1.5 flex items-center gap-2 px-2">
+      <span className="text-micro font-[475] text-(--color-fg-faint)">{label}</span>
+      <span aria-hidden className="h-px flex-1 bg-border" />
     </div>
   );
 }

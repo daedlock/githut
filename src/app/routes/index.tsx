@@ -3,31 +3,30 @@ import { CheckCircle2, Inbox } from "lucide-react";
 import { useMemo, useState } from "react";
 import { AppShell } from "@/app/components/shell/AppShell";
 import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
+import { Avatar } from "@/app/components/ui/avatar";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { DashRow } from "@/app/features/dashboard/components/DashRow";
+import { ToggleGroup, ToggleGroupItem } from "@/app/components/ui/toggle-group";
 import { DashboardSidebar } from "@/app/features/dashboard/components/DashboardSidebar";
-import {
-  useMyOpenPrs,
-  useYourTurn,
-  type DashboardItem,
-} from "@/app/features/dashboard/hooks";
+import { DashRow } from "@/app/features/dashboard/components/DashRow";
+import { type DashboardItem, useMyOpenPrs, useYourTurn } from "@/app/features/dashboard/hooks";
+import { type AgeBucket, ageBucket } from "@/app/features/dashboard/lib/buckets";
 import {
   applyFilters,
   buildCounts,
   buildPool,
   buildRepoCounts,
-  pickDate,
-  sortEntries,
   type DashboardCategory,
   type DashEntry,
+  pickDate,
+  sortEntries,
 } from "@/app/features/dashboard/lib/filter";
-import { ageBucket, type AgeBucket } from "@/app/features/dashboard/lib/buckets";
 import { reposQueryOptions } from "@/app/hooks/useRepos";
+import { cn } from "@/app/lib/cn";
 import { useAuthStore } from "@/app/stores/auth";
 
 const CATEGORY_TITLES: Record<DashboardCategory, string> = {
-  all: "All",
+  all: "Dashboard",
   review: "Review requested",
   assigned: "Assigned",
   mentioned: "Mentioned",
@@ -64,6 +63,14 @@ const BUCKET_LABEL: Record<AgeBucket, string> = {
   older: "Older",
 };
 
+type DashboardGroupBy = "timeline" | "repo" | "org";
+
+const GROUP_OPTIONS: Array<{ value: DashboardGroupBy; label: string }> = [
+  { value: "timeline", label: "Timeline" },
+  { value: "repo", label: "Repo" },
+  { value: "org", label: "Org" },
+];
+
 export const Route = createFileRoute("/")({
   beforeLoad: () => {
     if (!useAuthStore.getState().token) throw redirect({ to: "/login" });
@@ -77,6 +84,7 @@ export const Route = createFileRoute("/")({
 function IndexPage() {
   const [category, setCategory] = useState<DashboardCategory>("all");
   const [repo, setRepo] = useState<string | null>(null);
+  const [groupBy, setGroupBy] = useState<DashboardGroupBy>("timeline");
 
   const yourTurn = useYourTurn();
   const myPrs = useMyOpenPrs();
@@ -95,15 +103,18 @@ function IndexPage() {
     [pool, category, repo],
   );
 
-  const groups = useMemo(() => groupByBucket(filtered), [filtered]);
+  const sections = useMemo(
+    () => buildDashboardSections(category, filtered, groupBy),
+    [category, filtered, groupBy],
+  );
 
   const isPending = yourTurn.isPending || myPrs.isPending;
   const isError = yourTurn.isError || myPrs.isError;
 
   return (
     <AppShell header={<UnifiedNav />}>
-      <Container size="xl" className="py-4">
-        <div className="flex items-start gap-5">
+      <Container size="xl" className="max-w-5xl py-6">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
           <DashboardSidebar
             category={category}
             onCategoryChange={(next) => {
@@ -114,17 +125,13 @@ function IndexPage() {
             counts={counts}
             repoCounts={repoCounts}
           />
-          {/*
-            Main column is the raised content surface: bg-muted, rounded-lg,
-            no border. This is the "borderless surface card" pattern from
-            the PR/issue detail views — sidebar (page surface) sits beside
-            it (raised surface), separation via surface contrast, not chrome.
-          */}
-          <main className="min-w-0 flex-1 rounded-lg bg-muted px-4 py-5 sm:px-5">
+          <main className="min-w-0 flex-1 lg:max-w-3xl">
             <MainHeader
               title={CATEGORY_TITLES[category]}
               shown={filtered.length}
               total={counts[category] ?? null}
+              groupBy={groupBy}
+              onGroupByChange={setGroupBy}
               repo={repo}
               onClearRepo={() => setRepo(null)}
             />
@@ -133,25 +140,12 @@ function IndexPage() {
               <RowsSkeleton />
             ) : isError ? (
               <ErrorState />
-            ) : groups.length === 0 ? (
+            ) : sections.length === 0 ? (
               <EmptyState category={category} repo={repo} />
             ) : (
-              <div className="flex flex-col gap-6">
-                {groups.map((g) => (
-                  <BucketGroup
-                    key={g.bucket}
-                    label={BUCKET_LABEL[g.bucket]}
-                    count={g.entries.length}
-                  >
-                    {g.entries.map((entry) => (
-                      <DashRow
-                        key={`${entry.kind}-${entry.item.id}`}
-                        item={entry.item}
-                        date={pickDate(entry)}
-                        showReason={entry.kind === "turn"}
-                      />
-                    ))}
-                  </BucketGroup>
+              <div className="flex flex-col gap-7">
+                {sections.map((section) => (
+                  <DashboardSection key={section.key} section={section} />
                 ))}
               </div>
             )}
@@ -168,22 +162,91 @@ function IndexPage() {
 // post-filter pool element) rather than DashboardItem so we can pass entries
 // through to DashRow with their `kind` tag intact for the date-axis pick.
 
-type BucketGroupData = { bucket: AgeBucket; entries: DashEntry[] };
+type DashboardSectionData = {
+  key: string;
+  title: string;
+  titleKind: "time" | "entity";
+  avatarLogin?: string;
+  entries: DashEntry[];
+  showReason: boolean;
+};
 
-function groupByBucket(entries: DashEntry[]): BucketGroupData[] {
+function buildDashboardSections(
+  category: DashboardCategory,
+  entries: DashEntry[],
+  groupBy: DashboardGroupBy,
+): DashboardSectionData[] {
+  if (groupBy === "timeline") {
+    return groupByTimeline(entries, category);
+  }
+
+  if (groupBy === "repo") {
+    return groupByKey(
+      entries,
+      category,
+      (entry) => `${entry.item.ownerRepo.owner}/${entry.item.ownerRepo.repo}`,
+      "repo",
+    );
+  }
+
+  return groupByKey(entries, category, (entry) => entry.item.ownerRepo.owner, "org");
+}
+
+function groupByTimeline(
+  entries: DashEntry[],
+  category: DashboardCategory,
+): DashboardSectionData[] {
   const map = new Map<AgeBucket, DashEntry[]>();
   for (const entry of entries) {
-    const b = ageBucket(pickDate(entry));
-    const list = map.get(b) ?? [];
+    const bucket = ageBucket(pickDate(entry));
+    const list = map.get(bucket) ?? [];
     list.push(entry);
-    map.set(b, list);
+    map.set(bucket, list);
   }
-  const out: BucketGroupData[] = [];
+
+  const sections: DashboardSectionData[] = [];
   for (const bucket of BUCKET_ORDER) {
-    const list = map.get(bucket);
-    if (list && list.length > 0) out.push({ bucket, entries: list });
+    const bucketEntries = map.get(bucket);
+    if (!bucketEntries?.length) continue;
+    sections.push({
+      key: bucket,
+      title: BUCKET_LABEL[bucket],
+      titleKind: "time",
+      entries: bucketEntries,
+      showReason: category === "all",
+    });
   }
-  return out;
+  return sections;
+}
+
+function groupByKey(
+  entries: DashEntry[],
+  category: DashboardCategory,
+  getKey: (entry: DashEntry) => string,
+  groupKind: "repo" | "org",
+): DashboardSectionData[] {
+  const map = new Map<string, DashEntry[]>();
+  for (const entry of entries) {
+    const key = getKey(entry);
+    const list = map.get(key) ?? [];
+    list.push(entry);
+    map.set(key, list);
+  }
+
+  return [...map.entries()]
+    .sort(([aKey, aEntries], [bKey, bEntries]) => {
+      const countDelta = bEntries.length - aEntries.length;
+      if (countDelta !== 0) return countDelta;
+      return aKey.localeCompare(bKey);
+    })
+    .map(([key, grouped]) => ({
+      key,
+      title: key,
+      titleKind: "entity",
+      avatarLogin: groupKind === "repo" ? key.split("/", 1)[0] : key,
+      entries: grouped,
+      showReason: category === "all",
+    }));
 }
 
 // ─── Layout pieces ─────────────────────────────────────────────────────────
@@ -192,58 +255,117 @@ function MainHeader({
   title,
   shown,
   total,
+  groupBy,
+  onGroupByChange,
   repo,
   onClearRepo,
 }: {
   title: string;
   shown: number;
   total: number | null;
+  groupBy: DashboardGroupBy;
+  onGroupByChange: (next: DashboardGroupBy) => void;
   repo: string | null;
   onClearRepo: () => void;
 }) {
   return (
-    <header className="mb-5 flex items-baseline gap-3">
+    <header className="mb-4 flex flex-wrap items-center gap-3">
       <h1 className="text-heading font-[475] tracking-tight text-foreground">{title}</h1>
       {total !== null ? (
-        <span className="font-mono text-caption tabular-nums uppercase tracking-widest text-muted-foreground">
-          {repo ? `${shown} in ${repo}` : `${total}`}
+        <span className="text-caption text-muted-foreground">
+          <span className="font-mono tabular-nums">{shown}</span>
+          {repo ? (
+            <>
+              {" in "}
+              <span className="font-mono">{repo}</span>
+            </>
+          ) : null}
         </span>
       ) : null}
-      {repo ? (
-        <button
-          type="button"
-          onClick={onClearRepo}
-          className="ml-auto rounded-md px-2 py-1 text-caption text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground"
-        >
-          Clear repo filter
-        </button>
-      ) : null}
+
+      <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 rounded-lg bg-muted px-2 py-1">
+          <span className="text-caption text-muted-foreground">Group</span>
+          <ToggleGroup
+            type="single"
+            value={groupBy}
+            onValueChange={(value) => {
+              if (isDashboardGroupBy(value)) onGroupByChange(value);
+            }}
+            size="sm"
+            className="rounded-md bg-background p-0.5"
+            aria-label="Group dashboard"
+          >
+            {GROUP_OPTIONS.map((option) => (
+              <ToggleGroupItem
+                key={option.value}
+                value={option.value}
+                aria-label={`Group by ${option.label.toLowerCase()}`}
+                className="h-6 rounded px-2 text-caption data-[state=on]:bg-muted"
+              >
+                {option.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
+        {repo ? (
+          <button
+            type="button"
+            onClick={onClearRepo}
+            className="h-7 rounded-md px-2 text-caption text-muted-foreground outline-none transition-colors hover:bg-background hover:text-foreground focus-visible:ring-1 focus-visible:ring-(--color-focus)"
+          >
+            Clear repo filter
+          </button>
+        ) : null}
+      </div>
     </header>
   );
 }
 
-function BucketGroup({
-  label,
-  count,
-  children,
-}: {
-  label: string;
-  count: number;
-  children: React.ReactNode;
-}) {
+function isDashboardGroupBy(value: string): value is DashboardGroupBy {
+  return value === "timeline" || value === "repo" || value === "org";
+}
+
+function DashboardSection({ section }: { section: DashboardSectionData }) {
   return (
-    <section>
-      <div className="mb-1 flex items-baseline gap-2 px-3">
-        <span className="font-mono text-micro uppercase tracking-widest text-(--color-fg-faint)">
-          {label}
-        </span>
-        <span className="font-mono text-micro tabular-nums text-(--color-fg-faint)">
-          {count}
+    <section className="flex flex-col gap-2">
+      <div className="flex h-8 items-center gap-2 rounded-lg bg-muted px-3">
+        {section.avatarLogin ? (
+          <Avatar
+            login={section.avatarLogin}
+            avatarUrl={githubAvatar(section.avatarLogin)}
+            size="sm"
+          />
+        ) : null}
+        <h2
+          className={cn(
+            "min-w-0 truncate text-ui font-[475] text-foreground",
+            section.titleKind === "entity" && "font-mono text-caption",
+          )}
+        >
+          {section.title}
+        </h2>
+        <span className="ml-auto font-mono text-caption tabular-nums text-muted-foreground">
+          {section.entries.length}
         </span>
       </div>
-      <div className="flex flex-col">{children}</div>
+
+      <div className="flex flex-col gap-1">
+        {section.entries.map((entry) => (
+          <DashRow
+            key={`${entry.kind}-${entry.item.id}`}
+            item={entry.item}
+            date={pickDate(entry)}
+            showReason={section.showReason && entry.kind === "turn"}
+          />
+        ))}
+      </div>
     </section>
   );
+}
+
+function githubAvatar(login: string): string {
+  return `https://github.com/${login}.png`;
 }
 
 function RowsSkeleton() {
@@ -266,9 +388,7 @@ function RowsSkeleton() {
 function ErrorState() {
   return (
     <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
-      <span className="font-mono text-ui text-(--color-danger)">
-        Couldn't load your dashboard.
-      </span>
+      <span className="font-mono text-ui text-(--color-danger)">Couldn't load your dashboard.</span>
       <span className="text-caption text-muted-foreground">
         GitHub may be slow or your token may have expired.
       </span>
@@ -276,13 +396,7 @@ function ErrorState() {
   );
 }
 
-function EmptyState({
-  category,
-  repo,
-}: {
-  category: DashboardCategory;
-  repo: string | null;
-}) {
+function EmptyState({ category, repo }: { category: DashboardCategory; repo: string | null }) {
   const copy = CATEGORY_EMPTY_COPY[category];
   const isAllClear = category === "all" || category === "review";
   const Icon = isAllClear ? CheckCircle2 : Inbox;

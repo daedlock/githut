@@ -1,27 +1,17 @@
 import { Link } from "@tanstack/react-router";
 import { CircleDot } from "lucide-react";
+import { Avatar } from "@/app/components/ui/avatar";
+import type { DashboardItem, DashboardReason } from "@/app/features/dashboard/hooks";
 import { PrStateIcon } from "@/app/features/pulls/components/PrStatePill";
 import { toUiState } from "@/app/features/pulls/lib/prStatus";
-import type { DashboardItem, DashboardReason } from "@/app/features/dashboard/hooks";
-import { staleness, type Stale } from "@/app/features/dashboard/lib/buckets";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 
 // ─── DashRow ──────────────────────────────────────────────────────────────
 //
-// One unified compact row for every dashboard list. Single horizontal line:
-//
-//   [●] [icon]  alice/api  Add retry policy        REVIEW  2d
-//
-// Left edge holds a 6px latency dot whose tone derives from the row's age
-// (fresh → faint, waiting → warning, overdue → danger). That single mark
-// is the dashboard's urgency cue — the rest of the row stays neutral so the
-// dot reads at a glance across a dense list.
-//
-// `showReason` toggles the reason chip ("REVIEW" / "ASSIGNED" / "MENTIONED"):
-// turned on for the "Awaiting you" surface where the chip explains why the
-// item is here, off for "Your open PRs" where every row has the same
-// implicit reason.
+// Dashboard rows mirror PR/issue list rows: state icon, title first, then a
+// quiet metadata line. The dashboard-specific reason stays in metadata so it
+// explains why the row is present without becoming the row's primary content.
 
 const REASON_LABEL: Record<DashboardReason, string> = {
   review_requested: "Review",
@@ -29,26 +19,10 @@ const REASON_LABEL: Record<DashboardReason, string> = {
   mentioned: "Mentioned",
 };
 
-const REASON_TONE: Record<DashboardReason, string> = {
-  review_requested: "text-(--color-accent)",
-  assigned: "text-foreground",
-  mentioned: "text-(--color-fg-faint)",
-};
-
-const DOT_TONE: Record<Stale, string> = {
-  fresh: "bg-(--color-fg-faint)",
-  warm: "bg-(--color-warning)",
-  overdue: "bg-(--color-warning)",
-  ancient: "bg-(--color-danger)",
-};
-
-// Outer ring around the dot — same hue, lower opacity. Gives the dot a
-// little glow on the dense list without adding chrome.
-const DOT_GLOW: Record<Stale, string> = {
-  fresh: "ring-(--color-fg-faint)/0",
-  warm: "ring-(--color-warning)/30",
-  overdue: "ring-(--color-warning)/40",
-  ancient: "ring-(--color-danger)/40",
+const REASON_DOT: Record<DashboardReason, string> = {
+  review_requested: "bg-(--color-accent)",
+  assigned: "bg-(--color-warning)",
+  mentioned: "bg-(--color-fg-faint)",
 };
 
 export type DashRowProps = {
@@ -62,7 +36,6 @@ export type DashRowProps = {
 export function DashRow({ item, date, showReason }: DashRowProps) {
   const owner = item.ownerRepo.owner;
   const repo = item.ownerRepo.repo;
-  const stale = staleness(date);
 
   const linkProps = item.isPr
     ? ({
@@ -78,44 +51,42 @@ export function DashRow({ item, date, showReason }: DashRowProps) {
   return (
     <Link
       {...linkProps}
-      className={cn(
-        "group flex items-center gap-3 rounded-md px-3 py-2 outline-none",
-        // Row sits on the raised main panel (bg-muted). Hover/focus steps up
-        // via the popover-active token, which mixes ~3% darker in light and
-        // ~4% lighter in dark — same pattern as our dropdown / command
-        // menu items so the visual language stays uniform.
-        "transition-colors hover:bg-[var(--color-popover-active)] focus-visible:bg-[var(--color-popover-active)]",
-      )}
+      className="group block rounded-lg outline-none transition-colors hover:bg-muted focus-visible:bg-muted"
     >
-      <span
-        aria-hidden
-        className={cn(
-          "size-1.5 shrink-0 rounded-full ring-2 transition-colors",
-          DOT_TONE[stale],
-          DOT_GLOW[stale],
-        )}
-      />
-      <span className="shrink-0">
-        <ItemStateIcon item={item} />
-      </span>
-      <span className="hidden shrink-0 font-mono text-caption text-muted-foreground sm:inline">
-        {owner}/{repo}
-      </span>
-      <span className="min-w-0 flex-1 truncate text-body font-[475] text-foreground">
-        {item.title}
-      </span>
-      {item.comments > 0 && (
-        <span
-          className="hidden shrink-0 font-mono text-caption tabular-nums text-muted-foreground sm:inline"
-          title={`${item.comments} comments`}
-        >
-          {item.comments}c
-        </span>
-      )}
-      {showReason ? <ReasonChip reason={item.reason} /> : null}
-      <span className="shrink-0 font-mono text-caption tabular-nums text-muted-foreground">
-        {formatRelativeTime(date)}
-      </span>
+      <div className="flex w-full items-start gap-3 px-4 py-2.5 text-left">
+        <div className="mt-0.5 flex-shrink-0">
+          <ItemStateIcon item={item} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="text-body font-[475] text-foreground">{item.title}</span>
+            {showReason ? <ReasonPill reason={item.reason} /> : null}
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-caption text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="font-mono">#{item.number}</span>
+              <span className="text-(--color-fg-faint)">·</span>
+              <Avatar login={owner} avatarUrl={githubAvatar(owner)} size="xs" />
+              <span className="font-mono">
+                {owner}/{repo}
+              </span>
+              <span className="text-(--color-fg-faint)">·</span>
+              updated {formatRelativeTime(date)}
+            </span>
+            {item.user ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Avatar login={item.user.login} avatarUrl={item.user.avatar_url} size="xs" />
+                {item.user.login}
+              </span>
+            ) : null}
+            {item.comments > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                {item.comments} {item.comments === 1 ? "comment" : "comments"}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
     </Link>
   );
 }
@@ -132,15 +103,20 @@ function ItemStateIcon({ item }: { item: DashboardItem }) {
   return <CircleDot className="size-4 text-(--color-success)" />;
 }
 
-function ReasonChip({ reason }: { reason: DashboardReason }) {
+function ReasonPill({ reason }: { reason: DashboardReason }) {
   return (
     <span
       className={cn(
-        "shrink-0 font-mono text-micro font-medium uppercase tracking-widest",
-        REASON_TONE[reason],
+        "inline-flex h-5 shrink-0 items-center gap-1.5 rounded-full bg-muted px-2 text-caption text-muted-foreground",
+        "group-hover:bg-background group-focus-visible:bg-background",
       )}
     >
+      <span className={cn("size-1.5 rounded-full", REASON_DOT[reason])} />
       {REASON_LABEL[reason]}
     </span>
   );
+}
+
+function githubAvatar(login: string): string {
+  return `https://github.com/${login}.png`;
 }
