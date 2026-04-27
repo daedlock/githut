@@ -1,15 +1,87 @@
-# githut
+# GitHut
 
-To install dependencies:
+**GitHub's UI, rebuilt for speed.**
+
+[![GitHub stars](https://img.shields.io/github/stars/daedlock/githut?style=social)](https://github.com/daedlock/githut)
+[![License](https://img.shields.io/github/license/daedlock/githut)](LICENSE)
+[![Issues](https://img.shields.io/github/issues/daedlock/githut)](https://github.com/daedlock/githut/issues)
+
+---
+
+**[→ Try GitHut Live](https://githut.app)** *(connects to your GitHub)*
+
+---
+
+## The Problem
+
+GitHub's UI is server-side rendered. Every click waits for a server roundtrip. For developers who live in the repo browser, issues, and PRs — that slowness adds up.
+
+## The Solution
+
+GitHut is a client-side GitHub UI:
+- **Instant navigation** — No page reloads, no waiting
+- **Full GitHub integration** — OAuth login, real data from GitHub API
+- **World-class UX** — Clean, stays out of your way, dark/light modes
+
+```
+GitHub:  Click → Wait 800ms → Render
+GitHut:  Click → Render (instant)
+```
+
+## Features
+
+| Feature | Status |
+|---------|--------|
+| Code browsing | ✅ |
+| Commit & branch browsing | ✅ |
+| Issues (CRUD + reactions) | ✅ |
+| Pull requests (CRUD + code review) | ✅ |
+| GitHub Actions | 🚧 In progress |
+| Syntax highlighting (Shiki) | ✅ |
+| Diff viewer | ✅ |
+| Virtual scrolling (large repos) | ✅ |
+
+## Quick Start
+
+### Use it
+
+Just connect your GitHub account at **[githut.app](https://githut.app)** — no installation needed.
+
+### Run locally
 
 ```bash
+git clone https://github.com/daedlock/githut.git
+cd githut
 bun install
+bun run dev
 ```
 
-To run:
+## Tech Stack
 
-```bash
-bun run index.ts
-```
+- **React 19** + **TanStack Router & Query**
+- **Tailwind CSS 4** + **shadcn/ui**
+- **Shiki** for syntax highlighting
+- **Cloudflare Workers** for edge deployment
+- **Octokit** for GitHub API
 
-This project was created using `bun init` in bun v1.3.10. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+## Contributing
+
+GitHut is open source and contributor-friendly.
+
+1. Check [Good First Issues](https://github.com/daedlock/githut/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+2. Read the [Contributing Guide](CONTRIBUTING.md)
+3. Join the discussion in [GitHub Discussions](https://github.com/daedlock/githut/discussions)
+
+## Roadmap
+
+See [plan.md](plan.md) for the full roadmap and current progress.
+
+## License
+
+[MIT](LICENSE)
+
+---
+
+<p align="center">
+  <b>Star ⭐ the repo if you find it useful</b>
+</p>
