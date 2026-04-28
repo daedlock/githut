@@ -17,12 +17,7 @@ export type ContentEntry = z.infer<typeof ContentEntrySchema>;
 
 const DirContentsSchema = z.array(ContentEntrySchema);
 
-export const repoContentsQueryOptions = (
-  owner: string,
-  repo: string,
-  path = "",
-  ref?: string,
-) =>
+export const repoContentsQueryOptions = (owner: string, repo: string, path = "", ref?: string) =>
   queryOptions({
     queryKey: ["repo-contents", owner, repo, path, ref ?? "default"] as const,
     staleTime: 60_000,
@@ -39,10 +34,16 @@ export const repoContentsQueryOptions = (
     },
   });
 
-export function useRepoContents(owner: string, repo: string, path = "", ref?: string) {
+export function useRepoContents(
+  owner: string,
+  repo: string,
+  path = "",
+  ref?: string,
+  options?: { enabled?: boolean },
+) {
   const token = useAuthStore((s) => s.token);
   return useQuery({
     ...repoContentsQueryOptions(owner, repo, path, ref),
-    enabled: !!token && !!owner && !!repo,
+    enabled: !!token && !!owner && !!repo && (options?.enabled ?? true),
   });
 }

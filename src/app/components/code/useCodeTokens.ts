@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { bundledLanguages, type BundledLanguage, codeToTokens, isSpecialLang } from "shiki";
+import { type BundledLanguage, bundledLanguages, codeToTokens, isSpecialLang } from "shiki";
 import { appSyntaxTheme } from "./appTheme";
+import type { CodeLineWithHtml } from "./types";
 import { FS_BOLD, FS_ITALIC, FS_STRIKETHROUGH, FS_UNDERLINE } from "./types";
-import type { CodeLine, CodeLineWithHtml } from "./types";
 
 function djb2(s: string): number {
   let h = 5381;
@@ -51,6 +51,7 @@ export function codeTokensQueryOptions(code: string, lang: string) {
     queryKey: ["shiki-tokens", "githut-theme-v2", lang, djb2(code)],
     staleTime: Infinity,
     gcTime: 10 * 60_000,
+    placeholderData: plainTokenize(code),
     queryFn: async (): Promise<CodeLineWithHtml[]> => {
       const safeLang = resolveLang(lang);
       try {
@@ -64,9 +65,7 @@ export function codeTokensQueryOptions(code: string, lang: string) {
             color: token.color,
             fontStyle: token.fontStyle,
           }));
-          const html = lineTokens
-            .map((t) => tokenToHtml(t.content, t.color, t.fontStyle))
-            .join("");
+          const html = lineTokens.map((t) => tokenToHtml(t.content, t.color, t.fontStyle)).join("");
           return { tokens: toks, html };
         });
       } catch {

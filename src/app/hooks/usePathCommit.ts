@@ -36,12 +36,7 @@ export type PathCommit = {
   date: string;
 };
 
-export const pathCommitQueryOptions = (
-  owner: string,
-  repo: string,
-  path: string,
-  ref?: string,
-) =>
+export const pathCommitQueryOptions = (owner: string, repo: string, path: string, ref?: string) =>
   queryOptions({
     queryKey: ["path-commit", owner, repo, path, ref ?? "default"] as const,
     staleTime: 5 * 60_000,
@@ -58,25 +53,28 @@ export const pathCommitQueryOptions = (
       const c = commits[0];
       if (!c) return null;
       const date: string =
-        c.commit.committer?.date ??
-        c.commit.author?.date ??
-        new Date().toISOString();
+        c.commit.committer?.date ?? c.commit.author?.date ?? new Date().toISOString();
       return {
         sha: c.sha,
         shortSha: c.sha.slice(0, 7),
         message: c.commit.message.split("\n")[0] ?? "",
         authorName:
-          (c.author?.login ?? c.commit.author?.name ?? c.commit.committer?.name) ??
-          "unknown",
+          c.author?.login ?? c.commit.author?.name ?? c.commit.committer?.name ?? "unknown",
         date,
       };
     },
   });
 
-export function usePathCommit(owner: string, repo: string, path: string, ref?: string) {
+export function usePathCommit(
+  owner: string,
+  repo: string,
+  path: string,
+  ref?: string,
+  options?: { enabled?: boolean },
+) {
   const token = useAuthStore((s) => s.token);
   return useQuery({
     ...pathCommitQueryOptions(owner, repo, path, ref),
-    enabled: !!token && !!owner && !!repo,
+    enabled: !!token && !!owner && !!repo && (options?.enabled ?? true),
   });
 }

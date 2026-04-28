@@ -48,10 +48,15 @@ export const repoReadmeQueryOptions = (owner: string, repo: string, ref?: string
     },
   });
 
-export function useRepoReadme(owner: string, repo: string, ref?: string) {
+export function useRepoReadme(
+  owner: string,
+  repo: string,
+  ref?: string,
+  options?: { enabled?: boolean },
+) {
   const token = useAuthStore((s) => s.token);
   return useQuery({
     ...repoReadmeQueryOptions(owner, repo, ref),
-    enabled: !!token && !!owner && !!repo,
+    enabled: !!token && !!owner && !!repo && (options?.enabled ?? true),
   });
 }

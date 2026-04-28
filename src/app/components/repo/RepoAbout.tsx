@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ExternalLink,
@@ -10,16 +9,17 @@ import {
   Tag,
   Users,
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { LanguageBar } from "@/app/components/repo/LanguageBar";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Badge } from "@/app/components/ui/badge";
 import { Card } from "@/app/components/ui/card";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { LanguageBar } from "@/app/components/repo/LanguageBar";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
+import type { Repo } from "@/app/hooks/useRepo";
 import type { Contributor } from "@/app/hooks/useRepoContributors";
 import type { LanguageShare } from "@/app/hooks/useRepoLanguages";
 import type { Release } from "@/app/hooks/useRepoReleases";
-import type { Repo } from "@/app/hooks/useRepo";
 import { cn } from "@/app/lib/cn";
 
 const SECTION_SPRING = { type: "spring" as const, stiffness: 540, damping: 30, mass: 0.5 };
@@ -45,11 +45,7 @@ export function RepoAbout({
     <aside className="flex flex-col gap-3">
       <AboutCard repo={repo} />
       <ReleasesCard releases={releases} pending={releasesPending} repo={repo} />
-      <ContributorsCard
-        contributors={contributors}
-        pending={contributorsPending}
-        repo={repo}
-      />
+      <ContributorsCard contributors={contributors} pending={contributorsPending} repo={repo} />
       <LanguagesCard languages={languages} pending={languagesPending} />
     </aside>
   );
@@ -223,6 +219,8 @@ function ReleasesCard({
 
 const PER_ROW = 11; // overlapping avatars per line — tuned for w-64 sidebar with size-md avatars
 const DEFAULT_ROWS = 2;
+const CONTRIBUTOR_SKELETON_KEYS = Array.from({ length: 11 }, (_, index) => `contributor-${index}`);
+const LANGUAGE_SKELETON_KEYS = ["language-1", "language-2", "language-3"] as const;
 
 function ContributorsCard({
   contributors,
@@ -235,21 +233,16 @@ function ContributorsCard({
 }) {
   const [expanded, setExpanded] = useState(false);
 
-  // Skip the entry animation on first paint. Once the list has been visible
-  // once, subsequent mounts (e.g. user expands) DO animate in. We flip the
-  // ref one tick after the first render with data so React's commit cycle
-  // doesn't double-fire the animation.
-  const hasShownRef = useRef(false);
+  const [animateChanges, setAnimateChanges] = useState(false);
+
+  // First data paint must be static: no avatar pop-in and no layout tween from
+  // skeleton height to loaded content. Enable motion only after the contributors
+  // list has been committed once, so expand/collapse still feels responsive.
   useEffect(() => {
-    if (contributors && !hasShownRef.current) {
-      // microtask delay so the first paint completes without animating
-      const id = setTimeout(() => {
-        hasShownRef.current = true;
-      }, 0);
-      return () => clearTimeout(id);
-    }
-  }, [contributors]);
-  const animateEntry = hasShownRef.current;
+    if (!contributors || animateChanges) return;
+    const id = requestAnimationFrame(() => setAnimateChanges(true));
+    return () => cancelAnimationFrame(id);
+  }, [contributors, animateChanges]);
 
   if (!pending && (!contributors || contributors.length === 0)) return null;
 
@@ -259,11 +252,7 @@ function ContributorsCard({
 
   // When collapsed: show first (PER_ROW * DEFAULT_ROWS) - 1 contributors and
   // reserve the trailing slot for the "+N" pill so row 2 still feels "full".
-  const visible = expanded
-    ? list
-    : hasOverflow
-      ? list.slice(0, collapsedLimit - 1)
-      : list;
+  const visible = expanded ? list : hasOverflow ? list.slice(0, collapsedLimit - 1) : list;
   const remaining = list.length - (collapsedLimit - 1);
 
   // Chunk into rows so each row gets its own -space-x overlap. Wrapping a
@@ -289,26 +278,30 @@ function ContributorsCard({
       <div className="mt-2">
         {pending && !contributors ? (
           <div className="flex -space-x-1">
-            {Array.from({ length: 11 }).map((_, i) => (
-              <Skeleton key={i} className="size-6 rounded-full ring-2 ring-(--color-bg-subtle)" />
+            {CONTRIBUTOR_SKELETON_KEYS.map((key) => (
+              <Skeleton key={key} className="size-6 rounded-full ring-2 ring-(--color-bg-subtle)" />
             ))}
           </div>
         ) : (
-          <motion.div layout transition={SECTION_SPRING} className="flex flex-col gap-3">
+          <motion.div
+            layout={animateChanges}
+            transition={animateChanges ? SECTION_SPRING : { duration: 0 }}
+            className="flex flex-col gap-3"
+          >
             {rows.map((row, rowIdx) => {
               const isLastVisibleRow = rowIdx === rows.length - 1;
               const showMorePill = !expanded && hasOverflow && isLastVisibleRow;
               return (
-                <div key={rowIdx} className="flex -space-x-1">
+                <div key={row.map(contributorKey).join("/")} className="flex -space-x-1">
                   <AnimatePresence initial={false}>
                     {row.map((c, i) => (
                       <motion.span
-                        key={c.login ?? `anon-${rowIdx}-${i}`}
-                        layout
-                        initial={animateEntry ? { opacity: 0, scale: 0.5 } : false}
+                        key={contributorKey(c)}
+                        layout={animateChanges}
+                        initial={false}
                         animate={{ opacity: 1, scale: 1 }}
-                        exit={animateEntry ? { opacity: 0, scale: 0.5 } : undefined}
-                        transition={SECTION_SPRING}
+                        exit={animateChanges ? { opacity: 0, scale: 0.5 } : undefined}
+                        transition={animateChanges ? SECTION_SPRING : { duration: 0 }}
                         className="relative"
                         style={{ zIndex: PER_ROW - i }}
                       >
@@ -341,13 +334,13 @@ function ContributorsCard({
                     {showMorePill && (
                       <motion.button
                         key="more"
-                        layout
+                        layout={animateChanges}
                         type="button"
                         onClick={() => setExpanded(true)}
-                        initial={animateEntry ? { opacity: 0, scale: 0.5 } : false}
+                        initial={false}
                         animate={{ opacity: 1, scale: 1 }}
-                        exit={animateEntry ? { opacity: 0, scale: 0.5 } : undefined}
-                        transition={SECTION_SPRING}
+                        exit={animateChanges ? { opacity: 0, scale: 0.5 } : undefined}
+                        transition={animateChanges ? SECTION_SPRING : { duration: 0 }}
                         className={cn(
                           "relative flex size-6 items-center justify-center rounded-full",
                           "bg-(--color-bg-sunken) text-foreground/85",
@@ -388,6 +381,10 @@ function ContributorsCard({
 
 // ─── Languages ────────────────────────────────────────────────────────────
 
+function contributorKey(contributor: Contributor) {
+  return contributor.login ?? contributor.avatar_url ?? `anonymous-${contributor.contributions}`;
+}
+
 function LanguagesCard({
   languages,
   pending,
@@ -404,8 +401,8 @@ function LanguagesCard({
           <div className="flex flex-col gap-2">
             <Skeleton className="h-2 w-full rounded-full" />
             <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-3 w-20" />
+              {LANGUAGE_SKELETON_KEYS.map((key) => (
+                <Skeleton key={key} className="h-3 w-20" />
               ))}
             </div>
           </div>
@@ -434,9 +431,7 @@ function SectionHeader({
     <>
       <span className="text-muted-foreground">{icon}</span>
       <span className="flex-1 text-caption font-medium text-muted-foreground">{title}</span>
-      {meta && (
-        <span className="text-caption tabular-nums text-muted-foreground">{meta}</span>
-      )}
+      {meta && <span className="text-caption tabular-nums text-muted-foreground">{meta}</span>}
     </>
   );
   if (href) {

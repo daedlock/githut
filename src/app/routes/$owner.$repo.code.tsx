@@ -73,32 +73,31 @@ function CodePage() {
   const branchesQuery = useRepoBranches(owner, repo);
   const defaultBranch = repoData?.default_branch;
   const branch = searchBranch ?? defaultBranch;
+  const dataRef = searchBranch || undefined;
+  const branchReady = !!searchBranch || !!defaultBranch;
   const isBlob = view === "blob";
 
   const { data: contents, isPending: contentsPending } = useRepoContents(
     owner,
     repo,
-    isBlob ? "" : path,
-    branch,
+    path,
+    dataRef,
+    { enabled: branchReady && !isBlob },
   );
-  const { data: commit, isPending: commitPending } = usePathCommit(
-    owner,
-    repo,
-    isBlob ? "" : path,
-    branch,
-  );
-  const { data: readme } = useRepoReadme(owner, repo, branch);
+  const { data: commit, isPending: commitPending } = usePathCommit(owner, repo, path, dataRef, {
+    enabled: branchReady && !isBlob,
+  });
+  const { data: readme } = useRepoReadme(owner, repo, dataRef, {
+    enabled: branchReady && !isBlob && !path,
+  });
   const { data: languages, isPending: languagesPending } = useRepoLanguages(owner, repo);
   const { data: releases, isPending: releasesPending } = useRepoReleases(owner, repo);
   const { data: contributors, isPending: contributorsPending } = useRepoContributors(owner, repo);
 
   // blob view
-  const { data: fileData, isPending: filePending } = useRepoFile(
-    owner,
-    repo,
-    isBlob ? path : "",
-    branch,
-  );
+  const { data: fileData, isPending: filePending } = useRepoFile(owner, repo, path, dataRef, {
+    enabled: branchReady && isBlob && !!path,
+  });
 
   function navigateToEntry(entry: ContentEntry) {
     if (entry.type === "dir") {
@@ -172,7 +171,7 @@ function CodePage() {
                 file={fileData}
                 owner={owner}
                 repo={repo}
-                ref={branch}
+                ref={dataRef}
                 mode={mode}
                 onModeChange={(nextMode: BlobMode) => {
                   navigate({
@@ -189,7 +188,7 @@ function CodePage() {
               <FileList
                 owner={owner}
                 repo={repo}
-                refName={branch}
+                refName={dataRef}
                 entries={contents}
                 isPending={contentsPending}
                 path={path}

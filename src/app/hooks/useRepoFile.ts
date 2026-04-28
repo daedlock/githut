@@ -32,12 +32,18 @@ function decodeBase64(b64: string): string {
 // Branch names like "main" or omitted refs can change, so they get a shorter stale window.
 const SHA_REF = /^[a-f0-9]{40}$/i;
 
-export function useRepoFile(owner: string, repo: string, path: string, ref?: string) {
+export function useRepoFile(
+  owner: string,
+  repo: string,
+  path: string,
+  ref?: string,
+  options?: { enabled?: boolean },
+) {
   const token = useAuthStore((s) => s.token);
   const isImmutable = !!ref && SHA_REF.test(ref);
   return useQuery({
     queryKey: ["repo-file", owner, repo, path, ref ?? "default"],
-    enabled: !!token && !!owner && !!repo && !!path,
+    enabled: !!token && !!owner && !!repo && !!path && (options?.enabled ?? true),
     staleTime: isImmutable ? Infinity : 5 * 60_000,
     gcTime: isImmutable ? 10 * 60_000 : undefined,
     queryFn: async (): Promise<RepoFile> => {
