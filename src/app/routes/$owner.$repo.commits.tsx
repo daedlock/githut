@@ -1,26 +1,39 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertCircle, GitBranch } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { useMemo } from "react";
+import { z } from "zod";
+import { BranchSelector } from "@/app/components/repo/BranchSelector";
 import { buildCommitGraph, CommitGraphRail } from "@/app/components/repo/CommitGraph";
 import { CommitRow } from "@/app/components/repo/CommitRow";
 import { Button } from "@/app/components/ui/button";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { repoQueryOptions, useRepo } from "@/app/hooks/useRepo";
+import { repoBranchesQueryOptions, useRepoBranches } from "@/app/hooks/useRepoBranches";
 import { useInfiniteRepoCommits } from "@/app/hooks/useRepoCommits";
 import { formatFullDate, groupByDay } from "@/app/lib/time";
 
+const commitsSearchSchema = z.object({
+  branch: z.string().optional(),
+});
+
 export const Route = createFileRoute("/$owner/$repo/commits")({
+  validateSearch: commitsSearchSchema,
   loader: ({ context, params }) => {
     void context.queryClient.prefetchQuery(repoQueryOptions(params.owner, params.repo));
+    void context.queryClient.prefetchQuery(repoBranchesQueryOptions(params.owner, params.repo));
   },
   component: CommitsPage,
 });
 
 function CommitsPage() {
   const { owner, repo } = Route.useParams();
+  const { branch: searchBranch } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const { data: repoData } = useRepo(owner, repo);
-  const branch = repoData?.default_branch;
+  const branchesQuery = useRepoBranches(owner, repo);
+  const defaultBranch = repoData?.default_branch;
+  const branch = searchBranch ?? defaultBranch;
   const commitsQuery = useInfiniteRepoCommits(owner, repo, branch);
   const commits = useMemo(() => commitsQuery.data?.pages.flat() ?? [], [commitsQuery.data]);
   const graph = useMemo(() => buildCommitGraph(commits), [commits]);
@@ -39,12 +52,20 @@ function CommitsPage() {
             </span>
           )}
         </div>
-        {branch && (
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-background px-2 py-0.5 font-mono text-caption text-muted-foreground">
-            <GitBranch className="size-3" />
-            {branch}
-          </span>
-        )}
+        <BranchSelector
+          branches={branchesQuery.data}
+          value={branch}
+          defaultBranch={defaultBranch}
+          isLoading={branchesQuery.isPending}
+          onChange={(nextBranch) => {
+            navigate({
+              search: (prev) => ({
+                ...prev,
+                branch: nextBranch === defaultBranch ? undefined : nextBranch,
+              }),
+            });
+          }}
+        />
       </div>
 
       {/* Commit list — flat rows, hover surface shift */}

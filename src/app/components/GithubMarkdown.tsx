@@ -1,14 +1,18 @@
 import { Link } from "@tanstack/react-router";
-import { defaultSchema } from "rehype-sanitize";
+import { Fragment } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
+import type { PluggableList } from "unified";
 
-import { toInternalHref } from "@/app/lib/githubUrl";
-import { remarkMentions, type RepoContext } from "@/app/lib/remarkMentions";
+import { useCodeTokens } from "@/app/components/code";
+import { FS_BOLD, FS_ITALIC, FS_STRIKETHROUGH, FS_UNDERLINE } from "@/app/components/code/types";
 import { detectEntity, EntityHoverLink } from "@/app/components/ui/EntityHoverCard";
 import { LightboxImage } from "@/app/components/ui/ImageLightbox";
+import { Skeleton } from "@/app/components/ui/skeleton";
+import { toInternalHref } from "@/app/lib/githubUrl";
+import { type RepoContext, remarkMentions } from "@/app/lib/remarkMentions";
 import { useAuthStore } from "@/app/stores/auth";
 
 // Extended sanitize schema — GitHub-compatible HTML subset.
@@ -35,6 +39,7 @@ const sanitizeSchema = {
     ...defaultSchema.attributes,
     td: [...(defaultSchema.attributes?.td ?? []), "align"],
     th: [...(defaultSchema.attributes?.th ?? []), "align"],
+    code: [...(defaultSchema.attributes?.code ?? []), "className"],
     img: [...(defaultSchema.attributes?.img ?? []), "width", "height", "align"],
     div: [...(defaultSchema.attributes?.div ?? []), "align"],
     p: [...(defaultSchema.attributes?.p ?? []), "align"],
@@ -42,8 +47,7 @@ const sanitizeSchema = {
   },
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const REHYPE_PLUGINS: any[] = [rehypeRaw, [rehypeSanitize, sanitizeSchema]];
+const REHYPE_PLUGINS: PluggableList = [rehypeRaw, [rehypeSanitize, sanitizeSchema]];
 
 /**
  * Repo context for resolving relative asset URLs in markdown. When a README
@@ -84,11 +88,7 @@ export function rewriteAssetUrl(src: string, ctx: MarkdownAssetContext): string 
   }
   // Truly relative — resolve against basePath (the directory of the current
   // markdown file). Using URL constructor handles `..` and `.` segments.
-  const dir = ctx.basePath
-    ? ctx.basePath.endsWith("/")
-      ? ctx.basePath
-      : `${ctx.basePath}/`
-    : "";
+  const dir = ctx.basePath ? (ctx.basePath.endsWith("/") ? ctx.basePath : `${ctx.basePath}/`) : "";
   try {
     return new URL(src, rawBase + dir).toString();
   } catch {
@@ -136,15 +136,105 @@ function buildComponents(assetContext?: MarkdownAssetContext): Components {
       );
     },
     img: ({ src, alt, ...rest }) => {
-      let resolved = assetContext && typeof src === "string" ? rewriteAssetUrl(src, assetContext) : src;
+      let resolved =
+        assetContext && typeof src === "string" ? rewriteAssetUrl(src, assetContext) : src;
       if (typeof resolved === "string") resolved = proxyGitHubImage(resolved);
-      // biome-ignore lint/a11y/useAltText: alt is preserved from the source markdown
       return <LightboxImage src={resolved as string | undefined} alt={alt} {...rest} />;
+    },
+    pre: ({ children }) => <Fragment>{children}</Fragment>,
+    code: ({ className, children, ...rest }) => {
+      const raw = String(children ?? "");
+      const match = /language-([^\s]+)/.exec(className ?? "");
+      const lang = match?.[1] ?? "text";
+      const isBlock = !!match || raw.includes("\n");
+
+      if (isBlock) {
+        return <MarkdownCodeBlock code={raw.replace(/\n$/, "")} lang={lang} />;
+      }
+
+      return (
+        <code className={className} {...rest}>
+          {children}
+        </code>
+      );
     },
   };
 }
 
 const MARKDOWN_COMPONENTS_NO_CONTEXT = buildComponents();
+
+const CODE_SKELETON_WIDTHS = ["68%", "82%", "54%", "76%", "61%", "88%", "47%", "72%"] as const;
+
+function MarkdownCodeBlock({ code, lang }: { code: string; lang: string }) {
+  const { data: tokenLines, isPending } = useCodeTokens(code, lang);
+  const lines = code.split("\n");
+
+  return (
+    <div className="my-4 overflow-hidden rounded-md bg-[var(--color-bg-sunken)]">
+      {isPending || !tokenLines ? (
+        <div className="skeleton-fade flex flex-col gap-1.5 p-3">
+          {CODE_SKELETON_WIDTHS.slice(0, Math.min(lines.length, CODE_SKELETON_WIDTHS.length)).map(
+            (width) => (
+              <Skeleton key={width} className="h-3.5" style={{ width }} />
+            ),
+          )}
+        </div>
+      ) : (
+        <pre className="markdown-code-pre m-0 overflow-x-auto bg-transparent p-3 font-mono text-code leading-[20px]">
+          <code className="markdown-code-code bg-transparent p-0 text-code">
+            {renderTokenLines(tokenLines, lines)}
+          </code>
+        </pre>
+      )}
+    </div>
+  );
+}
+
+function renderTokenLines(
+  tokenLines: Array<{ tokens: Array<{ content: string; color?: string; fontStyle?: number }> }>,
+  lines: string[],
+) {
+  const out: React.ReactNode[] = [];
+  let offset = 0;
+
+  for (const line of tokenLines) {
+    const lineText = lines[out.length] ?? "";
+    out.push(
+      <Fragment key={`${offset}-${lineText}`}>
+        {renderTokens(line.tokens)}
+        {out.length < tokenLines.length - 1 ? "\n" : null}
+      </Fragment>,
+    );
+    offset += lineText.length + 1;
+  }
+
+  return out;
+}
+
+function renderTokens(tokens: Array<{ content: string; color?: string; fontStyle?: number }>) {
+  let offset = 0;
+  return tokens.map((token) => {
+    const key = `${offset}-${token.content}`;
+    offset += token.content.length;
+    return (
+      <span key={key} style={{ color: token.color, ...fontStyleToCSS(token.fontStyle) }}>
+        {token.content}
+      </span>
+    );
+  });
+}
+
+function fontStyleToCSS(fs: number | undefined): React.CSSProperties {
+  if (!fs || fs <= 0) return {};
+  return {
+    fontStyle: fs & FS_ITALIC ? "italic" : undefined,
+    fontWeight: fs & FS_BOLD ? "bold" : undefined,
+    textDecoration:
+      [fs & FS_UNDERLINE ? "underline" : "", fs & FS_STRIKETHROUGH ? "line-through" : ""]
+        .filter(Boolean)
+        .join(" ") || undefined,
+  };
+}
 
 export function GithubMarkdown({
   children,

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { type BlobMode, BlobViewer } from "@/app/components/repo/BlobViewer";
+import { BranchSelector } from "@/app/components/repo/BranchSelector";
 import { CloneDropdown } from "@/app/components/repo/CloneDropdown";
 import { Breadcrumb, FileList } from "@/app/components/repo/FileList";
 import { ReadmeViewer } from "@/app/components/repo/ReadmeViewer";
@@ -10,6 +11,7 @@ import { Container } from "@/app/components/ui/Container";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { usePathCommit } from "@/app/hooks/usePathCommit";
 import { repoQueryOptions, useRepo } from "@/app/hooks/useRepo";
+import { repoBranchesQueryOptions, useRepoBranches } from "@/app/hooks/useRepoBranches";
 import type { ContentEntry } from "@/app/hooks/useRepoContents";
 import { repoContentsQueryOptions, useRepoContents } from "@/app/hooks/useRepoContents";
 import { repoContributorsQueryOptions, useRepoContributors } from "@/app/hooks/useRepoContributors";
@@ -23,6 +25,7 @@ const codeSearchSchema = z.object({
   path: z.string().optional(),
   view: z.enum(["tree", "blob"]).optional(),
   mode: z.enum(["source", "history", "blame"]).optional(),
+  branch: z.string().optional(),
 });
 
 const BLOB_SKELETON_WIDTHS = [
@@ -50,6 +53,7 @@ export const Route = createFileRoute("/$owner/$repo/code")({
   loader: ({ context, params }) => {
     const qc = context.queryClient;
     void qc.prefetchQuery(repoQueryOptions(params.owner, params.repo));
+    void qc.prefetchQuery(repoBranchesQueryOptions(params.owner, params.repo));
     void qc.prefetchQuery(repoLanguagesQueryOptions(params.owner, params.repo));
     void qc.prefetchQuery(repoReadmeQueryOptions(params.owner, params.repo));
     void qc.prefetchQuery(repoContentsQueryOptions(params.owner, params.repo, ""));
@@ -62,17 +66,20 @@ export const Route = createFileRoute("/$owner/$repo/code")({
 
 function CodePage() {
   const { owner, repo } = Route.useParams();
-  const { path = "", view, mode = "source" } = Route.useSearch();
+  const { path = "", view, mode = "source", branch: searchBranch } = Route.useSearch();
   const navigate = Route.useNavigate();
 
   const { data: repoData } = useRepo(owner, repo);
-  const branch = repoData?.default_branch;
+  const branchesQuery = useRepoBranches(owner, repo);
+  const defaultBranch = repoData?.default_branch;
+  const branch = searchBranch ?? defaultBranch;
   const isBlob = view === "blob";
 
   const { data: contents, isPending: contentsPending } = useRepoContents(
     owner,
     repo,
     isBlob ? "" : path,
+    branch,
   );
   const { data: commit, isPending: commitPending } = usePathCommit(
     owner,
@@ -80,7 +87,7 @@ function CodePage() {
     isBlob ? "" : path,
     branch,
   );
-  const { data: readme } = useRepoReadme(owner, repo);
+  const { data: readme } = useRepoReadme(owner, repo, branch);
   const { data: languages, isPending: languagesPending } = useRepoLanguages(owner, repo);
   const { data: releases, isPending: releasesPending } = useRepoReleases(owner, repo);
   const { data: contributors, isPending: contributorsPending } = useRepoContributors(owner, repo);
@@ -129,20 +136,34 @@ function CodePage() {
 
   return (
     <Container className="py-6">
-      {/* top row — breadcrumb on the left, repo actions on the right.
-          Single baseline keeps the actions anchored instead of floating
-          above the file list with no visual support. */}
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <Breadcrumb repo={repo} path={path} branch={branch ?? ""} onNavigate={navigateToPath} />
-        <div className="flex flex-shrink-0 items-center gap-2">
-          <StarButton owner={owner} repo={repo} starCount={repoData?.stargazers_count} />
-          <CloneDropdown owner={owner} repo={repo} branch={branch} />
-        </div>
-      </div>
-
       <div className="flex gap-6 items-start">
         {/* main column */}
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <Breadcrumb repo={repo} path={path} branch={branch ?? ""} onNavigate={navigateToPath} />
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <BranchSelector
+                branches={branchesQuery.data}
+                value={branch}
+                defaultBranch={defaultBranch}
+                isLoading={branchesQuery.isPending}
+                onChange={(nextBranch) => {
+                  navigate({
+                    search: (prev) => ({
+                      ...prev,
+                      branch: nextBranch === defaultBranch ? undefined : nextBranch,
+                    }),
+                  });
+                }}
+              />
+              {!showSidebar && (
+                <>
+                  <StarButton owner={owner} repo={repo} starCount={repoData?.stargazers_count} />
+                  <CloneDropdown owner={owner} repo={repo} branch={branch} />
+                </>
+              )}
+            </div>
+          </div>
           {isBlob && path ? (
             filePending || !fileData ? (
               <BlobSkeleton />
@@ -187,7 +208,11 @@ function CodePage() {
             (24px) so the sidebar parks the same gap below the navbar
             that the buttons originally have above the file list. */}
         {showSidebar && (
-          <div className="w-64 flex-shrink-0 sticky top-[64px]">
+          <div className="w-64 flex-shrink-0 sticky top-[64px] flex flex-col gap-3">
+            <div className="flex items-center justify-end gap-2">
+              <StarButton owner={owner} repo={repo} starCount={repoData?.stargazers_count} />
+              <CloneDropdown owner={owner} repo={repo} branch={branch} />
+            </div>
             <RepoAbout
               repo={repoData}
               languages={languages}
