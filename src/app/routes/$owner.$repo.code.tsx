@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { BlobViewer } from "@/app/components/repo/BlobViewer";
+import { type BlobMode, BlobViewer } from "@/app/components/repo/BlobViewer";
 import { CloneDropdown } from "@/app/components/repo/CloneDropdown";
 import { Breadcrumb, FileList } from "@/app/components/repo/FileList";
 import { ReadmeViewer } from "@/app/components/repo/ReadmeViewer";
@@ -22,6 +22,7 @@ import { repoStarredQueryOptions } from "@/app/hooks/useRepoStarred";
 const codeSearchSchema = z.object({
   path: z.string().optional(),
   view: z.enum(["tree", "blob"]).optional(),
+  mode: z.enum(["source", "history", "blame"]).optional(),
 });
 
 const BLOB_SKELETON_WIDTHS = [
@@ -61,7 +62,7 @@ export const Route = createFileRoute("/$owner/$repo/code")({
 
 function CodePage() {
   const { owner, repo } = Route.useParams();
-  const { path = "", view } = Route.useSearch();
+  const { path = "", view, mode = "source" } = Route.useSearch();
   const navigate = Route.useNavigate();
 
   const { data: repoData } = useRepo(owner, repo);
@@ -99,6 +100,7 @@ function CodePage() {
           ...prev,
           path: entry.path || undefined,
           view: undefined,
+          mode: undefined,
         }),
       });
     } else {
@@ -118,6 +120,7 @@ function CodePage() {
         ...prev,
         path: newPath || undefined,
         view: undefined,
+        mode: undefined,
       }),
     });
   }
@@ -144,7 +147,21 @@ function CodePage() {
             filePending || !fileData ? (
               <BlobSkeleton />
             ) : (
-              <BlobViewer file={fileData} owner={owner} repo={repo} ref={branch} />
+              <BlobViewer
+                file={fileData}
+                owner={owner}
+                repo={repo}
+                ref={branch}
+                mode={mode}
+                onModeChange={(nextMode: BlobMode) => {
+                  navigate({
+                    search: (prev) => ({
+                      ...prev,
+                      mode: nextMode === "source" ? undefined : nextMode,
+                    }),
+                  });
+                }}
+              />
             )
           ) : (
             <>

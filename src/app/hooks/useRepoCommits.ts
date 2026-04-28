@@ -1,4 +1,9 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import {
+  infiniteQueryOptions,
+  queryOptions,
+  useInfiniteQuery,
+  useQuery,
+} from "@tanstack/react-query";
 import { z } from "zod";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
@@ -20,7 +25,7 @@ const GitAuthor = z.object({
   date: z.string(),
 });
 
-const CommitSummarySchema = z.object({
+export const CommitSummarySchema = z.object({
   sha: z.string(),
   html_url: z.string(),
   commit: z.object({
@@ -33,9 +38,11 @@ const CommitSummarySchema = z.object({
   parents: z.array(z.object({ sha: z.string(), html_url: z.string() })),
 });
 
-const CommitListSchema = z.array(CommitSummarySchema);
+export const CommitListSchema = z.array(CommitSummarySchema);
 
 export type CommitSummary = z.infer<typeof CommitSummarySchema>;
+
+const COMMITS_PER_PAGE = 100;
 
 export const repoCommitsQueryOptions = (owner: string, repo: string, branch: string) =>
   queryOptions({
@@ -47,7 +54,7 @@ export const repoCommitsQueryOptions = (owner: string, repo: string, branch: str
         owner,
         repo,
         sha: branch,
-        per_page: 100,
+        per_page: COMMITS_PER_PAGE,
       });
       return CommitListSchema.parse(res.data);
     },
@@ -57,6 +64,34 @@ export function useRepoCommits(owner: string, repo: string, branch: string | und
   const token = useAuthStore((s) => s.token);
   return useQuery({
     ...repoCommitsQueryOptions(owner, repo, branch ?? ""),
+    enabled: !!token && !!owner && !!repo && !!branch,
+  });
+}
+
+export const repoCommitsInfiniteQueryOptions = (owner: string, repo: string, branch: string) =>
+  infiniteQueryOptions({
+    queryKey: ["repo-commits-infinite", owner, repo, branch] as const,
+    staleTime: 2 * 60_000,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage: CommitSummary[], _allPages, lastPageParam) =>
+      lastPage.length < COMMITS_PER_PAGE ? undefined : (lastPageParam as number) + 1,
+    queryFn: async ({ pageParam }): Promise<CommitSummary[]> => {
+      const client = getGitHubClient();
+      const res = await client.request("GET /repos/{owner}/{repo}/commits", {
+        owner,
+        repo,
+        sha: branch,
+        per_page: COMMITS_PER_PAGE,
+        page: pageParam as number,
+      });
+      return CommitListSchema.parse(res.data);
+    },
+  });
+
+export function useInfiniteRepoCommits(owner: string, repo: string, branch: string | undefined) {
+  const token = useAuthStore((s) => s.token);
+  return useInfiniteQuery({
+    ...repoCommitsInfiniteQueryOptions(owner, repo, branch ?? ""),
     enabled: !!token && !!owner && !!repo && !!branch,
   });
 }

@@ -1,19 +1,19 @@
 import { Link } from "@tanstack/react-router";
 import { GitCommit } from "lucide-react";
 import { useState } from "react";
-import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { ShaChip } from "@/app/components/ui/ShaChip";
+import { ProfileLink } from "@/app/components/user/ProfileLink";
 import type { CommitSummary } from "@/app/hooks/useRepoCommits";
-import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 
 export type CommitRowProps = {
   commit: CommitSummary;
   owner: string;
   repo: string;
+  graphSlot?: React.ReactNode;
 };
 
-export function CommitRow({ commit, owner, repo }: CommitRowProps) {
+export function CommitRow({ commit, owner, repo, graphSlot }: CommitRowProps) {
   const [bodyOpen, setBodyOpen] = useState(false);
   const { title, body } = splitMessage(commit.commit.message);
 
@@ -23,6 +23,7 @@ export function CommitRow({ commit, owner, repo }: CommitRowProps) {
 
   return (
     <div className="group flex items-start gap-3 px-3 py-2.5 transition-colors hover:bg-muted rounded-lg">
+      {graphSlot}
       {/* Left: title + meta */}
       <div className="min-w-0 flex-1">
         <Link
@@ -35,7 +36,11 @@ export function CommitRow({ commit, owner, repo }: CommitRowProps) {
             {body && !bodyOpen && (
               <button
                 type="button"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setBodyOpen(true); }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setBodyOpen(true);
+                }}
                 className="ml-1.5 inline-flex rounded-md bg-muted px-1.5 py-px text-micro text-muted-foreground transition-colors hover:text-foreground"
                 aria-expanded={false}
               >

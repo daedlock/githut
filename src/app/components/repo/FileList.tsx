@@ -109,12 +109,14 @@ export function FileList({
   const showParent = !!path;
 
   return (
-    <div className="rounded-md border border-border overflow-hidden">
+    <div className="overflow-hidden rounded-md border border-border">
       {/* commit strip */}
-      <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-border">
+      <div className="flex items-center gap-2 border-b border-border bg-muted px-4 py-2">
         <GitCommitHorizontal className="size-3.5 text-[var(--color-fg-faint)] flex-shrink-0" />
         {commitPending || commit === undefined ? (
-          <Skeleton className="h-3.5 w-64" />
+          <span className="flex h-[1lh] items-center text-ui">
+            <Skeleton className="h-3.5 w-64" />
+          </span>
         ) : commit ? (
           <>
             <Link
@@ -135,7 +137,7 @@ export function FileList({
         )}
       </div>
 
-      <table className="w-full table-fixed text-body border-collapse">
+      <table className="w-full table-fixed border-collapse text-body">
         <tbody className={isPending ? "skeleton-fade" : undefined}>
           {isPending ? (
             FILE_LIST_SKELETON_KEYS.map((key) => <SkeletonRow key={key} />)
@@ -177,10 +179,10 @@ export function FileList({
 function ParentRow({ onNavigate }: { onNavigate: () => void }) {
   return (
     <tr
-      className="group border-b border-border hover:bg-muted transition-colors duration-75 cursor-pointer"
+      className="group cursor-pointer border-b border-border transition-colors duration-75 hover:bg-muted"
       onClick={onNavigate}
     >
-      <td className="pl-4 pr-4 py-2 min-w-0">
+      <td className="min-w-0 py-2 pl-4 pr-4">
         <div className="flex items-center gap-2 min-w-0">
           <Folder className="size-4 text-[var(--color-fg-faint)] flex-shrink-0" />
           <span className="font-mono text-code text-muted-foreground group-hover:text-foreground transition-colors duration-75 truncate">
@@ -188,8 +190,8 @@ function ParentRow({ onNavigate }: { onNavigate: () => void }) {
           </span>
         </div>
       </td>
-      <td className="hidden md:table-cell px-4 py-2 md:w-[52%]" />
-      <td className="pr-4 py-2 w-[8.5rem]" />
+      <td className="hidden px-4 py-2 md:table-cell md:w-[52%]" />
+      <td className="w-[8.5rem] py-2 pr-4" />
     </tr>
   );
 }
@@ -218,13 +220,12 @@ function FileRow({
   return (
     <tr
       className={cn(
-        "group border-b border-border last:border-0",
-        "hover:bg-muted transition-colors duration-75",
+        "group border-b border-border transition-colors duration-75 last:border-0 hover:bg-muted",
         onNavigate && "cursor-pointer",
       )}
       onClick={() => onNavigate?.(entry)}
     >
-      <td className="pl-4 pr-4 py-2 min-w-0">
+      <td className="min-w-0 py-2 pl-4 pr-4">
         <div className="flex items-center gap-2 min-w-0">
           {isDir ? (
             <Folder className="size-4 text-primary flex-shrink-0" />
@@ -242,9 +243,11 @@ function FileRow({
           </span>
         </div>
       </td>
-      <td className="hidden md:table-cell px-4 py-2 md:w-[52%]">
+      <td className="hidden px-4 py-2 md:table-cell md:w-[52%]">
         {entryCommitPending ? (
-          <Skeleton className="h-3.5 w-48" />
+          <span className="flex h-[1lh] items-center text-body">
+            <Skeleton className="h-3.5 w-80 max-w-full" />
+          </span>
         ) : entryCommit?.message ? (
           <Link
             to="/$owner/$repo/commit/$sha"
@@ -264,9 +267,11 @@ function FileRow({
           <span className="block truncate text-body text-[var(--color-fg-faint)]">—</span>
         )}
       </td>
-      <td className="pr-4 py-2 w-[8.5rem] text-right">
+      <td className="w-[8.5rem] py-2 pr-4 text-right">
         {entryCommitPending ? (
-          <Skeleton className="ml-auto h-3.5 w-16" />
+          <span className="ml-auto flex h-[1lh] items-center justify-end text-caption">
+            <Skeleton className="h-3.5 w-16" />
+          </span>
         ) : (
           <span className="font-mono text-caption text-muted-foreground whitespace-nowrap">
             {entryCommit ? relativeTime(entryCommit.date) : ""}
@@ -280,17 +285,23 @@ function FileRow({
 function SkeletonRow() {
   return (
     <tr className="border-b border-border last:border-0">
-      <td className="pl-4 pr-4 py-2">
+      <td className="py-2 pl-4 pr-4">
         <div className="flex items-center gap-2">
           <Skeleton className="size-4" />
-          <Skeleton className="h-3.5 w-32" />
+          <span className="flex h-[1lh] items-center text-code">
+            <Skeleton className="h-3.5 w-32" />
+          </span>
         </div>
       </td>
-      <td className="hidden md:table-cell px-4 py-2 md:w-[52%]">
-        <Skeleton className="h-3.5 w-48" />
+      <td className="hidden px-4 py-2 md:table-cell md:w-[52%]">
+        <span className="flex h-[1lh] items-center text-body">
+          <Skeleton className="h-3.5 w-80 max-w-full" />
+        </span>
       </td>
-      <td className="pr-4 py-2 w-[8.5rem]">
-        <Skeleton className="ml-auto h-3.5 w-16" />
+      <td className="w-[8.5rem] py-2 pr-4">
+        <span className="ml-auto flex h-[1lh] items-center justify-end text-caption">
+          <Skeleton className="h-3.5 w-16" />
+        </span>
       </td>
     </tr>
   );

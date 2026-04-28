@@ -1,18 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertCircle, GitBranch } from "lucide-react";
 import { useMemo } from "react";
+import { buildCommitGraph, CommitGraphRail } from "@/app/components/repo/CommitGraph";
 import { CommitRow } from "@/app/components/repo/CommitRow";
+import { Button } from "@/app/components/ui/button";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { repoQueryOptions, useRepo } from "@/app/hooks/useRepo";
-import { useRepoCommits } from "@/app/hooks/useRepoCommits";
+import { useInfiniteRepoCommits } from "@/app/hooks/useRepoCommits";
 import { formatFullDate, groupByDay } from "@/app/lib/time";
 
 export const Route = createFileRoute("/$owner/$repo/commits")({
   loader: ({ context, params }) => {
-    void context.queryClient.prefetchQuery(
-      repoQueryOptions(params.owner, params.repo),
-    );
+    void context.queryClient.prefetchQuery(repoQueryOptions(params.owner, params.repo));
   },
   component: CommitsPage,
 });
@@ -21,12 +21,11 @@ function CommitsPage() {
   const { owner, repo } = Route.useParams();
   const { data: repoData } = useRepo(owner, repo);
   const branch = repoData?.default_branch;
-  const { data: commits, isPending, isError } = useRepoCommits(owner, repo, branch);
+  const commitsQuery = useInfiniteRepoCommits(owner, repo, branch);
+  const commits = useMemo(() => commitsQuery.data?.pages.flat() ?? [], [commitsQuery.data]);
+  const graph = useMemo(() => buildCommitGraph(commits), [commits]);
 
-  const grouped = useMemo(
-    () => groupByDay(commits ?? [], (c) => c.commit.author.date),
-    [commits],
-  );
+  const grouped = useMemo(() => groupByDay(commits, (c) => c.commit.author.date), [commits]);
 
   return (
     <Container size="lg" className="py-6">
@@ -50,9 +49,9 @@ function CommitsPage() {
 
       {/* Commit list — flat rows, hover surface shift */}
       <div className="flex flex-col gap-1">
-        {isPending ? (
+        {commitsQuery.isPending ? (
           <CommitListSkeleton />
-        ) : isError ? (
+        ) : commitsQuery.isError ? (
           <div className="px-5 py-10 text-center">
             <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
             <p className="text-body text-muted-foreground">Could not load commits.</p>
@@ -66,12 +65,31 @@ function CommitsPage() {
             <div key={group.key}>
               <DayHeader iso={group.iso} count={group.items.length} />
               {group.items.map((commit) => (
-                <CommitRow key={commit.sha} commit={commit} owner={owner} repo={repo} />
+                <CommitRow
+                  key={commit.sha}
+                  commit={commit}
+                  owner={owner}
+                  repo={repo}
+                  graphSlot={<CommitGraphRail node={graph.get(commit.sha)} />}
+                />
               ))}
             </div>
           ))
         )}
       </div>
+
+      {commitsQuery.hasNextPage && (
+        <div className="mt-4 flex justify-center">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => commitsQuery.fetchNextPage()}
+            disabled={commitsQuery.isFetchingNextPage}
+          >
+            {commitsQuery.isFetchingNextPage ? "Loading…" : "Load older commits"}
+          </Button>
+        </div>
+      )}
     </Container>
   );
 }
@@ -79,23 +97,21 @@ function CommitsPage() {
 function DayHeader({ iso, count }: { iso: string; count: number }) {
   return (
     <div className="flex items-baseline gap-2 px-3 pt-4 pb-1">
-      <span className="text-caption font-medium text-muted-foreground">
-        {formatFullDate(iso)}
-      </span>
-      <span className="tabular-nums text-micro text-[var(--color-fg-faint)]">
-        {count}
-      </span>
+      <span className="text-caption font-medium text-muted-foreground">{formatFullDate(iso)}</span>
+      <span className="tabular-nums text-micro text-[var(--color-fg-faint)]">{count}</span>
     </div>
   );
 }
 
+const COMMIT_SKELETON_WIDTHS = ["45%", "56%", "67%", "78%", "49%", "60%", "71%", "82%"] as const;
+
 function CommitListSkeleton() {
   return (
     <div className="skeleton-fade flex flex-col gap-1 pt-4">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div key={i} className="flex items-start gap-3 px-3 py-2.5">
+      {COMMIT_SKELETON_WIDTHS.map((width) => (
+        <div key={width} className="flex items-start gap-3 px-3 py-2.5">
           <div className="min-w-0 flex-1 flex flex-col gap-1.5">
-            <Skeleton className="h-3.5" style={{ width: `${45 + (i * 11) % 40}%` }} />
+            <Skeleton className="h-3.5" style={{ width }} />
             <Skeleton className="h-3 w-40" />
           </div>
           <Skeleton className="h-5 w-16" />
