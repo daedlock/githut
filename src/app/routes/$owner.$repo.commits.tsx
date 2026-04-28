@@ -3,7 +3,6 @@ import { AlertCircle } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 import { BranchSelector } from "@/app/components/repo/BranchSelector";
-import { buildCommitGraph, CommitGraphRail } from "@/app/components/repo/CommitGraph";
 import { CommitRow } from "@/app/components/repo/CommitRow";
 import { Button } from "@/app/components/ui/button";
 import { Container } from "@/app/components/ui/Container";
@@ -36,7 +35,6 @@ function CommitsPage() {
   const branch = searchBranch ?? defaultBranch;
   const commitsQuery = useInfiniteRepoCommits(owner, repo, branch);
   const commits = useMemo(() => commitsQuery.data?.pages.flat() ?? [], [commitsQuery.data]);
-  const graph = useMemo(() => buildCommitGraph(commits), [commits]);
 
   const grouped = useMemo(() => groupByDay(commits, (c) => c.commit.author.date), [commits]);
 
@@ -86,13 +84,7 @@ function CommitsPage() {
             <div key={group.key}>
               <DayHeader iso={group.iso} count={group.items.length} />
               {group.items.map((commit) => (
-                <CommitRow
-                  key={commit.sha}
-                  commit={commit}
-                  owner={owner}
-                  repo={repo}
-                  graphSlot={<CommitGraphRail node={graph.get(commit.sha)} />}
-                />
+                <CommitRow key={commit.sha} commit={commit} owner={owner} repo={repo} />
               ))}
             </div>
           ))

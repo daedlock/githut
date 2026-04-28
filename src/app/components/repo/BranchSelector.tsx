@@ -13,6 +13,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/pop
 import type { RepoBranch } from "@/app/hooks/useRepoBranches";
 import { cn } from "@/app/lib/cn";
 
+function uniqueBranchNames(names: Array<string | undefined>) {
+  return Array.from(new Set(names.filter((name): name is string => !!name)));
+}
+
 export function BranchSelector({
   branches,
   value,
@@ -30,9 +34,8 @@ export function BranchSelector({
   const selected = value ?? defaultBranch;
   const items = useMemo(() => {
     const names = branches?.map((branch) => branch.name) ?? [];
-    if (selected && !names.includes(selected)) return [selected, ...names];
-    return names;
-  }, [branches, selected]);
+    return uniqueBranchNames([selected, defaultBranch, ...names]);
+  }, [branches, defaultBranch, selected]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
