@@ -15,16 +15,16 @@
   --color-fg-faint: #8a7c62; /* ~3.5:1 (graphics) */
 
   /* Hero accent — coral darkened to #993d24 for AA on parchment (5.0:1) */
-  --color-accent: #993d24;
-  --color-accent-hover: #843420;
-  --color-accent-fg: #e6dac4;
-  --color-primary: #993d24;
-  --color-primary-foreground: #e6dac4;
+  --color-brand: #993d24;
+  --color-brand-hover: #843420;
+  --color-brand-fg: #e6dac4;
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-fg);
 
   --color-success: #4a6830; /* olive dark */
   --color-danger: #905050; /* rose dark */
   --color-warning: #7a6820; /* gold dark */
-  --color-focus: #993d24;
+  --color-focus: var(--color-brand);
 
   /* Issue state pills — earthy tints on parchment */
   --color-issue-open-bg: #d5e0c0;

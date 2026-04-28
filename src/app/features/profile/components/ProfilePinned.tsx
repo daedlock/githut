@@ -58,7 +58,7 @@ function PinnedCard({ repo }: { repo: RepoSummary }) {
       )}
     >
       <header className="flex items-baseline justify-between gap-2">
-        <span className="min-w-0 truncate font-mono text-body font-medium text-foreground group-hover:text-[color:var(--color-accent)]">
+        <span className="min-w-0 truncate font-mono text-body font-medium text-foreground group-hover:text-[color:var(--color-brand)]">
           {repo.name}
         </span>
         <span className="inline-flex shrink-0 items-center gap-1 font-mono text-caption tabular-nums text-muted-foreground">

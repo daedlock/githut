@@ -18,7 +18,7 @@ export type InboxPillProps = {
  * the click is a no-op. The shape is kept stable so P2.T2.b only has to
  * replace the click handler and plumb a real count in.
  *
- * Dot uses --color-accent because the inbox IS the attention surface —
+ * Dot uses --color-brand because the inbox IS the attention surface —
  * anything in it wants your eye. When empty the dot fades to --color-fg-faint.
  */
 export function InboxPill({ count = 0, onClick }: InboxPillProps) {

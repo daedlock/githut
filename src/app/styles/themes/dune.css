@@ -14,17 +14,17 @@
   --color-fg-faint: #505860;
 
   /* Hero accent — olive amber (H28 S35%) */
-  --color-accent: #b89068;
-  --color-accent-hover: #c89c72;
-  --color-accent-fg: #171b1e;
-  --color-primary: #b89068;
-  --color-primary-foreground: #171b1e;
+  --color-brand: #b89068;
+  --color-brand-hover: #c89c72;
+  --color-brand-fg: #171b1e;
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-fg);
 
   /* Status */
   --color-success: #80a070;
   --color-danger: #c07060;
   --color-warning: #b0a860;
-  --color-focus: #b89068;
+  --color-focus: var(--color-brand);
 
   /* Issue pills */
   --color-issue-open-bg: #202a1e;

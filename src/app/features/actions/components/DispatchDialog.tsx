@@ -221,7 +221,7 @@ function InputField({
             type="checkbox"
             checked={Boolean(value)}
             onChange={(e) => onChange(e.target.checked)}
-            className="mt-0.5 size-4 rounded-sm border-input accent-(--color-accent)"
+            className="mt-0.5 size-4 rounded-sm border-input accent-(--color-brand)"
           />
           <span className="flex flex-col gap-0.5">
             <span className="font-sans text-caption font-medium text-foreground">
@@ -284,4 +284,3 @@ function initialValues(
   }
   return out;
 }
-

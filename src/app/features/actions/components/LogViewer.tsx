@@ -395,7 +395,7 @@ function commandRowBg(level: LogCommandLevel | undefined) {
     case "warning":
       return "bg-[color-mix(in_oklab,var(--color-warning)_12%,var(--color-bg-subtle))]";
     case "notice":
-      return "bg-[color-mix(in_oklab,var(--color-accent)_8%,var(--color-bg-subtle))]";
+      return "bg-[color-mix(in_oklab,var(--color-brand)_8%,var(--color-bg-subtle))]";
     case "debug":
       return "bg-(--color-bg-sunken)";
     default:
@@ -410,7 +410,7 @@ function commandRowFg(level: LogCommandLevel) {
     case "warning":
       return "text-(--color-warning)";
     case "notice":
-      return "text-(--color-accent)";
+      return "text-(--color-brand)";
     case "debug":
       return "text-(--color-fg-muted)";
   }

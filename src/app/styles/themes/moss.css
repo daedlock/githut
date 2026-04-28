@@ -15,17 +15,17 @@
   --color-fg-faint: oklch(0.51693 0.03739 148.2929);
 
   /* Hero accent — sage green */
-  --color-accent: oklch(0.72897 0.12750 134.9376);
-  --color-accent-hover: oklch(0.77930 0.12585 134.9029);
-  --color-accent-fg: oklch(0.25317 0.01084 161.3498);
-  --color-primary: oklch(0.72897 0.12750 134.9376);
-  --color-primary-foreground: oklch(0.25317 0.01084 161.3498);
+  --color-brand: oklch(0.72897 0.12750 134.9376);
+  --color-brand-hover: oklch(0.77930 0.12585 134.9029);
+  --color-brand-fg: oklch(0.25317 0.01084 161.3498);
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-fg);
 
   /* Status */
   --color-success: oklch(0.72897 0.12750 134.9376);
   --color-danger: oklch(0.63837 0.10655 20.4560);
   --color-warning: oklch(0.72232 0.10763 104.9897);
-  --color-focus: oklch(0.72897 0.12750 134.9376);
+  --color-focus: var(--color-brand);
 
   /* Issue pills */
   --color-issue-open-bg: oklch(0.29175 0.03455 142.2385);

@@ -150,8 +150,8 @@ function RepoIdentity({ owner, repo }: { owner: string; repo: string }) {
           params={{ owner, repo }}
           className={cn(
             "font-medium text-(--color-fg) transition-colors",
-            "hover:text-(--color-accent)",
-            "focus-visible:outline-none focus-visible:text-(--color-accent)",
+            "hover:text-(--color-brand)",
+            "focus-visible:outline-none focus-visible:text-(--color-brand)",
           )}
         >
           {repo}

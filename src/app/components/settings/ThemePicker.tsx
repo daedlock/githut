@@ -137,8 +137,8 @@ export function ThemePicker() {
               "outline-none transition-colors",
               "focus-visible:ring-1 focus-visible:ring-foreground/15",
               activeId === option.id
-                ? "border-primary bg-muted text-foreground"
-                : "border-border text-muted-foreground hover:text-foreground hover:border-input",
+                ? "border-input bg-background text-foreground"
+                : "border-transparent text-muted-foreground hover:bg-background hover:text-foreground",
             )}
             aria-pressed={activeId === option.id}
           >
@@ -153,7 +153,7 @@ export function ThemePicker() {
               ))}
             </span>
             <span className="font-sans text-ui">{option.label}</span>
-            <span className="ml-auto font-mono text-micro uppercase tracking-widest text-fg-faint">
+            <span className="ml-auto font-sans text-caption text-muted-foreground">
               {option.mode}
             </span>
             {activeId === option.id ? (
@@ -183,9 +183,7 @@ function PreferenceToggle({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
-        Preference
-      </span>
+      <span className="font-sans text-ui font-medium text-foreground">Preference</span>
       <div className="inline-flex rounded-md border border-border bg-background p-0.5">
         {options.map((o) => (
           <button
@@ -193,7 +191,7 @@ function PreferenceToggle({
             type="button"
             onClick={() => onChange(o.value)}
             className={cn(
-              "rounded-sm px-2.5 py-1 font-mono text-micro",
+              "rounded-sm px-2.5 py-1 font-sans text-caption",
               "outline-none transition-colors",
               "focus-visible:ring-1 focus-visible:ring-foreground/15",
               current === o.value

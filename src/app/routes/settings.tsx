@@ -21,14 +21,11 @@ function SettingsPage() {
   const { data: me } = useMe();
 
   return (
-    <AppShell
-      header={<UnifiedNav />}
-      footer={<ShellFooter bordered origin="localhost:5173" />}
-    >
+    <AppShell header={<UnifiedNav />} footer={<ShellFooter bordered origin="localhost:5173" />}>
       <Container className="py-6 sm:py-8">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
           <header className="flex flex-col gap-1">
-            <h1 className="font-mono text-title font-medium tracking-tight text-foreground">
+            <h1 className="font-sans text-title font-medium tracking-tight text-foreground">
               Settings
             </h1>
             <p className="font-sans text-ui text-muted-foreground">
@@ -36,24 +33,16 @@ function SettingsPage() {
             </p>
           </header>
 
-          <section className="rounded-md border border-border bg-background">
-            <div className="border-b border-border px-4 py-3">
-              <h2 className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
-                Appearance
-              </h2>
-            </div>
-            <div className="px-4 py-4">
-              <ThemePicker />
-            </div>
+          <section className="flex flex-col gap-3 rounded-lg bg-muted p-4">
+            <h2 className="font-sans text-ui font-medium text-foreground">Appearance</h2>
+            <ThemePicker />
           </section>
 
           <WorkspaceTabsSection />
 
-          <section className="rounded-md border border-border bg-background px-4 py-3">
-            <div className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
-              Account
-            </div>
-            <p className="mt-2 font-sans text-ui text-muted-foreground">
+          <section className="flex flex-col gap-2 rounded-lg bg-muted p-4">
+            <h2 className="font-sans text-ui font-medium text-foreground">Account</h2>
+            <p className="font-sans text-ui text-muted-foreground">
               Signed in as{" "}
               <ProfileLink login={me?.login ?? ""} className="font-mono text-foreground">
                 {me?.login ?? "…"}
@@ -72,13 +61,9 @@ function WorkspaceTabsSection() {
   const setTabsEnabled = useSettingsStore((s) => s.setTabsEnabled);
 
   return (
-    <section className="rounded-md border border-border bg-background">
-      <div className="border-b border-border px-4 py-3">
-        <h2 className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
-          Workspace
-        </h2>
-      </div>
-      <div className="flex items-center justify-between px-4 py-4">
+    <section className="flex flex-col gap-3 rounded-lg bg-muted p-4">
+      <h2 className="font-sans text-ui font-medium text-foreground">Workspace</h2>
+      <div className="flex items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <span className="font-sans text-ui font-medium text-foreground">Workspace tabs</span>
           <span className="font-sans text-caption text-muted-foreground">

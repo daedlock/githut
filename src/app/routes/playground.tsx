@@ -53,7 +53,7 @@ function PlaygroundPage() {
       <main className="mx-auto max-w-3xl space-y-10 px-6 py-10">
         <div className="space-y-2">
           <h1 className="font-mono text-heading font-medium">
-            UI primitives<span className="text-[var(--color-accent)]">_</span>
+            UI primitives<span className="text-[var(--color-brand)]">_</span>
           </h1>
           <p className="text-body text-[var(--color-fg-muted)]">
             Dev-only reference. Each primitive variant rendered against the current theme. Toggle
@@ -120,7 +120,8 @@ function PlaygroundPage() {
           <Swatch label="fg" value="--color-fg" />
           <Swatch label="fg-muted" value="--color-fg-muted" />
           <Swatch label="border" value="--color-border-strong" />
-          <Swatch label="accent" value="--color-accent" />
+          <Swatch label="brand" value="--color-brand" />
+          <Swatch label="accent surface" value="--color-accent" />
           <Swatch label="success" value="--color-success" />
           <Swatch label="danger" value="--color-danger" />
           <Swatch label="warning" value="--color-warning" />
@@ -226,9 +227,9 @@ const SAMPLE_HOOK_PATCH = `@@ -1,8 +1,12 @@
 const SAMPLE_CSS_PATCH = `@@ -18,8 +18,10 @@
    --color-fg: #1c1917;
    --color-fg-muted: #57534e;
--  --color-accent: #f97316;
-+  --color-accent: #ea580c;
-+  --color-accent-hover: #c2410c;
+ -  --color-brand: #f97316;
+ +  --color-brand: #ea580c;
+ +  --color-brand-hover: #c2410c;
    --radius-md: 4px;
 +  --radius-lg: 6px;
  }`;

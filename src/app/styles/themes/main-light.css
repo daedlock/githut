@@ -14,13 +14,13 @@
   --color-fg-muted: #606060;
   --color-fg-faint: #999999;
 
-  /* Accent — clean blue */
-  --color-accent: #2e7dd6;
-  --color-accent-hover: #2568b8;
-  --color-accent-fg: #ffffff;
-  --color-primary: #2e7dd6;
-  --color-primary-foreground: #ffffff;
-  --color-focus: #2e7dd6;
+  /* Brand — clean blue */
+  --color-brand: #2e7dd6;
+  --color-brand-hover: #2568b8;
+  --color-brand-fg: #ffffff;
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-fg);
+  --color-focus: var(--color-brand);
 
   /* Status — darker for light bg readability */
   --color-success: #1e8c42;

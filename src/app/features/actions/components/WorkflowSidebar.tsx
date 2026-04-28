@@ -20,7 +20,7 @@ export type WorkflowSidebarProps = {
 // of it as button-backed rows.
 //
 // Active signalling uses DESIGN.md's nav recipe ("Active nav item: left
-// accent border `border-l-2 border-l-(--color-accent)`") — the ember rail
+// brand border `border-l-2 border-l-(--color-brand)`") — the ember rail
 // alone, no background fill. Hover shifts only text color.
 
 export function WorkflowSidebar({
@@ -91,9 +91,7 @@ export function WorkflowSidebar({
         )}
 
         {!isPending && sorted.length === 0 ? (
-          <p className="py-2 font-sans text-caption text-(--color-fg-faint)">
-            No workflows yet.
-          </p>
+          <p className="py-2 font-sans text-caption text-(--color-fg-faint)">No workflows yet.</p>
         ) : null}
       </nav>
     </aside>
@@ -130,7 +128,7 @@ function WorkflowRow({
         // No row background — hover shifts only the text color, matching
         // the RepoAbout quietness.
         isActive
-          ? "border-l-(--color-accent) text-foreground font-medium"
+          ? "border-l-(--color-brand) text-foreground font-medium"
           : disabled
             ? "text-(--color-fg-faint) hover:text-muted-foreground"
             : "text-muted-foreground hover:text-foreground",

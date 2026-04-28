@@ -15,17 +15,17 @@
   --color-fg-faint: #3e524f;
 
   /* Hero accent — coral */
-  --color-accent: #e07060;
-  --color-accent-hover: #e88070;
-  --color-accent-fg: #101a18;
-  --color-primary: #e07060;
-  --color-primary-foreground: #101a18;
+  --color-brand: #e07060;
+  --color-brand-hover: #e88070;
+  --color-brand-fg: #101a18;
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-fg);
 
   /* Status */
   --color-success: #60b878;
   --color-danger: #e07060;
   --color-warning: #b8b060;
-  --color-focus: #e07060;
+  --color-focus: var(--color-brand);
 
   /* Issue pills */
   --color-issue-open-bg: #182a1e;

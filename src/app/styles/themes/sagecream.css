@@ -15,17 +15,17 @@
   --color-fg-faint: #565450;
 
   /* Hero accent — dry sage */
-  --color-accent: #90a878;
-  --color-accent-hover: #a0b888;
-  --color-accent-fg: #1a1918;
-  --color-primary: #90a878;
-  --color-primary-foreground: #1a1918;
+  --color-brand: #90a878;
+  --color-brand-hover: #a0b888;
+  --color-brand-fg: #1a1918;
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-fg);
 
   /* Status */
   --color-success: #90a878;
   --color-danger: #b07870;
   --color-warning: #b0a860;
-  --color-focus: #90a878;
+  --color-focus: var(--color-brand);
 
   /* Issue pills */
   --color-issue-open-bg: #202820;

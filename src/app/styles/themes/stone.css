@@ -8,10 +8,10 @@
   --color-border: #e7e5e4;
   --color-border-strong: #d6d3d1;
   --color-code-bg: color-mix(in oklab, var(--color-bg) 94%, var(--color-bg-sunken));
-  --color-accent: #c2410c;
-  --color-accent-hover: #a5380a;
-  --color-accent-fg: #fffbeb;
-  --color-primary: #c2410c;
-  --color-primary-foreground: #fffbeb;
+  --color-brand: #c2410c;
+  --color-brand-hover: #a5380a;
+  --color-brand-fg: #fffbeb;
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-fg);
   color-scheme: light;
 }

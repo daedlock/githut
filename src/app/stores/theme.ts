@@ -14,7 +14,18 @@ export type ResolvedTheme = "light" | "dark";
  * - ember       — warm graphite with a single coral hero (darkembertheme.com)
  * - ember-soft  — lifted-graphite ember variant, softer contrast
  */
-export type Palette = "main" | "stone" | "ember" | "ember-soft" | "dune" | "haze" | "lagoon" | "lagoon-light" | "matrix" | "moss" | "sagecream";
+export type Palette =
+  | "main"
+  | "stone"
+  | "ember"
+  | "ember-soft"
+  | "dune"
+  | "haze"
+  | "lagoon"
+  | "lagoon-light"
+  | "matrix"
+  | "moss"
+  | "sagecream";
 
 type ThemeState = {
   palette: Palette;
@@ -25,6 +36,17 @@ type ThemeState = {
 };
 
 const PREF_ORDER: ThemePreference[] = ["light", "dark", "system"];
+const DARK_DATA_THEMES = new Set([
+  "main-dark",
+  "ember",
+  "ember-soft",
+  "dune",
+  "haze",
+  "lagoon",
+  "matrix",
+  "moss",
+  "sagecream",
+]);
 
 export const useThemeStore = create<ThemeState>()(
   persist(
@@ -32,13 +54,11 @@ export const useThemeStore = create<ThemeState>()(
       palette: "main",
       preference: "system",
       setPalette: (palette) => runThemeTransition(() => set({ palette })),
-      setPreference: (preference) =>
-        runThemeTransition(() => set({ preference })),
+      setPreference: (preference) => runThemeTransition(() => set({ preference })),
       cyclePreference: () => {
         runThemeTransition(() => {
           const current = get().preference;
-          const next =
-            PREF_ORDER[(PREF_ORDER.indexOf(current) + 1) % PREF_ORDER.length]!;
+          const next = PREF_ORDER[(PREF_ORDER.indexOf(current) + 1) % PREF_ORDER.length]!;
           set({ preference: next });
         });
       },
@@ -59,10 +79,9 @@ function resolve(pref: ThemePreference): ResolvedTheme {
 /**
  * Map (palette, resolved light/dark) → the data-theme attribute to apply.
  *
- * The stone palette keeps the legacy `.dark` class mechanism (no attribute
- * needed); `.dark`-scoped rules in index.css handle the dark case. Ember
- * variants own their own light/dark entirely through data-theme, so .dark
- * is cleared when an Ember variant is active.
+ * Theme palettes own their color values through data-theme. The `.dark` class
+ * tracks visual darkness, including dark-only palettes selected under a light
+ * preference, so shared dark formulas still apply.
  *
  * ember-soft has no paired light — falls back to ember-light for consistency.
  */
@@ -86,12 +105,14 @@ function resolveDataTheme(palette: Palette, resolved: ResolvedTheme): string | n
 function apply(palette: Palette, resolved: ResolvedTheme) {
   const root = document.documentElement;
   const dataTheme = resolveDataTheme(palette, resolved);
+  const visuallyDark =
+    resolved === "dark" || (dataTheme !== null && DARK_DATA_THEMES.has(dataTheme));
   if (dataTheme) {
     root.setAttribute("data-theme", dataTheme);
   } else {
     root.removeAttribute("data-theme");
   }
-  root.classList.toggle("dark", resolved === "dark");
+  root.classList.toggle("dark", visuallyDark);
 
   // Update inline background-color to match the CSS theme.
   // This ensures body bg updates on theme change without refresh,
@@ -100,7 +121,7 @@ function apply(palette: Palette, resolved: ResolvedTheme) {
   if (bg) {
     root.style.backgroundColor = bg;
   }
-  root.style.colorScheme = resolved;
+  root.style.colorScheme = visuallyDark ? "dark" : "light";
 }
 
 export function useResolvedTheme(): ResolvedTheme {

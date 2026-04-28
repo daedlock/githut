@@ -99,7 +99,7 @@ export function PrMergeDialog({
                 value={m.id}
                 checked={method === m.id}
                 onChange={() => setMethod(m.id)}
-                className="mt-1 accent-[var(--color-accent)]"
+                className="mt-1 accent-[var(--color-brand)]"
               />
               <div className="min-w-0 flex-1">
                 <div className="text-body font-medium text-foreground">{m.label}</div>

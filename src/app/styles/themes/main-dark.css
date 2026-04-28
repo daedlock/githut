@@ -14,13 +14,13 @@
   --color-fg-muted: #8a8ea0;
   --color-fg-faint: #505468;
 
-  /* Accent — clean blue */
-  --color-accent: #5ba4f5;
-  --color-accent-hover: #74b4f7;
-  --color-accent-fg: #1c1d24;
-  --color-primary: #5ba4f5;
-  --color-primary-foreground: #1c1d24;
-  --color-focus: #5ba4f5;
+  /* Brand — clean blue */
+  --color-brand: #5ba4f5;
+  --color-brand-hover: #74b4f7;
+  --color-brand-fg: #1c1d24;
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-fg);
+  --color-focus: var(--color-brand);
 
   /* Status */
   --color-success: #5cba6e;

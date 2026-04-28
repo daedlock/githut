@@ -156,7 +156,7 @@ function PaletteChip({
               ],
         )}
       >
-        <span className="absolute inset-x-0 top-0 h-1 bg-(--color-accent)" aria-hidden />
+        <span className="absolute inset-x-0 top-0 h-1 bg-(--color-brand)" aria-hidden />
         <span
           className="absolute bottom-1.5 left-1.5 size-2 rounded-full bg-(--color-fg)"
           aria-hidden

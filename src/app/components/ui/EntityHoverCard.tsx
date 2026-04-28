@@ -123,7 +123,7 @@ function UserCard({ login }: { login: string }) {
             <Link
               to="/$username"
               params={{ username: profile.login }}
-              className="block truncate text-xs font-medium text-foreground hover:text-[var(--color-accent)]"
+              className="block truncate text-caption font-medium text-foreground hover:text-[var(--color-brand)]"
             >
               {profile.name}
             </Link>
@@ -131,7 +131,7 @@ function UserCard({ login }: { login: string }) {
           <Link
             to="/$username"
             params={{ username: profile.login }}
-            className="block truncate text-xs text-muted-foreground hover:text-[var(--color-accent)]"
+            className="block truncate text-caption text-muted-foreground hover:text-[var(--color-brand)]"
           >
             @{profile.login}
           </Link>
@@ -227,7 +227,7 @@ function IssueCard({ owner, repo, number }: { owner: string; repo: string; numbe
         <Link
           to="/$owner/$repo/pulls/$number"
           params={{ owner, repo, number }}
-          className="mt-1.5 block line-clamp-2 text-xs font-medium text-foreground leading-relaxed hover:text-[var(--color-accent)]"
+          className="mt-1.5 block line-clamp-2 text-caption font-medium text-foreground leading-relaxed hover:text-[var(--color-brand)]"
         >
           {issue.title}
         </Link>
@@ -236,7 +236,7 @@ function IssueCard({ owner, repo, number }: { owner: string; repo: string; numbe
           to="/$owner/$repo/issues"
           params={{ owner, repo }}
           search={{ issue: number }}
-          className="mt-1.5 block line-clamp-2 text-xs font-medium text-foreground leading-relaxed hover:text-[var(--color-accent)]"
+          className="mt-1.5 block line-clamp-2 text-caption font-medium text-foreground leading-relaxed hover:text-[var(--color-brand)]"
         >
           {issue.title}
         </Link>

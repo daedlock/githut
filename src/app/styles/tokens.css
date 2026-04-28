@@ -29,6 +29,13 @@
   --color-border: oklch(0.92318 0.00262 52.1716); /* stone-200 — subtle separator */
   --color-border-strong: oklch(0.86866 0.00447 60.2545); /* stone-300 — form controls, focused borders */
 
+  /* form controls: translucent so focus states lift relative to their local surface */
+  --color-control-bg: transparent;
+  --color-control-bg-active: color-mix(in oklab, var(--color-fg-muted) 5%, transparent);
+  --color-control-border: var(--color-border-strong);
+  --color-control-border-active: color-mix(in oklab, var(--color-fg-muted) 24%, var(--color-border-strong));
+  --color-control-ring: color-mix(in oklab, var(--color-fg-muted) 16%, transparent);
+
   /*
    * ── OKLCH semantic color system ──────────────────────────────────────
    *
@@ -44,7 +51,7 @@
    * sem-c controls vibrancy — 0.18 is vivid but not neon
    *
    * Hues (matching GitHub's visual vocabulary):
-   *   accent/ember:  55   (warm orange)
+   *   brand/ember:   55   (warm orange)
    *   success/green: 145  (natural green)
    *   danger/red:    25   (warm red)
    *   warning/amber: 85   (golden yellow)
@@ -55,10 +62,14 @@
   --sem-c: 0.18;
 
 
+  --color-brand: oklch(0.55345 0.17487 40.2463);
+  --color-brand-hover: color-mix(in oklab, var(--color-brand) 88%, black);
+  --color-brand-fg: oklch(1.00000 0.00000 89.8756);
+
   --color-success: oklch(var(--sem-l) var(--sem-c) 145);
   --color-danger: oklch(var(--sem-l) var(--sem-c) 25);
   --color-warning: oklch(var(--sem-l) var(--sem-c) 85);
-  --color-focus: var(--color-accent);
+  --color-focus: var(--color-brand);
 
   --color-pr-merged: oklch(var(--sem-l) var(--sem-c) 295);
   --color-pr-merged-bg: color-mix(in oklab, oklch(var(--sem-l) var(--sem-c) 295) 14%, var(--color-bg-subtle));
@@ -140,7 +151,7 @@
   --diff-hunk-bg: var(--color-bg-subtle);
   --diff-hunk-fg: var(--color-fg-muted);
   --diff-hunk-border: var(--color-border);
-  --diff-expand-hover: color-mix(in oklab, var(--color-accent) 10%, var(--color-bg-subtle));
+  --diff-expand-hover: color-mix(in oklab, var(--color-brand) 10%, var(--color-bg-subtle));
 
   /*
    * Chart slot colors (language bars, pie charts, segmented stats).
@@ -276,8 +287,8 @@
    * theme without duplication.
    *
    * Nuance: shadcn's `accent` is a SUBTLE surface for hover/selected states
-   * (bg-sunken in our language), NOT our brand accent. Our ember orange maps
-   * to shadcn's `primary` instead. Naming collision noted and handled.
+   * (bg-sunken in our language), NOT our brand color. Brand maps to shadcn's
+   * `primary` instead.
    */
   --color-background: var(--color-bg);
   --color-foreground: var(--color-fg);
@@ -286,8 +297,8 @@
   --color-popover: color-mix(in oklab, var(--color-bg) 90%, white);
   --color-popover-active: color-mix(in oklab, var(--color-popover) 97%, black);
   --color-popover-foreground: var(--color-fg);
-  --color-primary: oklch(0.55345 0.17487 40.2463);
-  --color-primary-foreground: oklch(1.00000 0.00000 89.8756);
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-fg);
   --color-secondary: var(--color-bg-subtle);
   --color-secondary-foreground: var(--color-fg);
   --color-muted: var(--color-bg-subtle);
@@ -295,9 +306,8 @@
   --color-accent: var(--color-bg-sunken);
   --color-accent-foreground: var(--color-fg);
   --color-destructive: var(--color-danger);
-  --color-destructive-foreground: var(--color-accent-fg);
-  --color-border: var(--color-border);
-  --color-input: var(--color-border-strong);
+  --color-destructive-foreground: var(--color-brand-fg);
+  --color-input: var(--color-control-border);
   --color-ring: var(--color-focus);
 }
 
@@ -319,6 +329,10 @@
   /* borders */
   --color-border: oklch(0.26849 0.00631 36.3601); /* stone-800 */
   --color-border-strong: oklch(0.37412 0.00923 71.6978); /* stone-700 */
+
+  --color-brand: oklch(0.75770 0.16563 60.1479);
+  --color-brand-hover: color-mix(in oklab, var(--color-brand) 88%, white);
+  --color-brand-fg: oklch(0.14690 0.00423 52.7554);
 
   /* OKLCH: brighter on dark bg, same chroma → all semantic colors adapt */
   --sem-l: 0.78;

@@ -75,7 +75,7 @@ function ActivityRow({ item }: { item: Item }) {
       <Link
         to="/$owner/$repo"
         params={{ owner: item.owner, repo: item.repo }}
-        className="min-w-0 truncate font-mono text-caption text-foreground transition-colors hover:text-[color:var(--color-accent)]"
+        className="min-w-0 truncate font-mono text-caption text-foreground transition-colors hover:text-[color:var(--color-brand)]"
         title={`${item.owner}/${item.repo}`}
       >
         {item.repo}

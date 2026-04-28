@@ -15,17 +15,17 @@
   --color-fg-faint: #7d9a95; /* H170 S14% L55% — ~3.2:1 (graphics) */
 
   /* Hero accent — deep coral for AA on seafoam (5.7:1) */
-  --color-accent: #993828;
-  --color-accent-hover: #843020;
-  --color-accent-fg: #d8eae6;
-  --color-primary: #993828;
-  --color-primary-foreground: #d8eae6;
+  --color-brand: #993828;
+  --color-brand-hover: #843020;
+  --color-brand-fg: #d8eae6;
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-fg);
 
   /* Status — darkened lagoon accents for AA on seafoam */
   --color-success: #4e7038; /* dark olive (Emacs green) */
   --color-danger: #a8384e; /* dark watermelon (Emacs magenta) */
   --color-warning: #a46020; /* dark orange (Emacs orange) */
-  --color-focus: #993828;
+  --color-focus: var(--color-brand);
 
   /* Issue state pills — tinted seafoam surfaces */
   --color-issue-open-bg: #c0ddd0; /* green-tinted seafoam */

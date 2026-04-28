@@ -20,7 +20,7 @@ const REASON_LABEL: Record<DashboardReason, string> = {
 };
 
 const REASON_DOT: Record<DashboardReason, string> = {
-  review_requested: "bg-(--color-accent)",
+  review_requested: "bg-(--color-brand)",
   assigned: "bg-(--color-warning)",
   mentioned: "bg-(--color-fg-faint)",
 };
