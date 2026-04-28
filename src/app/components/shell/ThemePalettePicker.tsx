@@ -1,4 +1,3 @@
-import { Palette as PaletteIcon } from "lucide-react";
 import { useRef } from "react";
 import { cn } from "@/app/lib/cn";
 import { type Palette, useResolvedTheme, useThemeStore } from "@/app/stores/theme";
@@ -40,10 +39,10 @@ const COLS = 6;
 export function ThemePalettePicker() {
   const palette = useThemeStore((s) => s.palette);
   const setPalette = useThemeStore((s) => s.setPalette);
-  const groupRef = useRef<HTMLDivElement>(null);
+  const groupRef = useRef<HTMLFieldSetElement>(null);
 
   const focusIdx = (idx: number) => {
-    const buttons = groupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+    const buttons = groupRef.current?.querySelectorAll<HTMLButtonElement>("[aria-pressed]");
     buttons?.[idx]?.focus();
   };
 
@@ -83,27 +82,20 @@ export function ThemePalettePicker() {
     }
   };
 
+  const selectedPalette = PALETTES.find((p) => p.id === palette)?.name;
+
   return (
-    <div className="px-1.5 py-1.5">
-      <div
-        id="palette-heading"
-        className="mb-1.5 flex items-center justify-between px-0.5 font-mono text-micro uppercase tracking-widest text-muted-foreground"
-      >
-        <span className="flex items-center gap-1.5">
-          <PaletteIcon className="size-3 text-(--color-fg-faint)" aria-hidden />
-          Palette
-        </span>
-        <span className="font-mono text-micro normal-case tracking-normal italic text-(--color-fg-faint)">
-          {PALETTES.find((p) => p.id === palette)?.name}
-        </span>
+    <div>
+      <div id="palette-heading" className="mb-2 flex items-center justify-between text-caption">
+        <span className="font-medium text-foreground">Palette</span>
+        <span className="font-mono text-micro italic text-muted-foreground">{selectedPalette}</span>
       </div>
 
-      <div
+      <fieldset
         ref={groupRef}
-        role="radiogroup"
         aria-labelledby="palette-heading"
         onKeyDown={handleKeyDown}
-        className="grid grid-cols-6 gap-1"
+        className="grid grid-cols-6 gap-1.5"
       >
         {PALETTES.map((p, i) => (
           <PaletteChip
@@ -114,7 +106,7 @@ export function ThemePalettePicker() {
             delayMs={i * 18}
           />
         ))}
-      </div>
+      </fieldset>
     </div>
   );
 }
@@ -133,23 +125,20 @@ function PaletteChip({
   delayMs: number;
 }) {
   const resolved = useResolvedTheme();
-  const chipTheme = p.id === "main"
-    ? (resolved === "dark" ? "main-dark" : "main-light")
-    : p.id;
+  const chipTheme = p.id === "main" ? (resolved === "dark" ? "main-dark" : "main-light") : p.id;
 
   return (
     <button
       type="button"
-      role="radio"
-      aria-checked={active}
+      aria-pressed={active}
       aria-label={`${p.name} palette`}
       title={p.name}
       tabIndex={active ? 0 : -1}
       onClick={onSelect}
       className={cn(
-        "group flex flex-col items-center gap-1 rounded-[var(--radius-sm)] p-0.5",
+        "group rounded-md p-0.5",
         "outline-none",
-        "focus-visible:bg-(--color-bg-sunken)",
+        "focus-visible:bg-background",
         "animate-[chip-in_200ms_ease-out_backwards]",
       )}
       style={{ animationDelay: `${delayMs}ms` }}
@@ -157,48 +146,36 @@ function PaletteChip({
       <div
         data-theme={chipTheme}
         className={cn(
-          "relative flex h-7 w-full items-center justify-center overflow-hidden",
-          "rounded-[var(--radius-xs)] border bg-(--color-bg)",
-          "transition-[transform,border-color] duration-150 ease-out",
+          "relative flex h-8 w-full items-center justify-center overflow-hidden rounded-md",
+          "bg-(--color-bg) ring-1 transition-[transform,box-shadow] duration-150 ease-out",
           active
-            ? [
-                "border-(--color-accent)",
-                "ring-1 ring-(--color-accent)",
-              ]
+            ? ["ring-2 ring-border-strong"]
             : [
-                "border-(--color-border-strong)",
-                "group-hover:scale-[1.08] group-hover:border-(--color-fg-faint)",
+                "ring-(--color-border-strong)",
+                "group-hover:scale-105 group-hover:ring-(--color-fg-faint)",
               ],
         )}
       >
-        {/* Wordmark — the "H_" preview, content color + brand color */}
-        <span className="font-mono text-[11px] font-semibold leading-none text-(--color-fg)">
-          H<span className="text-(--color-accent)">_</span>
-        </span>
+        <span className="absolute inset-x-0 top-0 h-1 bg-(--color-accent)" aria-hidden />
+        <span
+          className="absolute bottom-1.5 left-1.5 size-2 rounded-full bg-(--color-fg)"
+          aria-hidden
+        />
+        <span
+          className="absolute right-1.5 bottom-1.5 h-2 w-4 rounded-full bg-(--color-bg-subtle) ring-1 ring-(--color-border)"
+          aria-hidden
+        />
 
-        {/* Active confirmation — tiny accent dot bottom-right */}
         {active && (
           <span
             aria-hidden
             className={cn(
-              "absolute bottom-0.5 right-0.5 size-1 rounded-full bg-(--color-accent)",
+              "absolute right-1 top-1 size-1.5 rounded-full bg-(--color-fg)",
               "animate-[chip-pulse_1.4s_ease-in-out_infinite]",
             )}
           />
         )}
       </div>
-
-      {/* Label below — in normal (outer) theme tokens */}
-      <span
-        className={cn(
-          "w-full truncate text-center font-mono text-[9px] leading-tight transition-colors",
-          active
-            ? "font-medium text-foreground"
-            : "text-muted-foreground group-hover:text-foreground",
-        )}
-      >
-        {p.name}
-      </span>
     </button>
   );
 }

@@ -1,5 +1,5 @@
+import { PinIcon, StarIcon } from "@primer/octicons-react";
 import { Link } from "@tanstack/react-router";
-import { Pin, Star } from "lucide-react";
 import { useMemo } from "react";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { cn } from "@/app/lib/cn";
@@ -35,7 +35,7 @@ export function ProfilePinned({ repos, isLoading }: ProfilePinnedProps) {
     <section className="flex flex-col gap-3">
       <ProfileSectionHeader
         title="Top Repositories"
-        icon={<Pin className="size-3 text-(--color-fg-faint)" aria-hidden />}
+        icon={<PinIcon className="size-3 text-(--color-fg-faint)" />}
       />
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
@@ -62,7 +62,7 @@ function PinnedCard({ repo }: { repo: RepoSummary }) {
           {repo.name}
         </span>
         <span className="inline-flex shrink-0 items-center gap-1 font-mono text-caption tabular-nums text-muted-foreground">
-          <Star className="size-3" />
+          <StarIcon className="size-3" />
           {formatStars(repo.stars)}
         </span>
       </header>
@@ -100,7 +100,7 @@ function PinnedSkeleton() {
     <div className="flex flex-col gap-3">
       <Skeleton className="h-3 w-32" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
+        {[0, 1, 2].map((i) => (
           <Skeleton key={i} className="h-[112px] rounded-xl" />
         ))}
       </div>

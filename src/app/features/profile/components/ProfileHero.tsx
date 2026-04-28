@@ -1,4 +1,5 @@
-import { Building2, CalendarDays, ExternalLink, Globe, Mail, MapPin } from "lucide-react";
+import { Buildings, CalendarBlank, GlobeHemisphereWest, MapPin } from "@phosphor-icons/react";
+import { LinkExternalIcon, MailIcon } from "@primer/octicons-react";
 import type { ReactNode } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Skeleton } from "@/app/components/ui/skeleton";
@@ -59,31 +60,35 @@ export function ProfileHero({ profile, isLoading }: ProfileHeroProps) {
 }
 
 function ProfileMetaLine({ profile }: { profile: GitHubProfile }) {
-  const items: { icon: ReactNode; label: string; href?: string }[] = [
+  const items: { key: string; icon: ReactNode; label: string; href?: string }[] = [
     {
-      icon: <CalendarDays className="size-3.5" />,
+      key: "joined",
+      icon: <CalendarBlank className="size-3.5" />,
       label: `Joined ${formatJoin(profile.created_at)}`,
     },
   ];
   if (profile.location) {
-    items.push({ icon: <MapPin className="size-3.5" />, label: profile.location });
+    items.push({ key: "location", icon: <MapPin className="size-3.5" />, label: profile.location });
   }
   if (profile.company) {
     items.push({
-      icon: <Building2 className="size-3.5" />,
+      key: "company",
+      icon: <Buildings className="size-3.5" />,
       label: profile.company.replace(/^@/, ""),
     });
   }
   if (profile.blog) {
     const url = profile.blog.startsWith("http") ? profile.blog : `https://${profile.blog}`;
     items.push({
-      icon: <Globe className="size-3.5" />,
+      key: "blog",
+      icon: <GlobeHemisphereWest className="size-3.5" />,
       label: profile.blog.replace(/^https?:\/\//, ""),
       href: url,
     });
   }
   if (profile.twitter_username) {
     items.push({
+      key: "twitter",
       icon: <span className="font-mono text-caption font-medium leading-none">𝕏</span>,
       label: `@${profile.twitter_username}`,
       href: `https://x.com/${profile.twitter_username}`,
@@ -91,21 +96,23 @@ function ProfileMetaLine({ profile }: { profile: GitHubProfile }) {
   }
   if (profile.email) {
     items.push({
-      icon: <Mail className="size-3.5" />,
+      key: "email",
+      icon: <MailIcon className="size-3.5" />,
       label: profile.email,
       href: `mailto:${profile.email}`,
     });
   }
   items.push({
-    icon: <ExternalLink className="size-3.5" />,
+    key: "github",
+    icon: <LinkExternalIcon className="size-3.5" />,
     label: "GitHub",
     href: profile.html_url,
   });
 
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-ui text-muted-foreground">
-      {items.map((it, i) => (
-        <span key={`${it.label}-${i}`} className="inline-flex min-w-0 items-center gap-1.5">
+      {items.map((it) => (
+        <span key={it.key} className="inline-flex min-w-0 items-center gap-1.5">
           <span className="text-(--color-fg-faint)" aria-hidden="true">
             {it.icon}
           </span>

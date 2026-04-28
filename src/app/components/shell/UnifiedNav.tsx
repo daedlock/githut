@@ -1,32 +1,27 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useMemo } from "react";
-import { Avatar } from "@/app/components/ui/avatar";
 import { UserMenu } from "@/app/components/shell/UserMenu";
+import { Avatar } from "@/app/components/ui/avatar";
 import { useMe } from "@/app/hooks/useMe";
 import { logout, manageGitHubAccess } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
-import { useCommandPalette } from "@/app/stores/commandPalette";
 import { getTabMeta } from "@/app/lib/tabMeta";
+import { useCommandPalette } from "@/app/stores/commandPalette";
 import { useSettingsStore } from "@/app/stores/settings";
 import { hrefToTabId, useTabsStore } from "@/app/stores/tabs";
 
 // ─── UnifiedNav ────────────────────────────────────────────────────────────
 //
-// One bar to rule them all. A single h-10 row replaces the previous
-// TopBar (h-9) + RepoSubTabs (~40px) — saving ~30px of vertical space
-// and eliminating the stacked-sticky-bar problem.
+// One bar to rule them all. A single row carries repo identity, section tabs,
+// search, and account controls without stacked sticky chrome.
 //
 // Layout:
-//   [owner/repo avatar] [owner / repo] │ Code Commits PRs Issues Actions  ──  [⌘K] [avatar]
-//
-// When NOT on a repo page, the left side shows nothing (or could show
-// a home breadcrumb). The section tabs disappear. The bar simplifies to:
-//   ──────────────────────────────────────────────────────  [⌘K] [avatar]
+//   [logo] [owner avatar] [owner / repo] │ Code Commits PRs Issues Actions  ──  [⌘K] [avatar]
 //
 // Design language:
 //   • h-10 (40px) — compact but breathable
-//   • No logo — the owner/repo identity IS the brand context
+//   • Logo always returns to the dashboard
 //   • Mono font for paths — matches GitHub's technical feel
 //   • Underline-on-active tabs — same 2px primary indicator
 //   • Full-width — no Container constraint (content below can Container itself)
@@ -41,13 +36,11 @@ export function UnifiedNav({ repoContext }: { repoContext?: RepoContext }) {
   const { open: openPalette } = useCommandPalette();
 
   return (
-    <header className="flex h-11 min-h-11 w-full shrink-0 items-center gap-0 overflow-hidden border-b border-border bg-background px-3 sm:px-4">
+    <header className="flex h-10 min-h-10 w-full shrink-0 items-center overflow-hidden border-b border-border bg-background px-2 sm:px-3">
+      <LogoLink />
+
       {/* Left: repo identity + section tabs (when in repo context) */}
-      {repoContext ? (
-        <RepoSection owner={repoContext.owner} repo={repoContext.repo} />
-      ) : (
-        <HomeSection />
-      )}
+      {repoContext && <RepoSection owner={repoContext.owner} repo={repoContext.repo} />}
 
       {/* Spacer */}
       <div className="flex-1" />
@@ -66,6 +59,30 @@ export function UnifiedNav({ repoContext }: { repoContext?: RepoContext }) {
         )}
       </div>
     </header>
+  );
+}
+
+function LogoLink() {
+  return (
+    <Link
+      to="/"
+      aria-label="Go to dashboard"
+      className="group mr-2 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-foreground outline-none transition-colors hover:bg-muted hover:text-primary focus-visible:ring-1 focus-visible:ring-(--color-focus)"
+    >
+      <svg
+        width="21"
+        height="21"
+        viewBox="0 0 100 100"
+        aria-hidden="true"
+        className="shrink-0 transition-colors"
+      >
+        <path
+          fillRule="evenodd"
+          fill="currentColor"
+          d="M50 4 A46 46 0 1 1 50 96 A46 46 0 1 1 50 4 Z M54 32 L67 43 Q71 47 71 52 L71 62 Q71 68 65 68 L35 68 Q29 68 29 62 L29 52 Q29 47 33 43 L46 32 Q50 28 54 32 Z"
+        />
+      </svg>
+    </Link>
   );
 }
 
@@ -116,9 +133,9 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
   }
 
   return (
-    <div className="flex h-full items-stretch gap-0">
+    <div className="flex h-full min-w-0 items-stretch gap-1">
       {/* Avatar + owner/repo */}
-      <div className="flex items-center gap-2 pr-3 mr-1">
+      <div className="flex min-w-0 items-center gap-1.5 rounded-md px-1">
         <Link
           to="/$username"
           params={{ username: owner }}
@@ -126,15 +143,16 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
         >
           <Avatar
             login={owner}
-            avatarUrl={`https://github.com/${owner}.png?size=40`}
-            size="sm"
+            avatarUrl={`https://github.com/${owner}.png?size=32`}
+            size="xs"
+            className="opacity-85"
           />
         </Link>
-        <div className="flex items-baseline gap-1 font-mono text-ui">
+        <div className="flex min-w-0 items-baseline gap-1 font-mono text-ui">
           <Link
             to="/$username"
             params={{ username: owner }}
-            className="text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none"
+            className="min-w-0 max-w-28 truncate text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none"
           >
             {owner}
           </Link>
@@ -142,12 +160,14 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
           <Link
             to="/$owner/$repo/code"
             params={{ owner, repo }}
-            className="font-medium text-foreground transition-colors hover:text-[var(--color-accent)] focus-visible:outline-none"
+            className="min-w-0 max-w-40 truncate font-medium text-foreground transition-colors hover:text-primary focus-visible:outline-none"
           >
             {repo}
           </Link>
         </div>
       </div>
+
+      <span aria-hidden className="mx-2 my-auto h-4 w-px shrink-0 bg-border" />
 
       <nav className="flex items-stretch gap-0" aria-label="Repository sections">
         {tabs.map((tab) => {
@@ -158,9 +178,9 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
               type="button"
               onClick={() => handleTabClick(tab.href)}
               className={cn(
-                "group relative flex items-center whitespace-nowrap px-2.5 text-sm",
+                "group relative flex items-center whitespace-nowrap rounded-md px-2.5 text-ui",
                 "text-muted-foreground outline-none transition-colors",
-                "hover:text-foreground focus-visible:text-foreground",
+                "hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground",
                 isActive && "text-foreground",
               )}
               aria-current={isActive ? "page" : undefined}
@@ -169,7 +189,7 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
               {isActive && (
                 <span
                   aria-hidden
-                  className="absolute inset-x-2.5 -bottom-px h-[2px] rounded-full bg-primary"
+                  className="absolute inset-x-2.5 bottom-0 h-[2px] rounded-full bg-primary"
                 />
               )}
             </button>
@@ -177,19 +197,6 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
         })}
       </nav>
     </div>
-  );
-}
-
-// ─── Home section (non-repo pages) ─────────────────────────────────────────
-
-function HomeSection() {
-  return (
-    <Link
-      to="/"
-      className="flex items-center gap-1.5 font-mono text-caption font-medium text-foreground outline-none transition-opacity hover:opacity-70 focus-visible:ring-1 focus-visible:ring-(--color-focus) rounded-sm px-1"
-    >
-      Dashboard
-    </Link>
   );
 }
 
@@ -204,7 +211,7 @@ function SearchTrigger({ onClick }: { onClick: () => void }) {
       aria-label="Open command palette"
       className={cn(
         "inline-flex h-6.5 items-center gap-1.5 rounded-md",
-        "border border-border bg-[var(--color-bg-subtle)]",
+        "border border-border bg-muted",
         "pl-2 pr-1.5 text-muted-foreground outline-none",
         "transition-colors hover:bg-[var(--color-bg-sunken)] hover:text-foreground",
         "focus-visible:ring-1 focus-visible:ring-(--color-focus)",

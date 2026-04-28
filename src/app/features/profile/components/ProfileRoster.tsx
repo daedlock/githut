@@ -1,5 +1,5 @@
+import { OrganizationIcon, PeopleIcon } from "@primer/octicons-react";
 import { Link } from "@tanstack/react-router";
-import { Network, Users } from "lucide-react";
 import { useState } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { EntityHoverLink } from "@/app/components/ui/EntityHoverCard";
@@ -43,7 +43,11 @@ function Orgs({ orgs, isLoading }: { orgs: UserOrg[] | undefined; isLoading: boo
 
   return (
     <section className="flex flex-col gap-3">
-      <Eyebrow icon={<Network className="size-3" />} label="Organizations" count={orgs?.length} />
+      <Eyebrow
+        icon={<OrganizationIcon className="size-3" />}
+        label="Organizations"
+        count={orgs?.length}
+      />
       {isLoading ? (
         <div className="flex flex-wrap gap-2">
           {ORG_SKELETONS.map((i) => (
@@ -86,7 +90,7 @@ function Members({ members, isLoading }: { members: OrgMember[] | undefined; isL
 
   return (
     <section className="flex flex-col gap-3 overflow-hidden">
-      <Eyebrow icon={<Users className="size-3" />} label="Members" count={members?.length} />
+      <Eyebrow icon={<PeopleIcon className="size-3" />} label="Members" count={members?.length} />
       {isLoading ? (
         <div className="flex flex-wrap gap-1.5">
           {MEMBER_SKELETONS.map((i) => (

@@ -1,4 +1,4 @@
-import { Star, Users } from "lucide-react";
+import { PeopleIcon, StarIcon } from "@primer/octicons-react";
 import { type ReactNode, useMemo } from "react";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import type { RepoSummary } from "@/shared/types";
@@ -63,7 +63,7 @@ export function ProfileBento({ profile, repos, isLoading, membersCount }: Profil
       />
       <Tile
         label="Stars earned"
-        icon={<Star className="size-3" />}
+        icon={<StarIcon className="size-3" />}
         value={derived.totalStars}
         sub={
           derived.mostStarred && derived.mostStarred.stars > 0 ? (
@@ -77,7 +77,7 @@ export function ProfileBento({ profile, repos, isLoading, membersCount }: Profil
       />
       <Tile
         label="Followers"
-        icon={<Users className="size-3" />}
+        icon={<PeopleIcon className="size-3" />}
         value={profile.followers}
         sub={
           profile.followers === 0 ? (
@@ -148,7 +148,7 @@ function Tile({
 function BentoSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-      {Array.from({ length: 4 }).map((_, i) => (
+      {[0, 1, 2, 3].map((i) => (
         <div key={i} className="flex flex-col gap-2 rounded-xl bg-muted px-4 py-3.5">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-6 w-12" />

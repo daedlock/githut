@@ -1,4 +1,5 @@
-import { ChevronDown, FileText } from "lucide-react";
+import { CaretDown } from "@phosphor-icons/react";
+import { FileIcon } from "@primer/octicons-react";
 import { useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { Skeleton } from "@/app/components/ui/skeleton";
@@ -93,7 +94,7 @@ export function ProfileReadme({ markdown, isLoading, login, isOrg }: ProfileRead
           )}
         >
           {expanded ? "Collapse README" : "Read full README"}
-          <ChevronDown
+          <CaretDown
             className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
             aria-hidden
           />
@@ -107,7 +108,7 @@ function SectionEyebrow() {
   return (
     <ProfileSectionHeader
       title="Readme"
-      icon={<FileText className="size-3 text-(--color-fg-faint)" aria-hidden />}
+      icon={<FileIcon className="size-3 text-(--color-fg-faint)" />}
     />
   );
 }

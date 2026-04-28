@@ -1,18 +1,25 @@
-import { CircleDot, CheckCircle2, GitPullRequest, MapPin, Building2, Users, BookOpen } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { Buildings, MapPin } from "@phosphor-icons/react";
+import {
+  GitPullRequestIcon,
+  IssueClosedIcon,
+  IssueOpenedIcon,
+  PeopleIcon,
+  RepoIcon,
+} from "@primer/octicons-react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Avatar } from "@/app/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/app/components/ui/hover-card";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
-import { profileQueryOptions } from "@/app/features/profile/hooks";
 import { issueKeys } from "@/app/features/issues/hooks";
-import { IssueDetailSchema } from "@/app/features/issues/schemas";
 import type { RepoIssue } from "@/app/features/issues/schemas";
-import { getGitHubClient } from "@/app/lib/github/client";
-import { useAuthStore } from "@/app/stores/auth";
+import { IssueDetailSchema } from "@/app/features/issues/schemas";
+import { profileQueryOptions } from "@/app/features/profile/hooks";
 import { cn } from "@/app/lib/cn";
+import { getGitHubClient } from "@/app/lib/github/client";
 import { formatRelativeTime } from "@/app/lib/time";
+import { useAuthStore } from "@/app/stores/auth";
 
 // ─── Detection ────────────────────────────────────────────────────────────
 
@@ -36,7 +43,9 @@ export function detectEntity(href: string, text: string): EntityRef | null {
       if (url.hostname !== "github.com") return null;
       const m = url.pathname.match(/^\/([^/]+)\/([^/]+)\/(?:issues|pull)\/(\d+)/);
       if (m) return { kind: "issue", owner: m[1]!, repo: m[2]!, number: Number(m[3]) };
-    } catch { /* not a URL */ }
+    } catch {
+      /* not a URL */
+    }
   }
 
   return null;
@@ -54,9 +63,8 @@ export function EntityHoverLink({
   href: string;
   children: React.ReactNode;
 } & React.AnchorHTMLAttributes<HTMLAnchorElement>) {
-  const to = entity.kind === "mention"
-    ? `/${entity.login}`
-    : `/${entity.owner}/${entity.repo}/issues`;
+  const to =
+    entity.kind === "mention" ? `/${entity.login}` : `/${entity.owner}/${entity.repo}/issues`;
   const search = entity.kind === "issue" ? { issue: entity.number } : undefined;
 
   return (
@@ -66,12 +74,7 @@ export function EntityHoverLink({
           {children}
         </Link>
       </HoverCardTrigger>
-      <HoverCardContent
-        side="top"
-        align="start"
-        sideOffset={6}
-        className="w-72 p-0"
-      >
+      <HoverCardContent side="top" align="start" sideOffset={6} className="w-72 p-0">
         {entity.kind === "mention" ? (
           <UserCard login={entity.login} />
         ) : (
@@ -107,9 +110,7 @@ function UserCard({ login }: { login: string }) {
 
   if (!profile) {
     return (
-      <div className="p-3 text-center text-xs text-muted-foreground">
-        Could not load profile
-      </div>
+      <div className="p-3 text-center text-xs text-muted-foreground">Could not load profile</div>
     );
   }
 
@@ -119,22 +120,28 @@ function UserCard({ login }: { login: string }) {
         <Avatar login={profile.login} avatarUrl={profile.avatar_url} size="lg" />
         <div className="min-w-0 flex-1">
           {profile.name && (
-            <Link to="/$username" params={{ username: profile.login }} className="block truncate text-xs font-medium text-foreground hover:text-[var(--color-accent)]">
+            <Link
+              to="/$username"
+              params={{ username: profile.login }}
+              className="block truncate text-xs font-medium text-foreground hover:text-[var(--color-accent)]"
+            >
               {profile.name}
             </Link>
           )}
-          <Link to="/$username" params={{ username: profile.login }} className="block truncate text-xs text-muted-foreground hover:text-[var(--color-accent)]">
+          <Link
+            to="/$username"
+            params={{ username: profile.login }}
+            className="block truncate text-xs text-muted-foreground hover:text-[var(--color-accent)]"
+          >
             @{profile.login}
           </Link>
         </div>
       </div>
-      {profile.bio && (
-        <p className="mt-2 line-clamp-2 text-xs text-foreground/80">{profile.bio}</p>
-      )}
+      {profile.bio && <p className="mt-2 line-clamp-2 text-xs text-foreground/80">{profile.bio}</p>}
       <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         {profile.company && (
           <span className="inline-flex items-center gap-1">
-            <Building2 className="size-3" />
+            <Buildings className="size-3" />
             <span className="truncate max-w-[120px]">{profile.company}</span>
           </span>
         )}
@@ -145,11 +152,11 @@ function UserCard({ login }: { login: string }) {
           </span>
         )}
         <span className="inline-flex items-center gap-1">
-          <Users className="size-3" />
+          <PeopleIcon className="size-3" />
           {profile.followers}
         </span>
         <span className="inline-flex items-center gap-1">
-          <BookOpen className="size-3" />
+          <RepoIcon className="size-3" />
           {profile.public_repos}
         </span>
       </div>
@@ -168,7 +175,9 @@ function IssueCard({ owner, repo, number }: { owner: string; repo: string; numbe
     queryFn: async (): Promise<RepoIssue> => {
       const client = getGitHubClient();
       const res = await client.request("GET /repos/{owner}/{repo}/issues/{issue_number}", {
-        owner, repo, issue_number: number,
+        owner,
+        repo,
+        issue_number: number,
       });
       return IssueDetailSchema.parse(res.data);
     },
@@ -185,9 +194,7 @@ function IssueCard({ owner, repo, number }: { owner: string; repo: string; numbe
 
   if (!issue) {
     return (
-      <div className="p-3 text-center text-xs text-muted-foreground">
-        Could not load #{number}
-      </div>
+      <div className="p-3 text-center text-xs text-muted-foreground">Could not load #{number}</div>
     );
   }
 
@@ -199,11 +206,16 @@ function IssueCard({ owner, repo, number }: { owner: string; repo: string; numbe
       {/* State + number */}
       <div className="flex items-center gap-2">
         {isPR ? (
-          <GitPullRequest className={cn("size-3.5 shrink-0", isOpen ? "text-[var(--color-success)]" : "text-[var(--color-pr-merged)]")} />
+          <GitPullRequestIcon
+            className={cn(
+              "size-3.5 shrink-0",
+              isOpen ? "text-[var(--color-success)]" : "text-[var(--color-pr-merged)]",
+            )}
+          />
         ) : isOpen ? (
-          <CircleDot className="size-3.5 shrink-0 text-[var(--color-success)]" />
+          <IssueOpenedIcon className="size-3.5 shrink-0 text-[var(--color-success)]" />
         ) : (
-          <CheckCircle2 className="size-3.5 shrink-0 text-muted-foreground" />
+          <IssueClosedIcon className="size-3.5 shrink-0 text-muted-foreground" />
         )}
         <span className="font-mono text-xs text-muted-foreground">
           {owner}/{repo}#{number}

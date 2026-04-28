@@ -1,6 +1,7 @@
+import { CaretRight } from "@phosphor-icons/react";
+import { LockIcon, StarIcon } from "@primer/octicons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, Lock, Star } from "lucide-react";
 import { repoQueryOptions } from "@/app/hooks/useRepo";
 import { repoLanguagesQueryOptions } from "@/app/hooks/useRepoLanguages";
 import type { RepoSummary } from "@/shared/types";
@@ -57,7 +58,7 @@ export function RepoRow({ repo, showOwner = false, onClick }: RepoRowProps) {
               {repo.name}
             </span>
             {repo.visibility === "private" ? (
-              <Lock
+              <LockIcon
                 className="size-3 flex-shrink-0 text-[var(--color-fg-faint)]"
                 aria-label="Private"
               />
@@ -79,14 +80,14 @@ export function RepoRow({ repo, showOwner = false, onClick }: RepoRowProps) {
           ) : null}
           {repo.stars > 0 ? (
             <span className="hidden items-center gap-1 sm:inline-flex tabular-nums">
-              <Star className="size-3" />
+              <StarIcon className="size-3" />
               {formatStars(repo.stars)}
             </span>
           ) : null}
           <span className="hidden text-[var(--color-fg-faint)] md:inline">
             {formatPushed(repo.pushedAt)}
           </span>
-          <ChevronRight className="size-4 text-[var(--color-fg-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
+          <CaretRight className="size-4 text-[var(--color-fg-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
         </div>
       </div>
     </Link>

@@ -1,4 +1,4 @@
-import { Code2 } from "lucide-react";
+import { CodeIcon } from "@primer/octicons-react";
 import { useMemo } from "react";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import type { RepoSummary } from "@/shared/types";
@@ -43,7 +43,7 @@ export function ProfileLanguages({ repos, isLoading }: ProfileLanguagesProps) {
     <section className="flex flex-col gap-3 rounded-xl bg-muted px-4 py-4 sm:px-5 sm:py-5">
       <ProfileSectionHeader
         title="Languages"
-        icon={<Code2 className="size-3 text-[color:var(--color-fg-faint)]" aria-hidden />}
+        icon={<CodeIcon className="size-3 text-[color:var(--color-fg-faint)]" />}
       />
 
       {isLoading ? (
@@ -122,7 +122,7 @@ function LanguagesSkeleton() {
     <div className="flex flex-col gap-3">
       <Skeleton className="h-2 w-full rounded-full" />
       <div className="flex flex-col gap-1.5">
-        {Array.from({ length: 4 }).map((_, i) => (
+        {[0, 1, 2, 3].map((i) => (
           <div key={i} className="flex items-center justify-between">
             <Skeleton className="h-3 w-1/2" />
             <Skeleton className="h-3 w-12" />

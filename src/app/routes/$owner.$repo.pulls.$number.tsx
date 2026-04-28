@@ -6,11 +6,7 @@ import { PrActions } from "@/app/features/pulls/components/PrActions";
 import { PrHeader } from "@/app/features/pulls/components/PrHeader";
 import { PrSidebar } from "@/app/features/pulls/components/PrSidebar";
 import { PrSubTabs } from "@/app/features/pulls/components/PrSubTabs";
-import {
-  prDetailQueryOptions,
-  useFullPr,
-  usePrReviews,
-} from "@/app/features/pulls/hooks";
+import { prDetailQueryOptions, useFullPr, usePrReviews } from "@/app/features/pulls/hooks";
 
 export const Route = createFileRoute("/$owner/$repo/pulls/$number")({
   parseParams: (raw) => ({ number: Number(raw.number) }),
@@ -68,7 +64,7 @@ function PrDetailLayout() {
       </Container>
 
       {/* Sticky tabs bar */}
-      <div className="sticky top-9 z-10 border-b border-border bg-background">
+      <div className="sticky top-10 z-10 border-b border-border bg-background">
         <Container>
           <PrSubTabs
             owner={owner}

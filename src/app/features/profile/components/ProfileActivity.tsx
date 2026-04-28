@@ -1,16 +1,15 @@
 import {
-  Activity,
-  CircleDot,
-  GitCommit,
-  GitFork,
-  GitPullRequest,
-  type LucideIcon,
-  MessageSquare,
-  Plus,
-  Star,
-  Tag,
-} from "lucide-react";
-import { useMemo, useState } from "react";
+  BroadcastIcon,
+  CommentDiscussionIcon,
+  GitCommitIcon,
+  GitPullRequestIcon,
+  IssueOpenedIcon,
+  PlusIcon,
+  RepoForkedIcon,
+  StarIcon,
+  TagIcon,
+} from "@primer/octicons-react";
+import { type ComponentType, useMemo, useState } from "react";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { cn } from "@/app/lib/cn";
 import type { GitHubEvent } from "../schemas";
@@ -23,16 +22,19 @@ const OPACITY_FLOOR = 0.55;
 
 type Bucket = "push" | "pr" | "issue" | "review" | "star" | "fork" | "release" | "create" | "other";
 
-const BUCKET: Record<Bucket, { icon: LucideIcon; one: string; many: string }> = {
-  push: { icon: GitCommit, one: "push", many: "pushes" },
-  pr: { icon: GitPullRequest, one: "PR", many: "PRs" },
-  issue: { icon: CircleDot, one: "issue", many: "issues" },
-  review: { icon: MessageSquare, one: "review", many: "reviews" },
-  star: { icon: Star, one: "star", many: "stars" },
-  fork: { icon: GitFork, one: "fork", many: "forks" },
-  release: { icon: Tag, one: "release", many: "releases" },
-  create: { icon: Plus, one: "create", many: "creates" },
-  other: { icon: Activity, one: "event", many: "events" },
+const BUCKET: Record<
+  Bucket,
+  { icon: ComponentType<{ className?: string }>; one: string; many: string }
+> = {
+  push: { icon: GitCommitIcon, one: "push", many: "pushes" },
+  pr: { icon: GitPullRequestIcon, one: "PR", many: "PRs" },
+  issue: { icon: IssueOpenedIcon, one: "issue", many: "issues" },
+  review: { icon: CommentDiscussionIcon, one: "review", many: "reviews" },
+  star: { icon: StarIcon, one: "star", many: "stars" },
+  fork: { icon: RepoForkedIcon, one: "fork", many: "forks" },
+  release: { icon: TagIcon, one: "release", many: "releases" },
+  create: { icon: PlusIcon, one: "create", many: "creates" },
+  other: { icon: BroadcastIcon, one: "event", many: "events" },
 };
 
 type DayCell = {
@@ -80,16 +82,13 @@ export function ProfileActivity({ events, isLoading }: ProfileActivityProps) {
   const isPinned = !!pinnedKey;
 
   return (
-    <div aria-label="Public activity" className="flex flex-col gap-2.5" role="group">
+    <section aria-label="Public activity" className="flex flex-col gap-2.5">
       {data.summary.total === 0 ? (
         <p className="text-caption text-(--color-fg-faint)">no public events in the last 30 days</p>
       ) : (
         <>
           <div
             className="grid"
-            role="grid"
-            aria-label="Activity ribbon"
-            onMouseLeave={() => setHoveredKey(null)}
             style={{
               gridTemplateColumns: `repeat(${TOTAL_DAYS}, minmax(0, 1fr))`,
               gap: `${GAP_PX}px`,
@@ -102,13 +101,13 @@ export function ProfileActivity({ events, isLoading }: ProfileActivityProps) {
                 <button
                   key={cell.key}
                   type="button"
-                  role="gridcell"
                   aria-label={`${cell.count} ${
                     cell.count === 1 ? "event" : "events"
                   } on ${cell.label}`}
                   aria-pressed={isPinned ? isActive : undefined}
                   data-active={isActive || undefined}
                   onMouseEnter={() => setHoveredKey(cell.key)}
+                  onMouseLeave={() => setHoveredKey(null)}
                   onFocus={() => setHoveredKey(cell.key)}
                   onBlur={() => {
                     if (!pinnedKey) setHoveredKey(null);
@@ -143,7 +142,7 @@ export function ProfileActivity({ events, isLoading }: ProfileActivityProps) {
           </p>
         </>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -179,7 +178,7 @@ function ActiveLine({ cell, pinned }: { cell: DayCell; pinned: boolean }) {
     <span className="flex flex-wrap items-center gap-x-2 gap-y-0">
       {pinned && (
         <span
-          aria-label="pinned"
+          aria-hidden="true"
           className="size-1.5 rounded-full"
           style={{ backgroundColor: "var(--color-success)" }}
         />
@@ -197,7 +196,9 @@ function ActiveLine({ cell, pinned }: { cell: DayCell; pinned: boolean }) {
         return (
           <span key={key} className="flex items-center gap-1">
             {idx > 0 && <span className="text-[color:var(--color-fg-faint)]">·</span>}
-            <Icon className="size-3 text-[color:var(--color-fg-faint)]" aria-hidden />
+            <span className="text-[color:var(--color-fg-faint)]" aria-hidden="true">
+              <Icon className="size-3" />
+            </span>
             <span>
               <span className="tabular-nums text-foreground">{n}</span>{" "}
               {n === 1 ? meta.one : meta.many}

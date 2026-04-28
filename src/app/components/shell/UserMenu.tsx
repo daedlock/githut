@@ -8,7 +8,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
 import { cn } from "@/app/lib/cn";
@@ -29,7 +28,13 @@ const THEME_OPTIONS: { value: ThemePreference; icon: typeof Sun; label: string }
   { value: "dark", icon: Moon, label: "Dark" },
 ];
 
-export function UserMenu({ login, avatarUrl, onSignOut, onReAuth, variant = "full" }: UserMenuProps) {
+export function UserMenu({
+  login,
+  avatarUrl,
+  onSignOut,
+  onReAuth,
+  variant = "full",
+}: UserMenuProps) {
   const themePreference = useThemeStore((s) => s.preference);
   const setThemePreference = useThemeStore((s) => s.setPreference);
 
@@ -42,33 +47,35 @@ export function UserMenu({ login, avatarUrl, onSignOut, onReAuth, variant = "ful
             aria-label="Open user menu"
             title="User menu"
             className={cn(
-              "rounded-full outline-none transition-opacity",
-              "hover:opacity-80",
-              "focus-visible:ring-2 focus-visible:ring-(--color-focus) focus-visible:ring-offset-1 focus-visible:ring-offset-(--color-bg)",
+              "rounded-full outline-none transition-opacity hover:opacity-80",
+              "focus-visible:ring-2 focus-visible:ring-(--color-focus) focus-visible:ring-offset-1 focus-visible:ring-offset-background",
             )}
           >
             {avatarUrl ? (
               <Avatar login={login ?? "User avatar"} avatarUrl={avatarUrl} size="lg" />
             ) : (
-              <span className="inline-flex size-7 items-center justify-center rounded-full bg-(--color-bg-sunken) text-muted-foreground">
+              <span className="inline-flex size-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <User2 className="size-3.5" />
               </span>
             )}
           </button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="end" sideOffset={10} className="w-64 p-1.5">
-          {/* Identity header */}
-          <div className="flex items-center gap-3 px-2 pb-2.5 pt-1.5">
+        <DropdownMenuContent
+          align="end"
+          sideOffset={8}
+          className="w-[320px] overflow-hidden rounded-xl bg-popover p-2.5"
+        >
+          <div className="flex items-center gap-3 px-2.5 py-2">
             {avatarUrl ? (
-              <Avatar login={login ?? "User avatar"} avatarUrl={avatarUrl} size="xl" />
+              <Avatar login={login ?? "User avatar"} avatarUrl={avatarUrl} size="lg" />
             ) : (
-              <span className="inline-flex size-9 items-center justify-center rounded-full bg-(--color-bg-sunken) text-muted-foreground">
+              <span className="inline-flex size-7 items-center justify-center rounded-full bg-background text-muted-foreground">
                 <User2 className="size-4" />
               </span>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate font-mono text-code font-semibold leading-tight text-foreground">
+              <p className="truncate font-mono text-code font-medium leading-tight text-foreground">
                 {login ? `@${login}` : "Account"}
               </p>
               <p className="mt-0.5 truncate text-caption leading-tight text-muted-foreground">
@@ -77,65 +84,48 @@ export function UserMenu({ login, avatarUrl, onSignOut, onReAuth, variant = "ful
             </div>
           </div>
 
-          <DropdownMenuSeparator className="-mx-1.5 mb-1" />
+          <div className="my-2 flex flex-col gap-1">
+            {login ? (
+              <DropdownMenuItem asChild className="h-8.5 gap-2 px-2.5 text-ui">
+                <Link to="/$username" params={{ username: login }}>
+                  <User2 />
+                  Profile
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
 
-          {/* Navigation */}
-          {login ? (
-            <DropdownMenuItem asChild>
-              <Link to="/$username" params={{ username: login }}>
-                <User2 />
-                Profile
+            <DropdownMenuItem asChild className="h-8.5 gap-2 px-2.5 text-ui">
+              <Link to="/settings">
+                <Settings />
+                Settings
               </Link>
             </DropdownMenuItem>
-          ) : null}
+          </div>
 
-          <DropdownMenuItem asChild>
-            <Link to="/settings">
-              <Settings />
-              Settings
-            </Link>
-          </DropdownMenuItem>
-
-          <DropdownMenuSeparator className="-mx-1.5 my-1" />
-
-          {/* Appearance — light/dark toggle + palette picker.
-              Wrapped in an onSelect={preventDefault} container so clicking
-              a chip doesn't close the dropdown — users almost always want to
-              try a few. Close via Esc or clicking outside. */}
-          <div
+          <fieldset
+            className="rounded-md bg-muted p-3"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
-              // Let arrow keys bubble to the picker; stop Enter/Space from
-              // triggering DropdownMenuItem activation on the parent.
               if (e.key === " " || e.key === "Enter") e.stopPropagation();
             }}
           >
-            {/* Preference row — mono label + segmented tri-state */}
-            <div className="flex items-center justify-between gap-2 px-1.5 pb-1.5 pt-1">
-              <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
-                Appearance
-              </span>
-              <div
-                role="radiogroup"
-                aria-label="Theme preference"
-                className="flex items-center gap-0.5 rounded-md bg-(--color-bg-sunken) p-0.5"
-              >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <legend className="text-caption font-medium text-foreground">Appearance</legend>
+              <div className="flex items-center gap-1 rounded-md bg-background p-1">
                 {THEME_OPTIONS.map(({ value, icon: Icon, label }) => (
                   <button
                     key={value}
                     type="button"
-                    role="radio"
-                    aria-checked={themePreference === value}
+                    aria-pressed={themePreference === value}
                     title={label}
                     aria-label={`${label} theme`}
                     onClick={() => setThemePreference(value)}
                     className={cn(
-                      "flex h-5.5 w-5.5 items-center justify-center rounded transition-colors",
-                      "focus-visible:outline-2 focus-visible:outline-offset-1",
-                      "focus-visible:outline-(--color-focus)",
+                      "flex size-6.5 items-center justify-center rounded transition-colors",
+                      "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--color-focus)",
                       themePreference === value
-                        ? "bg-(--color-bg) text-foreground ring-1 ring-border"
-                        : "text-muted-foreground hover:text-foreground",
+                        ? "bg-muted text-foreground ring-1 ring-border"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
                     <Icon className="size-3" />
@@ -144,34 +134,34 @@ export function UserMenu({ login, avatarUrl, onSignOut, onReAuth, variant = "ful
               </div>
             </div>
 
-            {/* Palette grid */}
             <ThemePalettePicker />
-          </div>
+          </fieldset>
 
-          <DropdownMenuSeparator className="-mx-1.5 my-1" />
-
-          {/* Account actions */}
-          {onReAuth ? (
+          <div className="mt-2 flex flex-col gap-1">
+            {onReAuth ? (
+              <DropdownMenuItem
+                className="h-8.5 gap-2 px-2.5 text-ui"
+                onSelect={(e) => {
+                  e.preventDefault();
+                  onReAuth();
+                }}
+              >
+                <KeyRound />
+                Manage GitHub access
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem
+              variant="destructive"
+              className="h-8.5 gap-2 px-2.5 text-ui"
               onSelect={(e) => {
                 e.preventDefault();
-                onReAuth();
+                onSignOut();
               }}
             >
-              <KeyRound />
-              Manage GitHub access
+              <LogOut />
+              Sign out
             </DropdownMenuItem>
-          ) : null}
-          <DropdownMenuItem
-            variant="destructive"
-            onSelect={(e) => {
-              e.preventDefault();
-              onSignOut();
-            }}
-          >
-            <LogOut />
-            Sign out
-          </DropdownMenuItem>
+          </div>
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -180,10 +170,6 @@ export function UserMenu({ login, avatarUrl, onSignOut, onReAuth, variant = "ful
   return (
     <>
       {avatarUrl ? <Avatar login={login ?? "User avatar"} avatarUrl={avatarUrl} size="lg" /> : null}
-      {/*
-       * Theme toggle lives in the user menu per §3 — it's a preference,
-       * not primary navigation, so it doesn't belong in the top-bar action row.
-       */}
       <ThemeToggle />
       <Button variant="ghost" size="icon" asChild aria-label="Settings" title="Settings">
         <Link to="/settings">

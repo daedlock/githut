@@ -1,20 +1,21 @@
-import { Link } from "@tanstack/react-router";
 import {
-  GitCommit,
-  GitFork,
-  GitPullRequest,
-  type LucideIcon,
-  Plus,
-  Radio,
-  Star,
-} from "lucide-react";
-import { useMemo } from "react";
+  BroadcastIcon,
+  GitCommitIcon,
+  GitPullRequestIcon,
+  IssueOpenedIcon,
+  PlusIcon,
+  RepoForkedIcon,
+  StarIcon,
+} from "@primer/octicons-react";
+import { Link } from "@tanstack/react-router";
+import { type ComponentType, useMemo } from "react";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { formatRelativeTime } from "@/app/lib/time";
 import type { GitHubEvent } from "../schemas";
 import { ProfileSectionHeader } from "./ProfileSectionHeader";
 
 const MAX = 6;
+const ACTIVITY_SKELETONS = [0, 1, 2, 3, 4];
 
 export type ProfileLatestActivityProps = {
   events: GitHubEvent[] | undefined;
@@ -23,7 +24,7 @@ export type ProfileLatestActivityProps = {
 
 type Item = {
   id: string;
-  icon: LucideIcon;
+  icon: ComponentType<{ className?: string }>;
   verb: string;
   owner: string;
   repo: string;
@@ -43,7 +44,7 @@ export function ProfileLatestActivity({ events, isLoading }: ProfileLatestActivi
     <section className="flex flex-col gap-3 rounded-xl bg-muted px-4 py-4 sm:px-5 sm:py-5">
       <ProfileSectionHeader
         title="Latest Activity"
-        icon={<Radio className="size-3 text-(--color-fg-faint)" aria-hidden />}
+        icon={<BroadcastIcon className="size-3 text-(--color-fg-faint)" />}
       />
 
       {isLoading ? (
@@ -67,7 +68,9 @@ function ActivityRow({ item }: { item: Item }) {
   const Icon = item.icon;
   return (
     <li className="flex min-w-0 items-center gap-2">
-      <Icon className="size-3.5 shrink-0" style={{ color: hueColor(item.hue) }} aria-hidden />
+      <span className="shrink-0" style={{ color: hueColor(item.hue) }} aria-hidden="true">
+        <Icon className="size-3.5" />
+      </span>
       <span className="text-caption text-muted-foreground">{item.verb}</span>
       <Link
         to="/$owner/$repo"
@@ -87,7 +90,7 @@ function ActivityRow({ item }: { item: Item }) {
 function ActivitySkeleton() {
   return (
     <ul className="flex flex-col gap-2">
-      {Array.from({ length: 5 }).map((_, i) => (
+      {ACTIVITY_SKELETONS.map((i) => (
         <li key={i} className="flex items-center gap-2">
           <Skeleton className="size-3.5 shrink-0 rounded-full" />
           <Skeleton className="h-3 w-12" />
@@ -138,7 +141,7 @@ function describeEvent(ev: GitHubEvent, owner: string, repo: string): Item | nul
       const commits = Array.isArray(payload.commits) ? (payload.commits as unknown[]) : [];
       return {
         id,
-        icon: GitCommit,
+        icon: GitCommitIcon,
         verb: commits.length > 1 ? `Pushed ${commits.length}×` : "Pushed",
         owner,
         repo,
@@ -149,7 +152,7 @@ function describeEvent(ev: GitHubEvent, owner: string, repo: string): Item | nul
     case "PullRequestEvent":
       return {
         id,
-        icon: GitPullRequest,
+        icon: GitPullRequestIcon,
         verb: action === "opened" ? "Opened PR" : action === "closed" ? "Closed PR" : "PR",
         owner,
         repo,
@@ -159,7 +162,7 @@ function describeEvent(ev: GitHubEvent, owner: string, repo: string): Item | nul
     case "IssuesEvent":
       return {
         id,
-        icon: GitPullRequest,
+        icon: IssueOpenedIcon,
         verb: action === "opened" ? "Opened issue" : action === "closed" ? "Closed issue" : "Issue",
         owner,
         repo,
@@ -169,7 +172,7 @@ function describeEvent(ev: GitHubEvent, owner: string, repo: string): Item | nul
     case "WatchEvent":
       return {
         id,
-        icon: Star,
+        icon: StarIcon,
         verb: "Starred",
         owner,
         repo,
@@ -179,7 +182,7 @@ function describeEvent(ev: GitHubEvent, owner: string, repo: string): Item | nul
     case "ForkEvent":
       return {
         id,
-        icon: GitFork,
+        icon: RepoForkedIcon,
         verb: "Forked",
         owner,
         repo,
@@ -190,7 +193,7 @@ function describeEvent(ev: GitHubEvent, owner: string, repo: string): Item | nul
       const refType = typeof payload.ref_type === "string" ? payload.ref_type : "ref";
       return {
         id,
-        icon: Plus,
+        icon: PlusIcon,
         verb: `Created ${refType}`,
         owner,
         repo,
@@ -201,7 +204,7 @@ function describeEvent(ev: GitHubEvent, owner: string, repo: string): Item | nul
     case "ReleaseEvent":
       return {
         id,
-        icon: Plus,
+        icon: PlusIcon,
         verb: action === "published" ? "Released" : "Release",
         owner,
         repo,
@@ -211,7 +214,7 @@ function describeEvent(ev: GitHubEvent, owner: string, repo: string): Item | nul
     case "PullRequestReviewEvent":
       return {
         id,
-        icon: GitPullRequest,
+        icon: GitPullRequestIcon,
         verb: "Reviewed",
         owner,
         repo,

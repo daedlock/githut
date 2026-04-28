@@ -82,10 +82,7 @@ function CodePage() {
   const { data: readme } = useRepoReadme(owner, repo);
   const { data: languages, isPending: languagesPending } = useRepoLanguages(owner, repo);
   const { data: releases, isPending: releasesPending } = useRepoReleases(owner, repo);
-  const { data: contributors, isPending: contributorsPending } = useRepoContributors(
-    owner,
-    repo,
-  );
+  const { data: contributors, isPending: contributorsPending } = useRepoContributors(owner, repo);
 
   // blob view
   const { data: fileData, isPending: filePending } = useRepoFile(
@@ -169,11 +166,11 @@ function CodePage() {
           )}
         </div>
 
-        {/* sidebar — sticky offset = navbar (h-11/44px) + container py-6
+        {/* sidebar — sticky offset = navbar (h-10/40px) + container py-6
             (24px) so the sidebar parks the same gap below the navbar
             that the buttons originally have above the file list. */}
         {showSidebar && (
-          <div className="w-64 flex-shrink-0 sticky top-[68px]">
+          <div className="w-64 flex-shrink-0 sticky top-[64px]">
             <RepoAbout
               repo={repoData}
               languages={languages}

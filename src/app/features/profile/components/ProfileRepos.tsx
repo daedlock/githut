@@ -1,4 +1,5 @@
-import { ChevronDown, FolderGit2, Search } from "lucide-react";
+import { CaretDown, MagnifyingGlass } from "@phosphor-icons/react";
+import { RepoIcon } from "@primer/octicons-react";
 import { useMemo, useState } from "react";
 import { RepoRow } from "@/app/components/repo/RepoRow";
 import { Input } from "@/app/components/ui/input";
@@ -62,12 +63,12 @@ export function ProfileRepos({ repos, isLoading }: ProfileReposProps) {
       <ProfileSectionHeader
         title="All Repositories"
         count={repos ? (query ? filtered.length : repos.length) : undefined}
-        icon={<FolderGit2 className="size-3 text-(--color-fg-faint)" aria-hidden />}
+        icon={<RepoIcon className="size-3 text-(--color-fg-faint)" />}
       />
 
       <div className="flex flex-col gap-2 rounded-lg bg-muted px-2 py-1.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative min-w-0 flex-1">
-          <Search
+          <MagnifyingGlass
             className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
             aria-hidden
           />
@@ -148,7 +149,7 @@ export function ProfileRepos({ repos, isLoading }: ProfileReposProps) {
           )}
         >
           {expanded ? "Collapse" : `Show all ${filtered.length} repositories`}
-          <ChevronDown
+          <CaretDown
             className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
             aria-hidden
           />

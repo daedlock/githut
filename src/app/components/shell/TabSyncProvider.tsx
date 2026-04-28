@@ -11,7 +11,7 @@ import { hrefToTabId, useTabsStore } from "@/app/stores/tabs";
  * Direction 1 — URL changes (user types URL, browser back/forward, Link click):
  *   Router state updates → we call openTab(href) → tab bar reflects it.
  *
- * Direction 2 — Tab focused (user clicks a tab in TabBar):
+ * Direction 2 — Tab focused (workspace state changes):
  *   Store updates activeTabId → we call router.navigate(tab.href) → Outlet renders.
  *
  * Loop prevention: a ref tracks which direction initiated the current change.
