@@ -5,6 +5,7 @@ import { Skeleton } from "@/app/components/ui/skeleton";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 import type { RepoSummary } from "@/shared/types";
+import { ProfileSectionHeader } from "./ProfileSectionHeader";
 
 const TOP = 3;
 
@@ -32,10 +33,10 @@ export function ProfilePinned({ repos, isLoading }: ProfilePinnedProps) {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="flex items-center gap-1.5 font-mono text-micro uppercase tracking-widest text-muted-foreground">
-        <Pin className="size-3 text-[color:var(--color-fg-faint)]" aria-hidden />
-        Top repositories
-      </h2>
+      <ProfileSectionHeader
+        title="Top Repositories"
+        icon={<Pin className="size-3 text-(--color-fg-faint)" aria-hidden />}
+      />
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
         {top.map((r) => (
@@ -69,15 +70,13 @@ function PinnedCard({ repo }: { repo: RepoSummary }) {
       <p
         className={cn(
           "flex-1 line-clamp-3 text-caption leading-relaxed",
-          repo.description
-            ? "text-muted-foreground"
-            : "italic text-[color:var(--color-fg-faint)]",
+          repo.description ? "text-muted-foreground" : "italic text-[color:var(--color-fg-faint)]",
         )}
       >
         {repo.description ?? "No description"}
       </p>
 
-      <footer className="flex items-center justify-between gap-2 font-mono text-micro text-[color:var(--color-fg-faint)]">
+      <footer className="flex items-center justify-between gap-2 text-caption text-(--color-fg-faint)">
         {repo.language ? (
           <span className="inline-flex items-center gap-1.5">
             <span
@@ -90,7 +89,7 @@ function PinnedCard({ repo }: { repo: RepoSummary }) {
         ) : (
           <span />
         )}
-        <span className="tabular-nums">{formatRelativeTime(repo.pushedAt)}</span>
+        <span className="font-mono tabular-nums">{formatRelativeTime(repo.pushedAt)}</span>
       </footer>
     </Link>
   );

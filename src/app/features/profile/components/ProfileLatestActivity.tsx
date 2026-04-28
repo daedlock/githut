@@ -3,15 +3,16 @@ import {
   GitCommit,
   GitFork,
   GitPullRequest,
+  type LucideIcon,
   Plus,
   Radio,
   Star,
-  type LucideIcon,
 } from "lucide-react";
 import { useMemo } from "react";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { formatRelativeTime } from "@/app/lib/time";
 import type { GitHubEvent } from "../schemas";
+import { ProfileSectionHeader } from "./ProfileSectionHeader";
 
 const MAX = 6;
 
@@ -35,23 +36,20 @@ type Item = {
  * repo link + relative timestamp. Only visually important event types are
  * surfaced; everything else is collapsed silently.
  */
-export function ProfileLatestActivity({
-  events,
-  isLoading,
-}: ProfileLatestActivityProps) {
+export function ProfileLatestActivity({ events, isLoading }: ProfileLatestActivityProps) {
   const items = useMemo(() => buildItems(events), [events]);
 
   return (
     <section className="flex flex-col gap-3 rounded-xl bg-muted px-4 py-4 sm:px-5 sm:py-5">
-      <h2 className="flex items-center gap-1.5 font-mono text-micro uppercase tracking-widest text-muted-foreground">
-        <Radio className="size-3 text-[color:var(--color-fg-faint)]" aria-hidden />
-        Latest activity
-      </h2>
+      <ProfileSectionHeader
+        title="Latest Activity"
+        icon={<Radio className="size-3 text-(--color-fg-faint)" aria-hidden />}
+      />
 
       {isLoading ? (
         <ActivitySkeleton />
       ) : items.length === 0 ? (
-        <p className="py-2 text-center font-mono text-caption text-[color:var(--color-fg-faint)]">
+        <p className="py-2 text-center text-caption text-(--color-fg-faint)">
           No recent public events
         </p>
       ) : (
@@ -69,11 +67,7 @@ function ActivityRow({ item }: { item: Item }) {
   const Icon = item.icon;
   return (
     <li className="flex min-w-0 items-center gap-2">
-      <Icon
-        className="size-3.5 shrink-0"
-        style={{ color: hueColor(item.hue) }}
-        aria-hidden
-      />
+      <Icon className="size-3.5 shrink-0" style={{ color: hueColor(item.hue) }} aria-hidden />
       <span className="text-caption text-muted-foreground">{item.verb}</span>
       <Link
         to="/$owner/$repo"
@@ -83,7 +77,7 @@ function ActivityRow({ item }: { item: Item }) {
       >
         {item.repo}
       </Link>
-      <span className="ml-auto shrink-0 font-mono text-caption text-[color:var(--color-fg-faint)] tabular-nums">
+      <span className="ml-auto shrink-0 font-mono text-caption text-(--color-fg-faint) tabular-nums">
         {formatRelativeTime(item.iso)}
       </span>
     </li>
@@ -133,11 +127,7 @@ function buildItems(events: GitHubEvent[] | undefined): Item[] {
   return out;
 }
 
-function describeEvent(
-  ev: GitHubEvent,
-  owner: string,
-  repo: string,
-): Item | null {
+function describeEvent(ev: GitHubEvent, owner: string, repo: string): Item | null {
   const id = ev.id;
   const iso = ev.created_at!;
   const payload = (ev.payload ?? {}) as Record<string, unknown>;
@@ -145,9 +135,7 @@ function describeEvent(
 
   switch (ev.type) {
     case "PushEvent": {
-      const commits = Array.isArray(payload.commits)
-        ? (payload.commits as unknown[])
-        : [];
+      const commits = Array.isArray(payload.commits) ? (payload.commits as unknown[]) : [];
       return {
         id,
         icon: GitCommit,
@@ -234,4 +222,3 @@ function describeEvent(
       return null;
   }
 }
-

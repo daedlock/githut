@@ -167,6 +167,17 @@ html.dark .shiki span {
 }
 
 /*
+ * Berkeley Mono descenders can dip outside tight inline boxes. Tailwind's
+ * `truncate` sets overflow:hidden, so those descenders get visibly clipped.
+ */
+.font-mono.truncate,
+.font-mono .truncate {
+  line-height: 1.4;
+  padding-block: 0.08em;
+  margin-block: -0.08em;
+}
+
+/*
  * Popover entrance — fast, quiet slide + scale. Matches the app's industrial
  * utilitarian tone: no bounce, no glow, just a crisp settle. 120ms with a
  * gentle exponential ease so it decelerates naturally into place.

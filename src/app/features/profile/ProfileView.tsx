@@ -1,7 +1,5 @@
-import { useNavigate } from "@tanstack/react-router";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Container } from "@/app/components/ui/Container";
-import type { RepoSummary } from "@/shared/types";
 import { ProfileActivity } from "./components/ProfileActivity";
 import { ProfileBento } from "./components/ProfileBento";
 import { ProfileHero } from "./components/ProfileHero";
@@ -38,8 +36,6 @@ import {
  * Surfaces win — the only borders in this layout are inside form inputs.
  */
 export function ProfileView({ login }: { login: string }) {
-  const navigate = useNavigate();
-
   const profile = useProfile(login);
   const isOrg = profile.data?.type === "Organization";
 
@@ -48,12 +44,6 @@ export function ProfileView({ login }: { login: string }) {
   const events = useUserEvents(login, isOrg);
   const orgs = useUserOrgs(profile.data && !isOrg ? login : "");
   const members = useOrgMembers(profile.data && isOrg ? login : "");
-
-  const onRepoClick = (repo: RepoSummary) =>
-    navigate({
-      to: "/$owner/$repo",
-      params: { owner: repo.owner.login, repo: repo.name },
-    });
 
   if (profile.isError) {
     return (
@@ -79,10 +69,7 @@ export function ProfileView({ login }: { login: string }) {
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <ProfileLanguages repos={repos.data} isLoading={repos.isPending} />
-          <ProfileLatestActivity
-            events={events.data}
-            isLoading={events.isPending}
-          />
+          <ProfileLatestActivity events={events.data} isLoading={events.isPending} />
         </div>
 
         <ProfileReadme
@@ -94,11 +81,7 @@ export function ProfileView({ login }: { login: string }) {
 
         <ProfilePinned repos={repos.data} isLoading={repos.isPending} />
 
-        <ProfileRepos
-          repos={repos.data}
-          isLoading={repos.isPending}
-          onRepoClick={onRepoClick}
-        />
+        <ProfileRepos repos={repos.data} isLoading={repos.isPending} />
 
         <ProfileRoster
           isOrg={!!isOrg}

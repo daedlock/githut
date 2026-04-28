@@ -1,11 +1,4 @@
-import {
-  Building2,
-  CalendarDays,
-  ExternalLink,
-  Globe,
-  Mail,
-  MapPin,
-} from "lucide-react";
+import { Building2, CalendarDays, ExternalLink, Globe, Mail, MapPin } from "lucide-react";
 import type { ReactNode } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Skeleton } from "@/app/components/ui/skeleton";
@@ -36,30 +29,25 @@ export function ProfileHero({ profile, isLoading }: ProfileHeroProps) {
       />
 
       <div className="min-w-0 flex flex-col gap-1.5">
-        <span
-          className="font-mono text-micro uppercase tracking-widest text-muted-foreground"
-          aria-hidden
-        >
+        <span className="w-fit rounded-full bg-muted px-2 py-0.5 text-caption text-muted-foreground">
           {isOrg ? "Organization" : "User"}
         </span>
 
         {profile.name ? (
           <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-            <h1 className="text-heading font-[550] tracking-tight text-foreground">
+            <h1 className="text-heading font-[475] tracking-tight text-foreground text-pretty">
               {profile.name}
             </h1>
-            <span className="font-mono text-body text-muted-foreground">
-              @{profile.login}
-            </span>
+            <span className="font-mono text-body text-muted-foreground">@{profile.login}</span>
           </div>
         ) : (
-          <h1 className="text-heading font-[550] tracking-tight text-foreground">
+          <h1 className="text-heading font-[475] tracking-tight text-foreground text-pretty">
             @{profile.login}
           </h1>
         )}
 
         {profile.bio && (
-          <p className="mt-0.5 max-w-prose text-body leading-relaxed text-foreground">
+          <p className="mt-0.5 max-w-prose text-body leading-relaxed text-foreground text-pretty">
             {profile.bio}
           </p>
         )}
@@ -87,9 +75,7 @@ function ProfileMetaLine({ profile }: { profile: GitHubProfile }) {
     });
   }
   if (profile.blog) {
-    const url = profile.blog.startsWith("http")
-      ? profile.blog
-      : `https://${profile.blog}`;
+    const url = profile.blog.startsWith("http") ? profile.blog : `https://${profile.blog}`;
     items.push({
       icon: <Globe className="size-3.5" />,
       label: profile.blog.replace(/^https?:\/\//, ""),
@@ -98,9 +84,7 @@ function ProfileMetaLine({ profile }: { profile: GitHubProfile }) {
   }
   if (profile.twitter_username) {
     items.push({
-      icon: (
-        <span className="font-mono text-caption font-medium leading-none">𝕏</span>
-      ),
+      icon: <span className="font-mono text-caption font-medium leading-none">𝕏</span>,
       label: `@${profile.twitter_username}`,
       href: `https://x.com/${profile.twitter_username}`,
     });
@@ -121,19 +105,21 @@ function ProfileMetaLine({ profile }: { profile: GitHubProfile }) {
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-ui text-muted-foreground">
       {items.map((it, i) => (
-        <span key={`${it.label}-${i}`} className="inline-flex items-center gap-1.5">
-          <span className="text-[color:var(--color-fg-faint)]">{it.icon}</span>
+        <span key={`${it.label}-${i}`} className="inline-flex min-w-0 items-center gap-1.5">
+          <span className="text-(--color-fg-faint)" aria-hidden="true">
+            {it.icon}
+          </span>
           {it.href ? (
             <a
               href={it.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="transition-colors hover:text-foreground"
+              className="min-w-0 truncate transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-(--color-focus)"
             >
               {it.label}
             </a>
           ) : (
-            <span>{it.label}</span>
+            <span className="min-w-0 truncate">{it.label}</span>
           )}
         </span>
       ))}
@@ -160,8 +146,8 @@ function HeroSkeleton() {
 }
 
 function formatJoin(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
+  return new Intl.DateTimeFormat(undefined, {
     month: "short",
     year: "numeric",
-  });
+  }).format(new Date(iso));
 }

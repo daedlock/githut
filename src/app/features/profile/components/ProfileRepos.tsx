@@ -3,8 +3,10 @@ import { useMemo, useState } from "react";
 import { RepoRow } from "@/app/components/repo/RepoRow";
 import { Input } from "@/app/components/ui/input";
 import { Skeleton } from "@/app/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/app/components/ui/toggle-group";
 import { cn } from "@/app/lib/cn";
 import type { RepoSummary } from "@/shared/types";
+import { ProfileSectionHeader } from "./ProfileSectionHeader";
 
 const COLLAPSED_LIMIT = 8;
 
@@ -19,7 +21,6 @@ const SORTS: { id: SortKey; label: string }[] = [
 export type ProfileReposProps = {
   repos: RepoSummary[] | undefined;
   isLoading: boolean;
-  onRepoClick?: (repo: RepoSummary) => void;
 };
 
 /**
@@ -28,7 +29,7 @@ export type ProfileReposProps = {
  * we collapse to the first N rows behind a gradient mask that fades into
  * the page background — a "View all N" button reveals the rest.
  */
-export function ProfileRepos({ repos, isLoading, onRepoClick }: ProfileReposProps) {
+export function ProfileRepos({ repos, isLoading }: ProfileReposProps) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("recent");
   const [expanded, setExpanded] = useState(false);
@@ -58,24 +59,14 @@ export function ProfileRepos({ repos, isLoading, onRepoClick }: ProfileReposProp
 
   return (
     <section className="flex flex-col gap-3">
-      <header className="flex items-baseline justify-between gap-3">
-        <h2 className="flex items-baseline gap-2 font-mono text-micro uppercase tracking-widest text-muted-foreground">
-          <FolderGit2
-            className="size-3 self-center text-[color:var(--color-fg-faint)]"
-            aria-hidden
-          />
-          All repositories
-          {repos && (
-            <span className="font-mono text-micro tabular-nums text-[color:var(--color-fg-faint)]">
-              {query ? `${filtered.length} / ${repos.length}` : repos.length}
-            </span>
-          )}
-        </h2>
-      </header>
+      <ProfileSectionHeader
+        title="All Repositories"
+        count={repos ? (query ? filtered.length : repos.length) : undefined}
+        icon={<FolderGit2 className="size-3 text-(--color-fg-faint)" aria-hidden />}
+      />
 
-      {/* Toolbar — bg-muted, rounded, compact */}
-      <div className="flex flex-col gap-2 rounded-lg bg-muted p-2 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-2 rounded-lg bg-muted px-2 py-1.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative min-w-0 flex-1">
           <Search
             className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
             aria-hidden
@@ -83,44 +74,43 @@ export function ProfileRepos({ repos, isLoading, onRepoClick }: ProfileReposProp
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter by name, description, or language…"
-            className="border-transparent bg-background pl-8"
+            placeholder="Search repositories…"
+            className="h-7 border-transparent bg-background pl-8 text-ui"
           />
         </div>
-        <div
-          role="tablist"
-          aria-label="Sort repositories"
-          className="inline-flex shrink-0 items-center gap-0.5 rounded-md bg-background p-0.5"
-        >
-          {SORTS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              role="tab"
-              aria-selected={sort === s.id}
-              onClick={() => setSort(s.id)}
-              className={cn(
-                "rounded-[5px] px-2.5 py-1 font-mono text-caption leading-none transition-colors",
-                sort === s.id
-                  ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-caption text-muted-foreground">Sort</span>
+          <ToggleGroup
+            type="single"
+            value={sort}
+            onValueChange={(value) => {
+              if (value) setSort(value as SortKey);
+            }}
+            aria-label="Sort repositories"
+            size="sm"
+            className="rounded-md bg-background p-0.5"
+          >
+            {SORTS.map((s) => (
+              <ToggleGroupItem
+                key={s.id}
+                value={s.id}
+                aria-label={`Sort by ${s.label.toLowerCase()}`}
+                className="h-6 rounded px-2 text-caption data-[state=on]:bg-muted"
+              >
+                {s.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         </div>
       </div>
 
-      {/* List */}
       {isLoading ? (
         <RepoListSkeleton />
       ) : filtered.length === 0 ? (
-        <div className="rounded-lg bg-muted/40 px-4 py-12 text-center font-mono text-ui text-muted-foreground">
+        <div className="px-5 py-16 text-center text-body text-muted-foreground">
           {query ? (
             <>
-              No repositories match{" "}
-              <span className="text-foreground">"{query}"</span>.
+              No repositories match <span className="text-foreground">"{query}"</span>.
             </>
           ) : (
             "No public repositories yet."
@@ -128,9 +118,9 @@ export function ProfileRepos({ repos, isLoading, onRepoClick }: ProfileReposProp
         </div>
       ) : (
         <div className="relative">
-          <div className="flex flex-col">
+          <div className="flex flex-col gap-1">
             {visible.map((r) => (
-              <RepoRow key={r.id} repo={r} onClick={onRepoClick} />
+              <RepoRow key={r.id} repo={r} />
             ))}
           </div>
 
@@ -153,18 +143,13 @@ export function ProfileRepos({ repos, isLoading, onRepoClick }: ProfileReposProp
           onClick={() => setExpanded((v) => !v)}
           className={cn(
             "group inline-flex items-center justify-center gap-1.5 self-center",
-            "rounded-md px-3 py-1.5 font-mono text-caption text-muted-foreground",
+            "rounded-lg px-3 py-1.5 text-caption text-muted-foreground",
             "transition-colors hover:bg-muted hover:text-foreground",
           )}
         >
-          {expanded
-            ? "Collapse"
-            : `Show all ${filtered.length} repositories`}
+          {expanded ? "Collapse" : `Show all ${filtered.length} repositories`}
           <ChevronDown
-            className={cn(
-              "size-3.5 transition-transform",
-              expanded && "rotate-180",
-            )}
+            className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
             aria-hidden
           />
         </button>
@@ -176,12 +161,9 @@ export function ProfileRepos({ repos, isLoading, onRepoClick }: ProfileReposProp
 function RepoListSkeleton() {
   const widths = [72, 58, 80, 46, 64];
   return (
-    <div className="flex flex-col">
-      {widths.map((w, i) => (
-        <div
-          key={i}
-          className="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
-        >
+    <div className="skeleton-fade flex flex-col gap-1">
+      {widths.map((w) => (
+        <div key={w} className="flex items-center gap-3 px-4 py-3">
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <Skeleton className="h-3.5" style={{ width: `${w}%` }} />
             <Skeleton className="h-3" style={{ width: `${Math.min(90, w + 20)}%` }} />

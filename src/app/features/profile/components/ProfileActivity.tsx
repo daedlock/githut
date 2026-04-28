@@ -1,14 +1,14 @@
 import {
+  Activity,
   CircleDot,
   GitCommit,
   GitFork,
   GitPullRequest,
+  type LucideIcon,
   MessageSquare,
   Plus,
   Star,
   Tag,
-  Activity,
-  type LucideIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Skeleton } from "@/app/components/ui/skeleton";
@@ -21,16 +21,7 @@ const LEVELS = 5;
 // Older cells fade toward transparent — time recedes leftward.
 const OPACITY_FLOOR = 0.55;
 
-type Bucket =
-  | "push"
-  | "pr"
-  | "issue"
-  | "review"
-  | "star"
-  | "fork"
-  | "release"
-  | "create"
-  | "other";
+type Bucket = "push" | "pr" | "issue" | "review" | "star" | "fork" | "release" | "create" | "other";
 
 const BUCKET: Record<Bucket, { icon: LucideIcon; one: string; many: string }> = {
   push: { icon: GitCommit, one: "push", many: "pushes" },
@@ -89,15 +80,9 @@ export function ProfileActivity({ events, isLoading }: ProfileActivityProps) {
   const isPinned = !!pinnedKey;
 
   return (
-    <div
-      aria-label="Public activity"
-      className="flex flex-col gap-2.5"
-      role="group"
-    >
+    <div aria-label="Public activity" className="flex flex-col gap-2.5" role="group">
       {data.summary.total === 0 ? (
-        <p className="font-mono text-caption text-[color:var(--color-fg-faint)]">
-          no public events in the last 30 days
-        </p>
+        <p className="text-caption text-(--color-fg-faint)">no public events in the last 30 days</p>
       ) : (
         <>
           <div
@@ -112,8 +97,7 @@ export function ProfileActivity({ events, isLoading }: ProfileActivityProps) {
           >
             {data.cells.map((cell, i) => {
               const isActive = active?.key === cell.key;
-              const ageOpacity =
-                OPACITY_FLOOR + (1 - OPACITY_FLOOR) * (i / (TOTAL_DAYS - 1));
+              const ageOpacity = OPACITY_FLOOR + (1 - OPACITY_FLOOR) * (i / (TOTAL_DAYS - 1));
               return (
                 <button
                   key={cell.key}
@@ -129,9 +113,7 @@ export function ProfileActivity({ events, isLoading }: ProfileActivityProps) {
                   onBlur={() => {
                     if (!pinnedKey) setHoveredKey(null);
                   }}
-                  onClick={() =>
-                    setPinnedKey((p) => (p === cell.key ? null : cell.key))
-                  }
+                  onClick={() => setPinnedKey((p) => (p === cell.key ? null : cell.key))}
                   style={{
                     aspectRatio: "1 / 1",
                     backgroundColor: levelColor(cell.level),
@@ -152,10 +134,7 @@ export function ProfileActivity({ events, isLoading }: ProfileActivityProps) {
             })}
           </div>
 
-          <p
-            className="font-mono text-caption text-muted-foreground"
-            aria-live="polite"
-          >
+          <p className="text-caption text-muted-foreground" aria-live="polite">
             {active ? (
               <ActiveLine cell={active} pinned={isPinned} />
             ) : (
@@ -173,20 +152,15 @@ export function ProfileActivity({ events, isLoading }: ProfileActivityProps) {
 function SummaryLine({ summary }: { summary: Summary }) {
   return (
     <span className="block truncate">
-      <span className="font-medium tabular-nums text-foreground">
-        {summary.total}
-      </span>{" "}
-      events{" "}
+      <span className="font-medium tabular-nums text-foreground">{summary.total}</span> events{" "}
       <span className="text-[color:var(--color-fg-faint)]">·</span>{" "}
       <span className="tabular-nums">{summary.activeDays}</span> active days
       {summary.bestDay && (
         <>
           {" "}
           <span className="text-[color:var(--color-fg-faint)]">·</span> best{" "}
-          <span className="tabular-nums text-foreground">
-            {summary.bestDay.count}
-          </span>{" "}
-          on {summary.bestDay.label}
+          <span className="tabular-nums text-foreground">{summary.bestDay.count}</span> on{" "}
+          {summary.bestDay.label}
         </>
       )}{" "}
       <span className="text-[color:var(--color-fg-faint)]">·</span>{" "}
@@ -197,10 +171,7 @@ function SummaryLine({ summary }: { summary: Summary }) {
 
 function ActiveLine({ cell, pinned }: { cell: DayCell; pinned: boolean }) {
   const buckets = useMemo(
-    () =>
-      [...cell.buckets.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3),
+    () => [...cell.buckets.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3),
     [cell],
   );
 
@@ -216,26 +187,17 @@ function ActiveLine({ cell, pinned }: { cell: DayCell; pinned: boolean }) {
       <span className="text-foreground">{cell.label}</span>
       <span className="text-[color:var(--color-fg-faint)]">·</span>
       <span>
-        <span className="font-medium tabular-nums text-foreground">
-          {cell.count}
-        </span>{" "}
+        <span className="font-medium tabular-nums text-foreground">{cell.count}</span>{" "}
         {cell.count === 1 ? "event" : "events"}
       </span>
-      {buckets.length > 0 && (
-        <span className="text-[color:var(--color-fg-faint)]">·</span>
-      )}
+      {buckets.length > 0 && <span className="text-[color:var(--color-fg-faint)]">·</span>}
       {buckets.map(([key, n], idx) => {
         const meta = BUCKET[key];
         const Icon = meta.icon;
         return (
           <span key={key} className="flex items-center gap-1">
-            {idx > 0 && (
-              <span className="text-[color:var(--color-fg-faint)]">·</span>
-            )}
-            <Icon
-              className="size-3 text-[color:var(--color-fg-faint)]"
-              aria-hidden
-            />
+            {idx > 0 && <span className="text-[color:var(--color-fg-faint)]">·</span>}
+            <Icon className="size-3 text-[color:var(--color-fg-faint)]" aria-hidden />
             <span>
               <span className="tabular-nums text-foreground">{n}</span>{" "}
               {n === 1 ? meta.one : meta.many}

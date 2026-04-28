@@ -1,5 +1,5 @@
 import { Star, Users } from "lucide-react";
-import { useMemo, type ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import type { RepoSummary } from "@/shared/types";
 import type { GitHubProfile } from "../schemas";
@@ -17,12 +17,7 @@ export type ProfileBentoProps = {
  * derived context — so the page doesn't feel like a stat dump but like a
  * concise fact-sheet.
  */
-export function ProfileBento({
-  profile,
-  repos,
-  isLoading,
-  membersCount,
-}: ProfileBentoProps) {
+export function ProfileBento({ profile, repos, isLoading, membersCount }: ProfileBentoProps) {
   const derived = useMemo(() => {
     if (!repos) return { topLanguage: null, totalStars: 0, mostStarred: null };
     const langCount = new Map<string, number>();
@@ -59,10 +54,7 @@ export function ProfileBento({
         sub={
           derived.topLanguage ? (
             <span>
-              mostly{" "}
-              <span className="font-mono text-foreground">
-                {derived.topLanguage}
-              </span>
+              mostly <span className="font-mono text-foreground">{derived.topLanguage}</span>
             </span>
           ) : (
             <span className="text-[color:var(--color-fg-faint)]">no public repos</span>
@@ -76,10 +68,7 @@ export function ProfileBento({
         sub={
           derived.mostStarred && derived.mostStarred.stars > 0 ? (
             <span className="truncate">
-              top{" "}
-              <span className="font-mono text-foreground">
-                {derived.mostStarred.name}
-              </span>
+              top <span className="font-mono text-foreground">{derived.mostStarred.name}</span>
             </span>
           ) : (
             <span className="text-[color:var(--color-fg-faint)]">no stars yet</span>
@@ -139,17 +128,19 @@ function Tile({
   sub: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-xl bg-muted px-4 py-3.5">
-      <span className="flex items-center gap-1.5 font-mono text-micro uppercase tracking-widest text-muted-foreground">
-        {icon && <span className="text-[color:var(--color-fg-faint)]">{icon}</span>}
+    <div className="min-w-0 flex flex-col gap-2 rounded-xl bg-muted px-4 py-3.5">
+      <span className="flex items-center gap-1.5 text-caption font-[475] text-muted-foreground">
+        {icon && (
+          <span className="text-(--color-fg-faint)" aria-hidden="true">
+            {icon}
+          </span>
+        )}
         {label}
       </span>
       <span className="font-mono text-heading font-[475] tabular-nums leading-none text-foreground">
         {formatNum(value)}
       </span>
-      <span className="truncate font-mono text-caption text-muted-foreground">
-        {sub}
-      </span>
+      <span className="truncate text-caption text-muted-foreground">{sub}</span>
     </div>
   );
 }
@@ -169,8 +160,7 @@ function BentoSkeleton() {
 }
 
 function formatNum(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}m`;
-  if (n >= 10_000) return `${Math.round(n / 1000)}k`;
-  if (n >= 1_000) return `${(n / 1000).toFixed(1)}k`;
-  return String(n);
+  return new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(
+    n,
+  );
 }

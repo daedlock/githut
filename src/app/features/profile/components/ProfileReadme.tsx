@@ -3,6 +3,7 @@ import { useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { cn } from "@/app/lib/cn";
+import { ProfileSectionHeader } from "./ProfileSectionHeader";
 
 const COLLAPSED_HEIGHT = 420; // px
 
@@ -16,24 +17,18 @@ export type ProfileReadmeProps = {
 };
 
 /**
- * Profile README block — the user's portfolio. Sits flat on the page
- * surface (no card wrapper). Long READMEs collapse behind a gradient mask
- * that fades into bg-background, with an "Expand" toggle below.
+ * Profile README block — the user's portfolio. The markdown gets one raised
+ * surface because it is a contained document region, not a row list.
  *
  * - Users: read from `<login>/<login>` repo's README.
  * - Orgs:  read from `<login>/.github/profile/README.md`.
  */
-export function ProfileReadme({
-  markdown,
-  isLoading,
-  login,
-  isOrg,
-}: ProfileReadmeProps) {
+export function ProfileReadme({ markdown, isLoading, login, isOrg }: ProfileReadmeProps) {
   const [expanded, setExpanded] = useState(false);
 
   if (isLoading) {
     return (
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-4 rounded-xl bg-muted px-4 py-4 sm:px-5 sm:py-5">
         <SectionEyebrow />
         <div className="flex flex-col gap-3">
           <Skeleton className="h-4 w-3/4" />
@@ -54,7 +49,7 @@ export function ProfileReadme({
   const isLong = markdown.length > 600;
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="flex flex-col gap-4 rounded-xl bg-muted px-4 py-4 sm:px-5 sm:py-5">
       <SectionEyebrow />
 
       <div className="relative">
@@ -82,7 +77,7 @@ export function ProfileReadme({
         {isLong && !expanded && (
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background via-background/85 to-transparent"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-muted via-muted/85 to-transparent"
           />
         )}
       </div>
@@ -93,16 +88,13 @@ export function ProfileReadme({
           onClick={() => setExpanded((v) => !v)}
           className={cn(
             "inline-flex items-center justify-center gap-1.5 self-center",
-            "rounded-md px-3 py-1.5 font-mono text-caption text-muted-foreground",
-            "transition-colors hover:bg-muted hover:text-foreground",
+            "rounded-md px-3 py-1.5 text-caption text-muted-foreground",
+            "transition-colors hover:bg-background hover:text-foreground",
           )}
         >
           {expanded ? "Collapse README" : "Read full README"}
           <ChevronDown
-            className={cn(
-              "size-3.5 transition-transform",
-              expanded && "rotate-180",
-            )}
+            className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
             aria-hidden
           />
         </button>
@@ -113,12 +105,9 @@ export function ProfileReadme({
 
 function SectionEyebrow() {
   return (
-    <h2 className="flex items-center gap-1.5 font-mono text-micro uppercase tracking-widest text-muted-foreground">
-      <FileText
-        className="size-3 text-[color:var(--color-fg-faint)]"
-        aria-hidden
-      />
-      Readme
-    </h2>
+    <ProfileSectionHeader
+      title="Readme"
+      icon={<FileText className="size-3 text-(--color-fg-faint)" aria-hidden />}
+    />
   );
 }

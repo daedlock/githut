@@ -4,15 +4,15 @@ import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
 import type { RepoSummary } from "@/shared/types";
 import {
+  type GitHubEvent,
   GitHubEventSchema,
+  type GitHubProfile,
   GitHubProfileSchema,
+  type OrgMember,
   OrgMemberSchema,
   ProfileRepoSchema,
-  UserOrgSchema,
-  type GitHubEvent,
-  type GitHubProfile,
-  type OrgMember,
   type UserOrg,
+  UserOrgSchema,
 } from "./schemas";
 
 // ─── Query keys ────────────────────────────────────────────────────────────

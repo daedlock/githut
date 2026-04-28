@@ -2,6 +2,7 @@ import { Code2 } from "lucide-react";
 import { useMemo } from "react";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import type { RepoSummary } from "@/shared/types";
+import { ProfileSectionHeader } from "./ProfileSectionHeader";
 
 const SLOT_VARS = [
   "var(--chart-slot-1)",
@@ -40,17 +41,15 @@ export function ProfileLanguages({ repos, isLoading }: ProfileLanguagesProps) {
 
   return (
     <section className="flex flex-col gap-3 rounded-xl bg-muted px-4 py-4 sm:px-5 sm:py-5">
-      <h2 className="flex items-center gap-1.5 font-mono text-micro uppercase tracking-widest text-muted-foreground">
-        <Code2 className="size-3 text-[color:var(--color-fg-faint)]" aria-hidden />
-        Languages
-      </h2>
+      <ProfileSectionHeader
+        title="Languages"
+        icon={<Code2 className="size-3 text-[color:var(--color-fg-faint)]" aria-hidden />}
+      />
 
       {isLoading ? (
         <LanguagesSkeleton />
       ) : shares.length === 0 ? (
-        <p className="py-2 text-center font-mono text-caption text-[color:var(--color-fg-faint)]">
-          No language data
-        </p>
+        <p className="py-2 text-center text-caption text-(--color-fg-faint)">No language data</p>
       ) : (
         <Breakdown shares={shares} />
       )}
@@ -58,18 +57,14 @@ export function ProfileLanguages({ repos, isLoading }: ProfileLanguagesProps) {
   );
 }
 
-function Breakdown({
-  shares,
-}: {
-  shares: { name: string; count: number; pct: number }[];
-}) {
+function Breakdown({ shares }: { shares: { name: string; count: number; pct: number }[] }) {
   const top = shares.slice(0, 5);
   const otherPct = shares.slice(5).reduce((s, l) => s + l.pct, 0);
   const otherCount = shares.slice(5).reduce((s, l) => s + l.count, 0);
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex h-2 w-full overflow-hidden rounded-full gap-px">
+      <div className="flex h-2 w-full gap-px overflow-hidden rounded-full">
         {top.map((l, i) => (
           <div
             key={l.name}
@@ -87,10 +82,7 @@ function Breakdown({
 
       <ul className="flex flex-col gap-1.5">
         {top.map((l, i) => (
-          <li
-            key={l.name}
-            className="flex items-baseline justify-between gap-2 text-caption"
-          >
+          <li key={l.name} className="flex items-baseline justify-between gap-2 text-caption">
             <span className="inline-flex min-w-0 items-center gap-2">
               <span
                 aria-hidden
@@ -100,10 +92,7 @@ function Breakdown({
               <span className="truncate font-mono text-foreground">{l.name}</span>
             </span>
             <span className="font-mono tabular-nums text-muted-foreground">
-              {l.pct.toFixed(0)}%
-              <span className="ml-1.5 text-[color:var(--color-fg-faint)]">
-                ({l.count})
-              </span>
+              {l.pct.toFixed(0)}%<span className="ml-1.5 text-(--color-fg-faint)">({l.count})</span>
             </span>
           </li>
         ))}
@@ -119,9 +108,7 @@ function Breakdown({
             </span>
             <span className="font-mono tabular-nums text-muted-foreground">
               {otherPct.toFixed(0)}%
-              <span className="ml-1.5 text-[color:var(--color-fg-faint)]">
-                ({otherCount})
-              </span>
+              <span className="ml-1.5 text-(--color-fg-faint)">({otherCount})</span>
             </span>
           </li>
         )}

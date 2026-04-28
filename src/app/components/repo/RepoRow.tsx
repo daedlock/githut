@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { ChevronRight, Lock, Star } from "lucide-react";
 import { repoQueryOptions } from "@/app/hooks/useRepo";
 import { repoLanguagesQueryOptions } from "@/app/hooks/useRepoLanguages";
@@ -31,52 +32,63 @@ export type RepoRowProps = {
 
 export function RepoRow({ repo, showOwner = false, onClick }: RepoRowProps) {
   const qc = useQueryClient();
-  // RepoRow is a button (not a <Link>), so router's intent-preload doesn't
-  // fire. Mirror its behavior manually: warm the same cache entries the
-  // target route's loader would.
   const prefetch = () => {
     qc.prefetchQuery(repoQueryOptions(repo.owner.login, repo.name));
     qc.prefetchQuery(repoLanguagesQueryOptions(repo.owner.login, repo.name));
   };
   return (
-    <button
-      type="button"
-      onClick={() => onClick?.(repo)}
+    <Link
+      to="/$owner/$repo"
+      params={{ owner: repo.owner.login, repo: repo.name }}
+      onClick={(event) => {
+        if (!onClick) return;
+        event.preventDefault();
+        onClick(repo);
+      }}
       onMouseEnter={prefetch}
       onFocus={prefetch}
-      className="group flex w-full items-center gap-3 border-b border-border px-4 py-2.5 text-left outline-none transition-colors last:border-b-0 hover:bg-[var(--color-bg-sunken)] focus-visible:bg-[var(--color-bg-sunken)]"
+      className="group block rounded-lg outline-none transition-colors hover:bg-muted focus-visible:bg-muted"
     >
-      <div className="min-w-0 flex-1 flex flex-col gap-1">
-        <div className="flex items-center gap-2 font-mono text-body leading-none">
-          {showOwner ? <span className="text-muted-foreground">{repo.owner.login}/</span> : null}
-          <span className="font-medium text-foreground truncate">{repo.name}</span>
-          {repo.visibility === "private" ? (
-            <Lock
-              className="size-3 flex-shrink-0 text-[var(--color-fg-faint)]"
-              aria-label="Private"
-            />
-          ) : null}
+      <div className="flex w-full items-start gap-3 px-4 py-3 text-left">
+        <div className="min-w-0 flex-1 flex flex-col gap-1">
+          <div className="flex items-center gap-2 font-mono text-body">
+            {showOwner ? <span className="text-muted-foreground">{repo.owner.login}/</span> : null}
+            <span className="truncate font-[475] text-foreground group-hover:text-primary">
+              {repo.name}
+            </span>
+            {repo.visibility === "private" ? (
+              <Lock
+                className="size-3 flex-shrink-0 text-[var(--color-fg-faint)]"
+                aria-label="Private"
+              />
+            ) : null}
+          </div>
+          {repo.description ? (
+            <p className="truncate text-ui text-muted-foreground">{repo.description}</p>
+          ) : (
+            <p className="truncate text-ui italic text-[var(--color-fg-faint)]">No description</p>
+          )}
         </div>
-        {repo.description ? (
-          <p className="truncate text-ui text-muted-foreground">{repo.description}</p>
-        ) : (
-          <p className="truncate text-ui text-[var(--color-fg-faint)] italic">No description</p>
-        )}
-      </div>
 
-      <div className="flex flex-shrink-0 items-center gap-3 font-mono text-caption text-muted-foreground">
-        {repo.language ? <span className="hidden sm:inline">{repo.language}</span> : null}
-        {repo.stars > 0 ? (
-          <span className="hidden items-center gap-1 sm:inline-flex">
-            <Star className="size-3" />
-            {formatStars(repo.stars)}
+        <div className="flex flex-shrink-0 items-center gap-3 pt-0.5 font-mono text-caption text-muted-foreground">
+          {repo.language ? (
+            <span className="hidden items-center gap-1.5 sm:inline-flex">
+              <span aria-hidden className="size-1.5 rounded-full bg-[var(--chart-slot-1)]" />
+              {repo.language}
+            </span>
+          ) : null}
+          {repo.stars > 0 ? (
+            <span className="hidden items-center gap-1 sm:inline-flex tabular-nums">
+              <Star className="size-3" />
+              {formatStars(repo.stars)}
+            </span>
+          ) : null}
+          <span className="hidden text-[var(--color-fg-faint)] md:inline">
+            {formatPushed(repo.pushedAt)}
           </span>
-        ) : null}
-        <span className="hidden md:inline text-[var(--color-fg-faint)]">
-          {formatPushed(repo.pushedAt)}
-        </span>
-        <ChevronRight className="size-4 text-[var(--color-fg-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
+          <ChevronRight className="size-4 text-[var(--color-fg-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
+        </div>
       </div>
-    </button>
+    </Link>
   );
 }
