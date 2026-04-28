@@ -75,6 +75,7 @@ function PrDetailLayout() {
               commits: pr.commits,
               files: pr.changed_files,
             }}
+            changeStats={{ additions: pr.additions, deletions: pr.deletions }}
           />
         </Container>
       </div>

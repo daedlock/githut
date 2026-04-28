@@ -95,16 +95,6 @@ export function ChangedFileTree({
   const expandAll = useCallback(() => setExpanded(new Set(allDirPaths)), [allDirPaths]);
   const collapseAll = useCallback(() => setExpanded(new Set()), []);
 
-  const totals = useMemo(() => {
-    let additions = 0;
-    let deletions = 0;
-    for (const f of files) {
-      additions += f.additions;
-      deletions += f.deletions;
-    }
-    return { additions, deletions };
-  }, [files]);
-
   const visibleFileCount = useMemo(() => {
     if (!trimmedQuery) return files.length;
     let n = 0;
@@ -166,11 +156,6 @@ export function ChangedFileTree({
 
       {/* Tree body */}
       <div className="p-1.5">
-        <div className="mb-1 flex items-center gap-2 px-2 py-1 text-sm tabular-nums">
-          <span className="text-[var(--diff-add-marker)]">+{totals.additions}</span>
-          <span className="text-[var(--diff-del-marker)]">−{totals.deletions}</span>
-        </div>
-
         {visibleFileCount === 0 ? (
           <div className="px-2 py-6 text-center text-sm text-muted-foreground">
             {trimmedQuery ? "No matches" : "No files"}

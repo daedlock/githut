@@ -1,8 +1,10 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
-import { useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildSources,
+  ChangeStatsBadge,
   codeTokensQueryOptions,
   DiffLayout,
   type DiffLayoutFile,
@@ -11,11 +13,11 @@ import {
   parseUnifiedDiff,
 } from "@/app/components/code";
 import { Button } from "@/app/components/ui/button";
-import { PrStatePill } from "@/app/features/pulls/components/PrStatePill";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { InlineComposer } from "@/app/features/pulls/components/InlineComposer";
 import { InlineThread } from "@/app/features/pulls/components/InlineThread";
 import { PrReviewPopover } from "@/app/features/pulls/components/PrReviewDialog";
+import { PrStatePill } from "@/app/features/pulls/components/PrStatePill";
 import {
   prDetailQueryOptions,
   prFilesQueryOptions,
@@ -25,17 +27,16 @@ import {
   usePrReviewComments,
 } from "@/app/features/pulls/hooks";
 import { toUiState } from "@/app/features/pulls/lib/prStatus";
-import type { PrFile, ReviewComment } from "@/app/features/pulls/schemas";
+import type { PrUiState } from "@/app/features/pulls/lib/prStatus";
+import type { PrFile, PullRequest, ReviewComment } from "@/app/features/pulls/schemas";
 import {
+  type PendingComment,
   usePendingComments,
   useReviewMode,
   useReviewStore,
-  type PendingComment,
 } from "@/app/features/pulls/stores/review";
 import { useMe } from "@/app/hooks/useMe";
 import { detectLang } from "@/app/lib/detectLang";
-import { memo, useCallback, useEffect, useMemo, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 
 // ─── Full-width PR review route ────────────────────────────────────────────
 //
@@ -165,6 +166,9 @@ function ReviewPage() {
             reviewBar={
               <ReviewBarLeft owner={owner} repo={repo} number={number} pr={pr} uiState={uiState} />
             }
+            beforeModeSlot={
+              <ChangeStatsBadge additions={pr.additions} deletions={pr.deletions} className="shrink-0" />
+            }
             reviewActions={
               <ReviewActions owner={owner} repo={repo} number={number} canReview={canReview} isAuthor={!!pr && pr.user?.login === meQuery.data?.login} />
             }
@@ -288,9 +292,6 @@ function normalizeStatus(status: PrFile["status"]): FileStatus {
 
 // ─── ReviewBar — merged into DiffLayout's sticky top bar ─────────────────
 
-import type { PullRequest } from "@/app/features/pulls/schemas";
-import type { PrUiState } from "@/app/features/pulls/lib/prStatus";
-
 function CommentNav({ commentCount }: { commentCount: number }) {
   const [currentIdx, setCurrentIdx] = useState(-1);
 
@@ -346,7 +347,7 @@ function ReviewBarLeft({
       <Link
         to="/$owner/$repo/pulls/$number"
         params={{ owner, repo, number }}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground outline-none transition-colors hover:text-foreground shrink-0"
+        className="inline-flex shrink-0 items-center gap-1.5 text-ui text-muted-foreground outline-none transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-3.5" />
         Back
@@ -354,7 +355,7 @@ function ReviewBarLeft({
       {pr && uiState && (
         <>
           <PrStatePill state={uiState} size="sm" />
-          <span className="truncate text-sm text-foreground">
+          <span className="min-w-0 truncate text-ui text-foreground">
             {pr.title}
             <span className="ml-1.5 text-muted-foreground">#{number}</span>
           </span>

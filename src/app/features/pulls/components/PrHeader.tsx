@@ -18,9 +18,9 @@ export function PrHeader({ owner, repo, pr, actionsSlot }: PrHeaderProps) {
   const verb = state === "merged" ? "merged" : state === "closed" ? "closed" : "opened";
   const actionAt =
     state === "merged"
-      ? pr.merged_at ?? pr.closed_at ?? pr.updated_at
+      ? (pr.merged_at ?? pr.closed_at ?? pr.updated_at)
       : state === "closed"
-        ? pr.closed_at ?? pr.updated_at
+        ? (pr.closed_at ?? pr.updated_at)
         : pr.created_at;
 
   return (
@@ -30,7 +30,7 @@ export function PrHeader({ owner, repo, pr, actionsSlot }: PrHeaderProps) {
         params={{ owner, repo }}
         className={cn(
           "mb-3 inline-flex items-center gap-1.5 rounded-sm px-1.5 py-1 -ml-1.5",
-          "text-xs text-muted-foreground outline-none transition-colors",
+          "text-caption text-muted-foreground outline-none transition-colors",
           "hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15",
         )}
       >
@@ -39,13 +39,11 @@ export function PrHeader({ owner, repo, pr, actionsSlot }: PrHeaderProps) {
       </Link>
 
       <div className="flex items-center gap-2">
-        <h1 className="text-xl font-semibold text-foreground">
-          {pr.title}
-        </h1>
+        <h1 className="text-heading font-[475] tracking-tight text-foreground">{pr.title}</h1>
         {actionsSlot}
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground">
+      <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-caption text-muted-foreground">
         <PrStatePill state={state} />
         <span className="opacity-50">·</span>
         <span className="font-mono">#{pr.number}</span>

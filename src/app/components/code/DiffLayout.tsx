@@ -1,8 +1,9 @@
 import { Columns2, PanelLeftClose, PanelLeftOpen, Rows2 } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type ChangedFile, ChangedFileTree } from "@/app/components/repo/ChangedFileTree";
 import { cn } from "@/app/lib/cn";
-import { DiffModeContext, type DiffMode, type DiffReviewHooks } from "./DiffView";
+import { ChangeStatsBadge } from "./ChangeStatsBadge";
+import { type DiffMode, DiffModeContext, type DiffReviewHooks } from "./DiffView";
 import { FileDiff } from "./FileDiff";
 
 export type DiffLayoutFile = ChangedFile & {
@@ -19,6 +20,8 @@ export type DiffLayoutProps = {
   getReviewHooks?: (filename: string) => DiffReviewHooks | undefined;
   /** Left portion of review context (back + title). Replaces sidebar toggle + file stats. */
   reviewBar?: ReactNode;
+  /** Extra toolbar content placed immediately before the unified/split toggle. */
+  beforeModeSlot?: ReactNode;
   /** Right portion — review actions (submit, cancel). Placed after the mode toggle. */
   reviewActions?: ReactNode;
 };
@@ -48,6 +51,7 @@ export function DiffLayout({
   className,
   getReviewHooks,
   reviewBar,
+  beforeModeSlot,
   reviewActions,
 }: DiffLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(initialSidebarOpen);
@@ -139,22 +143,19 @@ export function DiffLayout({
                 <PanelLeftOpen className="size-3.5" />
               )}
             </button>
-            <div className="flex items-baseline gap-1.5 text-xs">
-              <span className="font-medium text-foreground tabular-nums">
-                {files.length}
+            <div className="flex items-center gap-2 text-caption">
+              <span className="flex items-baseline gap-1.5">
+                <span className="tabular-nums font-medium text-foreground">{files.length}</span>
+                <span className="text-muted-foreground">files</span>
               </span>
-              <span className="text-muted-foreground">files</span>
-              <span className="font-mono tabular-nums text-[var(--diff-add-marker)]">
-                +{totals.add}
-              </span>
-              <span className="font-mono tabular-nums text-[var(--diff-del-marker)]">
-                −{totals.del}
-              </span>
+              <ChangeStatsBadge additions={totals.add} deletions={totals.del} />
             </div>
           </>
         )}
 
         <div className="flex-1" />
+
+        {beforeModeSlot}
 
         <div className="flex items-center rounded-lg bg-muted p-0.5">
           <ModeBtn
@@ -185,27 +186,27 @@ export function DiffLayout({
         )}
 
         <DiffModeContext value={mode}>
-        <div className="min-w-0 flex-1 p-4">
-          <div className="flex flex-col gap-5">
-            {files.map((file) => (
-              <div
-                key={file.filename}
-                ref={(el) => {
-                  if (el) fileRefs.current.set(file.filename, el);
-                  else fileRefs.current.delete(file.filename);
-                }}
-                data-filename={file.filename}
-                style={{
-                  contentVisibility: "auto",
-                  containIntrinsicBlockSize: "auto 40px",
-                  scrollMarginTop: TOPBAR_H,
-                }}
-              >
-                <FileItem file={file} review={getReviewHooks?.(file.filename)} />
-              </div>
-            ))}
+          <div className="min-w-0 flex-1 p-4">
+            <div className="flex flex-col gap-5">
+              {files.map((file) => (
+                <div
+                  key={file.filename}
+                  ref={(el) => {
+                    if (el) fileRefs.current.set(file.filename, el);
+                    else fileRefs.current.delete(file.filename);
+                  }}
+                  data-filename={file.filename}
+                  style={{
+                    contentVisibility: "auto",
+                    containIntrinsicBlockSize: "auto 40px",
+                    scrollMarginTop: TOPBAR_H,
+                  }}
+                >
+                  <FileItem file={file} review={getReviewHooks?.(file.filename)} />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
         </DiffModeContext>
       </div>
     </div>

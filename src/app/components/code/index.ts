@@ -1,3 +1,4 @@
+export { ChangeStatsBadge, type ChangeStatsBadgeProps } from "./ChangeStatsBadge";
 export { CodeView } from "./CodeView";
 export { DiffLayout, type DiffLayoutFile, type DiffLayoutProps } from "./DiffLayout";
 export { buildSources, DiffView, type DiffMode, type DiffReviewHooks, type DiffViewProps } from "./DiffView";

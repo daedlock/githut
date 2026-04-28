@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { CheckCircle2, Code2, GitCommit, MessageSquare } from "lucide-react";
+import { ChangeStatsBadge } from "@/app/components/code";
 import { Button } from "@/app/components/ui/button";
 import { cn } from "@/app/lib/cn";
 
@@ -13,9 +14,13 @@ export type PrSubTabsProps = {
     checks?: number;
     files?: number;
   };
+  changeStats?: {
+    additions: number;
+    deletions: number;
+  };
 };
 
-export function PrSubTabs({ owner, repo, number, counts }: PrSubTabsProps) {
+export function PrSubTabs({ owner, repo, number, counts, changeStats }: PrSubTabsProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const base = `/${owner}/${repo}/pulls/${number}`;
 
@@ -60,7 +65,7 @@ export function PrSubTabs({ owner, repo, number, counts }: PrSubTabsProps) {
                 className={cn(isActive && "bg-muted !text-foreground font-medium")}
                 aria-current={isActive ? "page" : undefined}
               >
-                <Icon className="size-4" />
+                <Icon data-icon="inline-start" />
                 <span>{t.label}</span>
                 {typeof t.count === "number" && (
                   <span className="tabular-nums text-muted-foreground">{t.count}</span>
@@ -71,12 +76,17 @@ export function PrSubTabs({ owner, repo, number, counts }: PrSubTabsProps) {
         })}
       </div>
 
-      <Button variant="default" asChild className="ml-auto">
-        <Link to="/$owner/$repo/review/$number" params={{ owner, repo, number }}>
-          <Code2 className="size-4" />
-          <span>Review</span>
-        </Link>
-      </Button>
+      <div className="ml-auto flex items-center gap-2">
+        {changeStats && (
+          <ChangeStatsBadge additions={changeStats.additions} deletions={changeStats.deletions} />
+        )}
+        <Button variant="default" asChild>
+          <Link to="/$owner/$repo/review/$number" params={{ owner, repo, number }}>
+            <Code2 data-icon="inline-start" />
+            <span>Review</span>
+          </Link>
+        </Button>
+      </div>
     </nav>
   );
 }
