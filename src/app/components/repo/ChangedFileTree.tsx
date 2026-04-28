@@ -1,8 +1,24 @@
-import { ChevronDown, ChevronRight, FoldVertical, Folder, FolderOpen, Search, UnfoldVertical, X } from "lucide-react";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  FoldVertical,
+  Search,
+  UnfoldVertical,
+  X,
+} from "lucide-react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FileStatus } from "@/app/components/code";
 import { FileIcon } from "@/app/components/repo/FileIcon";
-import { Input } from "@/app/components/ui/input";
+import { Button } from "@/app/components/ui/button";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/app/components/ui/input-group";
+import { Kbd } from "@/app/components/ui/kbd";
 import { cn } from "@/app/lib/cn";
 
 /**
@@ -55,6 +71,26 @@ export function ChangedFileTree({
     initialExpand(initialExpanded, allDirPaths, topDirPaths),
   );
   const [query, setQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function isEditable(el: EventTarget | null): boolean {
+      if (!(el instanceof HTMLElement)) return false;
+      if (el.isContentEditable) return true;
+      const tag = el.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (!showSearch || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key !== "/" || isEditable(event.target)) return;
+      event.preventDefault();
+      searchInputRef.current?.focus();
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showSearch]);
 
   // Keep the expand set in sync when the file list changes — if a file set
   // shrinks, stale paths linger harmlessly but we also add any new top-level
@@ -109,44 +145,56 @@ export function ChangedFileTree({
       {/* Header + search — sticky at top of sidebar scroll */}
       <div className="sticky top-0 z-10 bg-background pt-2">
         <header className="flex items-center justify-between gap-2 px-3 py-2">
-          <span className="text-xs font-medium text-muted-foreground">
-            {title}
-          </span>
-          <span className="text-xs tabular-nums text-muted-foreground">
+          <span className="text-caption font-medium text-muted-foreground">{title}</span>
+          <span className="font-mono text-caption tabular-nums text-muted-foreground">
             {trimmedQuery ? `${visibleFileCount} / ${files.length}` : files.length}
           </span>
         </header>
 
         {(showSearch || showExpandControls) && (
-          <div className="flex items-center gap-1.5 px-2 py-1.5">
+          <div className="flex items-center gap-2 px-3 pb-2">
             {showSearch && (
-              <div className="relative flex-1">
-                <Search className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
-                <Input
+              <InputGroup className="flex-1">
+                <InputGroupAddon align="inline-start">
+                  <Search />
+                </InputGroupAddon>
+                <InputGroupInput
+                  ref={searchInputRef}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Escape") return;
+                    if (query) setQuery("");
+                    else event.currentTarget.blur();
+                  }}
                   placeholder="Filter files"
-                  className="h-7 pl-6 pr-6 text-xs"
                 />
-                {query && (
-                  <button
-                    type="button"
-                    onClick={() => setQuery("")}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15"
-                    aria-label="Clear filter"
-                  >
-                    <X className="size-3" />
-                  </button>
-                )}
-              </div>
+                <InputGroupAddon align="inline-end">
+                  {query ? (
+                    <InputGroupButton
+                      size="icon-xs"
+                      onClick={() => {
+                        setQuery("");
+                        searchInputRef.current?.focus();
+                      }}
+                      aria-label="Clear filter"
+                      title="Clear filter"
+                    >
+                      <X />
+                    </InputGroupButton>
+                  ) : (
+                    <Kbd>/</Kbd>
+                  )}
+                </InputGroupAddon>
+              </InputGroup>
             )}
             {showExpandControls && allDirPaths.length > 0 && (
-              <div className="flex items-center">
+              <div className="flex shrink-0 items-center gap-1">
                 <IconBtn onClick={expandAll} title="Expand all" disabled={!!trimmedQuery}>
-                  <UnfoldVertical className="size-3" />
+                  <UnfoldVertical />
                 </IconBtn>
                 <IconBtn onClick={collapseAll} title="Collapse all" disabled={!!trimmedQuery}>
-                  <FoldVertical className="size-3" />
+                  <FoldVertical />
                 </IconBtn>
               </div>
             )}
@@ -161,9 +209,9 @@ export function ChangedFileTree({
             {trimmedQuery ? "No matches" : "No files"}
           </div>
         ) : (
-          filteredTree.map((node, i) => (
+          filteredTree.map((node) => (
             <TreeNode
-              key={i}
+              key={node.path}
               node={node}
               depth={0}
               expanded={effectiveExpanded}
@@ -210,8 +258,8 @@ function TreeNode({
     <>
       <DirRow node={node} depth={depth} isOpen={isOpen} onToggle={() => onToggle(node.path)} />
       {isOpen &&
-        node.children.map((child, i) => (
-          <Fragment key={i}>
+        node.children.map((child) => (
+          <Fragment key={child.path}>
             <TreeNode
               node={child}
               depth={depth + 1}
@@ -300,21 +348,16 @@ function IconBtn({
   children: React.ReactNode;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon-xs"
       onClick={onClick}
       title={title}
       disabled={disabled}
-      className={cn(
-        "inline-flex size-6 items-center justify-center rounded-md",
-        "text-muted-foreground outline-none transition-colors",
-        "hover:bg-muted hover:text-foreground",
-        "focus-visible:ring-1 focus-visible:ring-foreground/15",
-        "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground",
-      )}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
