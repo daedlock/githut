@@ -4,8 +4,8 @@ import { Avatar } from "@/app/components/ui/avatar";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import { PrStateIcon } from "@/app/features/pulls/components/PrStatePill";
-import { toUiState } from "@/app/features/pulls/lib/prStatus";
 import type { PrListItem } from "@/app/features/pulls/hooks";
+import { toUiState } from "@/app/features/pulls/lib/prStatus";
 import { formatRelativeTime } from "@/app/lib/time";
 
 // ─── PrRow ─────────────────────────────────────────────────────────────────
@@ -32,12 +32,12 @@ export function PrRow({ owner, repo, pr }: PrRowProps) {
     merged: !!pr.pull_request?.merged_at,
   });
   const isClosedLike = state === "closed" || state === "merged";
-  const timeAt = isClosedLike ? pr.closed_at ?? pr.updated_at : pr.created_at;
+  const timeAt = isClosedLike ? (pr.closed_at ?? pr.updated_at) : pr.created_at;
   const timeVerb = state === "merged" ? "merged" : state === "closed" ? "closed" : "opened";
 
   return (
     <Link
-      to="/$owner/$repo/pulls/$number"
+      to="/$owner/$repo/pull/$number"
       params={{ owner, repo, number: pr.number }}
       className="group block rounded-lg outline-none transition-colors focus-visible:bg-muted hover:bg-muted"
     >
@@ -85,17 +85,16 @@ export function PrRow({ owner, repo, pr }: PrRowProps) {
                 {pr.comments}
               </span>
             )}
-{pr.assignees.length > 0 && (
-          <div className="mt-0.5 flex ">
-            {pr.assignees.slice(0, 3).map((a) => (
-              <Avatar key={a.login} login={a.login} avatarUrl={a.avatar_url} size="sm" />
-            ))}
-          </div>
-        )}
-
+            {pr.assignees.length > 0 && (
+              <div className="mt-0.5 flex ">
+                {pr.assignees.slice(0, 3).map((a) => (
+                  <Avatar key={a.login} login={a.login} avatarUrl={a.avatar_url} size="sm" />
+                ))}
+              </div>
+            )}
           </div>
         </div>
-              </div>
+      </div>
     </Link>
   );
 }

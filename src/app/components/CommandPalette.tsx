@@ -362,7 +362,7 @@ export function CommandPalette() {
         id: `issue:${repoContext.owner}/${repoContext.repo}#${num}`,
         kind: "issue",
         label: `#${num}`,
-        href: `/${repoContext.owner}/${repoContext.repo}/issues?issue=${num}`,
+        href: `/${repoContext.owner}/${repoContext.repo}/issues/${num}`,
         meta: `${repoContext.owner}/${repoContext.repo}`,
       });
     },

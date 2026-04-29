@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PrConversationPage } from "@/app/features/pulls/PrConversationPage";
 import {
   prCommentsQueryOptions,
   prReviewsQueryOptions,
   prTimelineQueryOptions,
 } from "@/app/features/pulls/hooks";
+import { PrConversationPage } from "@/app/features/pulls/PrConversationPage";
 
-export const Route = createFileRoute("/$owner/$repo/pulls/$number/")({
+export const Route = createFileRoute("/$owner/$repo/pull/$number/")({
   // Non-blocking prefetch — comments, reviews, and timeline fire in
   // parallel so the conversation lands warm on cold nav. Timeline is the
   // slowest endpoint; kicking it off here trims perceived latency.

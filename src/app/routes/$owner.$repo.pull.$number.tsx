@@ -8,7 +8,7 @@ import { PrSidebar } from "@/app/features/pulls/components/PrSidebar";
 import { PrSubTabs } from "@/app/features/pulls/components/PrSubTabs";
 import { prDetailQueryOptions, useFullPr, usePrReviews } from "@/app/features/pulls/hooks";
 
-export const Route = createFileRoute("/$owner/$repo/pulls/$number")({
+export const Route = createFileRoute("/$owner/$repo/pull/$number")({
   parseParams: (raw) => ({ number: Number(raw.number) }),
   loader: ({ context, params }) => {
     if (!Number.isFinite(params.number)) return;

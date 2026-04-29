@@ -345,7 +345,7 @@ function ReviewBarLeft({
   return (
     <div className="flex items-center gap-3 min-w-0">
       <Link
-        to="/$owner/$repo/pulls/$number"
+        to="/$owner/$repo/pull/$number"
         params={{ owner, repo, number }}
         className="inline-flex shrink-0 items-center gap-1.5 text-ui text-muted-foreground outline-none transition-colors hover:text-foreground"
       >

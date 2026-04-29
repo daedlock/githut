@@ -1,14 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { PrCommitsPage } from "@/app/features/pulls/PrCommitsPage";
 import { prCommitsQueryOptions } from "@/app/features/pulls/hooks";
+import { PrCommitsPage } from "@/app/features/pulls/PrCommitsPage";
 
-export const Route = createFileRoute("/$owner/$repo/pulls/$number/commits")({
+export const Route = createFileRoute("/$owner/$repo/pull/$number/commits")({
   loader: ({ context, params }) => {
     const { owner, repo, number } = params;
     if (!Number.isFinite(number)) return;
-    void context.queryClient.prefetchQuery(
-      prCommitsQueryOptions(owner, repo, number),
-    );
+    void context.queryClient.prefetchQuery(prCommitsQueryOptions(owner, repo, number));
   },
   component: CommitsPage,
 });

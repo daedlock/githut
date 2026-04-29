@@ -1,11 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { prFilesQueryOptions, prReviewCommentsQueryOptions } from "@/app/features/pulls/hooks";
 import { PrFilesPage } from "@/app/features/pulls/PrFilesPage";
-import {
-  prFilesQueryOptions,
-  prReviewCommentsQueryOptions,
-} from "@/app/features/pulls/hooks";
 
-export const Route = createFileRoute("/$owner/$repo/pulls/$number/files")({
+export const Route = createFileRoute("/$owner/$repo/pull/$number/files")({
   loader: ({ context, params }) => {
     const { owner, repo, number } = params;
     if (!Number.isFinite(number)) return;

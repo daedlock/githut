@@ -53,11 +53,19 @@ const RULES: PatternRule[] = [
     meta: (g) => ({ label: "PRs", sublabel: `${g.owner}/${g.repo}`, icon: GitPullRequest }),
   },
   {
-    match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/pulls\/(?<number>\d+)$/,
+    match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/pull\/(?<number>\d+)(?:\/.*)?$/,
     meta: (g) => ({
       label: `PR #${g.number}`,
       sublabel: `${g.owner}/${g.repo}`,
       icon: GitPullRequest,
+    }),
+  },
+  {
+    match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/issues\/(?<number>\d+)$/,
+    meta: (g) => ({
+      label: `Issue #${g.number}`,
+      sublabel: `${g.owner}/${g.repo}`,
+      icon: CircleDot,
     }),
   },
   {

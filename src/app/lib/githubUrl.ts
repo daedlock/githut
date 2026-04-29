@@ -63,18 +63,30 @@ const RULES: Rule[] = [
     },
   },
   {
-    // github.com/:owner/:repo/pulls, /pulls/:n, /pull/:n all land on our /pulls list.
+    name: "repo:pull",
+    match: (p) => {
+      const m = p.match(/^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/?$/);
+      return m ? `/${m[1]}/${m[2]}/pull/${m[3]}` : null;
+    },
+  },
+  {
     name: "repo:pulls",
     match: (p) => {
-      const m = p.match(/^\/([^/]+)\/([^/]+)\/pulls?(?:\/\d+)?\/?$/);
+      const m = p.match(/^\/([^/]+)\/([^/]+)\/pulls\/?$/);
       return m ? `/${m[1]}/${m[2]}/pulls` : null;
     },
   },
   {
-    // github.com/:owner/:repo/issues[/:n] → our /issues list. No issue-detail route yet.
+    name: "repo:issue",
+    match: (p) => {
+      const m = p.match(/^\/([^/]+)\/([^/]+)\/issues\/(\d+)\/?$/);
+      return m ? `/${m[1]}/${m[2]}/issues/${m[3]}` : null;
+    },
+  },
+  {
     name: "repo:issues",
     match: (p) => {
-      const m = p.match(/^\/([^/]+)\/([^/]+)\/issues(?:\/\d+)?\/?$/);
+      const m = p.match(/^\/([^/]+)\/([^/]+)\/issues\/?$/);
       return m ? `/${m[1]}/${m[2]}/issues` : null;
     },
   },

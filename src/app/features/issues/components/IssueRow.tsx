@@ -4,12 +4,12 @@ import { CheckCircle2, CircleDot, MessageSquare } from "lucide-react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
+import { issueKeys } from "@/app/features/issues/hooks";
 import type { RepoIssue } from "@/app/features/issues/schemas";
+import { IssueCommentsSchema, IssueDetailSchema } from "@/app/features/issues/schemas";
 import { REACTION_CONTENTS, REACTION_EMOJIS, reactionsHaveAny } from "@/app/features/issues/utils";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { formatRelativeTime } from "@/app/lib/time";
-import { issueKeys } from "@/app/features/issues/hooks";
-import { IssueCommentsSchema, IssueDetailSchema } from "@/app/features/issues/schemas";
 
 export function IssueRow({
   issue,
@@ -26,10 +26,11 @@ export function IssueRow({
       queryKey: issueKeys.detail(owner, repo, issue.number),
       queryFn: async () => {
         const client = getGitHubClient();
-        const res = await client.request(
-          "GET /repos/{owner}/{repo}/issues/{issue_number}",
-          { owner, repo, issue_number: issue.number },
-        );
+        const res = await client.request("GET /repos/{owner}/{repo}/issues/{issue_number}", {
+          owner,
+          repo,
+          issue_number: issue.number,
+        });
         return IssueDetailSchema.parse(res.data);
       },
     });
@@ -52,9 +53,8 @@ export function IssueRow({
 
   return (
     <Link
-      to="/$owner/$repo/issues"
-      params={{ owner, repo }}
-      search={{ issue: issue.number }}
+      to="/$owner/$repo/issues/$number"
+      params={{ owner, repo, number: issue.number }}
       className="group block rounded-lg outline-none transition-colors hover:bg-muted focus-visible:bg-muted"
       onMouseEnter={prefetch}
       onFocus={prefetch}
@@ -109,7 +109,13 @@ export function IssueRow({
             {issue.assignees.length > 0 && (
               <span className="inline-flex items-center">
                 {issue.assignees.slice(0, 3).map((a) => (
-                  <Avatar key={a.login} login={a.login} avatarUrl={a.avatar_url} size="sm" className="-ml-1 first:ml-0 ring-1 ring-background" />
+                  <Avatar
+                    key={a.login}
+                    login={a.login}
+                    avatarUrl={a.avatar_url}
+                    size="sm"
+                    className="-ml-1 first:ml-0 ring-1 ring-background"
+                  />
                 ))}
               </span>
             )}

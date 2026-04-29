@@ -90,8 +90,8 @@ export function useCommandPaletteSearch(query: string) {
           if (!rr) return null;
           const isPR = !!item.pull_request;
           const href = isPR
-            ? `/${rr.owner}/${rr.repo}/pulls/${item.number}`
-            : `/${rr.owner}/${rr.repo}/issues?issue=${item.number}`;
+            ? `/${rr.owner}/${rr.repo}/pull/${item.number}`
+            : `/${rr.owner}/${rr.repo}/issues/${item.number}`;
           return {
             id: String(item.id),
             kind: isPR ? "pr" : "issue",

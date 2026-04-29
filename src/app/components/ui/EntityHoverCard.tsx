@@ -25,7 +25,8 @@ import { useAuthStore } from "@/app/stores/auth";
 
 export type EntityRef =
   | { kind: "mention"; login: string }
-  | { kind: "issue"; owner: string; repo: string; number: number };
+  | { kind: "issue"; owner: string; repo: string; number: number }
+  | { kind: "pull"; owner: string; repo: string; number: number };
 
 export function detectEntity(href: string, text: string): EntityRef | null {
   // @username — text starts with @, href points to github.com/<user>
@@ -36,13 +37,20 @@ export function detectEntity(href: string, text: string): EntityRef | null {
     }
   }
 
-  // #123 — text starts with #, href points to github.com/<owner>/<repo>/issues/<n>
+  // #123 — text starts with #, href points to a GitHub issue or pull request.
   if (typeof text === "string" && /^#\d+$/.test(text)) {
     try {
       const url = new URL(href);
       if (url.hostname !== "github.com") return null;
-      const m = url.pathname.match(/^\/([^/]+)\/([^/]+)\/(?:issues|pull)\/(\d+)/);
-      if (m) return { kind: "issue", owner: m[1]!, repo: m[2]!, number: Number(m[3]) };
+      const m = url.pathname.match(/^\/([^/]+)\/([^/]+)\/(issues|pull)\/(\d+)/);
+      if (m) {
+        return {
+          kind: m[3] === "pull" ? "pull" : "issue",
+          owner: m[1]!,
+          repo: m[2]!,
+          number: Number(m[4]),
+        };
+      }
     } catch {
       /* not a URL */
     }
@@ -63,17 +71,32 @@ export function EntityHoverLink({
   href: string;
   children: React.ReactNode;
 } & React.AnchorHTMLAttributes<HTMLAnchorElement>) {
-  const to =
-    entity.kind === "mention" ? `/${entity.login}` : `/${entity.owner}/${entity.repo}/issues`;
-  const search = entity.kind === "issue" ? { issue: entity.number } : undefined;
+  const trigger =
+    entity.kind === "mention" ? (
+      <Link to="/$username" params={{ username: entity.login }} {...rest}>
+        {children}
+      </Link>
+    ) : entity.kind === "pull" ? (
+      <Link
+        to="/$owner/$repo/pull/$number"
+        params={{ owner: entity.owner, repo: entity.repo, number: entity.number }}
+        {...rest}
+      >
+        {children}
+      </Link>
+    ) : (
+      <Link
+        to="/$owner/$repo/issues/$number"
+        params={{ owner: entity.owner, repo: entity.repo, number: entity.number }}
+        {...rest}
+      >
+        {children}
+      </Link>
+    );
 
   return (
     <HoverCard openDelay={300} closeDelay={100}>
-      <HoverCardTrigger asChild>
-        <Link to={to} search={search} {...rest}>
-          {children}
-        </Link>
-      </HoverCardTrigger>
+      <HoverCardTrigger asChild>{trigger}</HoverCardTrigger>
       <HoverCardContent side="top" align="start" sideOffset={6} className="w-72 p-0">
         {entity.kind === "mention" ? (
           <UserCard login={entity.login} />
@@ -225,7 +248,7 @@ function IssueCard({ owner, repo, number }: { owner: string; repo: string; numbe
       {/* Title */}
       {isPR ? (
         <Link
-          to="/$owner/$repo/pulls/$number"
+          to="/$owner/$repo/pull/$number"
           params={{ owner, repo, number }}
           className="mt-1.5 block line-clamp-2 text-caption font-medium text-foreground leading-relaxed hover:text-[var(--color-brand)]"
         >
@@ -233,9 +256,8 @@ function IssueCard({ owner, repo, number }: { owner: string; repo: string; numbe
         </Link>
       ) : (
         <Link
-          to="/$owner/$repo/issues"
-          params={{ owner, repo }}
-          search={{ issue: number }}
+          to="/$owner/$repo/issues/$number"
+          params={{ owner, repo, number }}
           className="mt-1.5 block line-clamp-2 text-caption font-medium text-foreground leading-relaxed hover:text-[var(--color-brand)]"
         >
           {issue.title}

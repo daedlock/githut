@@ -39,13 +39,12 @@ export function DashRow({ item, date, showReason }: DashRowProps) {
 
   const linkProps = item.isPr
     ? ({
-        to: "/$owner/$repo/pulls/$number",
+        to: "/$owner/$repo/pull/$number",
         params: { owner, repo, number: item.number },
       } as const)
     : ({
-        to: "/$owner/$repo/issues",
-        params: { owner, repo },
-        search: { issue: item.number },
+        to: "/$owner/$repo/issues/$number",
+        params: { owner, repo, number: item.number },
       } as const);
 
   return (

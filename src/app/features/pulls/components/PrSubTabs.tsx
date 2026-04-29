@@ -22,7 +22,7 @@ export type PrSubTabsProps = {
 
 export function PrSubTabs({ owner, repo, number, counts, changeStats }: PrSubTabsProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const base = `/${owner}/${repo}/pulls/${number}`;
+  const base = `/${owner}/${repo}/pull/${number}`;
 
   const tabs = [
     {
