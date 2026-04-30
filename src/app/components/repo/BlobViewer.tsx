@@ -1,6 +1,5 @@
 import { CodeView, useCodeTokens } from "@/app/components/code";
-import { GithubMarkdown } from "@/app/components/GithubMarkdown";
-import { OrgRendered } from "@/app/components/OrgRendered";
+import { MarkupRenderer } from "@/app/components/MarkupRenderer";
 import { BlameView } from "@/app/components/repo/BlameView";
 import { FileHistoryPanel } from "@/app/components/repo/FileHistoryPanel";
 import { Button } from "@/app/components/ui/button";
@@ -138,13 +137,12 @@ export function BlobViewer({
           <span className="font-mono text-micro text-[var(--color-fg-faint)]">{file.path}</span>
         </header>
         <div className="readme-prose p-6">
-          {isOrg ? (
-            <OrgRendered>{file.content}</OrgRendered>
-          ) : (
-            <GithubMarkdown assetContext={{ owner, repo, ref, basePath: dirname(file.path) }}>
-              {file.content}
-            </GithubMarkdown>
-          )}
+          <MarkupRenderer
+            path={file.path}
+            assetContext={{ owner, repo, ref, basePath: dirname(file.path) }}
+          >
+            {file.content}
+          </MarkupRenderer>
         </div>
       </article>
     </div>

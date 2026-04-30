@@ -30,11 +30,19 @@ export type CodeViewProps = {
   lines: (CodeLine | CodeLineWithHtml)[];
   /** Per-line decoration — if omitted, renders as a plain viewer with sequential line numbers */
   decorations?: LineDecoration[];
+  /** Full-file mode highlight map keyed by 1-indexed line number. */
+  lineHighlights?: ReadonlyMap<number, LineKind>;
   startLine?: number;
   className?: string;
 };
 
-export function CodeView({ lines, decorations, startLine = 1, className }: CodeViewProps) {
+export function CodeView({
+  lines,
+  decorations,
+  lineHighlights,
+  startLine = 1,
+  className,
+}: CodeViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isDiff = !!decorations;
 
@@ -68,8 +76,8 @@ export function CodeView({ lines, decorations, startLine = 1, className }: CodeV
         {virtualizer.getVirtualItems().map((item) => {
           const line = lines[item.index];
           const dec = decorations?.[item.index];
-          const kind = dec?.kind ?? "context";
           const lineNum = startLine + item.index;
+          const kind = dec?.kind ?? lineHighlights?.get(lineNum) ?? "context";
 
           return (
             <div

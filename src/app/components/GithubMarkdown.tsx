@@ -96,7 +96,7 @@ export function rewriteAssetUrl(src: string, ctx: MarkdownAssetContext): string 
   }
 }
 
-function proxyGitHubImage(src: string): string {
+export function proxyGitHubImage(src: string): string {
   try {
     const u = new URL(src);
     const host = u.hostname;

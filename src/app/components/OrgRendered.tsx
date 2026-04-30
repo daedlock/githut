@@ -1,27 +1,47 @@
 import { useMemo } from "react";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import rehypeStringify from "rehype-stringify";
-import { unified } from "unified";
+import { type Plugin, unified } from "unified";
 import uniorgParse from "uniorg-parse";
 import uniorg2rehype from "uniorg-rehype";
 
+import {
+  type MarkdownAssetContext,
+  proxyGitHubImage,
+  rewriteAssetUrl,
+} from "@/app/components/GithubMarkdown";
 import { toInternalHref } from "@/app/lib/githubUrl";
 
-// Rehype plugin: rewrite <a href="https://github.com/..."> to our in-app routes
-// when a mapping exists. OrgRendered emits raw HTML via dangerouslySetInnerHTML,
-// so anchors aren't intercepted by the router — we just rewrite the href string
-// in place. Internal navigation will cause a full page load, but the router will
-// pick it up on the next mount. If you need client-side nav here, switch this
-// component to return JSX with per-node <Link> instead of a string.
-// biome-ignore lint/suspicious/noExplicitAny: hast node types live outside our dep tree.
-function rehypeRewriteGithubLinks() {
-  return (tree: any) => {
-    const visit = (node: any) => {
-      if (node.type === "element" && node.tagName === "a" && node.properties) {
-        const href = node.properties.href;
-        if (typeof href === "string") {
-          const internal = toInternalHref(href);
-          if (internal) node.properties.href = internal;
+// Rehype plugin: keep org output aligned with GithubMarkdown.
+// - GitHub links are rewritten to in-app routes when a mapping exists.
+// - Relative image URLs in repo documents are rewritten to raw GitHub assets.
+// OrgRendered emits raw HTML via dangerouslySetInnerHTML, so anchors aren't
+// intercepted by the router — we rewrite the href string in place.
+type HastNode = {
+  type?: string;
+  tagName?: string;
+  properties?: Record<string, unknown>;
+  children?: HastNode[];
+};
+
+function rehypeRewriteGithubUrls(assetContext?: MarkdownAssetContext) {
+  return (tree: HastNode) => {
+    const visit = (node: HastNode) => {
+      if (node.type === "element" && node.properties) {
+        if (node.tagName === "a") {
+          const href = node.properties.href;
+          if (typeof href === "string") {
+            const internal = toInternalHref(href);
+            if (internal) node.properties.href = internal;
+          }
+        }
+
+        if (node.tagName === "img") {
+          const src = node.properties.src;
+          if (typeof src === "string") {
+            const resolved = assetContext ? rewriteAssetUrl(src, assetContext) : src;
+            node.properties.src = proxyGitHubImage(resolved);
+          }
         }
       }
       if (Array.isArray(node.children)) {
@@ -64,27 +84,43 @@ const sanitizeSchema = {
   },
 };
 
-// Build the pipeline once at module load — unified processors are stateless
-// between processSync calls, so reusing saves a pile of plugin setup per render.
-// biome-ignore lint/suspicious/noExplicitAny: unified's plugin type is structurally incompatible with its own processor.use()
-const processor = unified()
-  .use(uniorgParse as any)
-  .use(uniorg2rehype as any)
-  .use(rehypeRewriteGithubLinks)
-  .use(rehypeSanitize, sanitizeSchema)
-  .use(rehypeStringify);
+const uniorgParsePlugin = uniorgParse as unknown as Plugin<[]>;
+const uniorg2rehypePlugin = uniorg2rehype as unknown as Plugin<[]>;
 
-export function OrgRendered({ children }: { children: string }) {
+function renderOrg(source: string, assetContext?: MarkdownAssetContext): string {
+  const processor = unified()
+    .use(uniorgParsePlugin)
+    .use(uniorg2rehypePlugin)
+    .use(rehypeRewriteGithubUrls, assetContext)
+    .use(rehypeSanitize, sanitizeSchema)
+    .use(rehypeStringify);
+
+  return String(processor.processSync(source));
+}
+
+export function OrgRendered({
+  children,
+  assetContext,
+}: {
+  children: string;
+  assetContext?: MarkdownAssetContext;
+}) {
+  const owner = assetContext?.owner;
+  const repo = assetContext?.repo;
+  const ref = assetContext?.ref;
+  const basePath = assetContext?.basePath;
+
   const html = useMemo(() => {
+    const context = owner && repo ? { owner, repo, ref, basePath } : undefined;
     try {
-      return String(processor.processSync(children));
+      return renderOrg(children, context);
     } catch {
       // Malformed org — fall back to plain text so the user still sees content.
       return `<pre>${escapeHtml(children)}</pre>`;
     }
-  }, [children]);
+  }, [children, owner, repo, ref, basePath]);
 
-  // eslint-disable-next-line react/no-danger
+  // biome-ignore lint/security/noDangerouslySetInnerHtml: org HTML is sanitized by rehype-sanitize above.
   return <div dangerouslySetInnerHTML={{ __html: html }} />;
 }
 

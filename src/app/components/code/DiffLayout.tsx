@@ -17,6 +17,10 @@ export type DiffLayoutProps = {
   defaultMode?: DiffMode;
   initialSidebarOpen?: boolean;
   className?: string;
+  owner?: string;
+  repo?: string;
+  headRef?: string;
+  baseRef?: string;
   getReviewHooks?: (filename: string) => DiffReviewHooks | undefined;
   /** Left portion of review context (back + title). Replaces sidebar toggle + file stats. */
   reviewBar?: ReactNode;
@@ -49,6 +53,10 @@ export function DiffLayout({
   defaultMode = "split",
   initialSidebarOpen = true,
   className,
+  owner,
+  repo,
+  headRef,
+  baseRef,
   getReviewHooks,
   reviewBar,
   beforeModeSlot,
@@ -202,7 +210,14 @@ export function DiffLayout({
                     scrollMarginTop: TOPBAR_H,
                   }}
                 >
-                  <FileItem file={file} review={getReviewHooks?.(file.filename)} />
+                  <FileItem
+                    file={file}
+                    review={getReviewHooks?.(file.filename)}
+                    owner={owner}
+                    repo={repo}
+                    headRef={headRef}
+                    baseRef={baseRef}
+                  />
                 </div>
               ))}
             </div>
@@ -216,9 +231,17 @@ export function DiffLayout({
 const FileItem = memo(function FileItem({
   file,
   review,
+  owner,
+  repo,
+  headRef,
+  baseRef,
 }: {
   file: DiffLayoutFile;
   review: DiffReviewHooks | undefined;
+  owner: string | undefined;
+  repo: string | undefined;
+  headRef: string | undefined;
+  baseRef: string | undefined;
 }) {
   return (
     <FileDiff
@@ -230,6 +253,10 @@ const FileItem = memo(function FileItem({
       patch={file.patch}
       lang={file.lang}
       review={review}
+      owner={owner}
+      repo={repo}
+      headRef={headRef}
+      baseRef={baseRef}
     />
   );
 });

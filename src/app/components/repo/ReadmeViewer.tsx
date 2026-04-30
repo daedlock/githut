@@ -1,4 +1,4 @@
-import { GithubMarkdown } from "@/app/components/GithubMarkdown";
+import { MarkupRenderer } from "@/app/components/MarkupRenderer";
 import type { ReadmePayload } from "@/app/hooks/useRepoReadme";
 
 function dirname(path: string): string {
@@ -26,11 +26,12 @@ export function ReadmeViewer({
         <span className="font-mono text-micro text-[var(--color-fg-faint)]">{readme.path}</span>
       </header>
       <div className="readme-prose p-6">
-        <GithubMarkdown
+        <MarkupRenderer
+          path={readme.path}
           assetContext={{ owner, repo, ref, basePath: dirname(readme.path) }}
         >
-          {readme.markdown}
-        </GithubMarkdown>
+          {readme.content}
+        </MarkupRenderer>
       </div>
     </article>
   );

@@ -1,8 +1,16 @@
-import { ChevronDown, ChevronRight } from "lucide-react";
-import { memo, useEffect, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { ChevronDown, ChevronRight, ExternalLink, FileSearch } from "lucide-react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { CodeView } from "@/app/components/code/CodeView";
+import { Skeleton } from "@/app/components/ui/skeleton";
+import { useRepoFile } from "@/app/hooks/useRepoFile";
 import { cn } from "@/app/lib/cn";
+import { Button } from "../ui/button";
 import type { DiffReviewHooks } from "./DiffView";
 import { DiffView, useDiffMode } from "./DiffView";
+import { parseUnifiedDiff } from "./parseDiff";
+import type { LineKind } from "./types";
+import { useCodeTokens } from "./useCodeTokens";
 
 export type FileStatus = "added" | "removed" | "modified" | "renamed" | "copied" | "changed";
 
@@ -17,6 +25,10 @@ export type FileDiffProps = {
   defaultCollapsed?: boolean;
   className?: string;
   review?: DiffReviewHooks;
+  owner?: string;
+  repo?: string;
+  headRef?: string;
+  baseRef?: string;
 };
 
 export const FileDiff = memo(function FileDiff({
@@ -30,11 +42,16 @@ export const FileDiff = memo(function FileDiff({
   defaultCollapsed = false,
   className,
   review,
+  owner,
+  repo,
+  headRef,
+  baseRef,
 }: FileDiffProps) {
   const mode = useDiffMode();
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const sectionRef = useRef<HTMLElement>(null);
   const [mounted, setMounted] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
 
   useEffect(() => {
     if (mounted || collapsed) return;
@@ -55,8 +72,10 @@ export const FileDiff = memo(function FileDiff({
 
   const isBinary = !patch && (additions > 0 || deletions > 0);
   const hasPatch = !!patch;
+  const contextTarget = getContextTarget({ filename, previousFilename, status, headRef, baseRef });
+  const canLoadContext = !!owner && !!repo && !!contextTarget && !isBinary;
   const showContent = !collapsed && mounted;
-  const hasVisibleBody = showContent && (isBinary || hasPatch);
+  const hasVisibleBody = showContent && (isBinary || hasPatch || contextOpen);
 
   return (
     <section ref={sectionRef} className={cn("rounded-lg border border-[var(--color-border)]", className)}>
@@ -94,11 +113,54 @@ export const FileDiff = memo(function FileDiff({
           <span className="truncate text-foreground">{filename}</span>
         </div>
 
-        <ChangeStats additions={additions} deletions={deletions} />
+        <div className="flex shrink-0 items-center gap-1.5">
+          {canLoadContext && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => {
+                setContextOpen((open) => !open);
+                setMounted(true);
+              }}
+              className={cn(contextOpen && "bg-muted text-foreground")}
+              title={contextOpen ? "Hide full file context" : "Show full file context"}
+              aria-label={contextOpen ? "Hide full file context" : "Show full file context"}
+              aria-pressed={contextOpen}
+            >
+              <FileSearch data-icon="inline-start" />
+            </Button>
+          )}
+          {owner && repo && contextTarget && (
+            <Button variant="ghost" size="icon-xs" asChild>
+              <Link
+                to="/$owner/$repo/code"
+                params={{ owner, repo }}
+                search={{ path: contextTarget.path, view: "blob", branch: contextTarget.ref }}
+                title="Open full file"
+                aria-label="Open full file"
+              >
+                <ExternalLink data-icon="inline-start" />
+              </Link>
+            </Button>
+          )}
+          <ChangeStats additions={additions} deletions={deletions} />
+        </div>
       </header>
 
       {showContent && (
         <>
+          {contextOpen && owner && repo && contextTarget && (
+            <FileContextPanel
+              owner={owner}
+              repo={repo}
+              path={contextTarget.path}
+              refName={contextTarget.ref}
+              lang={lang}
+              patch={patch}
+              status={status}
+            />
+          )}
           {isBinary ? (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">
               Binary file — preview unavailable
@@ -115,6 +177,91 @@ export const FileDiff = memo(function FileDiff({
     </section>
   );
 });
+
+type ContextTarget = { path: string; ref: string };
+
+function getContextTarget({
+  filename,
+  previousFilename,
+  status,
+  headRef,
+  baseRef,
+}: {
+  filename: string;
+  previousFilename?: string;
+  status: FileStatus;
+  headRef?: string;
+  baseRef?: string;
+}): ContextTarget | null {
+  if (status === "removed") {
+    return baseRef ? { path: previousFilename ?? filename, ref: baseRef } : null;
+  }
+  return headRef ? { path: filename, ref: headRef } : null;
+}
+
+function FileContextPanel({
+  owner,
+  repo,
+  path,
+  refName,
+  lang = "text",
+  patch,
+  status,
+}: {
+  owner: string;
+  repo: string;
+  path: string;
+  refName: string;
+  lang?: string;
+  patch: string | null | undefined;
+  status: FileStatus;
+}) {
+  const fileQuery = useRepoFile(owner, repo, path, refName);
+  const content = fileQuery.data?.content ?? "";
+  const { data: tokenLines, isPending: tokensPending } = useCodeTokens(content, lang);
+  const highlights = useMemo(() => buildLineHighlights(patch, status), [patch, status]);
+
+  return (
+    <div className="border-b border-border bg-[var(--color-code-bg)]">
+      <div className="flex h-8 items-center gap-2 bg-muted px-3 font-mono text-caption text-muted-foreground">
+        <span className="text-foreground">full file context</span>
+        <span className="truncate">{path}</span>
+      </div>
+      {fileQuery.isPending || tokensPending || !tokenLines ? (
+        <div className="skeleton-fade flex flex-col gap-1.5 p-3">
+          {CONTEXT_SKELETON_WIDTHS.map((width) => (
+            <Skeleton key={width} className="h-4" style={{ width }} />
+          ))}
+        </div>
+      ) : fileQuery.isError ? (
+        <div className="px-4 py-6 text-center text-ui text-muted-foreground">
+          Could not load file context.
+        </div>
+      ) : (
+        <CodeView lines={tokenLines} lineHighlights={highlights} className="max-h-[52vh]" />
+      )}
+    </div>
+  );
+}
+
+const CONTEXT_SKELETON_WIDTHS = ["58%", "74%", "46%", "82%", "61%", "70%"] as const;
+
+function buildLineHighlights(
+  patch: string | null | undefined,
+  status: FileStatus,
+): ReadonlyMap<number, LineKind> {
+  const highlights = new Map<number, LineKind>();
+  for (const hunk of parseUnifiedDiff(patch)) {
+    for (const line of hunk.lines) {
+      if (status === "removed") {
+        if (line.kind === "del" && line.oldNum) highlights.set(line.oldNum, "removed");
+      } else if (line.kind === "add" && line.newNum) {
+        highlights.set(line.newNum, "added");
+      }
+    }
+  }
+  return highlights;
+}
 
 function StatusBadge({ status }: { status: FileStatus }) {
   const label =
