@@ -47,12 +47,12 @@ Borders are not banned. They serve specific structural roles:
 
 ## Color Strategy
 
-**Restrained.** Achromatic surfaces + one accent (< 10% surface area).
-Color only for meaning: status, diff tints, accent actions.
+**Restrained.** Achromatic surfaces + one brand accent (< 10% surface area).
+Color only for meaning: status, diff tints, brand actions.
 
 | Token | Role |
 |---|---|
-| `--color-accent` | Primary buttons, links, focus, active tab indicator |
+| `--color-brand` / `bg-primary` | Primary buttons, links, focus, active tab indicator |
 | `--color-success` | Open PRs, additions, passing checks |
 | `--color-danger` | Closed, deletions, failing checks |
 | `--color-warning` | Pending, draft |
@@ -233,7 +233,7 @@ Full viewport, no Container
 - Single-hunk files skip the hunk header entirely.
 
 ### Buttons
-- Default (accent): `bg-primary text-primary-foreground`
+- Default (brand): `bg-primary text-primary-foreground`
 - Ghost: transparent, `hover:bg-muted`
 - Outline: `border-input bg-background` (one of the few bordered elements)
 - All sizes same weight/color. Only height + padding scale.
@@ -249,7 +249,7 @@ Themes define all tokens. Components never use raw values.
 See `theme-presets.css` for palette definitions.
 
 Each palette provides: surfaces (3), text (4), borders (2),
-accent (3), status (4), syntax (8+), icons, charts.
+brand (3), status (4), syntax (8+), icons, charts.
 
 Diff tokens auto-derive from status + surface via `color-mix`.
 
