@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouterState } from "@tanstack/react-router";
 import { z } from "zod";
+import type { ActiveLineRange } from "@/app/components/code";
 import { type BlobMode, BlobViewer } from "@/app/components/repo/BlobViewer";
 import { BranchSelector } from "@/app/components/repo/BranchSelector";
 import { CloneDropdown } from "@/app/components/repo/CloneDropdown";
@@ -26,6 +27,7 @@ const codeSearchSchema = z.object({
   view: z.enum(["tree", "blob"]).optional(),
   mode: z.enum(["source", "history", "blame"]).optional(),
   branch: z.string().optional(),
+  q: z.string().optional(),
 });
 
 const BLOB_SKELETON_WIDTHS = [
@@ -42,6 +44,20 @@ const BLOB_SKELETON_WIDTHS = [
   "65%",
   "84%",
 ] as const;
+
+function parseLineHash(hash: string): ActiveLineRange | undefined {
+  const clean = hash.replace(/^#/, "");
+  const match = /^L(\d+)(?:C\d+)?(?:-L?(\d+)(?:C\d+)?)?$/i.exec(clean);
+  if (!match) return undefined;
+
+  const start = Number(match[1]);
+  const rawEnd = match[2] ? Number(match[2]) : start;
+  if (!Number.isFinite(start) || !Number.isFinite(rawEnd) || start < 1 || rawEnd < 1) {
+    return undefined;
+  }
+
+  return rawEnd >= start ? { start, end: rawEnd } : { start: rawEnd, end: start };
+}
 
 export const Route = createFileRoute("/$owner/$repo/code")({
   validateSearch: codeSearchSchema,
@@ -66,7 +82,9 @@ export const Route = createFileRoute("/$owner/$repo/code")({
 
 function CodePage() {
   const { owner, repo } = Route.useParams();
-  const { path = "", view, mode = "source", branch: searchBranch } = Route.useSearch();
+  const { path = "", view, mode = "source", branch: searchBranch, q } = Route.useSearch();
+  const hash = useRouterState({ select: (s) => s.location.hash });
+  const activeLineRange = parseLineHash(hash);
   const navigate = Route.useNavigate();
 
   const { data: repoData } = useRepo(owner, repo);
@@ -107,6 +125,7 @@ function CodePage() {
           path: entry.path || undefined,
           view: undefined,
           mode: undefined,
+          q: undefined,
         }),
       });
     } else {
@@ -115,6 +134,7 @@ function CodePage() {
           ...prev,
           path: entry.path,
           view: "blob",
+          q: undefined,
         }),
       });
     }
@@ -127,6 +147,7 @@ function CodePage() {
         path: newPath || undefined,
         view: undefined,
         mode: undefined,
+        q: undefined,
       }),
     });
   }
@@ -173,6 +194,8 @@ function CodePage() {
                 repo={repo}
                 ref={dataRef}
                 mode={mode}
+                activeLineRange={activeLineRange}
+                searchQuery={q}
                 onModeChange={(nextMode: BlobMode) => {
                   navigate({
                     search: (prev) => ({

@@ -1,4 +1,5 @@
-import { CodeView, useCodeTokens } from "@/app/components/code";
+import { useMemo } from "react";
+import { type ActiveLineRange, CodeView, useCodeTokens } from "@/app/components/code";
 import { MarkupRenderer } from "@/app/components/MarkupRenderer";
 import { BlameView } from "@/app/components/repo/BlameView";
 import { FileHistoryPanel } from "@/app/components/repo/FileHistoryPanel";
@@ -42,6 +43,21 @@ function dirname(path: string): string {
   return i === -1 ? "" : path.slice(0, i);
 }
 
+function findFirstMatchingLine(
+  content: string,
+  query: string | undefined,
+): ActiveLineRange | undefined {
+  const parts = query?.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (!parts?.length) return undefined;
+
+  const lines = content.split("\n");
+  const index = lines.findIndex((line) => {
+    const lower = line.toLowerCase();
+    return parts.every((part) => lower.includes(part));
+  });
+  return index >= 0 ? { start: index + 1, end: index + 1 } : undefined;
+}
+
 export type BlobMode = "source" | "history" | "blame";
 
 export function BlobViewer({
@@ -50,6 +66,8 @@ export function BlobViewer({
   repo,
   ref,
   mode = "source",
+  activeLineRange,
+  searchQuery,
   onModeChange,
 }: {
   file: RepoFile;
@@ -57,6 +75,8 @@ export function BlobViewer({
   repo: string;
   ref?: string;
   mode?: BlobMode;
+  activeLineRange?: ActiveLineRange;
+  searchQuery?: string;
   onModeChange?: (mode: BlobMode) => void;
 }) {
   const lang = detectLang(file.path);
@@ -67,6 +87,11 @@ export function BlobViewer({
   const isRenderable = isMarkdown || isOrg;
 
   const { data: tokenLines, isPending } = useCodeTokens(isBinary ? "" : file.content, lang);
+  const searchLineRange = useMemo(
+    () => findFirstMatchingLine(file.content, searchQuery),
+    [file.content, searchQuery],
+  );
+  const highlightedLineRange = activeLineRange ?? searchLineRange;
 
   const header = (
     <BlobHeader
@@ -93,7 +118,7 @@ export function BlobViewer({
           ))}
         </div>
       ) : (
-        <CodeView lines={tokenLines} />
+        <CodeView lines={tokenLines} activeLineRange={highlightedLineRange} />
       )}
     </div>
   );

@@ -74,10 +74,12 @@ export function useCommandPaletteSearch(
   const token = useAuthStore((s) => s.token);
   const debounced = useDebouncedValue(query, 200);
   const trimmed = debounced.trim();
+  const rawTrimmed = query.trim();
   const repoContext = options?.repoContext ?? null;
   const enabled = options?.enabled ?? true;
+  const waitingForDebounce = enabled && rawTrimmed.length >= 2 && rawTrimmed !== trimmed;
 
-  return useQuery({
+  const result = useQuery({
     queryKey: [
       "command-palette",
       "search",
@@ -87,9 +89,6 @@ export function useCommandPaletteSearch(
     ],
     enabled: !!token && enabled && trimmed.length >= 2,
     staleTime: 30_000,
-    // Keep the previous list visible across keystrokes so the section doesn't
-    // collapse+expand between results — matches the CommentBox mention UX.
-    placeholderData: (prev) => prev,
     queryFn: async (): Promise<SearchHit[]> => {
       const client = getGitHubClient();
       const repoQualifier = repoContext ? `repo:${repoContext.owner}/${repoContext.repo}` : "";
@@ -119,6 +118,12 @@ export function useCommandPaletteSearch(
         .filter((x): x is SearchHit => x !== null);
     },
   });
+
+  return {
+    ...result,
+    data: waitingForDebounce ? undefined : result.data,
+    isFetching: result.isFetching || waitingForDebounce,
+  };
 }
 
 // ─── File-path and code search ────────────────────────────────────────────────
@@ -193,9 +198,11 @@ export function useCodeSearch(
   const token = useAuthStore((s) => s.token);
   const debounced = useDebouncedValue(query, 200);
   const trimmed = debounced.trim();
+  const rawTrimmed = query.trim();
   const enabled = options?.enabled ?? true;
+  const waitingForDebounce = enabled && rawTrimmed.length >= 3 && rawTrimmed !== trimmed;
 
-  return useQuery({
+  const result = useQuery({
     queryKey: [
       "command-palette",
       "code-search",
@@ -205,7 +212,6 @@ export function useCodeSearch(
     ],
     enabled: !!token && enabled && !!repoContext && trimmed.length >= 3,
     staleTime: 30_000,
-    placeholderData: (prev) => prev,
     queryFn: async (): Promise<CodeSearchHit[]> => {
       if (!repoContext) return [];
       const client = getGitHubClient();
@@ -224,6 +230,12 @@ export function useCodeSearch(
       }));
     },
   });
+
+  return {
+    ...result,
+    data: waitingForDebounce ? undefined : result.data,
+    isFetching: result.isFetching || waitingForDebounce,
+  };
 }
 
 export function rankRepoPaths(

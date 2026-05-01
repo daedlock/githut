@@ -175,15 +175,28 @@ function openTabOrNavigate(href: string, navigate: ReturnType<typeof useNavigate
       sublabel: meta.sublabel,
       icon: meta.icon.displayName ?? meta.icon.name ?? "File",
     });
-  } else {
+    // Opening a different search result in the same page tab (for example
+    // /code?path=a.ts → /code?path=b.ts) keeps the same activeTabId, so the
+    // tab-sync subscription will not fire. Navigate directly as well so
+    // search-param-only tab updates are applied immediately.
     navigate({ to: href });
+    return;
   }
+
+  navigate({ to: href });
 }
 
-function repoCodeHref(owner: string, repo: string, path: string, kind: "file" | "dir") {
+function repoCodeHref(
+  owner: string,
+  repo: string,
+  path: string,
+  kind: "file" | "dir",
+  query?: string,
+) {
   const params = new URLSearchParams();
   if (path) params.set("path", path);
   if (kind === "file") params.set("view", "blob");
+  if (query?.trim()) params.set("q", query.trim());
   const qs = params.toString();
   return `/${owner}/${repo}/code${qs ? `?${qs}` : ""}`;
 }
@@ -347,12 +360,10 @@ export function CommandPalette() {
   // Data sources
   const recent = useRecentItems(5);
   const repos = useRepos();
-  const repoWideQuery = mode.kind === "all" && repoContext ? mode.query.trim() : "";
-  const issueQuery = mode.kind === "issues" ? mode.query : repoWideQuery;
-  const fileQuery = mode.kind === "files" ? mode.query : repoWideQuery;
-  const repoWideSearch = repoWideQuery.length > 0;
-  const issueSearchEnabled = mode.kind === "issues" || repoWideSearch;
-  const codeSearchEnabled = mode.kind === "files" || repoWideSearch;
+  const issueQuery = mode.kind === "issues" ? mode.query : "";
+  const fileQuery = mode.kind === "files" ? mode.query : "";
+  const issueSearchEnabled = mode.kind === "issues";
+  const codeSearchEnabled = mode.kind === "files";
   const search = useCommandPaletteSearch(issueQuery, {
     enabled: issueSearchEnabled,
     repoContext: repoContext,
@@ -367,10 +378,8 @@ export function CommandPalette() {
   const codeSearch = useCodeSearch(fileQuery, repoContext, { enabled: codeSearchEnabled });
   const repoItems = useMemo(() => {
     const data = repos.data ?? [];
-    return mode.kind === "repos" || (mode.kind === "all" && hasQuery && !repoContext)
-      ? data
-      : data.slice(0, 50);
-  }, [repos.data, mode.kind, hasQuery, repoContext]);
+    return hasQuery ? data : data.slice(0, 50);
+  }, [repos.data, hasQuery]);
   const { actions, themes } = useMemo(
     () => buildCommands(close, repoContext, navigate),
     [close, repoContext, navigate],
@@ -408,22 +417,21 @@ export function CommandPalette() {
   // Section visibility
   const numberMode = mode.kind === "number";
   const fileMode = mode.kind === "files";
-  const repoWideMode = mode.kind === "all" && repoWideSearch;
-  const codeMode = fileMode || repoWideMode;
   const showRecent = mode.kind === "all" && recent.length > 0 && !hasQuery;
   const showCommands = mode.kind === "all" || mode.kind === "actions";
   const showThemes = mode.kind === "actions" || (mode.kind === "all" && hasQuery);
-  const showRepos = mode.kind === "repos" || (mode.kind === "all" && !repoContext);
+  const showRepos = mode.kind === "all" || mode.kind === "repos";
   const showFilePaths =
-    codeMode &&
+    fileMode &&
     !!repoContext &&
     (fileResults.length > 0 || repoTree.isFetching || repoTree.isError);
   const showCodeMatches =
-    codeMode &&
+    fileMode &&
     !!repoContext &&
     fileQuery.length >= 3 &&
     ((codeSearch.data?.length ?? 0) > 0 || codeSearch.isFetching || codeSearch.isError);
   const showSearch = issueSearchEnabled && issueQuery.length >= 2;
+  const shouldFilter = mode.kind === "all" || mode.kind === "actions" || mode.kind === "repos";
 
   return (
     <CommandDialog
@@ -431,6 +439,7 @@ export function CommandPalette() {
       onOpenChange={setOpen}
       title="Command palette"
       description="Search, navigate, or run a command"
+      shouldFilter={shouldFilter}
     >
       {/* biome-ignore lint/a11y/noStaticElementInteractions: cmdk owns focus; we intercept Enter for number-mode jump */}
       <div
@@ -467,11 +476,9 @@ export function CommandPalette() {
                   ? "Type at least 2 characters to search issues and PRs."
                   : fileMode && fileQuery.length < 1
                     ? "Type a file path or code term."
-                    : mode.kind === "all" && hasQuery && repoContext
-                      ? "No current repo results."
-                      : mode.kind === "all" && hasQuery
-                        ? "No local results. Use # for issues/PRs, / for code, or @ for repos."
-                        : "No results found."}
+                    : mode.kind === "all" && hasQuery
+                      ? "No commands or repos found. Use # for issues/PRs or / for code."
+                      : "No results found."}
           </CommandEmpty>
 
           {/* ── Recent ── */}
@@ -597,7 +604,13 @@ export function CommandPalette() {
                       id: `file:${hit.repositoryFullName}:${hit.path}`,
                       kind: "file",
                       label: hit.path,
-                      href: repoCodeHref(repoContext.owner, repoContext.repo, hit.path, "file"),
+                      href: repoCodeHref(
+                        repoContext.owner,
+                        repoContext.repo,
+                        hit.path,
+                        "file",
+                        fileQuery,
+                      ),
                       meta: hit.repositoryFullName,
                     })
                   }
@@ -644,7 +657,7 @@ export function CommandPalette() {
               heading={
                 <span className="flex items-center justify-between">
                   <span>
-                    {repoContext && (mode.kind === "issues" || repoWideMode)
+                    {repoContext && mode.kind === "issues"
                       ? "Current repo issues & PRs"
                       : "Issues & PRs"}
                   </span>

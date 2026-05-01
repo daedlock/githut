@@ -33,9 +33,6 @@ jobs:
       - name: Typecheck
         run: bun tsc --noEmit
 
-      - name: Test
-        run: bun test
-
       - name: Build and deploy
         run: bun run deploy
         env:

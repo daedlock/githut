@@ -26,11 +26,13 @@ function CommandDialog({
   description = "Search for a command to run...",
   children,
   className,
+  shouldFilter,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string;
   description?: string;
   className?: string;
+  shouldFilter?: React.ComponentProps<typeof CommandPrimitive>["shouldFilter"];
 }) {
   return (
     <Dialog {...props}>
@@ -46,7 +48,9 @@ function CommandDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <Command className="flex w-full flex-col">{children}</Command>
+        <Command className="flex w-full flex-col" shouldFilter={shouldFilter}>
+          {children}
+        </Command>
       </DialogContent>
     </Dialog>
   );
