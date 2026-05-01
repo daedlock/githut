@@ -6,6 +6,8 @@ import {
   Code2,
   Command as CommandIcon,
   FilePlus,
+  FileText,
+  Folder,
   GitPullRequest,
   Home,
   LogOut,
@@ -27,8 +29,11 @@ import {
 import { Kbd } from "@/app/components/ui/kbd";
 import {
   parsePaletteQuery,
+  rankRepoPaths,
+  useCodeSearch,
   useCommandPaletteSearch,
   useRecentItems,
+  useRepoTree,
 } from "@/app/hooks/useCommandPaletteItems";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { useRepos } from "@/app/hooks/useRepos";
@@ -173,6 +178,14 @@ function openTabOrNavigate(href: string, navigate: ReturnType<typeof useNavigate
   } else {
     navigate({ to: href });
   }
+}
+
+function repoCodeHref(owner: string, repo: string, path: string, kind: "file" | "dir") {
+  const params = new URLSearchParams();
+  if (path) params.set("path", path);
+  if (kind === "file") params.set("view", "blob");
+  const qs = params.toString();
+  return `/${owner}/${repo}/code${qs ? `?${qs}` : ""}`;
 }
 
 function buildCommands(
@@ -334,7 +347,30 @@ export function CommandPalette() {
   // Data sources
   const recent = useRecentItems(5);
   const repos = useRepos();
-  const search = useCommandPaletteSearch(mode.kind === "all" ? mode.query : "");
+  const repoWideQuery = mode.kind === "all" && repoContext ? mode.query.trim() : "";
+  const issueQuery = mode.kind === "issues" ? mode.query : repoWideQuery;
+  const fileQuery = mode.kind === "files" ? mode.query : repoWideQuery;
+  const repoWideSearch = repoWideQuery.length > 0;
+  const issueSearchEnabled = mode.kind === "issues" || repoWideSearch;
+  const codeSearchEnabled = mode.kind === "files" || repoWideSearch;
+  const search = useCommandPaletteSearch(issueQuery, {
+    enabled: issueSearchEnabled,
+    repoContext: repoContext,
+  });
+  const repoTree = useRepoTree(repoContext?.owner ?? "", repoContext?.repo ?? "", "HEAD", {
+    enabled: !!repoContext && codeSearchEnabled && fileQuery.length > 0,
+  });
+  const fileResults = useMemo(
+    () => rankRepoPaths(repoTree.data, fileQuery, 12),
+    [repoTree.data, fileQuery],
+  );
+  const codeSearch = useCodeSearch(fileQuery, repoContext, { enabled: codeSearchEnabled });
+  const repoItems = useMemo(() => {
+    const data = repos.data ?? [];
+    return mode.kind === "repos" || (mode.kind === "all" && hasQuery && !repoContext)
+      ? data
+      : data.slice(0, 50);
+  }, [repos.data, mode.kind, hasQuery, repoContext]);
   const { actions, themes } = useMemo(
     () => buildCommands(close, repoContext, navigate),
     [close, repoContext, navigate],
@@ -371,11 +407,23 @@ export function CommandPalette() {
 
   // Section visibility
   const numberMode = mode.kind === "number";
+  const fileMode = mode.kind === "files";
+  const repoWideMode = mode.kind === "all" && repoWideSearch;
+  const codeMode = fileMode || repoWideMode;
   const showRecent = mode.kind === "all" && recent.length > 0 && !hasQuery;
   const showCommands = mode.kind === "all" || mode.kind === "actions";
   const showThemes = mode.kind === "actions" || (mode.kind === "all" && hasQuery);
-  const showRepos = mode.kind === "all" || mode.kind === "repos";
-  const showSearch = mode.kind === "all" && mode.query.length >= 2;
+  const showRepos = mode.kind === "repos" || (mode.kind === "all" && !repoContext);
+  const showFilePaths =
+    codeMode &&
+    !!repoContext &&
+    (fileResults.length > 0 || repoTree.isFetching || repoTree.isError);
+  const showCodeMatches =
+    codeMode &&
+    !!repoContext &&
+    fileQuery.length >= 3 &&
+    ((codeSearch.data?.length ?? 0) > 0 || codeSearch.isFetching || codeSearch.isError);
+  const showSearch = issueSearchEnabled && issueQuery.length >= 2;
 
   return (
     <CommandDialog
@@ -402,8 +450,8 @@ export function CommandPalette() {
           onValueChange={setQuery}
           placeholder={
             repoContext
-              ? "Search, > commands, @ repos, #123 issue…"
-              : "Search, > commands, @ repos…"
+              ? "Search, > commands, @ repos, # issues, / code…"
+              : "Search, > commands, @ repos, # issues…"
           }
         />
 
@@ -413,7 +461,17 @@ export function CommandPalette() {
               ? repoContext
                 ? `Press ↵ to open #${mode.number} in ${repoContext.owner}/${repoContext.repo}`
                 : "Open a repo first to jump to an issue number."
-              : "No results found."}
+              : fileMode && !repoContext
+                ? "Open a repo first to search files and code."
+                : mode.kind === "issues" && mode.query.length < 2
+                  ? "Type at least 2 characters to search issues and PRs."
+                  : fileMode && fileQuery.length < 1
+                    ? "Type a file path or code term."
+                    : mode.kind === "all" && hasQuery && repoContext
+                      ? "No current repo results."
+                      : mode.kind === "all" && hasQuery
+                        ? "No local results. Use # for issues/PRs, / for code, or @ for repos."
+                        : "No results found."}
           </CommandEmpty>
 
           {/* ── Recent ── */}
@@ -429,7 +487,10 @@ export function CommandPalette() {
                   <span
                     className={cn(
                       "min-w-0 flex-1 truncate",
-                      (item.kind === "repo" || item.kind === "issue" || item.kind === "pr") &&
+                      (item.kind === "repo" ||
+                        item.kind === "issue" ||
+                        item.kind === "pr" ||
+                        item.kind === "file") &&
                         "font-mono tabular-nums",
                     )}
                   >
@@ -461,10 +522,98 @@ export function CommandPalette() {
             </CommandGroup>
           )}
 
+          {/* ── File paths ── */}
+          {showFilePaths && repoContext && (
+            <CommandGroup
+              forceMount
+              heading={
+                <span className="flex items-center justify-between">
+                  <span>Files</span>
+                  {repoTree.isFetching && (
+                    <span className="animate-pulse text-micro uppercase tracking-widest text-muted-foreground">
+                      indexing…
+                    </span>
+                  )}
+                </span>
+              }
+            >
+              {repoTree.isFetching && fileResults.length === 0 && (
+                <StatusCommandItem icon={Folder} label="Indexing repository tree…" />
+              )}
+              {repoTree.isError && (
+                <StatusCommandItem icon={Folder} label="Could not index repository files." />
+              )}
+              {fileResults.map((hit) => (
+                <CommandItem
+                  key={`file-${hit.sha}-${hit.path}`}
+                  forceMount
+                  value={`/ ${hit.path} ${repoContext.owner}/${repoContext.repo}`}
+                  onSelect={() =>
+                    go({
+                      id: `file:${repoContext.owner}/${repoContext.repo}:${hit.path}`,
+                      kind: "file",
+                      label: hit.path,
+                      href: repoCodeHref(repoContext.owner, repoContext.repo, hit.path, hit.kind),
+                      meta: `${repoContext.owner}/${repoContext.repo}`,
+                    })
+                  }
+                >
+                  {hit.kind === "dir" ? <Folder /> : <FileText />}
+                  <span className="min-w-0 flex-1 truncate font-mono text-caption">{hit.path}</span>
+                  <CommandShortcut>{hit.kind === "dir" ? "folder" : "file"}</CommandShortcut>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {/* ── Code matches ── */}
+          {showCodeMatches && repoContext && (
+            <CommandGroup
+              forceMount
+              heading={
+                <span className="flex items-center justify-between">
+                  <span>Code matches</span>
+                  {codeSearch.isFetching && (
+                    <span className="animate-pulse text-micro uppercase tracking-widest text-muted-foreground">
+                      searching…
+                    </span>
+                  )}
+                </span>
+              }
+            >
+              {codeSearch.isFetching && !codeSearch.data?.length && (
+                <StatusCommandItem icon={Code2} label="Searching code…" />
+              )}
+              {codeSearch.isError && (
+                <StatusCommandItem icon={Code2} label="Could not search code." />
+              )}
+              {(codeSearch.data ?? []).map((hit) => (
+                <CommandItem
+                  key={`code-${hit.id}`}
+                  forceMount
+                  value={`/ code ${hit.path} ${hit.name} ${hit.repositoryFullName}`}
+                  onSelect={() =>
+                    go({
+                      id: `file:${hit.repositoryFullName}:${hit.path}`,
+                      kind: "file",
+                      label: hit.path,
+                      href: repoCodeHref(repoContext.owner, repoContext.repo, hit.path, "file"),
+                      meta: hit.repositoryFullName,
+                    })
+                  }
+                >
+                  <Code2 />
+                  <span className="min-w-0 flex-1 truncate font-mono text-caption">{hit.path}</span>
+                  <CommandShortcut>{hit.repositoryFullName}</CommandShortcut>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
           {/* ── Repos ── */}
-          {showRepos && repos.data && repos.data.length > 0 && (
+          {showRepos && repoItems.length > 0 && (
             <CommandGroup heading="Repos">
-              {repos.data.slice(0, 50).map((r) => (
+              {repoItems.map((r) => (
                 <CommandItem
                   key={`repo-${r.id}`}
                   value={`@ ${r.fullName} ${r.language ?? ""}`}
@@ -491,9 +640,14 @@ export function CommandPalette() {
           {/* ── Search results ── */}
           {showSearch && (
             <CommandGroup
+              forceMount
               heading={
                 <span className="flex items-center justify-between">
-                  <span>Issues & PRs</span>
+                  <span>
+                    {repoContext && (mode.kind === "issues" || repoWideMode)
+                      ? "Current repo issues & PRs"
+                      : "Issues & PRs"}
+                  </span>
                   {search.isFetching && (
                     <span className="animate-pulse text-micro uppercase tracking-widest text-muted-foreground">
                       searching…
@@ -502,6 +656,12 @@ export function CommandPalette() {
                 </span>
               }
             >
+              {search.isFetching && !search.data?.length && (
+                <StatusCommandItem icon={CircleDot} label="Searching issues and PRs…" />
+              )}
+              {search.isError && (
+                <StatusCommandItem icon={CircleDot} label="Could not search issues and PRs." />
+              )}
               {(search.data ?? []).map((hit) => {
                 const Icon =
                   hit.kind === "pr"
@@ -512,6 +672,7 @@ export function CommandPalette() {
                 return (
                   <CommandItem
                     key={`hit-${hit.id}`}
+                    forceMount
                     value={`${hit.repoFullName} #${hit.number} ${hit.title}`}
                     onSelect={() =>
                       go({
@@ -547,7 +708,8 @@ export function CommandPalette() {
           <span className="flex-1" />
           <FooterHint keys={[">"]} label="commands" />
           <FooterHint keys={["@"]} label="repos" />
-          {repoContext && <FooterHint keys={["#"]} label="issue" />}
+          <FooterHint keys={["#"]} label="issues" />
+          {repoContext && <FooterHint keys={["/"]} label="code" />}
           <FooterHint keys={["esc"]} label="close" />
         </div>
       </div>
@@ -575,11 +737,21 @@ function CommandRow({ cmd }: { cmd: PaletteCommand }) {
   );
 }
 
+function StatusCommandItem({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
+  return (
+    <CommandItem forceMount disabled value={`status ${label}`}>
+      <Icon />
+      <span className="min-w-0 flex-1 truncate text-muted-foreground">{label}</span>
+    </CommandItem>
+  );
+}
+
 const RECENT_ICONS: Record<string, LucideIcon> = {
   pr: GitPullRequest,
   issue: CircleDot,
   action: CommandIcon,
   repo: BookMarked,
+  file: FileText,
 };
 
 function RecentIcon({ kind }: { kind: RecentItem["kind"] }) {

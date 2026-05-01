@@ -90,9 +90,16 @@ export function getGitHubClient(): Octokit {
 
   client.hook.wrap("request", async (request, options) => {
     const method = String(options.method ?? "GET").toUpperCase();
+    const versionedOptions = {
+      ...options,
+      headers: {
+        ...options.headers,
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    };
 
     if (method !== "GET") {
-      const response = await request(options);
+      const response = await request(versionedOptions);
       // After any write, evict cached GET responses for the same repo so
       // subsequent refetches bypass the ETag 304 path and get fresh data.
       const url = String(options.url ?? "");
@@ -104,8 +111,11 @@ export function getGitHubClient(): Octokit {
     const key = buildCacheKey(options as Record<string, unknown>);
     const prev = etagCache.get(key);
     const opts = prev
-      ? { ...options, headers: { ...options.headers, "if-none-match": prev.etag } }
-      : options;
+      ? {
+          ...versionedOptions,
+          headers: { ...versionedOptions.headers, "if-none-match": prev.etag },
+        }
+      : versionedOptions;
 
     try {
       const response = await request(opts);
