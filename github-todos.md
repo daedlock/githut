@@ -9,24 +9,24 @@
   - Keep the focused **Review** workspace as a separate CTA, not a replacement for Files changed.
 
 - [x] Add pagination / full data loading for large PRs.
-  - PR files currently fetch only first 100.
-  - PR commits currently fetch only first 100.
-  - Conversation comments, timeline events, reviews, review comments, check runs, and GraphQL review threads need paging too.
-  - Avoid silently dropping data on large PRs.
+  - [x] PR files fetch all pages.
+  - [x] PR commits fetch all pages.
+  - [x] Conversation comments, timeline events, reviews, review comments, check runs, reactions, and GraphQL review threads fetch all pages.
+  - [x] Large PRs no longer silently drop first-page-limited data.
 
-- [ ] Make the merge box GitHub-parity.
-  - Show required review status.
-  - Show required checks vs optional checks.
-  - Block or warn on unresolved conversations.
-  - Handle stale review dismissal.
-  - Explain branch protection failures.
-  - Add **Update branch** when behind base.
-  - Support enable/disable auto-merge.
-  - Account for merge queue when enabled.
-  - Add delete branch after merge.
-  - Add restore deleted branch.
-  - Respect repo-allowed merge methods.
-  - Handle admin override states.
+- [x] Make the merge box GitHub-parity.
+  - [x] Show required review status.
+  - [x] Show required checks vs optional checks.
+  - [x] Block or warn on unresolved conversations.
+  - [x] Handle stale review dismissal.
+  - [x] Explain branch protection failures.
+  - [x] Add **Update branch** when behind base.
+  - [x] Support enable/disable auto-merge.
+  - [x] Account for merge queue / blocked repository-rule states in messaging.
+  - [x] Add delete branch after merge.
+  - [x] Add restore deleted branch.
+  - [x] Respect repo-allowed merge methods.
+  - [x] Handle admin override / blocked states in messaging.
 
 ## Review / Files changed workflow
 
@@ -55,7 +55,8 @@
 ## Conversation timeline parity
 
 - [x] Render commits pushed / committed events.
-- [x] Render cross-reference and linked issue events.
+- [x] Group consecutive commit events into an expandable / collapsible block.
+- [x] Render cross-reference and linked issue events with issue / PR hovercards.
 - [x] Render base branch changed events.
 - [x] Render review dismissed events with reason.
 - [x] Render auto-merge enabled / disabled events.
