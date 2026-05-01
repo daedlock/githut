@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronDown, ChevronRight, ExternalLink, FileSearch } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, FileSearch, Loader2 } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { CodeView } from "@/app/components/code/CodeView";
+import { FileHistoryTrigger } from "@/app/components/code/FileHistoryTrigger";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { useRepoFile } from "@/app/hooks/useRepoFile";
 import { cn } from "@/app/lib/cn";
@@ -29,6 +30,9 @@ export type FileDiffProps = {
   repo?: string;
   headRef?: string;
   baseRef?: string;
+  /** When true, render flat without sticky header — used inside scroll containers
+   *  that don't share the page's nav offset (e.g. the file-history sheet). */
+  embedded?: boolean;
 };
 
 export const FileDiff = memo(function FileDiff({
@@ -46,6 +50,7 @@ export const FileDiff = memo(function FileDiff({
   repo,
   headRef,
   baseRef,
+  embedded = false,
 }: FileDiffProps) {
   const mode = useDiffMode();
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -81,10 +86,11 @@ export const FileDiff = memo(function FileDiff({
     <section ref={sectionRef} className={cn("rounded-lg border border-[var(--color-border)]", className)}>
       <header
         className={cn(
-          "sticky top-[84px] z-[5] isolate",
-          "flex items-center gap-2.5 px-3 py-2",
+          embedded
+            ? "relative z-[1]"
+            : "sticky top-[84px] z-[5] shadow-[0_-6px_0_0_var(--color-bg)]",
+          "isolate flex items-center gap-2.5 px-3 py-2",
           "bg-[var(--color-bg-sunken)]",
-          "shadow-[0_-6px_0_0_var(--color-bg)]",
           hasVisibleBody ? "border-b border-[var(--color-border)]" : "rounded-b-lg",
           "rounded-t-lg",
         )}
@@ -130,6 +136,13 @@ export const FileDiff = memo(function FileDiff({
             >
               <FileSearch data-icon="inline-start" />
             </Button>
+          )}
+          {owner && repo && contextTarget && (
+            <FileHistoryTrigger
+              path={contextTarget.path}
+              sha={contextTarget.ref}
+              branch={contextTarget.ref}
+            />
           )}
           {owner && repo && contextTarget && (
             <Button variant="ghost" size="icon-xs" asChild>
@@ -199,7 +212,7 @@ function getContextTarget({
   return headRef ? { path: filename, ref: headRef } : null;
 }
 
-function FileContextPanel({
+export function FileContextPanel({
   owner,
   repo,
   path,
@@ -207,6 +220,7 @@ function FileContextPanel({
   lang = "text",
   patch,
   status,
+  loadingVariant = "skeleton",
 }: {
   owner: string;
   repo: string;
@@ -215,11 +229,17 @@ function FileContextPanel({
   lang?: string;
   patch: string | null | undefined;
   status: FileStatus;
+  /** "skeleton" (default) shows shimmer placeholders. "spinner" shows a
+   *  small centered loader — better when the panel sits above other live
+   *  content (e.g. a diff in a stepped journey) where the placeholders
+   *  would clash with what's already on screen. */
+  loadingVariant?: "skeleton" | "spinner";
 }) {
   const fileQuery = useRepoFile(owner, repo, path, refName);
   const content = fileQuery.data?.content ?? "";
   const { data: tokenLines, isPending: tokensPending } = useCodeTokens(content, lang);
   const highlights = useMemo(() => buildLineHighlights(patch, status), [patch, status]);
+  const isLoading = fileQuery.isPending || tokensPending || !tokenLines;
 
   return (
     <div className="border-b border-border bg-[var(--color-code-bg)]">
@@ -227,12 +247,18 @@ function FileContextPanel({
         <span className="text-foreground">full file context</span>
         <span className="truncate">{path}</span>
       </div>
-      {fileQuery.isPending || tokensPending || !tokenLines ? (
-        <div className="skeleton-fade flex flex-col gap-1.5 p-3">
-          {CONTEXT_SKELETON_WIDTHS.map((width) => (
-            <Skeleton key={width} className="h-4" style={{ width }} />
-          ))}
-        </div>
+      {isLoading ? (
+        loadingVariant === "spinner" ? (
+          <div className="flex h-32 items-center justify-center">
+            <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label="Loading file" />
+          </div>
+        ) : (
+          <div className="skeleton-fade flex flex-col gap-1.5 p-3">
+            {CONTEXT_SKELETON_WIDTHS.map((width) => (
+              <Skeleton key={width} className="h-4" style={{ width }} />
+            ))}
+          </div>
+        )
       ) : fileQuery.isError ? (
         <div className="px-4 py-6 text-center text-ui text-muted-foreground">
           Could not load file context.

@@ -77,7 +77,14 @@ function CommitDetailPage() {
 
       {commit && diffFiles.length > 0 && (
         <div className="border-t border-border">
-          <DiffLayout files={diffFiles} initialSidebarOpen={diffFiles.length > 1} />
+          <DiffLayout
+            files={diffFiles}
+            initialSidebarOpen={diffFiles.length > 1}
+            owner={owner}
+            repo={repo}
+            headRef={commit.sha}
+            baseRef={commit.parents[0]?.sha}
+          />
         </div>
       )}
 

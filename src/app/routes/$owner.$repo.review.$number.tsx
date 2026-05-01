@@ -162,6 +162,10 @@ function ReviewPage() {
           <DiffLayout
             files={diffFiles}
             initialSidebarOpen={diffFiles.length > 1}
+            owner={owner}
+            repo={repo}
+            headRef={pr.head.ref}
+            baseRef={pr.base.ref}
             getReviewHooks={getReviewHooks}
             reviewBar={
               <ReviewBarLeft owner={owner} repo={repo} number={number} pr={pr} uiState={uiState} />

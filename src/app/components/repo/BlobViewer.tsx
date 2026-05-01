@@ -1,5 +1,7 @@
+import { useParams } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import { type ActiveLineRange, CodeView, useCodeTokens } from "@/app/components/code";
+import { FileHistoryTrigger } from "@/app/components/code/FileHistoryTrigger";
 import { MarkupRenderer } from "@/app/components/MarkupRenderer";
 import { BlameView } from "@/app/components/repo/BlameView";
 import { FileHistoryPanel } from "@/app/components/repo/FileHistoryPanel";
@@ -111,6 +113,7 @@ export function BlobViewer({
       lineCount={lineCount}
       lang={lang}
       onModeChange={onModeChange}
+      historyRef={ref}
     />
   );
 
@@ -191,13 +194,17 @@ function BlobHeader({
   lineCount,
   lang,
   onModeChange,
+  historyRef,
 }: {
   file: RepoFile;
   mode: BlobMode;
   lineCount: number;
   lang: string;
   onModeChange?: (mode: BlobMode) => void;
+  historyRef?: string;
 }) {
+  const params = useParams({ strict: false }) as { owner?: string; repo?: string };
+
   return (
     <div className="flex h-9 items-center justify-between gap-3 border-b border-border bg-muted px-3">
       <div className="flex min-w-0 items-baseline gap-2">
@@ -212,6 +219,13 @@ function BlobHeader({
           <span>{lineCount} lines</span>
           <span>{formatBytes(file.size)}</span>
         </div>
+        {historyRef && params.owner && params.repo && (
+          <FileHistoryTrigger
+            path={file.path}
+            sha={historyRef}
+            branch={historyRef}
+          />
+        )}
         <div className="flex items-center rounded-lg bg-background p-0.5">
           {(["source", "history", "blame"] as const).map((item) => (
             <Button

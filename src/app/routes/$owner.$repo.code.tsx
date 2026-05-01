@@ -23,12 +23,15 @@ import { repoReleasesQueryOptions, useRepoReleases } from "@/app/hooks/useRepoRe
 import { repoStarredQueryOptions } from "@/app/hooks/useRepoStarred";
 import { track } from "@/app/lib/analytics";
 
+import { fileHistorySearchSchema } from "@/app/lib/fileHistorySearch";
+
 const codeSearchSchema = z.object({
   path: z.string().optional(),
   view: z.enum(["tree", "blob"]).optional(),
   mode: z.enum(["source", "history", "blame"]).optional(),
   branch: z.string().optional(),
   q: z.string().optional(),
+  ...fileHistorySearchSchema.shape,
 });
 
 const BLOB_SKELETON_WIDTHS = [
