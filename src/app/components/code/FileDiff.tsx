@@ -83,7 +83,13 @@ export const FileDiff = memo(function FileDiff({
   const hasVisibleBody = showContent && (isBinary || hasPatch || contextOpen);
 
   return (
-    <section ref={sectionRef} className={cn("rounded-lg border border-[var(--color-border)]", className)}>
+    <section
+      ref={sectionRef}
+      className={cn(
+        "overflow-clip rounded-lg border border-[var(--color-border)]",
+        className,
+      )}
+    >
       <header
         className={cn(
           embedded
@@ -91,8 +97,7 @@ export const FileDiff = memo(function FileDiff({
             : "sticky top-[84px] z-[5] shadow-[0_-6px_0_0_var(--color-bg)]",
           "isolate flex items-center gap-2.5 px-3 py-2",
           "bg-[var(--color-bg-sunken)]",
-          hasVisibleBody ? "border-b border-[var(--color-border)]" : "rounded-b-lg",
-          "rounded-t-lg",
+          hasVisibleBody && "border-b border-[var(--color-border)]",
         )}
       >
         <button
