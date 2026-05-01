@@ -192,7 +192,7 @@ function CodePage() {
                 file={fileData}
                 owner={owner}
                 repo={repo}
-                ref={dataRef}
+                ref={branch}
                 mode={mode}
                 activeLineRange={activeLineRange}
                 searchQuery={q}
