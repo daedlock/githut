@@ -27,12 +27,7 @@ export type JobPanelProps = {
 // windows so each step disclosure shows only its own output. Steps that
 // haven't started yet render without a chevron and without a log slot.
 
-export function JobPanel({
-  owner,
-  repo,
-  job,
-  defaultOpen = false,
-}: JobPanelProps) {
+export function JobPanel({ owner, repo, job, defaultOpen = false }: JobPanelProps) {
   const [open, setOpen] = useState(defaultOpen);
   const now = useNow();
   const ui = toUiStatus(job.status, job.conclusion);
@@ -60,21 +55,18 @@ export function JobPanel({
     () => (logsQuery.data ? parseLog(logsQuery.data) : []),
     [logsQuery.data],
   );
-  const stepLogs = useMemo(
-    () => splitLogByStep(parsedLines, job.steps),
-    [parsedLines, job.steps],
-  );
+  const stepLogs = useMemo(() => splitLogByStep(parsedLines, job.steps), [parsedLines, job.steps]);
 
   return (
-    <div className="border-b border-border last:border-b-0">
+    <div className="rounded-lg">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls={`job-${job.id}-body`}
         className={cn(
-          "group flex w-full items-center gap-3 px-4 py-2.5 text-left outline-none",
-          "hover:bg-(--color-bg-sunken) focus-visible:bg-(--color-bg-sunken)",
+          "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left outline-none transition-colors",
+          "hover:bg-muted focus-visible:bg-muted",
         )}
       >
         <ChevronRight
@@ -99,11 +91,6 @@ export function JobPanel({
           </span>
         ) : null}
 
-        {job.runner_name ? (
-          <span className="hidden font-mono text-caption text-(--color-fg-faint) md:inline">
-            {job.runner_name}
-          </span>
-        ) : null}
         <span
           className={cn(
             "shrink-0 font-mono text-caption tabular-nums",
@@ -121,7 +108,7 @@ export function JobPanel({
       {open ? (
         <div
           id={`job-${job.id}-body`}
-          className="flex flex-col bg-(--color-bg) border-t border-border"
+          className="ml-6 flex flex-col gap-1 border-l border-border/60 py-1"
         >
           {job.steps.length === 0 ? (
             <p className="px-10 py-3 font-mono text-caption text-(--color-fg-faint)">
@@ -190,25 +177,16 @@ const StepWithLogs = memo(function StepWithLogs({
 
   return (
     <div className={cn(isActive && "bg-(--color-bg-subtle)")}>
-      <div
-        role={canExpand ? "button" : undefined}
-        tabIndex={canExpand ? 0 : -1}
+      <button
+        type="button"
+        disabled={!canExpand}
         aria-expanded={canExpand ? open : undefined}
         aria-controls={canExpand ? `step-${step.number}-logs` : undefined}
-        onClick={canExpand ? () => setOpen((o) => !o) : undefined}
-        onKeyDown={
-          canExpand
-            ? (e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  setOpen((o) => !o);
-                }
-              }
-            : undefined
-        }
+        onClick={() => setOpen((o) => !o)}
         className={cn(
-          "flex items-center gap-3 border-b border-border last:border-b-0 pl-10 pr-4 py-1.5 outline-none",
-          canExpand && "cursor-pointer hover:bg-(--color-bg-sunken) focus-visible:bg-(--color-bg-sunken)",
+          "flex w-full items-center gap-3 rounded-lg py-1.5 pl-3 pr-4 text-left outline-none transition-colors",
+          canExpand && "cursor-pointer hover:bg-muted focus-visible:bg-muted",
+          !canExpand && "cursor-default",
         )}
       >
         {canExpand ? (
@@ -247,7 +225,7 @@ const StepWithLogs = memo(function StepWithLogs({
         >
           {durationMs !== null ? formatDuration(durationMs) : "—"}
         </span>
-      </div>
+      </button>
 
       {canExpand && open ? (
         <div id={`step-${step.number}-logs`}>

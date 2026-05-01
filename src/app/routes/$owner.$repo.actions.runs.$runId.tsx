@@ -1,11 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertCircle } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { type ReactNode, useEffect } from "react";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { Timeline, type TimelineItem } from "@/app/components/ui/Timeline";
-import { Widget } from "@/app/components/ui/Widget";
 import { ArtifactList } from "@/app/features/actions/components/ArtifactList";
 import { JobPanel } from "@/app/features/actions/components/JobPanel";
 import { RunHeader } from "@/app/features/actions/components/RunHeader";
@@ -19,13 +17,9 @@ import {
   workflowRunQueryOptions,
 } from "@/app/features/actions/hooks";
 import { isTerminal, toUiStatus } from "@/app/features/actions/lib/statusMap";
-import { NowTicker, useNow } from "@/app/features/actions/lib/useNow";
-
-// ─── Route ─────────────────────────────────────────────────────────────────
+import { NowTicker } from "@/app/features/actions/lib/useNow";
 
 export const Route = createFileRoute("/$owner/$repo/actions/runs/$runId")({
-  // Non-blocking: fire run + jobs prefetches in parallel. Artifacts are
-  // below-the-fold so they load lazily once the component mounts.
   loader: ({ context, params }) => {
     const qc = context.queryClient;
     const runId = Number(params.runId);
@@ -36,8 +30,6 @@ export const Route = createFileRoute("/$owner/$repo/actions/runs/$runId")({
   },
   component: RunDetailPage,
 });
-
-// ─── Page ──────────────────────────────────────────────────────────────────
 
 function RunDetailPage() {
   const { owner, repo, runId: runIdParam } = Route.useParams();
@@ -52,48 +44,18 @@ function RunDetailPage() {
   const jobs = jobsQuery.data ?? [];
   const artifacts = artifactsQuery.data ?? [];
 
-  // Preload logs for every job that has started — opening a panel later is
-  // then instant (or near-instant). Fire-and-forget, non-blocking. Polling
-  // is skipped here (prefetchQuery only pulls once); when the user expands
-  // a panel, `useJobLogs` takes over and does its own polling if live.
   useEffect(() => {
     if (jobs.length === 0) return;
     for (const job of jobs) {
       if (!job.started_at) continue;
       const ui = toUiStatus(job.status, job.conclusion);
-      void qc.prefetchQuery(
-        jobLogsQueryOptions(owner, repo, job.id, { isLive: !isTerminal(ui) }),
-      );
+      void qc.prefetchQuery(jobLogsQueryOptions(owner, repo, job.id, { isLive: !isTerminal(ui) }));
     }
   }, [qc, owner, repo, jobs]);
 
-  // Timeline rows — only jobs that actually started have a range worth
-  // plotting. Queued-only jobs are dropped here (they still show in the
-  // jobs list below, just with no bar). Sorted by start time so time
-  // reads top-to-bottom AND left-to-right consistently.
-  const timelineItems: TimelineItem[] = useMemo(
-    () =>
-      jobs
-        .filter((j) => !!j.started_at)
-        .slice()
-        .sort((a, b) => {
-          const at = new Date(a.started_at!).getTime();
-          const bt = new Date(b.started_at!).getTime();
-          return at - bt;
-        })
-        .map((j) => ({
-          id: String(j.id),
-          label: j.name,
-          status: toUiStatus(j.status, j.conclusion).kind,
-          start: j.started_at!,
-          end: j.completed_at ?? null,
-        })),
-    [jobs],
-  );
-
   if (runQuery.isPending) {
     return (
-      <Container className="py-5 sm:py-6">
+      <Container size="xl" className="max-w-5xl py-6">
         <RunDetailSkeleton />
       </Container>
     );
@@ -101,8 +63,8 @@ function RunDetailPage() {
 
   if (runQuery.isError || !run) {
     return (
-      <Container className="py-5 sm:py-6">
-        <div className="rounded-md border border-border bg-muted px-4 py-10 text-center">
+      <Container size="xl" className="max-w-5xl py-6">
+        <div className="rounded-lg bg-muted px-4 py-10 text-center">
           <AlertCircle className="mx-auto mb-2 size-5 text-destructive" aria-hidden />
           <p className="text-ui text-muted-foreground">Could not load this run.</p>
         </div>
@@ -115,43 +77,35 @@ function RunDetailPage() {
 
   return (
     <NowTicker enabled={runLive}>
-      <Container className="py-5 sm:py-6 flex flex-col gap-4">
+      <Container size="xl" className="flex max-w-5xl flex-col gap-6 py-6">
         <RunHeader owner={owner} repo={repo} run={run} />
 
-        {timelineItems.length > 0 ? <TimelineCard items={timelineItems} /> : null}
-
-      <Widget
-        title="Jobs"
-        meta={jobsQuery.isPending ? undefined : `${jobs.length}`}
-        bodyClassName="p-0"
-      >
-        {jobsQuery.isPending ? (
-          <JobsSkeleton />
-        ) : jobs.length === 0 ? (
-          <p className="px-4 py-8 text-center font-mono text-ui text-(--color-fg-faint)">
-            No jobs yet.
-          </p>
-        ) : (
-          <div className="bg-background">
-            {jobs.map((job, i) => (
-              <JobPanel
-                key={job.id}
-                owner={owner}
-                repo={repo}
-                job={job}
-                defaultOpen={i === 0 || isJobLive(job.status)}
-              />
-            ))}
-          </div>
-        )}
-      </Widget>
-
-        {artifactsQuery.data && artifactsQuery.data.length > 0 ? (
-          <Widget title="Artifacts" meta={String(artifacts.length)} bodyClassName="p-0">
-            <div className="bg-background">
-              <ArtifactList artifacts={artifacts} />
+        <RunSection title="Jobs" meta={jobsQuery.isPending ? null : `${jobs.length}`}>
+          {jobsQuery.isPending ? (
+            <JobsSkeleton />
+          ) : jobs.length === 0 ? (
+            <p className="px-4 py-8 text-center font-mono text-ui text-(--color-fg-faint)">
+              No jobs yet.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {jobs.map((job, i) => (
+                <JobPanel
+                  key={job.id}
+                  owner={owner}
+                  repo={repo}
+                  job={job}
+                  defaultOpen={i === 0 || isJobLive(job.status)}
+                />
+              ))}
             </div>
-          </Widget>
+          )}
+        </RunSection>
+
+        {artifacts.length > 0 ? (
+          <RunSection title="Artifacts" meta={String(artifacts.length)}>
+            <ArtifactList artifacts={artifacts} />
+          </RunSection>
         ) : null}
       </Container>
     </NowTicker>
@@ -162,20 +116,29 @@ function isJobLive(status: string): boolean {
   return status !== "completed";
 }
 
-// Subcomponent so `useNow()` can subscribe to the NowTicker in scope.
-// The live bar's end-position recomputes each second, pushing to "now".
-function TimelineCard({ items }: { items: TimelineItem[] }) {
-  const now = useNow();
+function RunSection({
+  title,
+  meta,
+  children,
+}: {
+  title: string;
+  meta: string | null;
+  children: ReactNode;
+}) {
   return (
-    <Widget title="Timeline" meta={`${items.length}`} bodyClassName="p-0">
-      <div className="bg-background p-3">
-        <Timeline items={items} now={now} />
+    <section className="flex flex-col gap-2">
+      <div className="flex h-8 items-center gap-2 rounded-lg bg-muted px-3">
+        <h2 className="min-w-0 truncate text-ui font-[475] text-foreground">{title}</h2>
+        {meta ? (
+          <span className="ml-auto font-mono text-caption tabular-nums text-muted-foreground">
+            {meta}
+          </span>
+        ) : null}
       </div>
-    </Widget>
+      <div className="flex flex-col gap-1">{children}</div>
+    </section>
   );
 }
-
-// ─── Skeletons ─────────────────────────────────────────────────────────────
 
 function RunDetailSkeleton() {
   return (
@@ -194,9 +157,8 @@ function RunDetailSkeleton() {
         </div>
       </section>
 
-      <div className="overflow-hidden rounded-md border border-input bg-muted">
-        <div className="h-10 border-b border-border" />
-        <div className="flex flex-col gap-2 p-3 bg-background">
+      <div className="rounded-lg bg-muted p-3">
+        <div className="flex flex-col gap-2 bg-background p-3">
           {[72, 58, 80, 46].map((w) => (
             <div key={w} className="flex items-center gap-2">
               <Skeleton className="h-3 w-20" />
@@ -207,10 +169,7 @@ function RunDetailSkeleton() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-md border border-input bg-muted">
-        <div className="h-10 border-b border-border" />
-        <JobsSkeleton />
-      </div>
+      <JobsSkeleton />
     </div>
   );
 }
@@ -219,10 +178,7 @@ function JobsSkeleton() {
   return (
     <div className="bg-background">
       {[0, 1, 2].map((i) => (
-        <div
-          key={i}
-          className="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
-        >
+        <div key={i} className="flex items-center gap-3 rounded-lg px-3 py-2.5">
           <Skeleton className="size-3.5 rounded-sm" />
           <Skeleton className="size-4 rounded-full" />
           <Skeleton className="h-3 flex-1" style={{ maxWidth: `${60 + i * 8}%` }} />

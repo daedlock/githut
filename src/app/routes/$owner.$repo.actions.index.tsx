@@ -1,11 +1,9 @@
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { createFileRoute } from "@tanstack/react-router";
 import { AlertCircle, Play } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { z } from "zod";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { Widget } from "@/app/components/ui/Widget";
 import { DispatchBar } from "@/app/features/actions/components/DispatchBar";
 import { RunFilters } from "@/app/features/actions/components/RunFilters";
 import { RunRow } from "@/app/features/actions/components/RunRow";
@@ -17,6 +15,7 @@ import {
   workflowRunsQueryOptions,
 } from "@/app/features/actions/hooks";
 import { toUiStatus } from "@/app/features/actions/lib/statusMap";
+import { cn } from "@/app/lib/cn";
 
 // ─── Search params ─────────────────────────────────────────────────────────
 
@@ -66,11 +65,6 @@ export const Route = createFileRoute("/$owner/$repo/actions/")({
   component: ActionsPage,
 });
 
-// ─── Virtualization constants ──────────────────────────────────────────────
-
-const RUN_ROW_ESTIMATE = 56; // RunRow ≈ 56px (2-line row + py-2.5)
-const OVERSCAN = 8;
-
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 function ActionsPage() {
@@ -86,14 +80,11 @@ function ActionsPage() {
   // never shows the bar.
   const selectedWorkflow =
     search.workflow != null
-      ? workflowsQuery.data?.find((w) => w.id === search.workflow) ?? null
+      ? (workflowsQuery.data?.find((w) => w.id === search.workflow) ?? null)
       : null;
 
   // Flatten pages once — cheap enough at 30/page even on very active repos.
-  const runs = useMemo(
-    () => runsQuery.data?.pages.flat() ?? [],
-    [runsQuery.data],
-  );
+  const runs = useMemo(() => runsQuery.data?.pages.flat() ?? [], [runsQuery.data]);
 
   const liveCount = useMemo(
     () =>
@@ -104,48 +95,19 @@ function ActionsPage() {
     [runs],
   );
 
-  // ─── Virtualizer drives pagination ───────────────────────────────────────
-  //
-  // Canonical TanStack pattern: the virtualizer reports which rows are
-  // visible; when the last one is near, kick `fetchNextPage`. No separate
-  // sentinel element required.
-
-  const scrollRef = useRef<HTMLDivElement>(null);
   const hasNext = runsQuery.hasNextPage ?? false;
-  const virtualizer = useVirtualizer({
-    count: hasNext ? runs.length + 1 : runs.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => RUN_ROW_ESTIMATE,
-    overscan: OVERSCAN,
-  });
 
-  const virtualItems = virtualizer.getVirtualItems();
-
-  useEffect(() => {
-    const last = virtualItems.at(-1);
-    if (!last) return;
-    if (
-      last.index >= runs.length - 1 &&
-      hasNext &&
-      !runsQuery.isFetchingNextPage
-    ) {
-      runsQuery.fetchNextPage();
-    }
-  }, [virtualItems, runs.length, hasNext, runsQuery.isFetchingNextPage, runsQuery.fetchNextPage]);
-
-  // Widget meta conveys total + live without extra chrome. "+" suffix hints
-  // more pages are loadable without needing a separate "show more" affordance.
   const meta = runsQuery.isPending
-    ? undefined
+    ? null
     : liveCount > 0
       ? `${runs.length}${hasNext ? "+" : ""} · ${liveCount} live`
       : `${runs.length}${hasNext ? "+" : ""}`;
 
   return (
-    <Container className="py-5 sm:py-6">
-      <div className="flex items-start gap-6">
+    <Container size="xl" className="max-w-5xl py-6">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-12">
         {/* Sidebar — unframed, sticky, RepoAbout-style vocabulary */}
-        <div className="hidden w-48 shrink-0 sm:block">
+        <div className="hidden w-52 shrink-0 self-start sm:block lg:sticky lg:top-28 lg:mt-12">
           <WorkflowSidebar
             owner={owner}
             repo={repo}
@@ -155,38 +117,39 @@ function ActionsPage() {
           />
         </div>
 
-        {/* Runs — virtualized list inside a Widget */}
-        <div className="min-w-0 flex-1 flex flex-col gap-3">
+        {/* Runs — flat dashboard-style list */}
+        <main className="min-w-0 flex-1 lg:max-w-3xl">
+          <MainHeader title="Actions" meta={meta} />
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted px-2 py-1">
+            <RunFilters
+              status={search.status ?? "all"}
+              branch={search.branch}
+              event={search.event}
+              actor={search.actor}
+              onStatusChange={(next) =>
+                navigate({
+                  search: (prev) => ({
+                    ...prev,
+                    status: next === "all" ? undefined : next,
+                  }),
+                })
+              }
+              onClear={(field) =>
+                navigate({
+                  search: (prev) => ({ ...prev, [field]: undefined }),
+                })
+              }
+            />
+          </div>
+
           {selectedWorkflow ? (
-            <DispatchBar owner={owner} repo={repo} workflow={selectedWorkflow} />
+            <div className="mt-3">
+              <DispatchBar owner={owner} repo={repo} workflow={selectedWorkflow} />
+            </div>
           ) : null}
 
-          <Widget
-            title="Actions"
-            meta={meta}
-            actions={
-              <RunFilters
-                status={search.status ?? "all"}
-                branch={search.branch}
-                event={search.event}
-                actor={search.actor}
-                onStatusChange={(next) =>
-                  navigate({
-                    search: (prev) => ({
-                      ...prev,
-                      status: next === "all" ? undefined : next,
-                    }),
-                  })
-                }
-                onClear={(field) =>
-                  navigate({
-                    search: (prev) => ({ ...prev, [field]: undefined }),
-                  })
-                }
-              />
-            }
-            bodyClassName="p-0"
-          >
+          <div className="mt-4 flex flex-col gap-1">
             {runsQuery.isPending ? (
               <RunListSkeleton />
             ) : runsQuery.isError ? (
@@ -194,47 +157,20 @@ function ActionsPage() {
             ) : runs.length === 0 ? (
               <EmptyState hasFilter={hasAnyFilter(search)} />
             ) : (
-              <div
-                ref={scrollRef}
-                className="overflow-y-auto bg-background"
-                style={{ height: "calc(100vh - 14rem)" }}
-              >
-                <div
-                  style={{
-                    height: virtualizer.getTotalSize(),
-                    position: "relative",
-                  }}
-                >
-                  {virtualItems.map((v) => {
-                    const isLoaderRow = v.index >= runs.length;
-                    const run = runs[v.index];
-
-                    return (
-                      <div
-                        key={v.key}
-                        data-index={v.index}
-                        ref={virtualizer.measureElement}
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          transform: `translateY(${v.start}px)`,
-                        }}
-                      >
-                        {isLoaderRow ? (
-                          <LoadMoreRow hasNext={hasNext} />
-                        ) : run ? (
-                          <RunRow owner={owner} repo={repo} run={run} />
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <>
+                {runs.map((run) => (
+                  <RunRow key={run.id} owner={owner} repo={repo} run={run} />
+                ))}
+                {hasNext ? (
+                  <LoadMoreButton
+                    isFetching={runsQuery.isFetchingNextPage}
+                    onClick={() => runsQuery.fetchNextPage()}
+                  />
+                ) : null}
+              </>
             )}
-          </Widget>
-        </div>
+          </div>
+        </main>
       </div>
     </Container>
   );
@@ -242,15 +178,23 @@ function ActionsPage() {
 
 // ─── States ────────────────────────────────────────────────────────────────
 
+function MainHeader({ title, meta }: { title: string; meta: string | null }) {
+  return (
+    <header className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1">
+      <h1 className="text-heading font-[475] tracking-tight text-foreground">{title}</h1>
+      {meta ? (
+        <span className="font-mono text-caption tabular-nums text-muted-foreground">{meta}</span>
+      ) : null}
+    </header>
+  );
+}
+
 function RunListSkeleton() {
   const widths = [68, 54, 76, 48, 62, 70, 56, 64];
   return (
     <div className="skeleton-fade">
       {widths.map((w) => (
-        <div
-          key={w}
-          className="flex items-start gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
-        >
+        <div key={w} className="flex items-start gap-3 rounded-lg px-3 py-2.5">
           <Skeleton className="size-4 shrink-0 rounded-full" />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <Skeleton className="h-3.5" style={{ width: `${w}%` }} />
@@ -263,25 +207,20 @@ function RunListSkeleton() {
   );
 }
 
-function LoadMoreRow({ hasNext }: { hasNext: boolean }) {
-  if (!hasNext) {
-    return (
-      <div className="flex items-center justify-center border-t border-border px-4 py-3">
-        <span className="font-mono text-micro uppercase tracking-widest text-(--color-fg-faint)">
-          End of runs
-        </span>
-      </div>
-    );
-  }
+function LoadMoreButton({ isFetching, onClick }: { isFetching: boolean; onClick: () => void }) {
   return (
-    <div className="flex items-start gap-3 border-b border-border px-4 py-2.5">
-      <Skeleton className="size-4 shrink-0 rounded-full" />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <Skeleton className="h-3.5 w-1/2" />
-        <Skeleton className="h-3 w-2/3" />
-      </div>
-      <Skeleton className="h-3 w-10" />
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={isFetching}
+      className={cn(
+        "flex w-full items-center justify-center rounded-lg px-4 py-3 text-caption text-muted-foreground",
+        "outline-none hover:bg-muted focus-visible:bg-muted",
+        "disabled:cursor-wait",
+      )}
+    >
+      {isFetching ? "Loading…" : "Load more"}
+    </button>
   );
 }
 

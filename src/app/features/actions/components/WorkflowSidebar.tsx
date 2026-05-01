@@ -14,14 +14,10 @@ export type WorkflowSidebarProps = {
 
 // ─── Workflows sidebar ─────────────────────────────────────────────────────
 //
-// Matches the `RepoAbout` sidebar feel on the Code page: a quiet eyebrow
-// label, a hairline under it, and then content rows with no chrome of
-// their own — the list should *breathe* against the page, not sit on top
-// of it as button-backed rows.
-//
-// Active signalling uses DESIGN.md's nav recipe ("Active nav item: left
-// brand border `border-l-2 border-l-(--color-brand)`") — the ember rail
-// alone, no background fill. Hover shifts only text color.
+// Matches the current dashboard sidebar vocabulary: page-surface sidebar,
+// small section label with a rule, and muted selected rows. No mono-caps
+// section block and no brand rail — Actions should read like the rest of
+// the app's list/navigation surfaces.
 
 export function WorkflowSidebar({
   owner,
@@ -42,12 +38,10 @@ export function WorkflowSidebar({
   });
 
   return (
-    <aside aria-label="Workflows" className="sticky top-6 flex flex-col gap-2">
-      {/* Eyebrow — matches RepoAbout "ABOUT"/"LANGUAGES" vocabulary */}
-      <div className="flex items-baseline justify-between">
-        <h3 className="font-mono text-micro font-medium uppercase tracking-widest text-muted-foreground">
-          Workflows
-        </h3>
+    <aside aria-label="Workflows" className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2 px-2">
+        <span className="text-micro font-[475] text-(--color-fg-faint)">Workflows</span>
+        <span aria-hidden className="h-px flex-1 bg-border" />
         {!isPending ? (
           <span className="font-mono text-micro tabular-nums text-(--color-fg-faint)">
             {activeCount}
@@ -55,16 +49,7 @@ export function WorkflowSidebar({
         ) : null}
       </div>
 
-      {/* Hairline under the eyebrow — the one structural mark */}
-      <div aria-hidden className="h-px bg-border" />
-
-      <nav
-        className={cn(
-          "flex flex-col",
-          // Scroll independently so 50 workflows don't stretch the page.
-          "max-h-[calc(100vh-8rem)] overflow-y-auto",
-        )}
-      >
+      <nav className="flex flex-col">
         <WorkflowRow
           owner={owner}
           repo={repo}
@@ -121,18 +106,14 @@ function WorkflowRow({
       params={{ owner, repo }}
       search={search}
       className={cn(
-        // Ember rail is the only row chrome. border-l-2 at rest keeps
-        // layout stable when activation flips the color.
-        "group flex h-7 items-center py-1 pl-2 border-l-2 border-l-transparent",
-        "text-ui font-sans outline-none",
-        // No row background — hover shifts only the text color, matching
-        // the RepoAbout quietness.
+        "group flex h-7 items-center rounded-md px-2",
+        "text-ui font-sans outline-none transition-colors",
         isActive
-          ? "border-l-(--color-brand) text-foreground font-medium"
+          ? "bg-muted text-foreground font-[475]"
           : disabled
-            ? "text-(--color-fg-faint) hover:text-muted-foreground"
-            : "text-muted-foreground hover:text-foreground",
-        "focus-visible:text-foreground",
+            ? "text-(--color-fg-faint) hover:bg-muted hover:text-muted-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        "focus-visible:bg-muted focus-visible:text-foreground",
       )}
       aria-current={isActive ? "page" : undefined}
       title={disabled ? `${label} (disabled)` : label}

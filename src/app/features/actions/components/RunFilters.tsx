@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/app/components/ui/toggle-group";
 import { cn } from "@/app/lib/cn";
 
 // ─── Filters ───────────────────────────────────────────────────────────────
@@ -53,29 +54,30 @@ export function RunFilters({
     );
 
   return (
-    <div className="flex items-center gap-0.5">
-      {STATUS_OPTIONS.map((opt) => {
-        const isActive = status === opt.value;
-        return (
-          <button
+    <div className="flex items-center gap-1.5">
+      <ToggleGroup
+        type="single"
+        value={status}
+        onValueChange={(next) => {
+          if (next) onStatusChange(next as StatusFilter);
+        }}
+        size="sm"
+        variant="default"
+        className="rounded-md"
+      >
+        {STATUS_OPTIONS.map((opt) => (
+          <ToggleGroupItem
             key={opt.value}
-            type="button"
-            onClick={() => onStatusChange(opt.value)}
-            className={cn(
-              "h-6 px-2 rounded-sm font-sans text-caption font-medium outline-none",
-              "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
-              isActive
-                ? "bg-(--color-bg-sunken) text-foreground"
-                : "text-muted-foreground hover:bg-(--color-bg-sunken) hover:text-foreground",
-            )}
+            value={opt.value}
+            className="h-6 rounded-md px-2 text-caption data-[state=on]:bg-background data-[state=on]:text-foreground"
           >
             {opt.label}
-          </button>
-        );
-      })}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
 
       {pinnedChips.length > 0 ? (
-        <span aria-hidden className="mx-1 h-4 w-px bg-border self-center" />
+        <span aria-hidden className="h-4 w-px self-center bg-border" />
       ) : null}
 
       {pinnedChips.map((c) => (
@@ -86,7 +88,7 @@ export function RunFilters({
           title={`Clear ${c.label} filter`}
           className={cn(
             "group inline-flex h-6 items-center gap-1 rounded-sm px-1.5",
-            "bg-(--color-bg-sunken) font-mono text-caption text-foreground outline-none",
+            "bg-accent font-mono text-caption text-foreground outline-none",
             "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
           )}
         >

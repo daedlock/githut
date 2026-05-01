@@ -1,10 +1,10 @@
 import { Play } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/app/components/ui/button";
-import { useRepo } from "@/app/hooks/useRepo";
 import { DispatchDialog } from "@/app/features/actions/components/DispatchDialog";
 import { useWorkflowDispatchSchema } from "@/app/features/actions/hooks";
 import type { Workflow } from "@/app/features/actions/schemas";
+import { useRepo } from "@/app/hooks/useRepo";
 
 export type DispatchBarProps = {
   owner: string;
@@ -33,18 +33,20 @@ export function DispatchBar({ owner, repo, workflow }: DispatchBarProps) {
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-(--color-bg-subtle) px-3 py-2">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-h-10 items-center justify-between gap-3 rounded-lg bg-muted px-3 py-1.5">
+        <div className="flex min-w-0 items-center gap-2.5">
           <Play
-            className="size-3.5 shrink-0 text-(--color-fg-muted)"
+            className="size-3.5 shrink-0 text-muted-foreground"
             aria-hidden
             strokeWidth={2.25}
           />
-          <span className="truncate font-sans text-ui text-foreground">
-            <span className="font-mono text-muted-foreground">{workflow.name}</span>
-            <span className="ml-1.5 text-muted-foreground">
+          <span className="truncate font-sans text-ui text-muted-foreground">
+            <span className="font-mono text-foreground">{workflow.name}</span>
+            <span className="ml-1.5">
               can be triggered manually
-              {hasInputs ? ` · ${schema.inputs.length} input${schema.inputs.length === 1 ? "" : "s"}` : ""}
+              {hasInputs
+                ? ` · ${schema.inputs.length} input${schema.inputs.length === 1 ? "" : "s"}`
+                : ""}
             </span>
           </span>
         </div>

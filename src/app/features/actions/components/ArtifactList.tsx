@@ -1,4 +1,5 @@
 import { Archive, Download } from "lucide-react";
+import { Button } from "@/app/components/ui/button";
 import type { Artifact } from "@/app/features/actions/schemas";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
@@ -27,13 +28,12 @@ export function ArtifactList({ artifacts }: ArtifactListProps) {
 function ArtifactRow({ artifact }: { artifact: Artifact }) {
   const expired = artifact.expired;
   return (
-    <div
-      className={cn(
-        "group flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0",
-      )}
-    >
+    <div className={cn("group flex items-center gap-3 rounded-lg px-3 py-2.5")}>
       <Archive
-        className={cn("size-4 shrink-0", expired ? "text-(--color-fg-faint)" : "text-(--color-fg-muted)")}
+        className={cn(
+          "size-4 shrink-0",
+          expired ? "text-(--color-fg-faint)" : "text-(--color-fg-muted)",
+        )}
         aria-hidden
       />
       <div className="min-w-0 flex-1">
@@ -68,21 +68,16 @@ function ArtifactRow({ artifact }: { artifact: Artifact }) {
         </p>
       </div>
 
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="xs"
         disabled={expired}
         title={expired ? "Artifact expired" : "Download (wired to Worker proxy in P4)"}
-        className={cn(
-          "inline-flex h-6 items-center gap-1 rounded-sm border border-border px-2",
-          "font-mono text-micro text-muted-foreground outline-none",
-          "hover:border-(--color-border-strong) hover:text-foreground",
-          "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
-          "disabled:opacity-50 disabled:hover:border-border disabled:hover:text-muted-foreground",
-        )}
       >
-        <Download className="size-3" aria-hidden />
-        <span>Download</span>
-      </button>
+        <Download data-icon="inline-start" aria-hidden />
+        Download
+      </Button>
     </div>
   );
 }

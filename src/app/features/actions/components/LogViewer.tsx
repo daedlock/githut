@@ -2,11 +2,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { AlertCircle, AlertTriangle, Bug, Info, Loader2 } from "lucide-react";
 import { memo, useEffect, useMemo, useRef } from "react";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import type {
-  LogCommandLevel,
-  LogLine,
-  LogToken,
-} from "@/app/features/actions/lib/parseLog";
+import type { LogCommandLevel, LogLine, LogToken } from "@/app/features/actions/lib/parseLog";
 import { cn } from "@/app/lib/cn";
 
 // ─── LogViewer ─────────────────────────────────────────────────────────────
@@ -36,7 +32,7 @@ export type LogViewerProps = {
   className?: string;
 };
 
-export function LogViewer({
+function LogViewer({
   lines,
   isPending,
   isError,
@@ -65,6 +61,7 @@ export function LogViewer({
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: lines.length intentionally re-tails live logs when new bytes arrive.
   useEffect(() => {
     if (!isLive || !stickToBottom.current) return;
     const el = scrollRef.current;
@@ -91,6 +88,7 @@ export function LogViewer({
   }, [lines]);
 
   const scrolledToErrorRef = useRef<number>(-1);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: virtualizer identity is stable; adding it causes repeated scroll jumps.
   useEffect(() => {
     if (isLive || firstErrorIndex === -1) return;
     if (scrolledToErrorRef.current === firstErrorIndex) return;
@@ -117,7 +115,7 @@ export function LogViewer({
   // Skeleton: only on the initial cold load of a terminal step.
   if (isPending && !isLive && !hasLines) {
     return (
-      <div className={cn("bg-(--color-bg-subtle) border-t border-border p-3", className)}>
+      <div className={cn("border-t border-border bg-muted p-3", className)}>
         <div className="skeleton-fade flex flex-col gap-1.5">
           {[68, 90, 42, 78, 60, 84].map((w) => (
             <Skeleton key={w} className="h-3" style={{ width: `${w}%` }} />
@@ -132,12 +130,7 @@ export function LogViewer({
   // still being written — every path ends here for a running step.
   if (isLive && !hasLines) {
     return (
-      <div
-        className={cn(
-          "bg-(--color-bg-subtle) border-t border-border px-4 py-5 text-center",
-          className,
-        )}
-      >
+      <div className={cn("border-t border-border bg-muted px-4 py-5 text-center", className)}>
         <Loader2
           className="mx-auto mb-1.5 size-4 animate-spin text-(--color-warning)"
           aria-hidden
@@ -150,12 +143,7 @@ export function LogViewer({
   // Terminal step + error: show scoped error. Skipped for live (handled above).
   if (isError && !hasLines) {
     return (
-      <div
-        className={cn(
-          "bg-(--color-bg-subtle) border-t border-border px-4 py-6 text-center",
-          className,
-        )}
-      >
+      <div className={cn("border-t border-border bg-muted px-4 py-6 text-center", className)}>
         <AlertCircle className="mx-auto mb-1.5 size-4 text-destructive" aria-hidden />
         <p className="text-caption text-muted-foreground">
           {errorStatus === 401 || errorStatus === 403
@@ -178,12 +166,7 @@ export function LogViewer({
   // Terminal step that completed with genuinely no output.
   if (!hasLines) {
     return (
-      <div
-        className={cn(
-          "bg-(--color-bg-subtle) border-t border-border px-4 py-6 text-center",
-          className,
-        )}
-      >
+      <div className={cn("border-t border-border bg-muted px-4 py-6 text-center", className)}>
         <p className="font-mono text-caption text-(--color-fg-faint)">No log output.</p>
       </div>
     );
@@ -195,8 +178,8 @@ export function LogViewer({
     <div
       ref={scrollRef}
       className={cn(
-        "overflow-auto border-t border-border bg-(--color-bg-subtle)",
-        "font-mono text-[12px] leading-[18px]",
+        "overflow-auto border-t border-border bg-muted",
+        "font-mono text-code leading-[18px]",
         className,
       )}
       style={{
@@ -262,7 +245,7 @@ const LogRow = memo(function LogRow({ lineNumber, line, isLive, isLastLine, styl
       className={cn(
         "flex items-center select-text whitespace-pre",
         sevBg,
-        line.kind === "group-start" && "bg-(--color-bg-sunken)",
+        line.kind === "group-start" && "bg-accent",
       )}
     >
       <span
@@ -297,13 +280,7 @@ const LogRow = memo(function LogRow({ lineNumber, line, isLive, isLastLine, styl
 
 // ─── Line bodies ───────────────────────────────────────────────────────────
 
-function NormalLine({
-  tokens,
-  severity,
-}: {
-  tokens: LogToken[];
-  severity?: "error" | "warning";
-}) {
+function NormalLine({ tokens, severity }: { tokens: LogToken[]; severity?: "error" | "warning" }) {
   return (
     <span
       className={cn(
@@ -317,6 +294,7 @@ function NormalLine({
     >
       {tokens.map((t, i) => (
         <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: token order is stable within a parsed log line.
           key={i}
           // If the line has severity, honor it over the ANSI color — the
           // content color is less informative than the failure signal here.
@@ -359,6 +337,7 @@ function CommandLine({ level, tokens }: { level: LogCommandLevel; tokens: LogTok
       <span className="font-mono text-micro uppercase tracking-widest">{level}</span>
       <span className="truncate">
         {tokens.map((t, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: token order is stable within a parsed command line.
           <span key={i}>{t.content}</span>
         ))}
       </span>
@@ -379,10 +358,7 @@ function GroupStart({ title }: { title: string }) {
 
 function LiveCaret() {
   return (
-    <Loader2
-      className="ml-2 size-3 shrink-0 animate-spin text-(--color-warning)"
-      aria-hidden
-    />
+    <Loader2 className="ml-2 size-3 shrink-0 animate-spin text-(--color-warning)" aria-hidden />
   );
 }
 
@@ -397,7 +373,7 @@ function commandRowBg(level: LogCommandLevel | undefined) {
     case "notice":
       return "bg-[color-mix(in_oklab,var(--color-brand)_8%,var(--color-bg-subtle))]";
     case "debug":
-      return "bg-(--color-bg-sunken)";
+      return "bg-accent";
     default:
       return "";
   }
@@ -415,3 +391,5 @@ function commandRowFg(level: LogCommandLevel) {
       return "text-(--color-fg-muted)";
   }
 }
+
+export { LogViewer };

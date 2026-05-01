@@ -1,10 +1,12 @@
-import { Ban, RefreshCw, RotateCcw } from "lucide-react";
+import { Ban, MoreHorizontal, RefreshCw, RotateCcw } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import {
-  useCancelRun,
-  useRerunFailedJobs,
-  useRerunRun,
-} from "@/app/features/actions/hooks";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/app/components/ui/dropdown-menu";
+import { useCancelRun, useRerunFailedJobs, useRerunRun } from "@/app/features/actions/hooks";
 import { isTerminal, toUiStatus } from "@/app/features/actions/lib/statusMap";
 import type { WorkflowRun } from "@/app/features/actions/schemas";
 
@@ -35,43 +37,50 @@ export function RunActions({ owner, repo, run }: RunActionsProps) {
   const rerunFailed = useRerunFailedJobs(owner, repo);
   const cancel = useCancelRun(owner, repo);
 
-  if (live) {
-    return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => cancel.mutate(run.id)}
-        disabled={cancel.isPending}
-        className="text-(--color-danger) border-(--color-danger)/30 hover:bg-(--color-danger)/10 hover:text-(--color-danger)"
-      >
-        <Ban data-icon="inline-start" />
-        {cancel.isPending ? "Cancelling…" : "Cancel"}
-      </Button>
-    );
-  }
-
   return (
-    <div className="flex items-center gap-2">
-      {hasFailure ? (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => rerunFailed.mutate(run.id)}
-          disabled={rerunFailed.isPending || rerun.isPending}
-        >
-          <RefreshCw data-icon="inline-start" />
-          {rerunFailed.isPending ? "Rerunning…" : "Rerun failed"}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon-sm" aria-label="Run actions">
+          <MoreHorizontal />
         </Button>
-      ) : null}
-      <Button
-        variant="default"
-        size="sm"
-        onClick={() => rerun.mutate(run.id)}
-        disabled={rerun.isPending || rerunFailed.isPending}
-      >
-        <RotateCcw data-icon="inline-start" />
-        {rerun.isPending ? "Rerunning…" : "Rerun"}
-      </Button>
-    </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[180px]">
+        {live ? (
+          <DropdownMenuItem
+            variant="destructive"
+            disabled={cancel.isPending}
+            onSelect={() => cancel.mutate(run.id)}
+          >
+            <Ban />
+            <span className="whitespace-nowrap">
+              {cancel.isPending ? "Cancelling…" : "Cancel run"}
+            </span>
+          </DropdownMenuItem>
+        ) : (
+          <>
+            {hasFailure ? (
+              <DropdownMenuItem
+                disabled={rerunFailed.isPending || rerun.isPending}
+                onSelect={() => rerunFailed.mutate(run.id)}
+              >
+                <RefreshCw className="text-muted-foreground" />
+                <span className="whitespace-nowrap">
+                  {rerunFailed.isPending ? "Rerunning…" : "Rerun failed jobs"}
+                </span>
+              </DropdownMenuItem>
+            ) : null}
+            <DropdownMenuItem
+              disabled={rerun.isPending || rerunFailed.isPending}
+              onSelect={() => rerun.mutate(run.id)}
+            >
+              <RotateCcw className="text-muted-foreground" />
+              <span className="whitespace-nowrap">
+                {rerun.isPending ? "Rerunning…" : "Rerun all jobs"}
+              </span>
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
