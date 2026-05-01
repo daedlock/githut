@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { track } from "@/app/lib/analytics";
 import { cn } from "@/app/lib/cn";
 import { runThemeTransition } from "@/app/lib/themeTransition";
 import { type Palette, type ThemePreference, useThemeStore } from "@/app/stores/theme";
@@ -127,6 +128,7 @@ export function ThemePicker() {
             key={option.id}
             type="button"
             onClick={() => {
+              track("theme_changed", { palette: option.palette, preference: option.preference });
               runThemeTransition(() => {
                 setPalette(option.palette);
                 setPreference(option.preference);
@@ -189,7 +191,10 @@ function PreferenceToggle({
           <button
             key={o.value}
             type="button"
-            onClick={() => onChange(o.value)}
+            onClick={() => {
+              track("theme_preference_changed", { preference: o.value });
+              onChange(o.value);
+            }}
             className={cn(
               "rounded-sm px-2.5 py-1 font-sans text-caption",
               "outline-none transition-colors",

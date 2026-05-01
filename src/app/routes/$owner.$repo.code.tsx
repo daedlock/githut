@@ -21,6 +21,7 @@ import { repoLanguagesQueryOptions, useRepoLanguages } from "@/app/hooks/useRepo
 import { repoReadmeQueryOptions, useRepoReadme } from "@/app/hooks/useRepoReadme";
 import { repoReleasesQueryOptions, useRepoReleases } from "@/app/hooks/useRepoReleases";
 import { repoStarredQueryOptions } from "@/app/hooks/useRepoStarred";
+import { track } from "@/app/lib/analytics";
 
 const codeSearchSchema = z.object({
   path: z.string().optional(),
@@ -168,6 +169,10 @@ function CodePage() {
                 defaultBranch={defaultBranch}
                 isLoading={branchesQuery.isPending}
                 onChange={(nextBranch) => {
+                  track("branch_changed", {
+                    surface: "code",
+                    default: nextBranch === defaultBranch,
+                  });
                   navigate({
                     search: (prev) => ({
                       ...prev,

@@ -1,4 +1,5 @@
 import { Button } from "@/app/components/ui/button";
+import { track } from "@/app/lib/analytics";
 
 function GitHubMark({ className }: { className?: string }) {
   return (
@@ -20,9 +21,7 @@ export function LoginCard({ errorMessage, onLogin }: LoginCardProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="mb-1">
-        <h1 className="text-title font-[600] tracking-tight text-foreground">
-          Sign in
-        </h1>
+        <h1 className="text-title font-[600] tracking-tight text-foreground">Sign in</h1>
         <p className="mt-1 text-body text-muted-foreground">
           GitHub, but blazingly faster. Built for modern code review.
         </p>
@@ -46,7 +45,10 @@ export function LoginCard({ errorMessage, onLogin }: LoginCardProps) {
       <Button
         size="lg"
         className="w-full bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90"
-        onClick={onLogin}
+        onClick={() => {
+          track("login_clicked");
+          onLogin();
+        }}
       >
         <GitHubMark className="size-[15px]" />
         Continue with GitHub

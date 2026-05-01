@@ -6,6 +6,7 @@ import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
 import { Container } from "@/app/components/ui/Container";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { useMe } from "@/app/hooks/useMe";
+import { track } from "@/app/lib/analytics";
 import { cn } from "@/app/lib/cn";
 import { useAuthStore } from "@/app/stores/auth";
 import { useSettingsStore } from "@/app/stores/settings";
@@ -40,6 +41,8 @@ function SettingsPage() {
 
           <WorkspaceTabsSection />
 
+          <AnalyticsSection />
+
           <section className="flex flex-col gap-2 rounded-lg bg-muted p-4">
             <h2 className="font-sans text-ui font-medium text-foreground">Account</h2>
             <p className="font-sans text-ui text-muted-foreground">
@@ -63,32 +66,71 @@ function WorkspaceTabsSection() {
   return (
     <section className="flex flex-col gap-3 rounded-lg bg-muted p-4">
       <h2 className="font-sans text-ui font-medium text-foreground">Workspace</h2>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <span className="font-sans text-ui font-medium text-foreground">Workspace tabs</span>
-          <span className="font-sans text-caption text-muted-foreground">
-            Open pages in tabs for quick switching between repos, issues, and PRs.
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => setTabsEnabled(!tabsEnabled)}
-          role="switch"
-          aria-checked={tabsEnabled}
-          className={cn(
-            "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border border-border transition-colors duration-150",
-            tabsEnabled ? "bg-primary" : "bg-(--color-bg-sunken)",
-          )}
-        >
-          <span
-            className={cn(
-              "pointer-events-none inline-block size-3.5 rounded-full bg-background transition-transform duration-150",
-              tabsEnabled ? "translate-x-4" : "translate-x-0.5",
-            )}
-            style={{ marginTop: "2px" }}
-          />
-        </button>
-      </div>
+      <SettingsSwitchRow
+        title="Workspace tabs"
+        description="Open pages in tabs for quick switching between repos, issues, and PRs."
+        checked={tabsEnabled}
+        onCheckedChange={(enabled) => {
+          track("workspace_tabs_toggled", { enabled });
+          setTabsEnabled(enabled);
+        }}
+      />
     </section>
+  );
+}
+
+function AnalyticsSection() {
+  const analyticsEnabled = useSettingsStore((s) => s.analyticsEnabled);
+  const setAnalyticsEnabled = useSettingsStore((s) => s.setAnalyticsEnabled);
+
+  return (
+    <section className="flex flex-col gap-3 rounded-lg bg-muted p-4">
+      <h2 className="font-sans text-ui font-medium text-foreground">Privacy</h2>
+      <SettingsSwitchRow
+        title="Product analytics"
+        description="Help improve GitHut with privacy-friendly usage analytics."
+        checked={analyticsEnabled}
+        onCheckedChange={setAnalyticsEnabled}
+      />
+    </section>
+  );
+}
+
+function SettingsSwitchRow({
+  title,
+  description,
+  checked,
+  onCheckedChange,
+}: {
+  title: string;
+  description: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-1">
+        <span className="font-sans text-ui font-medium text-foreground">{title}</span>
+        <span className="font-sans text-caption text-muted-foreground">{description}</span>
+      </div>
+      <button
+        type="button"
+        onClick={() => onCheckedChange(!checked)}
+        role="switch"
+        aria-checked={checked}
+        className={cn(
+          "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border border-border transition-colors duration-150",
+          checked ? "bg-primary" : "bg-(--color-bg-sunken)",
+        )}
+      >
+        <span
+          className={cn(
+            "pointer-events-none inline-block size-3.5 rounded-full bg-background transition-transform duration-150",
+            checked ? "translate-x-4" : "translate-x-0.5",
+          )}
+          style={{ marginTop: "2px" }}
+        />
+      </button>
+    </div>
   );
 }

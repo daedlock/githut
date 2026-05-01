@@ -1,6 +1,15 @@
 import { useAuthStore } from "@/app/stores/auth";
 
+const OAUTH_TOKEN_KEY = "githut.oauth_token";
+
 export function bootstrapAuthFromHash() {
+  const storedToken = sessionStorage.getItem(OAUTH_TOKEN_KEY);
+  if (storedToken) {
+    sessionStorage.removeItem(OAUTH_TOKEN_KEY);
+    useAuthStore.getState().setToken(storedToken);
+    return;
+  }
+
   const hash = window.location.hash;
   if (!hash.startsWith("#t=")) return;
   const token = hash.slice(3);

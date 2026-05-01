@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { type ActiveLineRange, CodeView, useCodeTokens } from "@/app/components/code";
 import { MarkupRenderer } from "@/app/components/MarkupRenderer";
 import { BlameView } from "@/app/components/repo/BlameView";
@@ -6,6 +6,7 @@ import { FileHistoryPanel } from "@/app/components/repo/FileHistoryPanel";
 import { Button } from "@/app/components/ui/button";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import type { RepoFile } from "@/app/hooks/useRepoFile";
+import { bucketNumber, fileExtension, track } from "@/app/lib/analytics";
 import { cn } from "@/app/lib/cn";
 import { detectLang } from "@/app/lib/detectLang";
 
@@ -85,6 +86,16 @@ export function BlobViewer({
   const isMarkdown = lang === "markdown" || lang === "mdx";
   const isOrg = lang === "org";
   const isRenderable = isMarkdown || isOrg;
+
+  useEffect(() => {
+    track("file_opened", {
+      ext: fileExtension(file.path),
+      size: bucketNumber(file.size, [1_000, 10_000, 50_000, 250_000, 1_000_000]),
+      lines: bucketNumber(lineCount, [50, 200, 500, 1_000, 5_000]),
+      binary: isBinary,
+      renderable: isRenderable,
+    });
+  }, [file.path, file.size, lineCount, isBinary, isRenderable]);
 
   const { data: tokenLines, isPending } = useCodeTokens(isBinary ? "" : file.content, lang);
   const searchLineRange = useMemo(
@@ -208,7 +219,10 @@ function BlobHeader({
               type="button"
               variant="ghost"
               size="xs"
-              onClick={() => onModeChange?.(item)}
+              onClick={() => {
+                if (mode !== item) track("blob_mode_changed", { mode: item });
+                onModeChange?.(item);
+              }}
               className={cn(mode === item && "bg-muted text-foreground")}
             >
               {item}

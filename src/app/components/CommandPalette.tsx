@@ -37,6 +37,7 @@ import {
 } from "@/app/hooks/useCommandPaletteItems";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { useRepos } from "@/app/hooks/useRepos";
+import { track } from "@/app/lib/analytics";
 import { logout } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
 import { clearRecentItems, pushRecentItem, type RecentItem } from "@/app/lib/recentItems";
@@ -385,14 +386,18 @@ export function CommandPalette() {
     [close, repoContext, navigate],
   );
 
-  // Reset query on close
+  // Track opens + reset query on close.
+  const wasOpen = useRef(open);
   useEffect(() => {
+    if (open && !wasOpen.current) track("command_palette_opened", { hasRepo: !!repoContext });
+    wasOpen.current = open;
     if (!open) setQuery("");
-  }, [open]);
+  }, [open, repoContext]);
 
   // Navigation helper — push to recents + open tab
   const go = useCallback(
     (item: Omit<RecentItem, "visitedAt">) => {
+      track("command_palette_result_selected", { kind: item.kind });
       void pushRecentItem(item);
       close();
       openTabOrNavigate(item.href, navigate);
@@ -737,7 +742,10 @@ function CommandRow({ cmd }: { cmd: PaletteCommand }) {
   return (
     <CommandItem
       value={`> ${cmd.label} ${cmd.keywords?.join(" ") ?? ""}`}
-      onSelect={() => cmd.run()}
+      onSelect={() => {
+        track("command_palette_command_selected", { id: cmd.id });
+        cmd.run();
+      }}
     >
       <Icon />
       <span className="min-w-0 flex-1 truncate">{cmd.label}</span>

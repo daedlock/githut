@@ -3,6 +3,7 @@ import { Check, ChevronDown, Code, Copy, Download, ExternalLink } from "lucide-r
 import { useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
+import { track } from "@/app/lib/analytics";
 import { cn } from "@/app/lib/cn";
 
 type Protocol = "https" | "ssh" | "cli";
@@ -39,6 +40,7 @@ export function CloneDropdown({
   const onCopy = async () => {
     try {
       await navigator.clipboard.writeText(url);
+      track("clone_url_copied", { protocol });
       setCopied(true);
       setTimeout(() => setCopied(false), 1400);
     } catch {
@@ -47,7 +49,7 @@ export function CloneDropdown({
   };
 
   return (
-    <Popover>
+    <Popover onOpenChange={(open) => open && track("clone_dropdown_opened")}>
       <PopoverTrigger asChild>
         <Button size="sm" variant="outline" className="gap-1.5">
           <Code data-icon="inline-start" />
@@ -80,7 +82,10 @@ export function CloneDropdown({
             <button
               key={p.id}
               type="button"
-              onClick={() => setProtocol(p.id)}
+              onClick={() => {
+                track("clone_protocol_selected", { protocol: p.id });
+                setProtocol(p.id);
+              }}
               aria-pressed={protocol === p.id}
               className={cn(
                 "relative h-6 rounded-[4px] px-2 text-caption font-medium",
@@ -155,6 +160,7 @@ export function CloneDropdown({
           {downloadHref ? (
             <a
               href={downloadHref}
+              onClick={() => track("download_zip_clicked")}
               className={cn(
                 "flex items-center gap-2 rounded-md px-2 py-1.5",
                 "text-ui text-foreground",

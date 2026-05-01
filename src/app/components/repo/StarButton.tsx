@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Star } from "lucide-react";
-import { cn } from "@/app/lib/cn";
+import { useEffect, useRef, useState } from "react";
 import { useRepoStarred, useToggleStar } from "@/app/hooks/useRepoStarred";
+import { track } from "@/app/lib/analytics";
+import { cn } from "@/app/lib/cn";
 
 type StarButtonProps = {
   owner: string;
@@ -41,6 +42,7 @@ export function StarButton({ owner, repo, starCount, className }: StarButtonProp
 
   const onClick = () => {
     if (toggle.isPending) return;
+    track("star_toggled", { action: isStarred ? "unstar" : "star" });
     toggle.mutate(!isStarred);
   };
 
@@ -67,13 +69,7 @@ export function StarButton({ owner, repo, starCount, className }: StarButtonProp
         <span className="relative flex size-3.5 items-center justify-center">
           <motion.span
             key={isStarred ? "on" : "off"}
-            initial={
-              reduced
-                ? false
-                : isStarred
-                  ? { scale: 0.4, rotate: -30 }
-                  : { scale: 1.15 }
-            }
+            initial={reduced ? false : isStarred ? { scale: 0.4, rotate: -30 } : { scale: 1.15 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={
               isStarred
@@ -151,15 +147,9 @@ export function StarButton({ owner, repo, starCount, className }: StarButtonProp
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.span
               key={isStarred ? "starred" : "star"}
-              initial={
-                reduced ? false : { y: isStarred ? 8 : -8, opacity: 0 }
-              }
+              initial={reduced ? false : { y: isStarred ? 8 : -8, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              exit={
-                reduced
-                  ? { opacity: 0 }
-                  : { y: isStarred ? -8 : 8, opacity: 0 }
-              }
+              exit={reduced ? { opacity: 0 } : { y: isStarred ? -8 : 8, opacity: 0 }}
               transition={{ type: "spring", stiffness: 700, damping: 32 }}
               className="leading-4"
             >
