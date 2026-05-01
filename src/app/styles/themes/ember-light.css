@@ -7,7 +7,7 @@
   --color-bg-sunken: #d0c1a4; /* hover / inset */
   --color-border: #c0b290;
   --color-border-strong: #a89876;
-  --color-code-bg: color-mix(in oklab, var(--color-bg) 94%, var(--color-bg-sunken));
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 88%, white);
 
   /* Text — near-black warm brown, long-read-comfortable */
   --color-fg: #282418; /* ~13.7:1 on bg */

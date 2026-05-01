@@ -7,7 +7,7 @@
   --color-bg-sunken: #2c2d38;
   --color-border: #33343f;
   --color-border-strong: #40424f;
-  --color-code-bg: #191a20;
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 85%, var(--color-bg-sunken));
 
   /* Text — cool off-white */
   --color-fg: #dfe1e8;

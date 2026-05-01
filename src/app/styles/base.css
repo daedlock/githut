@@ -105,9 +105,13 @@ html.dark .shiki span {
 }
 .diff-line-add .diff-gutter {
   background: var(--diff-add-gutter);
+  /* Anchor the line number on changed lines — the muted shade reads as
+     "structural", not a code token. Context lines stay faint (set in JSX). */
+  color: var(--color-fg-muted);
 }
 .diff-line-del .diff-gutter {
   background: var(--diff-del-gutter);
+  color: var(--color-fg-muted);
 }
 .diff-line-comment {
   background: var(--diff-comment-bg);

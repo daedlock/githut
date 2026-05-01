@@ -18,7 +18,11 @@
   --color-bg: oklch(0.98483 0.00148 107.8294); /* stone-50 — warm off-white; fg contrast 15.6:1 */
   --color-bg-subtle: oklch(0.96987 0.00149 107.8299); /* stone-100 — card surfaces */
   --color-bg-sunken: oklch(0.92318 0.00262 52.1716); /* stone-200 — inset / hover */
-  --color-code-bg: color-mix(in oklab, var(--color-bg) 94%, var(--color-bg-sunken));
+  /* Code area lifts AWAY from page bg in both modes — toward white in light
+     mode (since bg-sunken is darker than bg here), toward bg-sunken in dark
+     mode (where it's lighter than bg). Effect: code surface always reads
+     as "raised" against the page. */
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 88%, white);
 
   /* text */
   --color-fg: oklch(0.21612 0.00636 59.9540); /* stone-900 — 15.6:1 on bg */
@@ -133,18 +137,22 @@
    * --color-success and diffs adapt. Mix against --color-bg so tints stay in
    * the warm stone palette instead of going gray-green/gray-red.
    *
-   *   -bg:       subtle line tint (12%), readable on top, not loud
-   *   -bg-word:  word-level highlight (28%), clearly calls out the change
-   *   -gutter:   line-number column tint (18%), slightly stronger than -bg
-   *   -marker:   the +/- glyph color itself — uses the full status token
+   * Layered hierarchy — each tier is a perceptually distinct step so the
+   * eye reads `subtle row → distinct gutter lane → punchy word → marker
+   * spine` instead of a muddy uniform tint:
+   *
+   *   -bg:       14% — subtle row tint, readable on top, not loud
+   *   -gutter:   30% — clearly its own lane, anchors the line-number column
+   *   -bg-word:  48% — pops on hover-scan, distinct from gutter and bg
+   *   -marker:   100% (full status token) — the +/- glyph and 3px spine
    */
-  --diff-add-bg: color-mix(in oklab, var(--color-success) 15%, var(--color-bg));
-  --diff-add-bg-word: color-mix(in oklab, var(--color-success) 28%, var(--color-bg));
-  --diff-add-gutter: color-mix(in oklab, var(--color-success) 22%, var(--color-bg));
+  --diff-add-bg: color-mix(in oklab, var(--color-success) 14%, var(--color-bg));
+  --diff-add-gutter: color-mix(in oklab, var(--color-success) 30%, var(--color-bg));
+  --diff-add-bg-word: color-mix(in oklab, var(--color-success) 48%, var(--color-bg));
   --diff-add-marker: var(--color-success);
-  --diff-del-bg: color-mix(in oklab, var(--color-danger) 15%, var(--color-bg));
-  --diff-del-bg-word: color-mix(in oklab, var(--color-danger) 28%, var(--color-bg));
-  --diff-del-gutter: color-mix(in oklab, var(--color-danger) 22%, var(--color-bg));
+  --diff-del-bg: color-mix(in oklab, var(--color-danger) 14%, var(--color-bg));
+  --diff-del-gutter: color-mix(in oklab, var(--color-danger) 30%, var(--color-bg));
+  --diff-del-bg-word: color-mix(in oklab, var(--color-danger) 48%, var(--color-bg));
   --diff-del-marker: var(--color-danger);
   --diff-comment-border: oklch(var(--sem-l) 0.10 225);
   --diff-comment-bg: color-mix(in oklab, oklch(var(--sem-l) 0.10 225) 5%, var(--color-bg));
@@ -319,7 +327,7 @@
   --color-bg: oklch(0.14690 0.00423 52.7554); /* stone-950 — warm near-black; fg contrast 17.4:1 */
   --color-bg-subtle: oklch(0.21612 0.00636 59.9540); /* stone-900 */
   --color-bg-sunken: oklch(0.26849 0.00631 36.3601); /* stone-800 */
-  --color-code-bg: color-mix(in oklab, var(--color-bg) 94%, var(--color-bg-sunken));
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 85%, var(--color-bg-sunken));
 
   /* text */
   --color-fg: oklch(0.98483 0.00148 107.8294); /* stone-50  — 17.4:1 on bg */

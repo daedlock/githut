@@ -7,7 +7,7 @@
   --color-bg-sunken: #252a2e;
   --color-border: #252a2e;
   --color-border-strong: #343a3e;
-  --color-code-bg: color-mix(in oklab, var(--color-bg) 80%, black 5%);
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 85%, var(--color-bg-sunken));
   /* Text — warm pale oak */
   --color-fg: #d0c8b8;
   --color-fg-muted: #8a9298;

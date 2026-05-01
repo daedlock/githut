@@ -44,6 +44,7 @@ export function FileHistoryTrigger({
           to: ".",
           // biome-ignore lint/suspicious/noExplicitAny: cross-route search merge — each route owns its own schema validation.
           search: next as any,
+          resetScroll: false,
         });
       }}
       title="View file history (h)"

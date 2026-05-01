@@ -7,7 +7,7 @@
   --color-fg-faint: #a8a29e;
   --color-border: #e7e5e4;
   --color-border-strong: #d6d3d1;
-  --color-code-bg: color-mix(in oklab, var(--color-bg) 94%, var(--color-bg-sunken));
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 85%, var(--color-bg-sunken));
   --color-brand: #c2410c;
   --color-brand-hover: #a5380a;
   --color-brand-fg: #fffbeb;

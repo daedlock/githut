@@ -158,6 +158,7 @@ export function useFileHistorySession(): FileHistorySession {
         // biome-ignore lint/suspicious/noExplicitAny: cross-route search merge — each route owns its own schema validation.
         search: merged as any,
         replace: opts.replace ?? false,
+        resetScroll: false,
       });
     },
     [navigate, search],
