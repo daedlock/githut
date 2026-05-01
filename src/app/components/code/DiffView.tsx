@@ -302,13 +302,9 @@ type ExpansionState = {
   isLoading: boolean;
 };
 
-// "Cut-paper" hunk separator — the row's top and bottom edges are zigzag-cut
-// (pinking-shears style) via a CSS mask, so each hunk segment of code feels
-// like a separate strip of paper above and below. The row sits on a slightly
-// recessed surface (--color-bg-subtle) to suggest "the gap between strips".
-//
-// When `onExpand` is passed, a single button reveals 2×EXPAND_STEP more
-// context lines around this hunk per click — half above, half below.
+// Hunk metadata row. When `onExpand` is passed, a single button reveals
+// 2×EXPAND_STEP more context lines around this hunk per click — half above,
+// half below.
 const HunkHeader = memo(function HunkHeader({
   hunk,
   canExpand = false,
@@ -323,7 +319,7 @@ const HunkHeader = memo(function HunkHeader({
   return (
     <div
       role="separator"
-      className="diff-hunk-cut flex items-center gap-3 bg-[var(--color-bg-subtle)] px-6 py-4"
+      className="flex items-center gap-3 border-y border-[var(--color-border)] bg-[var(--diff-hunk-bg)] px-4 py-1"
     >
       {onExpand && (
         <Button
@@ -339,11 +335,11 @@ const HunkHeader = memo(function HunkHeader({
           <UnfoldVertical />
         </Button>
       )}
-      <span className="shrink-0 font-mono text-caption tabular-nums text-[var(--diff-hunk-fg)]">
+      <span className="shrink-0 font-mono text-code tabular-nums text-[var(--diff-hunk-fg)]">
         @@ -{hunk.oldStart},{hunk.oldLines} +{hunk.newStart},{hunk.newLines} @@
       </span>
       {hunk.header && (
-        <span className="truncate font-mono text-caption text-[var(--color-fg-faint)]">
+        <span className="truncate font-mono text-code text-[var(--color-fg-faint)]">
           {hunk.header}
         </span>
       )}

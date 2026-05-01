@@ -110,38 +110,6 @@ html.dark .shiki span {
   color: var(--color-fg-muted);
 }
 
-/*
- * Hunk separator with zigzag "cut-paper" edges — the row's top and bottom
- * edges read as if cut with pinking shears, so each hunk feels like a
- * separate strip of paper between the code segments. Implemented via a
- * three-layer CSS mask: triangle-tile for the top edge, triangle-tile for
- * the bottom edge, solid fill for the middle. The triangles tile cleanly
- * at any width — no JS measurement needed.
- */
-.diff-hunk-cut {
-  --hunk-tooth-w: 10px;
-  --hunk-tooth-h: 5px;
-  -webkit-mask-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'%3E%3Cpolygon points='0,5 5,0 10,5' fill='black'/%3E%3C/svg%3E"),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'%3E%3Cpolygon points='0,0 5,5 10,0' fill='black'/%3E%3C/svg%3E"),
-    linear-gradient(black, black);
-  -webkit-mask-position: top left, bottom left, 0 var(--hunk-tooth-h);
-  -webkit-mask-size:
-    var(--hunk-tooth-w) var(--hunk-tooth-h),
-    var(--hunk-tooth-w) var(--hunk-tooth-h),
-    100% calc(100% - 2 * var(--hunk-tooth-h));
-  -webkit-mask-repeat: repeat-x, repeat-x, no-repeat;
-  mask-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'%3E%3Cpolygon points='0,5 5,0 10,5' fill='black'/%3E%3C/svg%3E"),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='5' viewBox='0 0 10 5'%3E%3Cpolygon points='0,0 5,5 10,0' fill='black'/%3E%3C/svg%3E"),
-    linear-gradient(black, black);
-  mask-position: top left, bottom left, 0 var(--hunk-tooth-h);
-  mask-size:
-    var(--hunk-tooth-w) var(--hunk-tooth-h),
-    var(--hunk-tooth-w) var(--hunk-tooth-h),
-    100% calc(100% - 2 * var(--hunk-tooth-h));
-  mask-repeat: repeat-x, repeat-x, no-repeat;
-}
 .diff-line-del .diff-gutter {
   background: var(--diff-del-gutter);
   color: var(--color-fg-muted);

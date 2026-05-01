@@ -85,19 +85,15 @@ export const FileDiff = memo(function FileDiff({
   return (
     <section
       ref={sectionRef}
-      className={cn(
-        "overflow-clip rounded-lg border border-[var(--color-border)]",
-        className,
-      )}
+      className={cn("overflow-visible", className)}
     >
       <header
         className={cn(
           embedded
             ? "relative z-[1]"
             : "sticky top-[84px] z-[5] shadow-[0_-6px_0_0_var(--color-bg)]",
-          "isolate flex items-center gap-2.5 px-3 py-2",
+          "isolate flex items-center gap-2.5 rounded-lg px-3 py-2",
           "bg-[var(--color-bg-sunken)]",
-          hasVisibleBody && "border-b border-[var(--color-border)]",
         )}
       >
         <button
@@ -167,7 +163,7 @@ export const FileDiff = memo(function FileDiff({
       </header>
 
       {showContent && (
-        <>
+        <div className="mx-6 overflow-hidden rounded-b-lg border border-t-0 border-border bg-[var(--color-code-bg)]">
           {contextOpen && owner && repo && contextTarget && (
             <FileContextPanel
               owner={owner}
@@ -180,7 +176,7 @@ export const FileDiff = memo(function FileDiff({
             />
           )}
           {isBinary ? (
-            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+            <div className="px-4 py-6 text-center text-ui text-muted-foreground">
               Binary file — preview unavailable
             </div>
           ) : hasPatch ? (
@@ -195,11 +191,11 @@ export const FileDiff = memo(function FileDiff({
               headRef={headRef}
             />
           ) : (
-            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+            <div className="px-4 py-6 text-center text-ui text-muted-foreground">
               No changes
             </div>
           )}
-        </>
+        </div>
       )}
     </section>
   );
