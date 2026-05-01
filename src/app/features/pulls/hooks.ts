@@ -271,6 +271,29 @@ export function useFullPr(owner: string, repo: string, number: number) {
 
 const PrReviewsResponseSchema = z.array(ReviewSchema);
 
+type PaginatedResponse = {
+  data: unknown;
+  headers: { link?: string };
+};
+
+function hasNextPage(link: string | undefined): boolean {
+  return typeof link === "string" && /rel="next"/.test(link);
+}
+
+async function fetchAllPages<T>(
+  fetchPage: (page: number) => Promise<PaginatedResponse>,
+  parsePage: (data: unknown) => T[],
+): Promise<T[]> {
+  const out: T[] = [];
+  let page = 1;
+  while (true) {
+    const res = await fetchPage(page);
+    out.push(...parsePage(res.data));
+    if (!hasNextPage(res.headers.link)) return out;
+    page++;
+  }
+}
+
 export const prCommentsQueryOptions = (owner: string, repo: string, number: number) =>
   queryOptions({
     queryKey: pullsKeys.comments(owner, repo, number),
@@ -280,19 +303,25 @@ export const prCommentsQueryOptions = (owner: string, repo: string, number: numb
       // PR issue-level comments live under /issues/{n}/comments (PRs are
       // issues under the hood). Review comments on diff rows come from a
       // different endpoint and are fetched in P5.
-      const res = await client.request("GET /repos/{owner}/{repo}/issues/{issue_number}/comments", {
-        owner,
-        repo,
-        issue_number: number,
-        per_page: 100,
-      });
-      const raw = Array.isArray(res.data) ? res.data : [];
-      const comments: IssueCommentOnPr[] = [];
-      for (const item of raw) {
-        const result = IssueCommentOnPrSchema.safeParse(item);
-        if (result.success) comments.push(result.data);
-      }
-      return comments;
+      return fetchAllPages(
+        (page) =>
+          client.request("GET /repos/{owner}/{repo}/issues/{issue_number}/comments", {
+            owner,
+            repo,
+            issue_number: number,
+            per_page: 100,
+            page,
+          }),
+        (data) => {
+          const raw = Array.isArray(data) ? data : [];
+          const comments: IssueCommentOnPr[] = [];
+          for (const item of raw) {
+            const result = IssueCommentOnPrSchema.safeParse(item);
+            if (result.success) comments.push(result.data);
+          }
+          return comments;
+        },
+      );
     },
   });
 
@@ -310,13 +339,17 @@ export const prReviewsQueryOptions = (owner: string, repo: string, number: numbe
     staleTime: 15_000,
     queryFn: async (): Promise<Review[]> => {
       const client = getGitHubClient();
-      const res = await client.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews", {
-        owner,
-        repo,
-        pull_number: number,
-        per_page: 100,
-      });
-      return PrReviewsResponseSchema.parse(res.data);
+      return fetchAllPages(
+        (page) =>
+          client.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews", {
+            owner,
+            repo,
+            pull_number: number,
+            per_page: 100,
+            page,
+          }),
+        (data) => PrReviewsResponseSchema.parse(data),
+      );
     },
   });
 
@@ -334,20 +367,26 @@ export const prTimelineQueryOptions = (owner: string, repo: string, number: numb
     staleTime: 15_000,
     queryFn: async (): Promise<TimelineEvent[]> => {
       const client = getGitHubClient();
-      const res = await client.request("GET /repos/{owner}/{repo}/issues/{issue_number}/timeline", {
-        owner,
-        repo,
-        issue_number: number,
-        per_page: 100,
-        headers: { accept: "application/vnd.github.mockingbird-preview+json" },
-      });
-      const raw = Array.isArray(res.data) ? res.data : [];
-      const events: TimelineEvent[] = [];
-      for (const item of raw) {
-        const result = TimelineEventSchema.safeParse(item);
-        if (result.success) events.push(result.data);
-      }
-      return events;
+      return fetchAllPages(
+        (page) =>
+          client.request("GET /repos/{owner}/{repo}/issues/{issue_number}/timeline", {
+            owner,
+            repo,
+            issue_number: number,
+            per_page: 100,
+            page,
+            headers: { accept: "application/vnd.github.mockingbird-preview+json" },
+          }),
+        (data) => {
+          const raw = Array.isArray(data) ? data : [];
+          const events: TimelineEvent[] = [];
+          for (const item of raw) {
+            const result = TimelineEventSchema.safeParse(item);
+            if (result.success) events.push(result.data);
+          }
+          return events;
+        },
+      );
     },
   });
 
@@ -431,10 +470,9 @@ export function usePostPrComment(
 
 // ─── PR files (diff) ───────────────────────────────────────────────────────
 //
-// One-shot fetch of the PR's changed-files list with patches inline. For
-// very large PRs GitHub paginates with `per_page=100`; we take the first
-// page and document the limit in the UI. (Full paging comes with the
-// "load more files" affordance in P10.)
+// Full fetch of the PR's changed-files list with patches inline. GitHub
+// paginates at 100 files/page; we walk every page so large PRs don't silently
+// drop files from review, sidebar navigation, or counts.
 
 const PrFilesResponseSchema = z.array(PrFileSchema);
 
@@ -444,13 +482,17 @@ export const prFilesQueryOptions = (owner: string, repo: string, number: number)
     staleTime: 30_000,
     queryFn: async (): Promise<PrFile[]> => {
       const client = getGitHubClient();
-      const res = await client.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/files", {
-        owner,
-        repo,
-        pull_number: number,
-        per_page: 100,
-      });
-      return PrFilesResponseSchema.parse(res.data);
+      return fetchAllPages(
+        (page) =>
+          client.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/files", {
+            owner,
+            repo,
+            pull_number: number,
+            per_page: 100,
+            page,
+          }),
+        (data) => PrFilesResponseSchema.parse(data),
+      );
     },
   });
 
@@ -505,13 +547,17 @@ export const prCommitsQueryOptions = (owner: string, repo: string, number: numbe
     staleTime: 30_000,
     queryFn: async (): Promise<PrCommit[]> => {
       const client = getGitHubClient();
-      const res = await client.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/commits", {
-        owner,
-        repo,
-        pull_number: number,
-        per_page: 100,
-      });
-      return PrCommitsResponseSchema.parse(res.data);
+      return fetchAllPages(
+        (page) =>
+          client.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/commits", {
+            owner,
+            repo,
+            pull_number: number,
+            per_page: 100,
+            page,
+          }),
+        (data) => PrCommitsResponseSchema.parse(data),
+      );
     },
   });
 
@@ -607,13 +653,18 @@ export const prChecksQueryOptions = (owner: string, repo: string, sha: string) =
     staleTime: 10_000,
     queryFn: async (): Promise<PrChecksData> => {
       const client = getGitHubClient();
-      const [runsRes, statusRes] = await Promise.all([
-        client.request("GET /repos/{owner}/{repo}/commits/{ref}/check-runs", {
-          owner,
-          repo,
-          ref: sha,
-          per_page: 100,
-        }),
+      const [checkRuns, statusRes] = await Promise.all([
+        fetchAllPages(
+          (page) =>
+            client.request("GET /repos/{owner}/{repo}/commits/{ref}/check-runs", {
+              owner,
+              repo,
+              ref: sha,
+              per_page: 100,
+              page,
+            }),
+          (data) => CheckRunsResponseSchema.parse(data).check_runs,
+        ),
         client.request("GET /repos/{owner}/{repo}/commits/{ref}/status", {
           owner,
           repo,
@@ -621,7 +672,7 @@ export const prChecksQueryOptions = (owner: string, repo: string, sha: string) =
         }),
       ]);
       return {
-        checkRuns: CheckRunsResponseSchema.parse(runsRes.data).check_runs,
+        checkRuns,
         combined: CombinedStatusSchema.parse(statusRes.data),
       };
     },
@@ -1176,13 +1227,17 @@ export const prReviewCommentsQueryOptions = (owner: string, repo: string, number
     staleTime: 15_000,
     queryFn: async (): Promise<ReviewComment[]> => {
       const client = getGitHubClient();
-      const res = await client.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/comments", {
-        owner,
-        repo,
-        pull_number: number,
-        per_page: 100,
-      });
-      return ReviewCommentsResponseSchema.parse(res.data);
+      return fetchAllPages(
+        (page) =>
+          client.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/comments", {
+            owner,
+            repo,
+            pull_number: number,
+            per_page: 100,
+            page,
+          }),
+        (data) => ReviewCommentsResponseSchema.parse(data),
+      );
     },
   });
 
@@ -1296,14 +1351,20 @@ export function useMyReviewCommentReactions(
     enabled: !!token && !!owner && !!repo && !!meId && commentId > 0,
     queryFn: async (): Promise<MyReactionsMap> => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "GET /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions",
-        { owner, repo, comment_id: commentId, per_page: 100 },
+      const list = await fetchAllPages(
+        (page) =>
+          client.request("GET /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions", {
+            owner,
+            repo,
+            comment_id: commentId,
+            per_page: 100,
+            page,
+          }),
+        (data) => ReactionListSchema.parse(data),
       );
-      const list = ReactionListSchema.parse(res.data);
       const map: MyReactionsMap = new Map();
-      for (const r of list) {
-        if (r.user?.id === meId) map.set(r.content, r.id);
+      for (const reaction of list) {
+        if (reaction.user?.id === meId) map.set(reaction.content, reaction.id);
       }
       return map;
     },
@@ -1393,10 +1454,11 @@ export function useToggleReviewCommentReaction(
 export type ThreadResolutionMap = Map<number, { threadNodeId: string; isResolved: boolean }>;
 
 const THREAD_RESOLUTION_QUERY = `
-  query($owner: String!, $repo: String!, $number: Int!) {
+  query($owner: String!, $repo: String!, $number: Int!, $after: String) {
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
-        reviewThreads(first: 100) {
+        reviewThreads(first: 100, after: $after) {
+          pageInfo { hasNextPage endCursor }
           nodes {
             id
             isResolved
@@ -1414,6 +1476,7 @@ type ThreadResolutionQueryResponse = {
   repository?: {
     pullRequest?: {
       reviewThreads?: {
+        pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
         nodes?: Array<{
           id: string;
           isResolved: boolean;
@@ -1432,17 +1495,26 @@ export function useThreadResolution(owner: string, repo: string, number: number)
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
     queryFn: async (): Promise<ThreadResolutionMap> => {
       const client = getGitHubClient();
-      const res = (await client.graphql(THREAD_RESOLUTION_QUERY, {
-        owner,
-        repo,
-        number,
-      })) as ThreadResolutionQueryResponse;
-      const nodes = res.repository?.pullRequest?.reviewThreads?.nodes ?? [];
       const map: ThreadResolutionMap = new Map();
-      for (const t of nodes) {
-        const rootId = t.comments.nodes[0]?.databaseId;
-        if (rootId != null) map.set(rootId, { threadNodeId: t.id, isResolved: t.isResolved });
-      }
+      let after: string | null | undefined;
+
+      do {
+        const res = (await client.graphql(THREAD_RESOLUTION_QUERY, {
+          owner,
+          repo,
+          number,
+          after,
+        })) as ThreadResolutionQueryResponse;
+        const threads = res.repository?.pullRequest?.reviewThreads;
+        for (const thread of threads?.nodes ?? []) {
+          const rootId = thread.comments.nodes[0]?.databaseId;
+          if (rootId != null) {
+            map.set(rootId, { threadNodeId: thread.id, isResolved: thread.isResolved });
+          }
+        }
+        after = threads?.pageInfo?.hasNextPage ? threads.pageInfo.endCursor : null;
+      } while (after);
+
       return map;
     },
   });
@@ -1514,17 +1586,19 @@ export function useMyPrCommentReactions(
     staleTime: 60_000,
     queryFn: async (): Promise<MyReactionsMap> => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "GET /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions",
-        {
-          owner,
-          repo,
-          comment_id: commentId,
-          per_page: 100,
-          headers: { accept: "application/vnd.github+json" },
-        },
+      const reactions = await fetchAllPages(
+        (page) =>
+          client.request("GET /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions", {
+            owner,
+            repo,
+            comment_id: commentId,
+            per_page: 100,
+            page,
+            headers: { accept: "application/vnd.github+json" },
+          }),
+        (data) => ReactionListSchema.parse(data),
       );
-      return buildMyReactionsMap(ReactionListSchema.parse(res.data), meId as number);
+      return buildMyReactionsMap(reactions, meId as number);
     },
   });
 }

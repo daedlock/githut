@@ -73,9 +73,7 @@ export const PullRequestSchema = z.object({
   closed_at: z.string().nullable().optional(),
   user: UserRefSchema,
   assignees: z.array(z.object({ login: z.string(), avatar_url: z.string() })).default([]),
-  requested_reviewers: z
-    .array(z.object({ login: z.string(), avatar_url: z.string() }))
-    .default([]),
+  requested_reviewers: z.array(z.object({ login: z.string(), avatar_url: z.string() })).default([]),
   labels: z.array(LabelSchema).default([]),
   milestone: z
     .object({ id: z.number(), title: z.string(), state: z.string() })
@@ -161,16 +159,19 @@ export const ReviewCommentsResponseSchema = z.array(ReviewCommentSchema);
 
 // ─── Issue comment (PR conversation level) ─────────────────────────────────
 
-const CommentReactionsSchema = z.object({
-  "+1": z.number().default(0),
-  "-1": z.number().default(0),
-  laugh: z.number().default(0),
-  hooray: z.number().default(0),
-  confused: z.number().default(0),
-  heart: z.number().default(0),
-  rocket: z.number().default(0),
-  eyes: z.number().default(0),
-}).optional().default({ "+1": 0, "-1": 0, laugh: 0, hooray: 0, confused: 0, heart: 0, rocket: 0, eyes: 0 });
+const CommentReactionsSchema = z
+  .object({
+    "+1": z.number().default(0),
+    "-1": z.number().default(0),
+    laugh: z.number().default(0),
+    hooray: z.number().default(0),
+    confused: z.number().default(0),
+    heart: z.number().default(0),
+    rocket: z.number().default(0),
+    eyes: z.number().default(0),
+  })
+  .optional()
+  .default({ "+1": 0, "-1": 0, laugh: 0, hooray: 0, confused: 0, heart: 0, rocket: 0, eyes: 0 });
 
 export const IssueCommentOnPrSchema = z.object({
   id: z.number(),
@@ -195,7 +196,10 @@ export const PrFileSchema = z.object({
   additions: z.number(),
   deletions: z.number(),
   changes: z.number(),
-  patch: z.string().nullish().transform((p) => p ?? null),
+  patch: z
+    .string()
+    .nullish()
+    .transform((p) => p ?? null),
   blob_url: z.string().optional(),
   raw_url: z.string().optional(),
 });
@@ -221,15 +225,57 @@ export const TimelineEventSchema = z.object({
   state: z.string().optional(),
   label: z.object({ name: z.string(), color: z.string() }).optional(),
   assignee: z.object({ login: z.string(), avatar_url: z.string() }).optional(),
-  requested_reviewer: z
-    .object({ login: z.string(), avatar_url: z.string() })
-    .optional(),
+  requested_reviewer: z.object({ login: z.string(), avatar_url: z.string() }).optional(),
   commit_id: z.string().nullable().optional(),
+  sha: z.string().nullable().optional(),
+  message: z.string().nullable().optional(),
+  before: z.string().nullable().optional(),
+  after: z.string().nullable().optional(),
+  ref: z.string().nullable().optional(),
+  head_ref: z.string().nullable().optional(),
+  base_ref: z.string().nullable().optional(),
   milestone: z.object({ title: z.string() }).optional(),
   rename: z.object({ from: z.string(), to: z.string() }).optional(),
-  source: z
-    .object({ issue: z.object({ number: z.number(), html_url: z.string() }).nullable().optional() })
+  review_id: z.number().optional(),
+  dismissed_review: z
+    .object({
+      state: z.string().optional(),
+      review_id: z.number().optional(),
+      dismissal_message: z.string().nullable().optional(),
+      dismissal_commit_id: z.string().nullable().optional(),
+    })
     .optional(),
+  source: z
+    .object({
+      type: z.string().optional(),
+      issue: z
+        .object({
+          number: z.number(),
+          html_url: z.string(),
+          title: z.string().nullable().optional(),
+          repository_url: z.string().optional(),
+        })
+        .nullable()
+        .optional(),
+    })
+    .optional(),
+  project_card: z
+    .object({
+      id: z.number().optional(),
+      column_name: z.string().nullable().optional(),
+      project_url: z.string().nullable().optional(),
+    })
+    .optional(),
+  project: z.object({ name: z.string().optional(), html_url: z.string().optional() }).optional(),
+  deployment: z
+    .object({
+      environment: z.string().nullable().optional(),
+      task: z.string().nullable().optional(),
+      state: z.string().nullable().optional(),
+      url: z.string().nullable().optional(),
+    })
+    .optional(),
+  environment: z.string().nullable().optional(),
 });
 export type TimelineEvent = z.infer<typeof TimelineEventSchema>;
 

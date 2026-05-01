@@ -2,13 +2,17 @@ import {
   Bookmark,
   Circle,
   CircleDot,
+  EyeOff,
+  GitBranch,
   GitCommit,
   GitMerge,
   GitPullRequestClosed,
+  Link2,
   Lock,
   type LucideIcon,
   Milestone,
   Pin,
+  Rocket,
   Tag,
   Unlock,
   UserMinus,
@@ -22,7 +26,7 @@ import { formatRelativeTime } from "@/app/lib/time";
 // ─── PrTimelineRow ─────────────────────────────────────────────────────────
 //
 // Inline, single-line event strip shown between comment cards. Mirrors
-// GitHub's own "X did Y — N hours ago" rows (labeled, assigned, closed,
+// GitHub's own "X did Y · N hours ago" rows (labeled, assigned, closed,
 // merged, head-ref-force-pushed, …). Unknown events render with a neutral
 // bookmark icon so the timeline never fails closed.
 
@@ -35,6 +39,63 @@ const TONE: Record<IconTone, string> = {
   merged: "text-[var(--color-pr-merged)]",
   warning: "text-[var(--color-warning)]",
 };
+
+function shortSha(sha: string | null | undefined): string | null {
+  return sha ? sha.slice(0, 7) : null;
+}
+
+function firstLine(value: string | null | undefined): string | null {
+  const line = value?.trim().split("\n")[0]?.trim();
+  return line || null;
+}
+
+function branchName(event: TimelineEvent, fallback = "branch"): string {
+  return event.head_ref ?? event.base_ref ?? event.ref ?? fallback;
+}
+
+function Branch({ children }: { children: React.ReactNode }) {
+  return <span className="font-mono text-caption text-muted-foreground">{children}</span>;
+}
+
+function Commit({ sha }: { sha: string | null | undefined }) {
+  const s = shortSha(sha);
+  if (!s) return null;
+  return <span className="font-mono text-caption text-muted-foreground">{s}</span>;
+}
+
+function IssueRef({ event }: { event: TimelineEvent }) {
+  const issue = event.source?.issue;
+  if (!issue) return <span className="font-medium text-foreground">an issue</span>;
+  return (
+    <a
+      href={issue.html_url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="font-medium text-foreground underline-offset-2 hover:underline"
+    >
+      #{issue.number}
+      {issue.title ? (
+        <span className="font-normal text-muted-foreground"> {issue.title}</span>
+      ) : null}
+    </a>
+  );
+}
+
+function projectDetail(event: TimelineEvent): React.ReactNode {
+  const projectName = event.project?.name;
+  const column = event.project_card?.column_name;
+  if (projectName && column) {
+    return (
+      <>
+        <span className="font-medium text-foreground">{projectName}</span>
+        <span className="text-[var(--color-fg-faint)]"> · {column}</span>
+      </>
+    );
+  }
+  if (projectName) return <span className="font-medium text-foreground">{projectName}</span>;
+  if (column) return <span className="font-medium text-foreground">{column}</span>;
+  return "a project";
+}
 
 function resolve(event: TimelineEvent): {
   icon: LucideIcon;
@@ -59,11 +120,7 @@ function resolve(event: TimelineEvent): {
             {actor} added the{" "}
             <span
               className="inline-flex items-center rounded-full border border-border px-1.5 py-0 text-micro text-foreground"
-              style={
-                event.label
-                  ? { backgroundColor: `#${event.label.color}14` }
-                  : undefined
-              }
+              style={event.label ? { backgroundColor: `#${event.label.color}14` } : undefined}
             >
               {event.label?.name ?? "label"}
             </span>{" "}
@@ -89,10 +146,7 @@ function resolve(event: TimelineEvent): {
           <>
             {actor} assigned{" "}
             {event.assignee ? (
-              <ProfileLink
-                login={event.assignee.login}
-                className="font-medium text-foreground"
-              >
+              <ProfileLink login={event.assignee.login} className="font-medium text-foreground">
                 {event.assignee.login}
               </ProfileLink>
             ) : (
@@ -107,8 +161,7 @@ function resolve(event: TimelineEvent): {
         tone: "muted",
         label: (
           <>
-            {actor} unassigned{" "}
-            {event.assignee ? event.assignee.login : "someone"}
+            {actor} unassigned {event.assignee ? event.assignee.login : "someone"}
           </>
         ),
       };
@@ -136,39 +189,36 @@ function resolve(event: TimelineEvent): {
       return {
         icon: UserMinus,
         tone: "muted",
-        label: (
-          <>
-            {actor} dismissed a review request
-          </>
-        ),
+        label: <>{actor} dismissed a review request</>,
       };
     case "closed":
-      return {
-        icon: Circle,
-        tone: "danger",
-        label: <>{actor} closed this</>,
-      };
+      return { icon: Circle, tone: "danger", label: <>{actor} closed this</> };
     case "reopened":
-      return {
-        icon: CircleDot,
-        tone: "success",
-        label: <>{actor} reopened this</>,
-      };
+      return { icon: CircleDot, tone: "success", label: <>{actor} reopened this</> };
     case "merged":
       return {
         icon: GitMerge,
         tone: "merged",
         label: (
           <>
-            {actor} merged commit{" "}
-            {event.commit_id && (
-              <span className="font-mono text-caption text-muted-foreground">
-                {event.commit_id.slice(0, 7)}
-              </span>
-            )}
+            {actor} merged commit <Commit sha={event.commit_id} />
           </>
         ),
       };
+    case "committed": {
+      const sha = event.sha ?? event.commit_id;
+      const message = firstLine(event.message);
+      return {
+        icon: GitCommit,
+        tone: "muted",
+        label: (
+          <>
+            {actor} committed <Commit sha={sha} />
+            {message ? <span className="text-muted-foreground"> · {message}</span> : null}
+          </>
+        ),
+      };
+    }
     case "ready_for_review":
       return {
         icon: GitPullRequestClosed,
@@ -185,32 +235,194 @@ function resolve(event: TimelineEvent): {
       return {
         icon: GitCommit,
         tone: "warning",
-        label: <>{actor} force-pushed the branch</>,
+        label: (
+          <>
+            {actor} force-pushed the <Branch>{branchName(event, "head")}</Branch> branch
+            {event.before || event.after ? (
+              <span className="text-[var(--color-fg-faint)]">
+                {" "}
+                from <Commit sha={event.before} /> to <Commit sha={event.after} />
+              </span>
+            ) : null}
+          </>
+        ),
       };
     case "head_ref_deleted":
       return {
-        icon: GitCommit,
+        icon: GitBranch,
         tone: "muted",
-        label: <>{actor} deleted the head branch</>,
+        label: (
+          <>
+            {actor} deleted the <Branch>{branchName(event, "head")}</Branch> branch
+          </>
+        ),
       };
     case "head_ref_restored":
       return {
+        icon: GitBranch,
+        tone: "success",
+        label: (
+          <>
+            {actor} restored the <Branch>{branchName(event, "head")}</Branch> branch
+          </>
+        ),
+      };
+    case "base_ref_changed":
+      return {
+        icon: GitBranch,
+        tone: "warning",
+        label: (
+          <>
+            {actor} changed the base branch
+            {event.base_ref ? (
+              <>
+                {" "}
+                to <Branch>{event.base_ref}</Branch>
+              </>
+            ) : null}
+          </>
+        ),
+      };
+    case "base_ref_force_pushed":
+      return {
         icon: GitCommit,
+        tone: "warning",
+        label: (
+          <>
+            {actor} force-pushed the base branch
+            {event.before || event.after ? (
+              <span className="text-[var(--color-fg-faint)]">
+                {" "}
+                from <Commit sha={event.before} /> to <Commit sha={event.after} />
+              </span>
+            ) : null}
+          </>
+        ),
+      };
+    case "base_ref_deleted":
+      return { icon: GitBranch, tone: "danger", label: <>{actor} deleted the base branch</> };
+    case "base_ref_restored":
+      return { icon: GitBranch, tone: "success", label: <>{actor} restored the base branch</> };
+    case "cross-referenced":
+    case "referenced":
+      return {
+        icon: Link2,
         tone: "muted",
-        label: <>{actor} restored the head branch</>,
+        label: (
+          <>
+            {actor} referenced this in <IssueRef event={event} />
+          </>
+        ),
+      };
+    case "connected":
+      return {
+        icon: Link2,
+        tone: "success",
+        label: (
+          <>
+            {actor} linked <IssueRef event={event} />
+          </>
+        ),
+      };
+    case "disconnected":
+      return {
+        icon: Link2,
+        tone: "muted",
+        label: (
+          <>
+            {actor} unlinked <IssueRef event={event} />
+          </>
+        ),
+      };
+    case "review_dismissed":
+      return {
+        icon: EyeOff,
+        tone: "warning",
+        label: (
+          <>
+            {actor} dismissed a review
+            {event.dismissed_review?.dismissal_message ? (
+              <span className="text-muted-foreground">
+                {" "}
+                with reason: {event.dismissed_review.dismissal_message}
+              </span>
+            ) : null}
+          </>
+        ),
+      };
+    case "auto_merge_enabled":
+      return { icon: GitMerge, tone: "success", label: <>{actor} enabled auto-merge</> };
+    case "auto_merge_disabled":
+      return { icon: GitMerge, tone: "muted", label: <>{actor} disabled auto-merge</> };
+    case "deployed":
+      return {
+        icon: Rocket,
+        tone: "success",
+        label: (
+          <>
+            {actor} deployed
+            {event.deployment?.environment || event.environment ? (
+              <>
+                {" "}
+                to{" "}
+                <span className="font-medium text-foreground">
+                  {event.deployment?.environment ?? event.environment}
+                </span>
+              </>
+            ) : null}
+          </>
+        ),
+      };
+    case "deployment_environment_changed":
+      return {
+        icon: Rocket,
+        tone: "warning",
+        label: (
+          <>
+            {actor} changed the deployment environment
+            {event.environment ? (
+              <>
+                {" "}
+                to <span className="font-medium text-foreground">{event.environment}</span>
+              </>
+            ) : null}
+          </>
+        ),
+      };
+    case "added_to_project":
+      return {
+        icon: Bookmark,
+        tone: "muted",
+        label: (
+          <>
+            {actor} added this to {projectDetail(event)}
+          </>
+        ),
+      };
+    case "moved_columns_in_project":
+      return {
+        icon: Bookmark,
+        tone: "muted",
+        label: (
+          <>
+            {actor} moved this in {projectDetail(event)}
+          </>
+        ),
+      };
+    case "removed_from_project":
+      return {
+        icon: Bookmark,
+        tone: "muted",
+        label: (
+          <>
+            {actor} removed this from {projectDetail(event)}
+          </>
+        ),
       };
     case "locked":
-      return {
-        icon: Lock,
-        tone: "muted",
-        label: <>{actor} locked the conversation</>,
-      };
+      return { icon: Lock, tone: "muted", label: <>{actor} locked the conversation</> };
     case "unlocked":
-      return {
-        icon: Unlock,
-        tone: "muted",
-        label: <>{actor} unlocked the conversation</>,
-      };
+      return { icon: Unlock, tone: "muted", label: <>{actor} unlocked the conversation</> };
     case "pinned":
       return { icon: Pin, tone: "muted", label: <>{actor} pinned this</> };
     case "unpinned":
@@ -223,9 +435,7 @@ function resolve(event: TimelineEvent): {
           <>
             {actor} added this to the{" "}
             {event.milestone ? (
-              <span className="font-medium text-foreground">
-                {event.milestone.title}
-              </span>
+              <span className="font-medium text-foreground">{event.milestone.title}</span>
             ) : (
               "milestone"
             )}
@@ -233,11 +443,7 @@ function resolve(event: TimelineEvent): {
         ),
       };
     case "demilestoned":
-      return {
-        icon: Milestone,
-        tone: "muted",
-        label: <>{actor} removed this from a milestone</>,
-      };
+      return { icon: Milestone, tone: "muted", label: <>{actor} removed this from a milestone</> };
     case "renamed":
       return {
         icon: Bookmark,
@@ -247,8 +453,8 @@ function resolve(event: TimelineEvent): {
             {actor} changed the title{" "}
             {event.rename && (
               <>
-                from <span className="text-muted-foreground">{event.rename.from}</span>{" "}
-                to <span className="font-medium text-foreground">{event.rename.to}</span>
+                from <span className="text-muted-foreground">{event.rename.from}</span> to{" "}
+                <span className="font-medium text-foreground">{event.rename.to}</span>
               </>
             )}
           </>
@@ -257,7 +463,7 @@ function resolve(event: TimelineEvent): {
     case "mentioned":
     case "subscribed":
     case "unsubscribed":
-      // Too noisy to render — GitHub hides these from the default view too.
+      // Too noisy to render. GitHub hides these from the default view too.
       return null;
     default:
       return {
@@ -281,20 +487,18 @@ export function PrTimelineRow({ event }: { event: TimelineEvent }) {
   return (
     <>
       {/* Marker centered on the vertical bar */}
-      <div className="absolute left-3 -translate-x-1/2 top-4 z-10 flex size-6 items-center justify-center rounded-full bg-muted ring-2 ring-background">
+      <div className="absolute left-3 top-4 z-10 flex size-6 -translate-x-1/2 items-center justify-center rounded-full bg-muted ring-2 ring-background">
         <Icon className={cn("size-3", TONE[resolved.tone])} aria-hidden />
       </div>
       {/* Content */}
-      <div className="flex-1 min-w-0 pt-4 pl-10">
+      <div className="min-w-0 flex-1 pt-4 pl-10">
         <div className="py-1.5 text-caption text-muted-foreground">
           <span className="min-w-0 truncate">
             {resolved.label}
             {at && (
               <>
                 {" "}
-                <span className="text-[var(--color-fg-faint)]">
-                  · {formatRelativeTime(at)}
-                </span>
+                <span className="text-[var(--color-fg-faint)]">· {formatRelativeTime(at)}</span>
               </>
             )}
           </span>
