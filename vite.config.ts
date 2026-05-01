@@ -2,7 +2,10 @@ import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
+import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
+
+const analyzeBundle = process.env.ANALYZE === "true";
 
 export default defineConfig({
   plugins: [
@@ -13,6 +16,13 @@ export default defineConfig({
     }),
     react(),
     tailwindcss(),
+    analyzeBundle &&
+      visualizer({
+        filename: "dist/bundle-analysis.html",
+        gzipSize: true,
+        brotliSize: true,
+        template: "treemap",
+      }),
   ],
   resolve: {
     alias: {

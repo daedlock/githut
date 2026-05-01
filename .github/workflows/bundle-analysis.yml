@@ -1,0 +1,49 @@
+name: Bundle analysis
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  analyze:
+    name: Build bundle report
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build bundle analysis
+        run: bun run build:analyze
+
+      - name: Summarize bundle size
+        run: |
+          {
+            echo "## Bundle analysis"
+            echo
+            echo "Download the \`bundle-analysis\` artifact and open \`bundle-analysis.html\` to inspect the treemap."
+            echo
+            echo "### Largest JavaScript chunks (gzip)"
+            echo '```'
+            find dist/assets -type f -name '*.js' -print | while read -r file; do
+              gzip_bytes=$(gzip -c "$file" | wc -c)
+              awk -v bytes="$gzip_bytes" -v file="$file" 'BEGIN { printf "%.1f KB\t%s\n", bytes / 1024, file }'
+            done | sort -nr | head -20
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload bundle analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-analysis
+          path: dist/bundle-analysis.html
+          if-no-files-found: error
