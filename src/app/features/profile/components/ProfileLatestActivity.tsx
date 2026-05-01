@@ -9,6 +9,7 @@ import {
 } from "@primer/octicons-react";
 import { Link } from "@tanstack/react-router";
 import { type ComponentType, useMemo } from "react";
+import { Card } from "@/app/components/ui/card";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { formatRelativeTime } from "@/app/lib/time";
 import type { GitHubEvent } from "../schemas";
@@ -41,7 +42,7 @@ export function ProfileLatestActivity({ events, isLoading }: ProfileLatestActivi
   const items = useMemo(() => buildItems(events), [events]);
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl bg-muted px-4 py-4 sm:px-5 sm:py-5">
+    <Card variant="muted" className="flex flex-col gap-3 px-4 py-4 sm:px-5 sm:py-5">
       <ProfileSectionHeader
         title="Latest Activity"
         icon={<BroadcastIcon className="size-3 text-(--color-fg-faint)" />}
@@ -60,7 +61,7 @@ export function ProfileLatestActivity({ events, isLoading }: ProfileLatestActivi
           ))}
         </ul>
       )}
-    </section>
+    </Card>
   );
 }
 

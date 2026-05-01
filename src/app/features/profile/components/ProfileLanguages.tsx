@@ -1,5 +1,6 @@
 import { CodeIcon } from "@primer/octicons-react";
 import { useMemo } from "react";
+import { Card } from "@/app/components/ui/card";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import type { RepoSummary } from "@/shared/types";
 import { ProfileSectionHeader } from "./ProfileSectionHeader";
@@ -40,7 +41,7 @@ export function ProfileLanguages({ repos, isLoading }: ProfileLanguagesProps) {
   }, [repos]);
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl bg-muted px-4 py-4 sm:px-5 sm:py-5">
+    <Card variant="muted" className="flex flex-col gap-3 px-4 py-4 sm:px-5 sm:py-5">
       <ProfileSectionHeader
         title="Languages"
         icon={<CodeIcon className="size-3 text-[color:var(--color-fg-faint)]" />}
@@ -53,7 +54,7 @@ export function ProfileLanguages({ repos, isLoading }: ProfileLanguagesProps) {
       ) : (
         <Breakdown shares={shares} />
       )}
-    </section>
+    </Card>
   );
 }
 

@@ -1,6 +1,7 @@
 import { PinIcon, StarIcon } from "@primer/octicons-react";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { Card } from "@/app/components/ui/card";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
@@ -53,44 +54,47 @@ function PinnedCard({ repo }: { repo: RepoSummary }) {
       to="/$owner/$repo"
       params={{ owner: repo.owner.login, repo: repo.name }}
       className={cn(
-        "group flex h-full min-h-[112px] flex-col gap-2 rounded-xl bg-muted px-4 py-3.5",
-        "outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-focus)]",
+        "group h-full outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-focus)]",
       )}
     >
-      <header className="flex items-baseline justify-between gap-2">
-        <span className="min-w-0 truncate font-mono text-body font-medium text-foreground group-hover:text-[color:var(--color-brand)]">
-          {repo.name}
-        </span>
-        <span className="inline-flex shrink-0 items-center gap-1 font-mono text-caption tabular-nums text-muted-foreground">
-          <StarIcon className="size-3" />
-          {formatStars(repo.stars)}
-        </span>
-      </header>
-
-      <p
-        className={cn(
-          "flex-1 line-clamp-3 text-caption leading-relaxed",
-          repo.description ? "text-muted-foreground" : "italic text-[color:var(--color-fg-faint)]",
-        )}
-      >
-        {repo.description ?? "No description"}
-      </p>
-
-      <footer className="flex items-center justify-between gap-2 text-caption text-(--color-fg-faint)">
-        {repo.language ? (
-          <span className="inline-flex items-center gap-1.5">
-            <span
-              aria-hidden
-              className="inline-block size-2 rounded-full"
-              style={{ backgroundColor: "var(--chart-slot-1)" }}
-            />
-            <span className="text-muted-foreground">{repo.language}</span>
+      <Card variant="muted" className="flex h-full min-h-[112px] flex-col gap-2 px-4 py-3.5">
+        <header className="flex items-baseline justify-between gap-2">
+          <span className="min-w-0 truncate font-mono text-body font-medium text-foreground group-hover:text-[color:var(--color-brand)]">
+            {repo.name}
           </span>
-        ) : (
-          <span />
-        )}
-        <span className="font-mono tabular-nums">{formatRelativeTime(repo.pushedAt)}</span>
-      </footer>
+          <span className="inline-flex shrink-0 items-center gap-1 font-mono text-caption tabular-nums text-muted-foreground">
+            <StarIcon className="size-3" />
+            {formatStars(repo.stars)}
+          </span>
+        </header>
+
+        <p
+          className={cn(
+            "flex-1 line-clamp-3 text-caption leading-relaxed",
+            repo.description
+              ? "text-muted-foreground"
+              : "italic text-[color:var(--color-fg-faint)]",
+          )}
+        >
+          {repo.description ?? "No description"}
+        </p>
+
+        <footer className="flex items-center justify-between gap-2 text-caption text-(--color-fg-faint)">
+          {repo.language ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="inline-block size-2 rounded-full"
+                style={{ backgroundColor: "var(--chart-slot-1)" }}
+              />
+              <span className="text-muted-foreground">{repo.language}</span>
+            </span>
+          ) : (
+            <span />
+          )}
+          <span className="font-mono tabular-nums">{formatRelativeTime(repo.pushedAt)}</span>
+        </footer>
+      </Card>
     </Link>
   );
 }

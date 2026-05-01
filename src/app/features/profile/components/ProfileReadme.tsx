@@ -2,6 +2,7 @@ import { CaretDown } from "@phosphor-icons/react";
 import { FileIcon } from "@primer/octicons-react";
 import { useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
+import { Card } from "@/app/components/ui/card";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { cn } from "@/app/lib/cn";
 import { ProfileSectionHeader } from "./ProfileSectionHeader";
@@ -29,7 +30,7 @@ export function ProfileReadme({ markdown, isLoading, login, isOrg }: ProfileRead
 
   if (isLoading) {
     return (
-      <section className="flex flex-col gap-4 rounded-xl bg-muted px-4 py-4 sm:px-5 sm:py-5">
+      <Card variant="muted" className="flex flex-col gap-4 px-4 py-4 sm:px-5 sm:py-5">
         <SectionEyebrow />
         <div className="flex flex-col gap-3">
           <Skeleton className="h-4 w-3/4" />
@@ -38,7 +39,7 @@ export function ProfileReadme({ markdown, isLoading, login, isOrg }: ProfileRead
           <Skeleton className="h-4 w-2/3" />
           <Skeleton className="h-4 w-1/2" />
         </div>
-      </section>
+      </Card>
     );
   }
 
@@ -50,7 +51,7 @@ export function ProfileReadme({ markdown, isLoading, login, isOrg }: ProfileRead
   const isLong = markdown.length > 600;
 
   return (
-    <section className="flex flex-col gap-4 rounded-xl bg-muted px-4 py-4 sm:px-5 sm:py-5">
+    <Card variant="muted" className="flex flex-col gap-4 px-4 py-4 sm:px-5 sm:py-5">
       <SectionEyebrow />
 
       <div className="relative">
@@ -100,7 +101,7 @@ export function ProfileReadme({ markdown, isLoading, login, isOrg }: ProfileRead
           />
         </button>
       )}
-    </section>
+    </Card>
   );
 }
 

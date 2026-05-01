@@ -1,5 +1,6 @@
 import { PeopleIcon, StarIcon } from "@primer/octicons-react";
 import { type ReactNode, useMemo } from "react";
+import { Card } from "@/app/components/ui/card";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import type { RepoSummary } from "@/shared/types";
 import type { GitHubProfile } from "../schemas";
@@ -17,7 +18,7 @@ export type ProfileBentoProps = {
  * derived context — so the page doesn't feel like a stat dump but like a
  * concise fact-sheet.
  */
-export function ProfileBento({ profile, repos, isLoading, membersCount }: ProfileBentoProps) {
+function ProfileBento({ profile, repos, isLoading, membersCount }: ProfileBentoProps) {
   const derived = useMemo(() => {
     if (!repos) return { topLanguage: null, totalStars: 0, mostStarred: null };
     const langCount = new Map<string, number>();
@@ -128,7 +129,7 @@ function Tile({
   sub: ReactNode;
 }) {
   return (
-    <div className="min-w-0 flex flex-col gap-2 rounded-xl bg-muted px-4 py-3.5">
+    <Card variant="muted" className="min-w-0 flex flex-col gap-2 px-4 py-3.5">
       <span className="flex items-center gap-1.5 text-caption font-[475] text-muted-foreground">
         {icon && (
           <span className="text-(--color-fg-faint)" aria-hidden="true">
@@ -141,7 +142,7 @@ function Tile({
         {formatNum(value)}
       </span>
       <span className="truncate text-caption text-muted-foreground">{sub}</span>
-    </div>
+    </Card>
   );
 }
 
@@ -149,11 +150,11 @@ function BentoSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
       {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="flex flex-col gap-2 rounded-xl bg-muted px-4 py-3.5">
+        <Card key={i} variant="muted" className="flex flex-col gap-2 px-4 py-3.5">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-6 w-12" />
           <Skeleton className="h-3 w-20" />
-        </div>
+        </Card>
       ))}
     </div>
   );
@@ -164,3 +165,5 @@ function formatNum(n: number): string {
     n,
   );
 }
+
+export { ProfileBento };
