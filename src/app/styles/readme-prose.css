@@ -154,27 +154,31 @@
   border-radius: var(--radius-sm);
 }
 
-/* Badge / inline image paragraphs — GitHub READMEs put badges inside
-   <p align="center"> with multiple <img> siblings and <br/> separators.
-   Also handle markdown-generated <p> with only image children. Make all
-   images within such paragraphs flow inline. */
-.readme-prose p > img {
+/* Badge / inline image paragraphs — GitHub READMEs often render badges as
+   linked images: <p><a><img /></a> <a><img /></a></p>. Keep those compact and
+   inline instead of letting each badge behave like its own block row. */
+.readme-prose p > img,
+.readme-prose p > a > img {
   display: inline;
   vertical-align: middle;
 }
-.readme-prose p:has(> img):not(:has(> :not(img):not(a):not(br))) {
+.readme-prose p > a:has(> img:only-child) {
+  display: inline-flex;
+  vertical-align: middle;
+}
+.readme-prose p:has(> img):not(:has(> :not(img):not(a):not(br))),
+.readme-prose p:has(> a > img):not(:has(> :not(img):not(a):not(br))) {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 4px;
 }
 .readme-prose p[align="center"]:has(> img),
 .readme-prose p[align="center"]:has(> a > img) {
-  display: flex;
-  flex-wrap: wrap;
   justify-content: center;
-  gap: 4px;
 }
-.readme-prose p[align="center"] > br {
+.readme-prose p:has(> img) > br,
+.readme-prose p:has(> a > img) > br {
   display: none;
 }
 
