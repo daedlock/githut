@@ -1,11 +1,12 @@
-import { useMemo } from "react";
 import { AlertCircle, Check, EyeOff, GitMerge, MessageSquare, X } from "lucide-react";
+import { useMemo } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { CommentCardDisplay, CommentComposeCard } from "@/app/components/ui/CommentCard";
 import { Skeleton } from "@/app/components/ui/skeleton";
+import type { ReactionContent } from "@/app/features/issues/schemas";
 import { PrMergeBox } from "@/app/features/pulls/components/PrMergeBox";
-import { PrTimelineRow } from "@/app/features/pulls/components/PrTimelineRow";
+import { PrCommitGroupRow, PrTimelineRow } from "@/app/features/pulls/components/PrTimelineRow";
 import { ReviewCard } from "@/app/features/pulls/components/ReviewCard";
 import {
   useDeletePrComment,
@@ -13,6 +14,7 @@ import {
   useMyPrCommentReactions,
   usePostPrComment,
   usePrComments,
+  usePrCommits,
   usePrReviewComments,
   usePrReviews,
   usePrTimeline,
@@ -20,11 +22,10 @@ import {
   useUpdatePr,
   useUpdatePrComment,
 } from "@/app/features/pulls/hooks";
-import { mergeTimeline, type FeedItem } from "@/app/features/pulls/lib/mergeTimeline";
+import { type FeedItem, mergeTimeline } from "@/app/features/pulls/lib/mergeTimeline";
 import type { Review, ReviewComment } from "@/app/features/pulls/schemas";
-import type { ReactionContent } from "@/app/features/issues/schemas";
-import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { useMe } from "@/app/hooks/useMe";
+import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
 
 export type PrConversationPageProps = {
@@ -39,6 +40,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
   const reviewsQuery = usePrReviews(owner, repo, number);
   const reviewCommentsQuery = usePrReviewComments(owner, repo, number);
   const timelineQuery = usePrTimeline(owner, repo, number);
+  const commitsQuery = usePrCommits(owner, repo, number);
   const meQuery = useMe();
   const postComment = usePostPrComment(owner, repo, number, meQuery.data);
   const updatePr = useUpdatePr(owner, repo, number);
@@ -48,6 +50,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
   const reviews = reviewsQuery.data ?? [];
   const reviewComments = reviewCommentsQuery.data ?? [];
   const timeline = timelineQuery.data ?? [];
+  const commits = commitsQuery.data ?? [];
 
   const inlineByReviewId = useMemo(() => {
     const m = new Map<number, ReviewComment[]>();
@@ -82,8 +85,8 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
   }, [reviewComments]);
 
   const feed = useMemo<FeedItem[]>(
-    () => mergeTimeline(timeline, comments, reviews),
-    [timeline, comments, reviews],
+    () => mergeTimeline(timeline, comments, reviews, commits),
+    [timeline, comments, reviews, commits],
   );
 
   const participants = useMemo((): MentionUser[] => {
@@ -147,9 +150,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
                   <GithubMarkdown repoContext={{ owner, repo }}>{pr.body}</GithubMarkdown>
                 </div>
               ) : (
-                <p className="text-sm italic text-muted-foreground">
-                  No description provided.
-                </p>
+                <p className="text-sm italic text-muted-foreground">No description provided.</p>
               )}
             </CommentCardDisplay>
           </div>
@@ -157,13 +158,17 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
       )}
 
       {/* Feed */}
-      {commentsQuery.isError || timelineQuery.isError ? (
+      {commentsQuery.isError || timelineQuery.isError || commitsQuery.isError ? (
         <StatusMessage tone="danger">Could not load conversation.</StatusMessage>
-      ) : feed.length === 0 && (commentsQuery.isPending || timelineQuery.isPending) ? (
+      ) : feed.length === 0 &&
+        (commentsQuery.isPending || timelineQuery.isPending || commitsQuery.isPending) ? (
         <FeedSkeleton />
       ) : (
         <div className="flex flex-col">
           {feed.map((item, i) => {
+            if (item.kind === "commitGroup") {
+              return <PrCommitGroupRow key={`cg-${item.at}-${item.commits.length}`} item={item} />;
+            }
             if (item.kind === "comment") {
               return (
                 <PrCommentRow

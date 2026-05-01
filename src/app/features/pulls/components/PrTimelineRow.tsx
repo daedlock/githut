@@ -1,5 +1,6 @@
 import {
   Bookmark,
+  ChevronRight,
   Circle,
   CircleDot,
   EyeOff,
@@ -18,7 +19,13 @@ import {
   UserMinus,
   UserPlus,
 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { detectEntity, EntityHoverLink } from "@/app/components/ui/EntityHoverCard";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
+import type {
+  CommitGroupItem,
+  TimelineEventFeedItem,
+} from "@/app/features/pulls/lib/mergeTimeline";
 import type { TimelineEvent } from "@/app/features/pulls/schemas";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
@@ -66,17 +73,29 @@ function Commit({ sha }: { sha: string | null | undefined }) {
 function IssueRef({ event }: { event: TimelineEvent }) {
   const issue = event.source?.issue;
   if (!issue) return <span className="font-medium text-foreground">an issue</span>;
-  return (
-    <a
-      href={issue.html_url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="font-medium text-foreground underline-offset-2 hover:underline"
-    >
-      #{issue.number}
+  const label = `#${issue.number}`;
+  const entity = detectEntity(issue.html_url, label);
+  const content = (
+    <>
+      {label}
       {issue.title ? (
         <span className="font-normal text-muted-foreground"> {issue.title}</span>
       ) : null}
+    </>
+  );
+  const className = "font-medium text-foreground underline-offset-2 hover:underline";
+
+  if (entity) {
+    return (
+      <EntityHoverLink entity={entity} href={issue.html_url} className={className}>
+        {content}
+      </EntityHoverLink>
+    );
+  }
+
+  return (
+    <a href={issue.html_url} target="_blank" rel="noopener noreferrer" className={className}>
+      {content}
     </a>
   );
 }
@@ -97,18 +116,26 @@ function projectDetail(event: TimelineEvent): React.ReactNode {
   return "a project";
 }
 
-function resolve(event: TimelineEvent): {
-  icon: LucideIcon;
-  tone: IconTone;
-  label: React.ReactNode;
-} | null {
-  const actor = event.actor ? (
+function ActorName({ event }: { event: TimelineEvent }) {
+  return event.actor ? (
     <ProfileLink login={event.actor.login} className="font-medium text-foreground">
       {event.actor.login}
     </ProfileLink>
   ) : (
     <span className="font-medium text-foreground">ghost</span>
   );
+}
+
+function commitMessage(event: TimelineEvent): string | null {
+  return firstLine(event.message) ?? firstLine(event.body);
+}
+
+function resolve(event: TimelineEvent): {
+  icon: LucideIcon;
+  tone: IconTone;
+  label: React.ReactNode;
+} | null {
+  const actor = <ActorName event={event} />;
 
   switch (event.event) {
     case "labeled":
@@ -207,7 +234,7 @@ function resolve(event: TimelineEvent): {
       };
     case "committed": {
       const sha = event.sha ?? event.commit_id;
-      const message = firstLine(event.message);
+      const message = commitMessage(event);
       return {
         icon: GitCommit,
         tone: "muted",
@@ -476,6 +503,86 @@ function resolve(event: TimelineEvent): {
         ),
       };
   }
+}
+
+function commitActors(commits: TimelineEventFeedItem[]): string {
+  const actors = [...new Set(commits.map((commit) => commit.actor?.login ?? "ghost"))];
+  if (actors.length === 1) return actors[0]!;
+  if (actors.length === 2) return `${actors[0]} and ${actors[1]}`;
+  return `${actors[0]} and ${actors.length - 1} others`;
+}
+
+function CommitRow({ event }: { event: TimelineEventFeedItem }) {
+  const message = commitMessage(event);
+  return (
+    <div className="flex min-w-0 items-baseline gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-muted">
+      <span className="shrink-0 text-caption text-muted-foreground">
+        <ActorName event={event} /> committed
+      </span>
+      <Commit sha={event.sha ?? event.commit_id} />
+      {message ? (
+        <span className="min-w-0 truncate text-caption text-muted-foreground">{message}</span>
+      ) : null}
+      <span className="ml-auto shrink-0 text-micro text-[var(--color-fg-faint)]">
+        {formatRelativeTime(event.at)}
+      </span>
+    </div>
+  );
+}
+
+export function PrCommitGroupRow({ item }: { item: CommitGroupItem }) {
+  const [expanded, setExpanded] = useState(false);
+  const commits = item.commits;
+  const visible = expanded ? commits : commits.slice(0, 3);
+  const hiddenCount = Math.max(0, commits.length - visible.length);
+  const summary = useMemo(() => commitActors(commits), [commits]);
+
+  return (
+    <div className="relative">
+      <div className="absolute left-3 top-4 z-10 flex size-6 -translate-x-1/2 items-center justify-center rounded-full bg-muted ring-2 ring-background">
+        <GitCommit className={cn("size-3", TONE.muted)} aria-hidden />
+      </div>
+      <div className="min-w-0 flex-1 pt-4 pl-10">
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-caption outline-none transition-colors",
+            "text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15",
+          )}
+          aria-expanded={expanded}
+        >
+          <ChevronRight
+            className={cn("size-3.5 shrink-0 transition-transform", expanded && "rotate-90")}
+          />
+          <span className="min-w-0 flex-1 truncate">
+            <span className="font-medium text-foreground">{summary}</span> committed{" "}
+            <span className="tabular-nums text-foreground">{commits.length}</span>{" "}
+            {commits.length === 1 ? "commit" : "commits"}
+          </span>
+          <span className="shrink-0 text-micro text-[var(--color-fg-faint)]">
+            {formatRelativeTime(commits[0]?.at ?? item.at)}
+          </span>
+        </button>
+
+        <div className="mt-1 flex flex-col gap-0.5">
+          {visible.map((commit) => (
+            <CommitRow key={commit.sha ?? commit.commit_id ?? commit.at} event={commit} />
+          ))}
+        </div>
+
+        {!expanded && hiddenCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            className="mt-1 rounded-md px-2 py-1 text-caption text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            Show {hiddenCount} more {hiddenCount === 1 ? "commit" : "commits"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function PrTimelineRow({ event }: { event: TimelineEvent }) {
