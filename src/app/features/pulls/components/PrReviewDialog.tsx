@@ -1,19 +1,7 @@
-import { Check, CircleAlert, Loader2, MessageSquare } from "lucide-react";
-import { useState } from "react";
-import { Badge } from "@/app/components/ui/badge";
+import { Check, CircleAlert, MessageSquare } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/app/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/app/components/ui/popover";
-import { Separator } from "@/app/components/ui/separator";
-import { Textarea } from "@/app/components/ui/textarea";
-import { ToggleGroup, ToggleGroupItem } from "@/app/components/ui/toggle-group";
-import { type ReviewEvent, useSubmitPrReview } from "@/app/features/pulls/hooks";
+import { useSubmitPrReview, type ReviewEvent } from "@/app/features/pulls/hooks";
 import type { PendingComment } from "@/app/features/pulls/stores/review";
 import { cn } from "@/app/lib/cn";
 
@@ -27,21 +15,21 @@ const VERDICTS: Array<{
   {
     id: "COMMENT",
     label: "Comment",
-    hint: "Leave feedback without approving.",
+    hint: "General feedback without approval",
     icon: MessageSquare,
     color: "--color-fg-muted",
   },
   {
     id: "APPROVE",
     label: "Approve",
-    hint: "Approve merging these changes.",
+    hint: "Approve merging these changes",
     icon: Check,
     color: "--color-success",
   },
   {
     id: "REQUEST_CHANGES",
     label: "Request changes",
-    hint: "Block merge until this is addressed.",
+    hint: "Changes must be addressed first",
     icon: CircleAlert,
     color: "--color-danger",
   },
@@ -69,12 +57,32 @@ export function PrReviewPopover({
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const submit = useSubmitPrReview(owner, repo, number);
+  const panelRef = useRef<HTMLDivElement>(null);
+
   const verdict = VERDICTS.find((v) => v.id === event)!;
+
+  useEffect(() => {
+    if (!open) return;
+    function onClick(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   function handleSubmit() {
     setError(null);
     if (event === "REQUEST_CHANGES" && !body.trim()) {
-      setError("Add a summary before requesting changes.");
+      setError("A comment is required when requesting changes.");
       return;
     }
     const comments = pendingComments.map((c) => ({
@@ -100,101 +108,80 @@ export function PrReviewPopover({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button size="xs">
-          <MessageSquare data-icon="inline-start" />
-          Submit review
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-[400px] gap-0 overflow-hidden p-0">
-        <PopoverHeader className="bg-muted px-3 py-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <PopoverTitle className="text-ui text-foreground">Submit review</PopoverTitle>
-              <PopoverDescription className="mt-0.5 text-caption">
-                Send a verdict with your pending line comments.
-              </PopoverDescription>
-            </div>
+    <div className="relative" ref={panelRef}>
+      <Button size="xs" onClick={() => setOpen(v => !v)}>
+        Submit review
+      </Button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-1.5 flex w-[360px] flex-col gap-3 rounded-lg bg-popover p-3 ring-1 ring-foreground/5 shadow-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-ui font-semibold text-foreground">Submit review</span>
             {pendingComments.length > 0 && (
-              <Badge variant="secondary" className="tabular-nums">
+              <span className="rounded-full bg-muted px-2 py-0.5 text-micro font-medium text-muted-foreground tabular-nums">
                 {pendingComments.length} pending
-              </Badge>
+              </span>
             )}
           </div>
-        </PopoverHeader>
 
-        <div className="flex flex-col gap-3 p-3">
-          <Textarea
+          <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            rows={4}
+            rows={3}
             placeholder="Leave a summary…"
             autoFocus
-            aria-invalid={!!error}
-            className="min-h-24 resize-none text-ui"
+            className="w-full resize-none rounded-lg border border-input bg-transparent px-2.5 py-2 text-ui text-foreground placeholder:text-muted-foreground/50 transition-colors focus:border-[var(--color-fg-muted)]/20 focus:bg-[var(--color-fg-muted)]/5 focus:outline-none"
           />
 
-          <ToggleGroup
-            type="single"
-            value={event}
-            onValueChange={(value) => {
-              if (value) setEvent(value as ReviewEvent);
-            }}
-            orientation="vertical"
-            className="w-full items-stretch gap-1"
-          >
+          <fieldset className="flex flex-col gap-1">
             {VERDICTS.map((v) => {
               const selected = event === v.id;
               const disabled = v.id === "APPROVE" && isAuthor;
               const Icon = v.icon;
               return (
-                <ToggleGroupItem
+                <label
                   key={v.id}
-                  value={v.id}
-                  disabled={disabled}
                   className={cn(
-                    "h-auto w-full justify-start gap-2.5 rounded-lg border px-3 py-2 text-left",
-                    "border-transparent bg-transparent hover:bg-muted data-[state=on]:bg-muted",
-                    disabled && "opacity-45",
-                  )}
-                  style={
+                    "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5 transition-all",
                     selected
-                      ? {
-                          borderColor: `color-mix(in oklab, var(${v.color}) 40%, var(--color-border))`,
-                          backgroundColor: `color-mix(in oklab, var(${v.color}) 8%, var(--color-bg-subtle))`,
-                        }
-                      : undefined
-                  }
+                      ? "border"
+                      : "border border-transparent hover:bg-muted",
+                    disabled && "pointer-events-none opacity-40",
+                  )}
+                  style={selected ? {
+                    borderColor: `color-mix(in oklab, var(${v.color}) 40%, var(--color-border))`,
+                    backgroundColor: `color-mix(in oklab, var(${v.color}) 8%, var(--color-bg-subtle))`,
+                  } : undefined}
                 >
-                  <span
-                    className="flex size-6 shrink-0 items-center justify-center rounded-full bg-background"
-                    style={selected ? { color: `var(${v.color})` } : undefined}
-                  >
-                    <Icon className="size-3.5" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-caption font-medium text-foreground">
-                      {v.label}
+                  <input
+                    type="radio"
+                    name="review-event"
+                    value={v.id}
+                    checked={selected}
+                    disabled={disabled}
+                    onChange={() => setEvent(v.id)}
+                    className="sr-only"
+                  />
+                  <Icon
+                    className="size-3.5 shrink-0 transition-colors"
+                    style={{ color: selected ? `var(${v.color})` : undefined }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-caption font-medium text-foreground">{v.label}</span>
+                    <span className="ml-1.5 text-caption text-muted-foreground">
+                      {disabled ? "Can't approve own PR" : v.hint}
                     </span>
-                    <span className="block text-caption font-normal text-muted-foreground">
-                      {disabled ? "You can’t approve your own pull request." : v.hint}
-                    </span>
-                  </span>
-                </ToggleGroupItem>
+                  </div>
+                </label>
               );
             })}
-          </ToggleGroup>
+          </fieldset>
 
-          {error && <p className="text-caption text-destructive">{error}</p>}
-        </div>
+          {error && (
+            <p className="text-caption text-[var(--color-danger)]">{error}</p>
+          )}
 
-        <Separator />
-        <div className="flex items-center justify-between gap-3 bg-muted/50 px-3 py-2.5">
-          <span className="text-caption text-muted-foreground">
-            {event === "REQUEST_CHANGES" ? "Summary required" : "Summary optional"}
-          </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
             <Button
               variant="ghost"
               size="xs"
@@ -207,19 +194,18 @@ export function PrReviewPopover({
               size="xs"
               onClick={handleSubmit}
               disabled={submit.isPending}
-              className="min-w-28"
+              className="min-w-[6rem]"
               style={{
                 backgroundColor: `color-mix(in oklab, var(${verdict.color}) 30%, var(--color-bg-subtle))`,
                 borderColor: `color-mix(in oklab, var(${verdict.color}) 40%, var(--color-border))`,
-                color: "var(--color-fg)",
+                color: `var(--color-fg)`,
               }}
             >
-              {submit.isPending && <Loader2 data-icon="inline-start" className="animate-spin" />}
-              {submit.isPending ? "Submitting" : "Submit review"}
+              {submit.isPending ? "Submitting…" : "Submit review"}
             </Button>
           </div>
         </div>
-      </PopoverContent>
-    </Popover>
+      )}
+    </div>
   );
 }
