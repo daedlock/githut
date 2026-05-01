@@ -1,10 +1,14 @@
 import { useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
-import type { CommitFile, CommitDetail } from "@/app/hooks/useRepoCommit";
+import type { CommitDetail, CommitFile } from "@/app/hooks/useRepoCommit";
 import { useRepoCommit } from "@/app/hooks/useRepoCommit";
 import type { CommitSummary } from "@/app/hooks/useRepoCommits";
 import { useRepoFileHistory } from "@/app/hooks/useRepoFileHistory";
-import { fileHistoryClearSearch, type FileHistorySearch } from "@/app/lib/fileHistorySearch";
+import {
+  type FileHistorySearch,
+  fileHistoryClearSearch,
+  isCommitShaRef,
+} from "@/app/lib/fileHistorySearch";
 
 const PREFETCH_THRESHOLD = 5;
 
@@ -66,17 +70,9 @@ export function useFileHistorySession(): FileHistorySession {
   const railOpen = search.fhRail === "1";
   const open = !!path && !!owner && !!repo && !!branch;
 
-  const historyQuery = useRepoFileHistory(
-    owner ?? "",
-    repo ?? "",
-    path ?? "",
-    branch,
-  );
+  const historyQuery = useRepoFileHistory(owner ?? "", repo ?? "", path ?? "", branch);
 
-  const allCommits = useMemo(
-    () => historyQuery.data?.pages.flat() ?? [],
-    [historyQuery.data],
-  );
+  const allCommits = useMemo(() => historyQuery.data?.pages.flat() ?? [], [historyQuery.data]);
 
   // Drop merges from the linear journey. Rail keeps them with a badge.
   const linearCommits = useMemo(
@@ -84,14 +80,17 @@ export function useFileHistorySession(): FileHistorySession {
     [allCommits],
   );
 
-  // Use the entry-point ref (could be a branch name OR a SHA) to pin the
-  // first commit-detail fetch. Once that resolves, we know the real SHA,
-  // which is what the linear cursor index keys on. This keeps the URL
-  // round-trippable when users land via a branch name (e.g. "main") and
-  // also when they paste a shareable URL with a real SHA.
-  const initialRef = activeSha ?? linearCommits[0]?.sha;
+  // The opener may hand us either a concrete commit SHA (commit pages) or a
+  // branch/ref name (PR/code pages). A branch tip often did *not* touch this
+  // file, so don't fetch/show that commit as the first history step. Instead,
+  // wait for the path history and land on its newest commit.
+  const activeShaInLoadedHistory = !!activeSha && allCommits.some((c) => c.sha === activeSha);
+  const canTryActiveSha =
+    activeShaInLoadedHistory || (isCommitShaRef(activeSha) && allCommits.length === 0);
+  const initialRef = canTryActiveSha ? activeSha : linearCommits[0]?.sha;
   const commitQuery = useRepoCommit(owner ?? "", repo ?? "", initialRef);
-  const resolvedSha = commitQuery.data?.sha ?? activeSha;
+  const resolvedSha =
+    commitQuery.data?.sha ?? (canTryActiveSha ? activeSha : linearCommits[0]?.sha);
 
   // Cursor index reflects the *URL-active* sha first, so prev/next clicks
   // update the position counter + timeline dot immediately. We only fall
@@ -116,17 +115,15 @@ export function useFileHistorySession(): FileHistorySession {
   // a real sha in our list, falling back to the resolved sha only for
   // initial loads via a branch name.
   const currentSha = useMemo(() => {
-    if (activeSha && linearCommits.some((c) => c.sha === activeSha)) {
+    if (activeSha && allCommits.some((c) => c.sha === activeSha)) {
       return activeSha;
     }
     return resolvedSha;
-  }, [activeSha, resolvedSha, linearCommits]);
+  }, [activeSha, resolvedSha, allCommits]);
 
   const currentFile = useMemo(() => {
     if (!commitQuery.data || !path) return undefined;
-    return commitQuery.data.files.find(
-      (f) => f.filename === path || f.previous_filename === path,
-    );
+    return commitQuery.data.files.find((f) => f.filename === path || f.previous_filename === path);
   }, [commitQuery.data, path]);
 
   // Auto-prefetch the next history page when the cursor is approaching
@@ -191,17 +188,14 @@ export function useFileHistorySession(): FileHistorySession {
   );
 
   const toggleRail = useCallback(
-    () =>
-      setSearchPartial(
-        { fhRail: railOpen ? undefined : "1" },
-        { replace: true },
-      ),
+    () => setSearchPartial({ fhRail: railOpen ? undefined : "1" }, { replace: true }),
     [railOpen, setSearchPartial],
   );
 
   const total = linearCommits.length;
   const positionLabel = useMemo(() => {
-    if (cursorIndex < 0) return total === 0 ? "—" : `? / ${total}${historyQuery.hasNextPage ? "+" : ""}`;
+    if (cursorIndex < 0)
+      return total === 0 ? "—" : `? / ${total}${historyQuery.hasNextPage ? "+" : ""}`;
     return `${cursorIndex + 1} / ${total}${historyQuery.hasNextPage ? "+" : ""}`;
   }, [cursorIndex, total, historyQuery.hasNextPage]);
 

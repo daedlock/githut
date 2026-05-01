@@ -14,17 +14,20 @@ export const fileHistorySearchSchema = z.object({
 
 export type FileHistorySearch = z.infer<typeof fileHistorySearchSchema>;
 
+export const isCommitShaRef = (ref: string | undefined): ref is string =>
+  !!ref && /^[0-9a-f]{7,40}$/i.test(ref);
+
 export type FileHistoryOpenArgs = {
   path: string;
-  sha: string;
+  sha?: string;
   branch: string;
 };
 
 export const fileHistoryOpenSearch = (
   args: FileHistoryOpenArgs,
-): Required<Pick<FileHistorySearch, "fhPath" | "fhSha" | "fhBranch">> => ({
+): Pick<FileHistorySearch, "fhPath" | "fhSha" | "fhBranch"> => ({
   fhPath: args.path,
-  fhSha: args.sha,
+  fhSha: isCommitShaRef(args.sha) ? args.sha : undefined,
   fhBranch: args.branch,
 });
 

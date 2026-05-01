@@ -1,7 +1,7 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { History } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import type { FileHistorySearch } from "@/app/lib/fileHistorySearch";
+import { type FileHistorySearch, isCommitShaRef } from "@/app/lib/fileHistorySearch";
 
 /**
  * Tiny ghost icon button that opens the file-history sheet for a given
@@ -28,7 +28,11 @@ export function FileHistoryTrigger({
   const next: FileHistorySearch & Record<string, unknown> = {
     ...(search as Record<string, unknown>),
     fhPath: path,
-    fhSha: sha,
+    // Only pin an initial commit when this is actually a commit-ish ref.
+    // PR/code pages often pass a branch name here; fetching that branch tip
+    // shows "no changes" when the tip commit did not touch this file. With no
+    // fhSha, the sheet lands on the newest commit from the path history list.
+    fhSha: isCommitShaRef(sha) ? sha : undefined,
     fhBranch: branch,
   };
 

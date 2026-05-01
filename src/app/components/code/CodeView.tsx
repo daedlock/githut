@@ -103,9 +103,9 @@ export function CodeView({
               id={!isDiff ? `L${lineNum}` : undefined}
               style={{ position: "absolute", top: item.start, left: 0, right: 0, height: LINE_H }}
               className={cn(
-                "flex items-center select-text",
-                kind === "added" && "bg-[var(--color-success)]/10",
-                kind === "removed" && "bg-[var(--color-danger)]/10",
+                "flex items-center border-l-[3px] border-l-transparent select-text",
+                kind === "added" && "border-l-[var(--diff-add-marker)] bg-[var(--diff-add-bg)]",
+                kind === "removed" && "border-l-[var(--diff-del-marker)] bg-[var(--diff-del-bg)]",
                 isActiveLine &&
                   "bg-[color-mix(in_oklab,var(--color-brand)_16%,var(--color-code-bg))]",
               )}
@@ -124,6 +124,8 @@ export function CodeView({
                 <span
                   className={cn(
                     "w-12 flex-shrink-0 select-none text-right pr-5 text-[var(--color-fg-faint)] opacity-50",
+                    kind === "added" && "bg-[var(--diff-add-gutter)] text-[var(--color-fg-muted)] opacity-100",
+                    kind === "removed" && "bg-[var(--diff-del-gutter)] text-[var(--color-fg-muted)] opacity-100",
                     isActiveLine && "text-foreground opacity-100",
                   )}
                 >

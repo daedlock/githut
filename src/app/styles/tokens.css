@@ -156,7 +156,10 @@
   --diff-del-marker: var(--color-danger);
   --diff-comment-border: oklch(var(--sem-l) 0.10 225);
   --diff-comment-bg: color-mix(in oklab, oklch(var(--sem-l) 0.10 225) 5%, var(--color-bg));
-  --diff-hunk-bg: var(--color-bg-subtle);
+  /* Hunk separator sits flush on the code surface — same bg as code, with
+     a hairline above to mark the boundary. Matches GitHub-Desktop style:
+     compact metadata row, no centered chip, no contrasting gap. */
+  --diff-hunk-bg: var(--color-code-bg);
   --diff-hunk-fg: var(--color-fg-muted);
   --diff-hunk-border: var(--color-border);
   --diff-expand-hover: color-mix(in oklab, var(--color-brand) 10%, var(--color-bg-subtle));

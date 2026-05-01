@@ -184,7 +184,16 @@ export const FileDiff = memo(function FileDiff({
               Binary file — preview unavailable
             </div>
           ) : hasPatch ? (
-            <DiffView patch={patch} lang={lang} mode={mode} review={review} />
+            <DiffView
+              patch={patch}
+              lang={lang}
+              mode={mode}
+              review={review}
+              owner={owner}
+              repo={repo}
+              path={filename}
+              headRef={headRef}
+            />
           ) : (
             <div className="px-4 py-6 text-center text-sm text-muted-foreground">
               No changes

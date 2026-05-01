@@ -1,18 +1,27 @@
-import { createContext, Fragment, memo, useContext, useMemo, type ReactNode } from "react";
-import { cn } from "@/app/lib/cn";
+import { UnfoldVertical } from "lucide-react";
+import { createContext, Fragment, memo, type ReactNode, useContext, useMemo, useState } from "react";
+import { Button } from "@/app/components/ui/button";
 import { Skeleton } from "@/app/components/ui/skeleton";
+import { useRepoFile } from "@/app/hooks/useRepoFile";
+import { cn } from "@/app/lib/cn";
 import { countChanges, type DiffHunk, type DiffLine, parseUnifiedDiff } from "./parseDiff";
-import { FS_BOLD, FS_ITALIC, FS_STRIKETHROUGH, FS_UNDERLINE } from "./types";
 import type { CodeLine, CodeLineWithHtml, CodeToken } from "./types";
+import { FS_BOLD, FS_ITALIC, FS_STRIKETHROUGH, FS_UNDERLINE } from "./types";
 import { useCodeTokens } from "./useCodeTokens";
-import { computeLinePairs, wordDiff, type WordSegment } from "./wordDiff";
+import { computeLinePairs, type WordSegment, wordDiff } from "./wordDiff";
+
+// Per click: pull this many more context lines above the hunk and the same
+// many below. Total 2 × EXPAND_STEP added per click.
+const EXPAND_STEP = 10;
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 export type DiffMode = "unified" | "split";
 
 export const DiffModeContext = createContext<DiffMode>("split");
-export function useDiffMode() { return useContext(DiffModeContext); }
+export function useDiffMode() {
+  return useContext(DiffModeContext);
+}
 
 export type DiffReviewHooks = {
   onAddComment?: (args: { side: "LEFT" | "RIGHT"; line: number }) => void;
@@ -31,6 +40,14 @@ export type DiffViewProps = {
   className?: string;
   /** Opt-in review mode hooks. */
   review?: DiffReviewHooks;
+  /** Expansion context — when all four are present, hunk headers expose
+   *  ↑/↓ buttons that load extra context lines from the file at `headRef`.
+   *  The fetched content is the *new* version, since context lines are
+   *  identical in both old and new for a given line range. */
+  owner?: string;
+  repo?: string;
+  path?: string;
+  headRef?: string;
 };
 
 export const DiffView = memo(function DiffView({
@@ -39,6 +56,10 @@ export const DiffView = memo(function DiffView({
   mode = "unified",
   className,
   review,
+  owner,
+  repo,
+  path,
+  headRef,
 }: DiffViewProps) {
   const hunks = useMemo(() => parseUnifiedDiff(patch), [patch]);
 
@@ -54,6 +75,25 @@ export const DiffView = memo(function DiffView({
   const { data: oldTokens, isPending: oldPending } = useCodeTokens(oldSource, lang);
   const { data: newTokens, isPending: newPending } = useCodeTokens(newSource, lang);
 
+  // Per-hunk expansion state: how many extra context lines to show above /
+  // below each hunk. Keyed by hunk index. Loaded from the *new* file via
+  // useRepoFile when any expansion is non-zero.
+  const [expansion, setExpansion] = useState<Record<number, { above: number; below: number }>>({});
+  const expansionEnabled = !!owner && !!repo && !!path && !!headRef;
+  const hasExpansion = useMemo(
+    () => Object.values(expansion).some((e) => e.above > 0 || e.below > 0),
+    [expansion],
+  );
+
+  const fileQuery = useRepoFile(owner ?? "", repo ?? "", path ?? "", headRef, {
+    enabled: expansionEnabled && hasExpansion,
+  });
+  const fileLines = useMemo(
+    () => (fileQuery.data ? fileQuery.data.content.split("\n") : null),
+    [fileQuery.data],
+  );
+  const { data: fileTokens } = useCodeTokens(fileQuery.data?.content ?? "", lang);
+
   if (!patch) return null;
   if (hunks.length === 0) {
     return (
@@ -67,54 +107,175 @@ export const DiffView = memo(function DiffView({
     return <DiffSkeleton />;
   }
 
-  const singleHunk = hunks.length === 1;
+  // One-click expand: pulls EXPAND_STEP more lines above AND below this
+  // hunk in a single action. Boundaries are clamped at render time when
+  // we slice from the file lines, so requesting past the start or end
+  // is harmless — the slice just returns fewer rows.
+  function onExpand(hIdx: number) {
+    setExpansion((prev) => {
+      const cur = prev[hIdx] ?? { above: 0, below: 0 };
+      return {
+        ...prev,
+        [hIdx]: {
+          above: cur.above + EXPAND_STEP,
+          below: cur.below + EXPAND_STEP,
+        },
+      };
+    });
+  }
+
+  // Compute per-hunk expansion ranges + capability flag.
+  // Expansion is clamped to the *hidden* zone — it never overlaps with the
+  // adjacent hunks' content or extends past the file boundaries. Old-line
+  // numbers derive from the hunk's actual old/new offset (not from the
+  // expansion count), so context-row gutters stay correct.
+  function getExpansionState(hIdx: number) {
+    const hunk = hunks[hIdx]!;
+    const prevHunk = hIdx > 0 ? hunks[hIdx - 1] : undefined;
+    const nextHunk = hIdx < hunks.length - 1 ? hunks[hIdx + 1] : undefined;
+    const cur = expansion[hIdx] ?? { above: 0, below: 0 };
+    const fileLineCount = fileLines?.length ?? Number.POSITIVE_INFINITY;
+
+    // The hidden zone above this hunk runs from `minNewLine` (right after the
+    // previous hunk, or line 1) up to `hunk.newStart - 1`. Below runs from
+    // hunk's last line + 1 up to `maxNewLine` (right before the next hunk
+    // begins, or end of file).
+    const minNewLine = prevHunk ? prevHunk.newStart + prevHunk.newLines : 1;
+    const maxNewLine = nextHunk ? nextHunk.newStart - 1 : fileLineCount;
+
+    const newEnd = hunk.newStart + hunk.newLines - 1;
+    const prevBelow = hIdx > 0 ? (expansion[hIdx - 1]?.below ?? 0) : 0;
+    const nextAbove = hIdx < hunks.length - 1 ? (expansion[hIdx + 1]?.above ?? 0) : 0;
+    const aboveMinNewLine = Math.min(hunk.newStart, minNewLine + prevBelow);
+    const belowMaxNewLine = nextHunk
+      ? Math.max(newEnd, Math.min(maxNewLine, nextHunk.newStart - nextAbove - 1))
+      : maxNewLine;
+    const aboveStart = Math.max(aboveMinNewLine, hunk.newStart - cur.above);
+    const aboveEnd = hunk.newStart - 1;
+    const belowStart = newEnd + 1;
+    const belowEnd = Math.min(belowMaxNewLine, newEnd + cur.below);
+
+    // Old/new line offsets (constant within the contiguous context regions
+    // either side of the hunk).
+    const aboveOffset = hunk.newStart - hunk.oldStart;
+    const belowOffset =
+      hunk.newStart + hunk.newLines - (hunk.oldStart + hunk.oldLines);
+
+    const canExpandAbove =
+      expansionEnabled && aboveEnd >= aboveMinNewLine && hunk.newStart - cur.above > aboveMinNewLine;
+    const canExpandBelow =
+      expansionEnabled && belowStart <= belowMaxNewLine && newEnd + cur.below < belowMaxNewLine;
+
+    return {
+      above: cur.above,
+      below: cur.below,
+      aboveLines:
+        cur.above > 0 && fileLines && aboveStart <= aboveEnd
+          ? fileLines.slice(aboveStart - 1, aboveEnd)
+          : [],
+      belowLines:
+        cur.below > 0 && fileLines && belowStart <= belowEnd
+          ? fileLines.slice(belowStart - 1, belowEnd)
+          : [],
+      aboveStartNum: aboveStart,
+      belowStartNum: belowStart,
+      aboveStartOldNum: aboveStart - aboveOffset,
+      belowStartOldNum: belowStart - belowOffset,
+      canExpand: canExpandAbove || canExpandBelow,
+      isLoading: hasExpansion && fileQuery.isPending,
+    };
+  }
+
+  function isJoinedWithPrevious(hIdx: number, states: ExpansionState[]) {
+    if (hIdx === 0) return false;
+    const prevHunk = hunks[hIdx - 1]!;
+    const hunk = hunks[hIdx]!;
+    const oldGap = hunk.oldStart - (prevHunk.oldStart + prevHunk.oldLines);
+    const newGap = hunk.newStart - (prevHunk.newStart + prevHunk.newLines);
+    const gap = Math.max(oldGap, newGap);
+    if (gap <= 0) return true;
+    return (states[hIdx - 1]?.belowLines.length ?? 0) + (states[hIdx]?.aboveLines.length ?? 0) >= gap;
+  }
+
+  const expansionStates = hunks.map((_, hIdx) => getExpansionState(hIdx));
+  const joinedWithPreviousByHunk = hunks.map((_, hIdx) =>
+    isJoinedWithPrevious(hIdx, expansionStates),
+  );
+  const visibleHunkGroupCount = joinedWithPreviousByHunk.reduce(
+    (count, joined) => count + (joined ? 0 : 1),
+    0,
+  );
 
   return (
     <div className={cn("overflow-hidden", className)}>
       <div
-        className={cn("overflow-x-auto bg-[var(--color-code-bg)] text-code font-feature-settings-code @container/diff")}
+        className={cn(
+          "overflow-x-auto bg-[var(--color-code-bg)] text-code font-feature-settings-code @container/diff",
+        )}
         style={{ fontFamily: "var(--font-mono)" }}
       >
         {mode === "split" ? (
           <div className="w-full">
-            {hunks.map((hunk, hIdx) => (
+            {hunks.map((hunk, hIdx) => {
+              const exp = expansionStates[hIdx]!;
+              const showHunkHeader = visibleHunkGroupCount > 1 && !joinedWithPreviousByHunk[hIdx];
+              return (
+                <Fragment key={hIdx}>
+                  {showHunkHeader && (
+                    <HunkHeader
+                      hunk={hunk}
+                      canExpand={exp.canExpand}
+                      isLoadingExpansion={exp.isLoading}
+                      onExpand={
+                        expansionEnabled ? () => onExpand(hIdx) : undefined
+                      }
+                    />
+                  )}
+                  <SplitHunk
+                    hunk={hunk}
+                    oldTokens={oldTokens}
+                    newTokens={newTokens}
+                    oldLineMap={oldLineMap}
+                    newLineMap={newLineMap}
+                    review={review}
+                    expansion={exp}
+                    fileTokens={fileTokens ?? undefined}
+                  />
+                </Fragment>
+              );
+            })}
+          </div>
+        ) : (
+          hunks.map((hunk, hIdx) => {
+            const exp = expansionStates[hIdx]!;
+            const showHunkHeader = visibleHunkGroupCount > 1 && !joinedWithPreviousByHunk[hIdx];
+            return (
               <Fragment key={hIdx}>
-                {!singleHunk && (
-                  <>
-                    {hIdx > 0 && <div className="h-px bg-border" />}
-                    <HunkHeader hunk={hunk} />
-                  </>
+                {showHunkHeader && (
+                  <div className="w-max min-w-full">
+                    <HunkHeader
+                      hunk={hunk}
+                      canExpand={exp.canExpand}
+                      isLoadingExpansion={exp.isLoading}
+                      onExpand={
+                        expansionEnabled ? () => onExpand(hIdx) : undefined
+                      }
+                    />
+                  </div>
                 )}
-                <SplitHunk
+                <UnifiedHunk
                   hunk={hunk}
                   oldTokens={oldTokens}
                   newTokens={newTokens}
                   oldLineMap={oldLineMap}
                   newLineMap={newLineMap}
                   review={review}
+                  expansion={exp}
+                  fileTokens={fileTokens ?? undefined}
                 />
               </Fragment>
-            ))}
-          </div>
-        ) : (
-          hunks.map((hunk, hIdx) => (
-            <Fragment key={hIdx}>
-              {!singleHunk && (
-                <div className="w-max min-w-full">
-                  {hIdx > 0 && <div className="h-px bg-border" />}
-                  <HunkHeader hunk={hunk} />
-                </div>
-              )}
-              <UnifiedHunk
-                hunk={hunk}
-                oldTokens={oldTokens}
-                newTokens={newTokens}
-                oldLineMap={oldLineMap}
-                newLineMap={newLineMap}
-                review={review}
-              />
-            </Fragment>
-          ))
+            );
+          })
         )}
       </div>
     </div>
@@ -123,19 +284,68 @@ export const DiffView = memo(function DiffView({
 
 // ── Exports for composition ─────────────────────────────────────────────────
 
-export { countChanges, parseUnifiedDiff };
 export type { DiffHunk, DiffLine };
+export { countChanges, parseUnifiedDiff };
 
 // ── Hunk header ─────────────────────────────────────────────────────────────
 
-const HunkHeader = memo(function HunkHeader({ hunk }: { hunk: DiffHunk }) {
+type ExpansionState = {
+  above: number;
+  below: number;
+  aboveLines: string[];
+  belowLines: string[];
+  aboveStartNum: number;
+  belowStartNum: number;
+  aboveStartOldNum: number;
+  belowStartOldNum: number;
+  canExpand: boolean;
+  isLoading: boolean;
+};
+
+// "Cut-paper" hunk separator — the row's top and bottom edges are zigzag-cut
+// (pinking-shears style) via a CSS mask, so each hunk segment of code feels
+// like a separate strip of paper above and below. The row sits on a slightly
+// recessed surface (--color-bg-subtle) to suggest "the gap between strips".
+//
+// When `onExpand` is passed, a single button reveals 2×EXPAND_STEP more
+// context lines around this hunk per click — half above, half below.
+const HunkHeader = memo(function HunkHeader({
+  hunk,
+  canExpand = false,
+  isLoadingExpansion = false,
+  onExpand,
+}: {
+  hunk: DiffHunk;
+  canExpand?: boolean;
+  isLoadingExpansion?: boolean;
+  onExpand?: () => void;
+}) {
   return (
-    <div className="flex items-center gap-3 border-y border-[var(--color-border)] bg-[var(--diff-hunk-bg)] px-4 py-1">
-      <span className="font-mono text-code tabular-nums text-[var(--diff-hunk-fg)]">
+    <div
+      role="separator"
+      className="diff-hunk-cut flex items-center gap-3 bg-[var(--color-bg-subtle)] px-6 py-4"
+    >
+      {onExpand && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          disabled={!canExpand || isLoadingExpansion}
+          onClick={onExpand}
+          title={`Show ${EXPAND_STEP * 2} more context lines`}
+          aria-label="Expand context around this hunk"
+          className="shrink-0"
+        >
+          <UnfoldVertical />
+        </Button>
+      )}
+      <span className="shrink-0 font-mono text-caption tabular-nums text-[var(--diff-hunk-fg)]">
         @@ -{hunk.oldStart},{hunk.oldLines} +{hunk.newStart},{hunk.newLines} @@
       </span>
       {hunk.header && (
-        <span className="truncate text-code text-[var(--color-fg-faint)]">{hunk.header}</span>
+        <span className="truncate font-mono text-caption text-[var(--color-fg-faint)]">
+          {hunk.header}
+        </span>
       )}
     </div>
   );
@@ -150,6 +360,8 @@ const UnifiedHunk = memo(function UnifiedHunk({
   oldLineMap,
   newLineMap,
   review,
+  expansion,
+  fileTokens,
 }: {
   hunk: DiffHunk;
   oldTokens: CodeLineWithHtml[];
@@ -157,6 +369,8 @@ const UnifiedHunk = memo(function UnifiedHunk({
   oldLineMap: Map<number, number>;
   newLineMap: Map<number, number>;
   review?: DiffReviewHooks;
+  expansion?: ExpansionState;
+  fileTokens?: CodeLineWithHtml[];
 }) {
   // Subscribe to composer for this file — 1 subscription per hunk, not per line.
   // When the composer targets a line in this hunk, we re-render so hasComment
@@ -231,6 +445,24 @@ const UnifiedHunk = memo(function UnifiedHunk({
 
   return (
     <>
+      {expansion && expansion.aboveLines.length > 0 && (
+        <div className="w-max min-w-full">
+          {expansion.aboveLines.map((text, i) => {
+            const newNum = expansion.aboveStartNum + i;
+            const oldNum = expansion.aboveStartOldNum + i;
+            return (
+              <DiffRow
+                key={`exp-above-${newNum}`}
+                kind="context"
+                oldNum={oldNum}
+                newNum={newNum}
+                tokens={fileTokens?.[newNum - 1] ?? plainTokens(text)}
+                rawText={text}
+              />
+            );
+          })}
+        </div>
+      )}
       {segments.map((seg, i) => (
         <Fragment key={i}>
           <div className="w-max min-w-full">
@@ -253,6 +485,24 @@ const UnifiedHunk = memo(function UnifiedHunk({
           {seg.trailer}
         </Fragment>
       ))}
+      {expansion && expansion.belowLines.length > 0 && (
+        <div className="w-max min-w-full">
+          {expansion.belowLines.map((text, i) => {
+            const newNum = expansion.belowStartNum + i;
+            const oldNum = expansion.belowStartOldNum + i;
+            return (
+              <DiffRow
+                key={`exp-below-${newNum}`}
+                kind="context"
+                oldNum={oldNum}
+                newNum={newNum}
+                tokens={fileTokens?.[newNum - 1] ?? plainTokens(text)}
+                rawText={text}
+              />
+            );
+          })}
+        </div>
+      )}
     </>
   );
 });
@@ -321,6 +571,8 @@ const SplitHunk = memo(function SplitHunk({
   oldLineMap,
   newLineMap,
   review,
+  expansion,
+  fileTokens,
 }: {
   hunk: DiffHunk;
   oldTokens: CodeLineWithHtml[];
@@ -328,6 +580,8 @@ const SplitHunk = memo(function SplitHunk({
   oldLineMap: Map<number, number>;
   newLineMap: Map<number, number>;
   review?: DiffReviewHooks;
+  expansion?: ExpansionState;
+  fileTokens?: CodeLineWithHtml[];
 }) {
   review?.useComposerLine?.();
 
@@ -399,16 +653,34 @@ const SplitHunk = memo(function SplitHunk({
   // Pre-compute per-row data + trailers
   const rowData = rows.map((row) => {
     const leftTokens = row.left ? tokensForOld(row.left.line, oldTokens, oldLineMap) : EMPTY_LINE;
-    const rightTokens = row.right ? tokensForNew(row.right.line, newTokens, newLineMap) : EMPTY_LINE;
-    const leftEmphasis = row.left && row.left.line.kind === "del" && pairs.has(row.left.idx)
-      ? wordDiffs.get(row.left.idx) : undefined;
-    const rightEmphasis = row.right && row.right.line.kind === "add" && inversePairs.has(row.right.idx)
-      ? wordDiffs.get(row.right.idx) : undefined;
-    const leftTrailer = row.left?.line.oldNum != null && review?.renderLineTrailer
-      ? review.renderLineTrailer({ side: "LEFT", line: row.left.line.oldNum }) : null;
-    const rightTrailer = row.right?.line.newNum != null && review?.renderLineTrailer
-      ? review.renderLineTrailer({ side: "RIGHT", line: row.right.line.newNum }) : null;
-    return { ...row, leftTokens, rightTokens, leftEmphasis, rightEmphasis, leftTrailer, rightTrailer };
+    const rightTokens = row.right
+      ? tokensForNew(row.right.line, newTokens, newLineMap)
+      : EMPTY_LINE;
+    const leftEmphasis =
+      row.left && row.left.line.kind === "del" && pairs.has(row.left.idx)
+        ? wordDiffs.get(row.left.idx)
+        : undefined;
+    const rightEmphasis =
+      row.right && row.right.line.kind === "add" && inversePairs.has(row.right.idx)
+        ? wordDiffs.get(row.right.idx)
+        : undefined;
+    const leftTrailer =
+      row.left?.line.oldNum != null && review?.renderLineTrailer
+        ? review.renderLineTrailer({ side: "LEFT", line: row.left.line.oldNum })
+        : null;
+    const rightTrailer =
+      row.right?.line.newNum != null && review?.renderLineTrailer
+        ? review.renderLineTrailer({ side: "RIGHT", line: row.right.line.newNum })
+        : null;
+    return {
+      ...row,
+      leftTokens,
+      rightTokens,
+      leftEmphasis,
+      rightEmphasis,
+      leftTrailer,
+      rightTrailer,
+    };
   });
 
   // Segment: group rows, break after any row with a trailer.
@@ -426,8 +698,55 @@ const SplitHunk = memo(function SplitHunk({
   }
   if (buf.length > 0) segments.push({ rows: buf, leftTrailer: null, rightTrailer: null });
 
+  // Build expansion rows (above + below). Context lines render identically
+  // on both sides — same content, same line numbers offset.
+  const expansionRows = expansion
+    ? {
+        above: expansion.aboveLines.map((text, i) => ({
+          text,
+          oldNum: expansion.aboveStartOldNum + i,
+          newNum: expansion.aboveStartNum + i,
+          tokens: fileTokens?.[expansion.aboveStartNum + i - 1] ?? plainTokens(text),
+        })),
+        below: expansion.belowLines.map((text, i) => ({
+          text,
+          oldNum: expansion.belowStartOldNum + i,
+          newNum: expansion.belowStartNum + i,
+          tokens: fileTokens?.[expansion.belowStartNum + i - 1] ?? plainTokens(text),
+        })),
+      }
+    : { above: [], below: [] };
+
   return (
     <>
+      {expansionRows.above.length > 0 && (
+        <div className="grid grid-cols-2">
+          <div className="min-w-0 overflow-hidden">
+            {expansionRows.above.map((r) => (
+              <SplitRow
+                key={`exp-above-old-${r.newNum}`}
+                side="old"
+                kind="context"
+                num={r.oldNum}
+                tokens={r.tokens}
+                rawText={r.text}
+              />
+            ))}
+          </div>
+          <div className="min-w-0 overflow-hidden border-l border-border">
+            {expansionRows.above.map((r) => (
+              <SplitRow
+                key={`exp-above-new-${r.newNum}`}
+                side="new"
+                kind="context"
+                num={r.newNum}
+                tokens={r.tokens}
+                rawText={r.text}
+              />
+            ))}
+          </div>
+        </div>
+      )}
       {segments.map((seg, sIdx) => (
         <Fragment key={sIdx}>
           <div className="grid grid-cols-2">
@@ -443,7 +762,10 @@ const SplitHunk = memo(function SplitHunk({
                     rawText={r.left.line.content}
                     emphasis={r.leftEmphasis}
                     onAddComment={review?.onAddComment}
-                    hasComment={r.left.line.oldNum != null && (review?.hasComment?.({ side: "LEFT", line: r.left.line.oldNum }) ?? false)}
+                    hasComment={
+                      r.left.line.oldNum != null &&
+                      (review?.hasComment?.({ side: "LEFT", line: r.left.line.oldNum }) ?? false)
+                    }
                   />
                 ) : (
                   <NopArea key={rIdx} />
@@ -462,7 +784,10 @@ const SplitHunk = memo(function SplitHunk({
                     rawText={r.right.line.content}
                     emphasis={r.rightEmphasis}
                     onAddComment={review?.onAddComment}
-                    hasComment={r.right.line.newNum != null && (review?.hasComment?.({ side: "RIGHT", line: r.right.line.newNum }) ?? false)}
+                    hasComment={
+                      r.right.line.newNum != null &&
+                      (review?.hasComment?.({ side: "RIGHT", line: r.right.line.newNum }) ?? false)
+                    }
                   />
                 ) : (
                   <NopArea key={rIdx} />
@@ -472,12 +797,44 @@ const SplitHunk = memo(function SplitHunk({
           </div>
           {(seg.leftTrailer || seg.rightTrailer) && (
             <div className="grid grid-cols-2">
-              <div className="min-w-0">{seg.leftTrailer ?? <div className="diff-split-spacer" />}</div>
-              <div className="min-w-0 border-l border-border">{seg.rightTrailer ?? <div className="diff-split-spacer" />}</div>
+              <div className="min-w-0">
+                {seg.leftTrailer ?? <div className="diff-split-spacer" />}
+              </div>
+              <div className="min-w-0 border-l border-border">
+                {seg.rightTrailer ?? <div className="diff-split-spacer" />}
+              </div>
             </div>
           )}
         </Fragment>
       ))}
+      {expansionRows.below.length > 0 && (
+        <div className="grid grid-cols-2">
+          <div className="min-w-0 overflow-hidden">
+            {expansionRows.below.map((r) => (
+              <SplitRow
+                key={`exp-below-old-${r.newNum}`}
+                side="old"
+                kind="context"
+                num={r.oldNum}
+                tokens={r.tokens}
+                rawText={r.text}
+              />
+            ))}
+          </div>
+          <div className="min-w-0 overflow-hidden border-l border-border">
+            {expansionRows.below.map((r) => (
+              <SplitRow
+                key={`exp-below-new-${r.newNum}`}
+                side="new"
+                kind="context"
+                num={r.newNum}
+                tokens={r.tokens}
+                rawText={r.text}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 });
