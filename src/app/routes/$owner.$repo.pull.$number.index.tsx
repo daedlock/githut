@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
   prCommentsQueryOptions,
+  prCommitsQueryOptions,
   prReviewsQueryOptions,
   prTimelineQueryOptions,
 } from "@/app/features/pulls/hooks";
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/$owner/$repo/pull/$number/")({
     void qc.prefetchQuery(prCommentsQueryOptions(owner, repo, number));
     void qc.prefetchQuery(prReviewsQueryOptions(owner, repo, number));
     void qc.prefetchQuery(prTimelineQueryOptions(owner, repo, number));
+    void qc.prefetchQuery(prCommitsQueryOptions(owner, repo, number));
   },
   component: ConversationPage,
 });
