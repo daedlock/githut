@@ -1,5 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
+import {
+  githubAvatarUrl,
+  isLikelyGitHubLogin,
+  knownGitHubAppActorForInput,
+  knownGitHubAppActorsForQuery,
+} from "@/app/lib/github/appActors";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
 
@@ -70,6 +76,39 @@ const IssuesResponseSchema = z.object({
   }),
 });
 
+function mergeMentionUsers(users: MentionUser[], query: string) {
+  const byLogin = new Map(users.map((user) => [user.login.toLowerCase(), user]));
+
+  for (const actor of knownGitHubAppActorsForQuery(query)) {
+    const key = actor.mentionLogin.toLowerCase();
+    if (!byLogin.has(key)) {
+      byLogin.set(key, {
+        kind: "@",
+        id: actor.mentionLogin,
+        login: actor.mentionLogin,
+        avatar: actor.avatarUrl,
+      });
+    }
+  }
+
+  const q = query.trim();
+  const known = knownGitHubAppActorForInput(q);
+  const fallbackLogin = known?.mentionLogin ?? q;
+  if (fallbackLogin.length >= 2 && isLikelyGitHubLogin(fallbackLogin)) {
+    const key = fallbackLogin.toLowerCase();
+    if (!byLogin.has(key)) {
+      byLogin.set(key, {
+        kind: "@",
+        id: fallbackLogin,
+        login: fallbackLogin,
+        avatar: known?.avatarUrl ?? githubAvatarUrl(fallbackLogin),
+      });
+    }
+  }
+
+  return [...byLogin.values()];
+}
+
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useMentionSearch(
@@ -99,7 +138,7 @@ export function useMentionSearch(
         });
         const parsed = UsersResponseSchema.parse(res);
         const nodes = parsed.repository?.mentionableUsers.nodes ?? [];
-        return nodes.map(
+        const users = nodes.map(
           (n): MentionUser => ({
             kind: "@",
             id: n.login,
@@ -107,12 +146,11 @@ export function useMentionSearch(
             avatar: n.avatarUrl,
           }),
         );
+        return mergeMentionUsers(users, query);
       }
 
       // Strictly repo-scoped — never falls through to GitHub-wide search.
-      const q = query.trim()
-        ? `repo:${owner}/${repo} ${query.trim()}`
-        : `repo:${owner}/${repo}`;
+      const q = query.trim() ? `repo:${owner}/${repo} ${query.trim()}` : `repo:${owner}/${repo}`;
       const res = await client.graphql<unknown>(ISSUES_QUERY, { q });
       const parsed = IssuesResponseSchema.parse(res);
 

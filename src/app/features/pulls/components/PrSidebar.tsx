@@ -1,12 +1,17 @@
-import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Milestone, Tag, User, UserCheck } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Card } from "@/app/components/ui/card";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
-import { SidebarPicker, type PickerItem } from "@/app/features/pulls/components/SidebarPicker";
+import { type PickerItem, SidebarPicker } from "@/app/features/pulls/components/SidebarPicker";
 import {
+  knownReviewerItemsForQuery,
+  reviewerAvatarForLogin,
+  reviewerDisplayLogin,
+  reviewerLoginForInput,
+  useGitHubUserSearch,
   useRepoCollaborators,
   useRepoLabels,
   useSetPrAssignees,
@@ -35,22 +40,60 @@ export function PrSidebar({
 }) {
   const labelsQuery = useRepoLabels(owner, repo);
   const collabQuery = useRepoCollaborators(owner, repo);
+  const [reviewerQuery, setReviewerQuery] = useState("");
+  const reviewerSearchQuery = useGitHubUserSearch(reviewerQuery);
 
-  const setReviewers = useSetPrReviewers(owner, repo, pr.number);
+  const setReviewers = useSetPrReviewers(owner, repo, pr.number, pr.node_id);
   const setAssignees = useSetPrAssignees(owner, repo, pr.number);
   const setLabels = useSetPrLabels(owner, repo, pr.number);
 
-  const reviewerItems: PickerItem[] = useMemo(
-    () =>
-      (collabQuery.data ?? [])
-        .filter((c) => c.login !== pr.user?.login)
-        .map((c) => ({ id: c.login, label: c.login, avatarUrl: c.avatar_url })),
-    [collabQuery.data, pr.user?.login],
-  );
-  const selectedReviewers = useMemo(
-    () => new Set(pr.requested_reviewers.map((r) => r.login)),
-    [pr.requested_reviewers],
-  );
+  const reviewerItems: PickerItem[] = useMemo(() => {
+    const items = new Map<string, PickerItem>();
+    const addItem = (item: PickerItem) => {
+      if (item.id === pr.user?.login || items.has(item.id)) return;
+      items.set(item.id, item);
+    };
+
+    for (const actor of knownReviewerItemsForQuery(reviewerQuery)) {
+      addItem(actor);
+    }
+    for (const reviewer of pr.requested_reviewers) {
+      const login = reviewerDisplayLogin(reviewer.login);
+      addItem({ id: login, label: login, avatarUrl: reviewerAvatarForLogin(reviewer.login) });
+    }
+    for (const collaborator of collabQuery.data ?? []) {
+      addItem({
+        id: collaborator.login,
+        label: collaborator.login,
+        avatarUrl: collaborator.avatar_url,
+      });
+    }
+    for (const user of reviewerSearchQuery.data ?? []) {
+      if (user.type === "Organization") continue;
+      addItem({ id: user.login, label: user.login, avatarUrl: user.avatar_url });
+    }
+
+    const custom = reviewerLoginForInput(reviewerQuery);
+    if (custom) {
+      addItem({ id: custom, label: custom, avatarUrl: reviewerAvatarForLogin(custom) });
+    }
+
+    return [...items.values()];
+  }, [
+    collabQuery.data,
+    pr.requested_reviewers,
+    pr.user?.login,
+    reviewerQuery,
+    reviewerSearchQuery.data,
+  ]);
+  const selectedReviewers = useMemo(() => {
+    const selected = new Set<string>();
+    for (const reviewer of pr.requested_reviewers) {
+      selected.add(reviewer.login);
+      selected.add(reviewerDisplayLogin(reviewer.login));
+    }
+    return selected;
+  }, [pr.requested_reviewers]);
   const onToggleReviewer = (login: string, next: boolean) => {
     if (next) setReviewers.mutate({ add: [login], remove: [] });
     else setReviewers.mutate({ add: [], remove: [login] });
@@ -84,10 +127,7 @@ export function PrSidebar({
       })),
     [labelsQuery.data],
   );
-  const selectedLabels = useMemo(
-    () => new Set(pr.labels.map((l) => l.name)),
-    [pr.labels],
-  );
+  const selectedLabels = useMemo(() => new Set(pr.labels.map((l) => l.name)), [pr.labels]);
   const onToggleLabel = (name: string, next: boolean) => {
     const current = pr.labels.map((l) => l.name);
     const nextNames = next ? [...current, name] : current.filter((n) => n !== name);
@@ -107,8 +147,9 @@ export function PrSidebar({
               items={reviewerItems}
               selectedIds={selectedReviewers}
               onToggle={onToggleReviewer}
-              loading={collabQuery.isPending}
-              emptyText="No collaborators"
+              loading={collabQuery.isPending && reviewerItems.length === 0}
+              emptyText="No matching reviewers"
+              onQueryChange={setReviewerQuery}
             />
           }
         />
@@ -191,7 +232,12 @@ export function PrSidebar({
                     transition={ITEM_SPRING}
                   >
                     <LabelPill
-                      label={{ id: l.id, name: l.name, color: l.color, description: l.description ?? null }}
+                      label={{
+                        id: l.id,
+                        name: l.name,
+                        color: l.color,
+                        description: l.description ?? null,
+                      }}
                       size="sm"
                     />
                   </motion.div>
@@ -335,8 +381,6 @@ function ReviewStateBadge({ state }: { state: Review["state"] }) {
   };
   const c = config[state];
   return (
-    <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium", c.bg, c.fg)}>
-      {c.label}
-    </span>
+    <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium", c.bg, c.fg)}>{c.label}</span>
   );
 }

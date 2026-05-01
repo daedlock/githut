@@ -1,5 +1,5 @@
 import { Check, Settings2 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import {
   Command,
   CommandEmpty,
@@ -7,12 +7,10 @@ import {
   CommandItem,
   CommandList,
 } from "@/app/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/app/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
 import { cn } from "@/app/lib/cn";
+
+const SKELETON_WIDTHS = ["50%", "67%", "84%", "66%"] as const;
 
 export type PickerItem = {
   id: string;
@@ -33,6 +31,7 @@ export type SidebarPickerProps = {
   loading?: boolean;
   trigger?: ReactNode;
   ariaLabel: string;
+  onQueryChange?: (query: string) => void;
 };
 
 export function SidebarPicker({
@@ -46,22 +45,32 @@ export function SidebarPicker({
   loading,
   trigger,
   ariaLabel,
+  onQueryChange,
 }: SidebarPickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+
+  function updateQuery(next: string) {
+    setQuery(next);
+    onQueryChange?.(next);
+  }
+
+  function updateOpen(next: boolean) {
+    setOpen(next);
+    if (!next) updateQuery("");
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
     return items.filter(
       (i) =>
-        i.label.toLowerCase().includes(q) ||
-        (i.description?.toLowerCase().includes(q) ?? false),
+        i.label.toLowerCase().includes(q) || (i.description?.toLowerCase().includes(q) ?? false),
     );
   }, [items, query]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={updateOpen}>
       <PopoverTrigger asChild>
         {trigger ?? (
           <button
@@ -85,7 +94,7 @@ export function SidebarPicker({
           <div className="p-1.5">
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => updateQuery(e.target.value)}
               placeholder={placeholder}
               aria-label={title}
               className={cn(
@@ -98,10 +107,10 @@ export function SidebarPicker({
           <CommandList className="max-h-64 px-1.5 pb-1.5">
             {loading ? (
               <div className="flex flex-col gap-0.5">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-2.5 rounded-md px-2 py-1.5">
+                {SKELETON_WIDTHS.map((width) => (
+                  <div key={width} className="flex items-center gap-2.5 rounded-md px-2 py-1.5">
                     <div className="size-5 animate-pulse rounded-full bg-muted" />
-                    <div className="h-2.5 animate-pulse rounded bg-muted" style={{ width: `${50 + ((i * 17) % 35)}%` }} />
+                    <div className="h-2.5 animate-pulse rounded bg-muted" style={{ width }} />
                   </div>
                 ))}
               </div>
@@ -125,18 +134,10 @@ export function SidebarPicker({
                           style={{ backgroundColor: `#${item.color}` }}
                         />
                       ) : item.avatarUrl ? (
-                        <img
-                          src={item.avatarUrl}
-                          alt=""
-                          className="size-5 shrink-0 rounded-full"
-                        />
+                        <img src={item.avatarUrl} alt="" className="size-5 shrink-0 rounded-full" />
                       ) : null}
-                      <span className="min-w-0 flex-1 truncate text-xs">
-                        {item.label}
-                      </span>
-                      {item.description && (
-                        <span className="hidden" />
-                      )}
+                      <span className="min-w-0 flex-1 truncate text-xs">{item.label}</span>
+                      {item.description && <span className="hidden" />}
                       <Check
                         className={cn(
                           "size-3 shrink-0 transition-opacity duration-75",
