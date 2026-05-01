@@ -74,7 +74,7 @@ function LoginPage() {
       </div>
 
       {/* Card — raised surface */}
-      <div className="relative z-10 w-full max-w-[320px] rounded-xl bg-muted p-6">
+      <div className="relative z-10 w-full max-w-[320px] rounded-xl bg-muted p-6 border-1  shadow-md border-transparent dark:border-[rgba(255,255,255,.04)]">
         <LoginCard onLogin={startLogin} errorMessage={errorMessage} />
       </div>
     </div>
