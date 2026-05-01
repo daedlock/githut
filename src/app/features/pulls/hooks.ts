@@ -7,22 +7,22 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { z } from "zod";
-import { getGitHubClient } from "@/app/lib/github/client";
-import { useAuthStore } from "@/app/stores/auth";
 import {
-  IssueCommentOnPrSchema,
-  PrFileSchema,
-  PullRequestSchema,
-  ReviewCommentSchema,
-  ReviewSchema,
-  TimelineEventSchema,
   type IssueCommentOnPr,
+  IssueCommentOnPrSchema,
   type PrFile,
+  PrFileSchema,
   type PullRequest,
+  PullRequestSchema,
   type Review,
   type ReviewComment,
+  ReviewCommentSchema,
+  ReviewSchema,
   type TimelineEvent,
+  TimelineEventSchema,
 } from "@/app/features/pulls/schemas";
+import { getGitHubClient } from "@/app/lib/github/client";
+import { useAuthStore } from "@/app/stores/auth";
 
 // ─── PR-list schema (search API `items` shape) ─────────────────────────────
 //
@@ -81,13 +81,11 @@ const PrSearchResponseSchema = z.object({
 export const pullsKeys = {
   all: ["pulls"] as const,
 
-  lists: (owner: string, repo: string) =>
-    [...pullsKeys.all, "list", owner, repo] as const,
+  lists: (owner: string, repo: string) => [...pullsKeys.all, "list", owner, repo] as const,
   list: (owner: string, repo: string, filters: PullsFilters) =>
     [...pullsKeys.lists(owner, repo), normalizeFilters(filters)] as const,
 
-  counts: (owner: string, repo: string) =>
-    [...pullsKeys.all, "counts", owner, repo] as const,
+  counts: (owner: string, repo: string) => [...pullsKeys.all, "counts", owner, repo] as const,
 
   detail: (owner: string, repo: string, number: number) =>
     [...pullsKeys.all, "detail", owner, repo, number] as const,
@@ -103,6 +101,8 @@ export const pullsKeys = {
     [...pullsKeys.all, "commits", owner, repo, number] as const,
   checks: (owner: string, repo: string, sha: string) =>
     [...pullsKeys.all, "checks", owner, repo, sha] as const,
+  mergeStatus: (owner: string, repo: string, number: number) =>
+    [...pullsKeys.all, "merge-status", owner, repo, number] as const,
   reviewComments: (owner: string, repo: string, number: number) =>
     [...pullsKeys.all, "review-comments", owner, repo, number] as const,
   threadResolution: (owner: string, repo: string, number: number) =>
@@ -158,7 +158,6 @@ function sortParams(sort: PullsSort | undefined) {
       return { sort: "updated" as const, order: "desc" as const };
     case "comments":
       return { sort: "comments" as const, order: "desc" as const };
-    case "newest":
     default:
       return { sort: "created" as const, order: "desc" as const };
   }
@@ -168,11 +167,7 @@ function sortParams(sort: PullsSort | undefined) {
 
 const PULLS_PER_PAGE = 30;
 
-export const pullsQueryOptions = (
-  owner: string,
-  repo: string,
-  filters: PullsFilters = {},
-) =>
+export const pullsQueryOptions = (owner: string, repo: string, filters: PullsFilters = {}) =>
   infiniteQueryOptions({
     queryKey: pullsKeys.list(owner, repo, filters),
     staleTime: 30_000,
@@ -251,10 +246,11 @@ export const prDetailQueryOptions = (owner: string, repo: string, number: number
     staleTime: 30_000,
     queryFn: async (): Promise<PullRequest> => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "GET /repos/{owner}/{repo}/pulls/{pull_number}",
-        { owner, repo, pull_number: number },
-      );
+      const res = await client.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
+        owner,
+        repo,
+        pull_number: number,
+      });
       return PullRequestSchema.parse(res.data);
     },
   });
@@ -284,10 +280,12 @@ export const prCommentsQueryOptions = (owner: string, repo: string, number: numb
       // PR issue-level comments live under /issues/{n}/comments (PRs are
       // issues under the hood). Review comments on diff rows come from a
       // different endpoint and are fetched in P5.
-      const res = await client.request(
-        "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
-        { owner, repo, issue_number: number, per_page: 100 },
-      );
+      const res = await client.request("GET /repos/{owner}/{repo}/issues/{issue_number}/comments", {
+        owner,
+        repo,
+        issue_number: number,
+        per_page: 100,
+      });
       const raw = Array.isArray(res.data) ? res.data : [];
       const comments: IssueCommentOnPr[] = [];
       for (const item of raw) {
@@ -312,10 +310,12 @@ export const prReviewsQueryOptions = (owner: string, repo: string, number: numbe
     staleTime: 15_000,
     queryFn: async (): Promise<Review[]> => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews",
-        { owner, repo, pull_number: number, per_page: 100 },
-      );
+      const res = await client.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews", {
+        owner,
+        repo,
+        pull_number: number,
+        per_page: 100,
+      });
       return PrReviewsResponseSchema.parse(res.data);
     },
   });
@@ -334,16 +334,13 @@ export const prTimelineQueryOptions = (owner: string, repo: string, number: numb
     staleTime: 15_000,
     queryFn: async (): Promise<TimelineEvent[]> => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "GET /repos/{owner}/{repo}/issues/{issue_number}/timeline",
-        {
-          owner,
-          repo,
-          issue_number: number,
-          per_page: 100,
-          headers: { accept: "application/vnd.github.mockingbird-preview+json" },
-        },
-      );
+      const res = await client.request("GET /repos/{owner}/{repo}/issues/{issue_number}/timeline", {
+        owner,
+        repo,
+        issue_number: number,
+        per_page: 100,
+        headers: { accept: "application/vnd.github.mockingbird-preview+json" },
+      });
       const raw = Array.isArray(res.data) ? res.data : [];
       const events: TimelineEvent[] = [];
       for (const item of raw) {
@@ -398,15 +395,19 @@ export function usePostPrComment(
         body,
         created_at: nowIso,
         updated_at: nowIso,
-        user: me
-          ? { login: me.login, avatar_url: me.avatar_url, html_url: undefined }
-          : null,
-        reactions: { "+1": 0, "-1": 0, laugh: 0, hooray: 0, confused: 0, heart: 0, rocket: 0, eyes: 0 },
+        user: me ? { login: me.login, avatar_url: me.avatar_url, html_url: undefined } : null,
+        reactions: {
+          "+1": 0,
+          "-1": 0,
+          laugh: 0,
+          hooray: 0,
+          confused: 0,
+          heart: 0,
+          rocket: 0,
+          eyes: 0,
+        },
       };
-      queryClient.setQueryData<IssueCommentOnPr[]>(key, (old) => [
-        ...(old ?? []),
-        optimistic,
-      ]);
+      queryClient.setQueryData<IssueCommentOnPr[]>(key, (old) => [...(old ?? []), optimistic]);
       return { prev, tempId, key };
     },
     onError: (_err, _vars, ctx) => {
@@ -443,10 +444,12 @@ export const prFilesQueryOptions = (owner: string, repo: string, number: number)
     staleTime: 30_000,
     queryFn: async (): Promise<PrFile[]> => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "GET /repos/{owner}/{repo}/pulls/{pull_number}/files",
-        { owner, repo, pull_number: number, per_page: 100 },
-      );
+      const res = await client.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/files", {
+        owner,
+        repo,
+        pull_number: number,
+        per_page: 100,
+      });
       return PrFilesResponseSchema.parse(res.data);
     },
   });
@@ -502,10 +505,12 @@ export const prCommitsQueryOptions = (owner: string, repo: string, number: numbe
     staleTime: 30_000,
     queryFn: async (): Promise<PrCommit[]> => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "GET /repos/{owner}/{repo}/pulls/{pull_number}/commits",
-        { owner, repo, pull_number: number, per_page: 100 },
-      );
+      const res = await client.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/commits", {
+        owner,
+        repo,
+        pull_number: number,
+        per_page: 100,
+      });
       return PrCommitsResponseSchema.parse(res.data);
     },
   });
@@ -555,10 +560,7 @@ const CheckRunSchema = z.object({
     .object({
       name: z.string(),
       slug: z.string().optional(),
-      owner: z
-        .object({ login: z.string(), avatar_url: z.string() })
-        .nullable()
-        .optional(),
+      owner: z.object({ login: z.string(), avatar_url: z.string() }).nullable().optional(),
     })
     .nullable()
     .optional(),
@@ -652,6 +654,210 @@ export function usePrChecks(owner: string, repo: string, sha: string | undefined
 
 export type MergeMethod = "merge" | "squash" | "rebase";
 
+export type ReviewDecision = "APPROVED" | "CHANGES_REQUESTED" | "REVIEW_REQUIRED" | null;
+
+export type RequiredCheckState = "passing" | "failing" | "pending" | "missing";
+
+export type PrMergeStatusData = {
+  reviewDecision: ReviewDecision;
+  mergeStateStatus: string | null;
+  autoMergeRequest: {
+    enabledAt: string | null;
+    mergeMethod: MergeMethod;
+    enabledBy: { login: string } | null;
+  } | null;
+  viewerCanEnableAutoMerge: boolean;
+  viewerCanDisableAutoMerge: boolean;
+  viewerCanDeleteHeadRef: boolean;
+  viewerCanUpdateBranch: boolean;
+  viewerCannotUpdateReasons: string[];
+  headRefExists: boolean;
+  headRefOid: string | null;
+  baseRefOid: string | null;
+  protection: {
+    requiresApprovingReviews: boolean;
+    requiredApprovingReviewCount: number;
+    requiresCodeOwnerReviews: boolean;
+    dismissesStaleReviews: boolean;
+    requiresStatusChecks: boolean;
+    requiresStrictStatusChecks: boolean;
+    requiresConversationResolution: boolean;
+    requiredStatusCheckContexts: string[];
+  };
+  reviewThreads: {
+    totalCount: number;
+    unresolvedCount: number;
+  };
+};
+
+type PrMergeStatusQueryResponse = {
+  repository?: {
+    pullRequest?: {
+      reviewDecision?: Exclude<ReviewDecision, null> | null;
+      mergeStateStatus?: string | null;
+      autoMergeRequest?: {
+        enabledAt?: string | null;
+        mergeMethod?: "MERGE" | "SQUASH" | "REBASE" | null;
+        enabledBy?: { login?: string } | null;
+      } | null;
+      viewerCanEnableAutoMerge?: boolean;
+      viewerCanDisableAutoMerge?: boolean;
+      viewerCanDeleteHeadRef?: boolean;
+      viewerCanUpdate?: boolean;
+      viewerCannotUpdateReasons?: string[];
+      headRef?: { id?: string } | null;
+      headRefOid?: string | null;
+      baseRefOid?: string | null;
+      baseRef?: {
+        branchProtectionRule?: {
+          requiresApprovingReviews?: boolean;
+          requiredApprovingReviewCount?: number;
+          requiresCodeOwnerReviews?: boolean;
+          dismissesStaleReviews?: boolean;
+          requiresStatusChecks?: boolean;
+          requiresStrictStatusChecks?: boolean;
+          requiresConversationResolution?: boolean;
+          requiredStatusCheckContexts?: string[];
+        } | null;
+      } | null;
+      reviewThreads?: {
+        totalCount?: number;
+        pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+        nodes?: Array<{ isResolved?: boolean | null }>;
+      };
+    } | null;
+  } | null;
+};
+
+const PR_MERGE_STATUS_QUERY = `
+  query($owner: String!, $repo: String!, $number: Int!, $after: String) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) {
+        reviewDecision
+        mergeStateStatus
+        autoMergeRequest {
+          enabledAt
+          mergeMethod
+          enabledBy { login }
+        }
+        viewerCanEnableAutoMerge
+        viewerCanDisableAutoMerge
+        viewerCanDeleteHeadRef
+        viewerCanUpdate
+        viewerCannotUpdateReasons
+        headRef { id }
+        headRefOid
+        baseRefOid
+        baseRef {
+          branchProtectionRule {
+            requiresApprovingReviews
+            requiredApprovingReviewCount
+            requiresCodeOwnerReviews
+            dismissesStaleReviews
+            requiresStatusChecks
+            requiresStrictStatusChecks
+            requiresConversationResolution
+            requiredStatusCheckContexts
+          }
+        }
+        reviewThreads(first: 100, after: $after) {
+          totalCount
+          pageInfo { hasNextPage endCursor }
+          nodes { isResolved }
+        }
+      }
+    }
+  }
+`;
+
+function fromGraphqlMergeMethod(
+  method: "MERGE" | "SQUASH" | "REBASE" | null | undefined,
+): MergeMethod {
+  if (method === "SQUASH") return "squash";
+  if (method === "REBASE") return "rebase";
+  return "merge";
+}
+
+function toGraphqlMergeMethod(method: MergeMethod): "MERGE" | "SQUASH" | "REBASE" {
+  if (method === "squash") return "SQUASH";
+  if (method === "rebase") return "REBASE";
+  return "MERGE";
+}
+
+export const prMergeStatusQueryOptions = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: pullsKeys.mergeStatus(owner, repo, number),
+    staleTime: 15_000,
+    queryFn: async (): Promise<PrMergeStatusData> => {
+      const client = getGitHubClient();
+      let after: string | null | undefined;
+      let firstPull: NonNullable<
+        NonNullable<NonNullable<PrMergeStatusQueryResponse["repository"]>["pullRequest"]>
+      > | null = null;
+      let totalCount = 0;
+      let unresolvedCount = 0;
+
+      do {
+        const res = (await client.graphql(PR_MERGE_STATUS_QUERY, {
+          owner,
+          repo,
+          number,
+          after,
+        })) as PrMergeStatusQueryResponse;
+        const pull = res.repository?.pullRequest;
+        if (!pull) throw new Error("Pull request not found");
+        firstPull ??= pull;
+        const threads = pull.reviewThreads;
+        totalCount = threads?.totalCount ?? totalCount;
+        unresolvedCount += (threads?.nodes ?? []).filter((thread) => !thread.isResolved).length;
+        after = threads?.pageInfo?.hasNextPage ? threads.pageInfo.endCursor : null;
+      } while (after);
+
+      if (!firstPull) throw new Error("Pull request not found");
+      const rule = firstPull.baseRef?.branchProtectionRule;
+      const autoMerge = firstPull.autoMergeRequest;
+
+      return {
+        reviewDecision: firstPull.reviewDecision ?? null,
+        mergeStateStatus: firstPull.mergeStateStatus ?? null,
+        autoMergeRequest: autoMerge
+          ? {
+              enabledAt: autoMerge.enabledAt ?? null,
+              mergeMethod: fromGraphqlMergeMethod(autoMerge.mergeMethod),
+              enabledBy: autoMerge.enabledBy?.login ? { login: autoMerge.enabledBy.login } : null,
+            }
+          : null,
+        viewerCanEnableAutoMerge: firstPull.viewerCanEnableAutoMerge ?? false,
+        viewerCanDisableAutoMerge: firstPull.viewerCanDisableAutoMerge ?? false,
+        viewerCanDeleteHeadRef: firstPull.viewerCanDeleteHeadRef ?? false,
+        viewerCanUpdateBranch: firstPull.viewerCanUpdate ?? false,
+        viewerCannotUpdateReasons: firstPull.viewerCannotUpdateReasons ?? [],
+        headRefExists: !!firstPull.headRef,
+        headRefOid: firstPull.headRefOid ?? null,
+        baseRefOid: firstPull.baseRefOid ?? null,
+        protection: {
+          requiresApprovingReviews: rule?.requiresApprovingReviews ?? false,
+          requiredApprovingReviewCount: rule?.requiredApprovingReviewCount ?? 0,
+          requiresCodeOwnerReviews: rule?.requiresCodeOwnerReviews ?? false,
+          dismissesStaleReviews: rule?.dismissesStaleReviews ?? false,
+          requiresStatusChecks: rule?.requiresStatusChecks ?? false,
+          requiresStrictStatusChecks: rule?.requiresStrictStatusChecks ?? false,
+          requiresConversationResolution: rule?.requiresConversationResolution ?? false,
+          requiredStatusCheckContexts: rule?.requiredStatusCheckContexts ?? [],
+        },
+        reviewThreads: { totalCount, unresolvedCount },
+      };
+    },
+  });
+
+export function usePrMergeStatus(owner: string, repo: string, number: number) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    ...prMergeStatusQueryOptions(owner, repo, number),
+    enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+  });
+}
+
 export function useMergePr(owner: string, repo: string, number: number) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -661,17 +867,14 @@ export function useMergePr(owner: string, repo: string, number: number) {
       commitMessage?: string;
     }) => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge",
-        {
-          owner,
-          repo,
-          pull_number: number,
-          merge_method: vars.method,
-          commit_title: vars.commitTitle,
-          commit_message: vars.commitMessage,
-        },
-      );
+      const res = await client.request("PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge", {
+        owner,
+        repo,
+        pull_number: number,
+        merge_method: vars.method,
+        commit_title: vars.commitTitle,
+        commit_message: vars.commitMessage,
+      });
       return res.data as { sha: string; merged: boolean; message: string };
     },
     onMutate: async () => {
@@ -694,9 +897,139 @@ export function useMergePr(owner: string, repo: string, number: number) {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.mergeStatus(owner, repo, number) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.lists(owner, repo) }),
+      ]);
+    },
+  });
+}
+
+export function useSetPrAutoMerge(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: {
+      pullRequestId: string;
+      enabled: boolean;
+      method?: MergeMethod;
+      commitTitle?: string;
+      commitMessage?: string;
+    }) => {
+      const client = getGitHubClient();
+      if (!vars.enabled) {
+        return client.graphql(
+          `mutation($id: ID!) {
+            disablePullRequestAutoMerge(input: { pullRequestId: $id }) {
+              pullRequest { id }
+            }
+          }`,
+          { id: vars.pullRequestId },
+        );
+      }
+      return client.graphql(
+        `mutation($id: ID!, $method: PullRequestMergeMethod!, $headline: String, $body: String) {
+          enablePullRequestAutoMerge(input: {
+            pullRequestId: $id,
+            mergeMethod: $method,
+            commitHeadline: $headline,
+            commitBody: $body
+          }) {
+            pullRequest { id }
+          }
+        }`,
+        {
+          id: vars.pullRequestId,
+          method: toGraphqlMergeMethod(vars.method ?? "merge"),
+          headline: vars.commitTitle,
+          body: vars.commitMessage,
+        },
+      );
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.mergeStatus(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) }),
+      ]);
+    },
+  });
+}
+
+export function useUpdatePrBranch(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ expectedHeadSha }: { expectedHeadSha?: string }) => {
+      const client = getGitHubClient();
+      const res = await client.request(
+        "PUT /repos/{owner}/{repo}/pulls/{pull_number}/update-branch",
+        {
+          owner,
+          repo,
+          pull_number: number,
+          expected_head_sha: expectedHeadSha,
+        },
+      );
+      return res.data as { message?: string; url?: string };
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.mergeStatus(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.files(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.commits(owner, repo, number) }),
+      ]);
+    },
+  });
+}
+
+function splitFullName(fullName: string | undefined): { owner: string; repo: string } | null {
+  const [owner, repo] = fullName?.split("/") ?? [];
+  return owner && repo ? { owner, repo } : null;
+}
+
+export function useDeletePrHeadRef(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ pr }: { pr: PullRequest }) => {
+      const headRepo = splitFullName(pr.head.repo?.full_name) ?? { owner, repo };
+      const client = getGitHubClient();
+      await client.request("DELETE /repos/{owner}/{repo}/git/refs/{ref}", {
+        owner: headRepo.owner,
+        repo: headRepo.repo,
+        ref: `heads/${pr.head.ref}`,
+      });
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.mergeStatus(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) }),
+      ]);
+    },
+  });
+}
+
+export function useRestorePrHeadRef(owner: string, repo: string, number: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ pullRequestId }: { pullRequestId: string }) => {
+      const client = getGitHubClient();
+      return client.graphql(
+        `mutation($id: ID!) {
+          restorePullRequestHeadRef(input: { pullRequestId: $id }) {
+            pullRequest { id }
+          }
+        }`,
+        { id: pullRequestId },
+      );
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.mergeStatus(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) }),
       ]);
     },
   });
@@ -707,10 +1040,12 @@ export function useTogglePrState(owner: string, repo: string, number: number) {
   return useMutation({
     mutationFn: async ({ state }: { state: "open" | "closed" }) => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "PATCH /repos/{owner}/{repo}/pulls/{pull_number}",
-        { owner, repo, pull_number: number, state },
-      );
+      const res = await client.request("PATCH /repos/{owner}/{repo}/pulls/{pull_number}", {
+        owner,
+        repo,
+        pull_number: number,
+        state,
+      });
       return PullRequestSchema.parse(res.data);
     },
     onMutate: async ({ state }) => {
@@ -765,17 +1100,14 @@ export function useSubmitPrReview(owner: string, repo: string, number: number) {
       }>;
     }) => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews",
-        {
-          owner,
-          repo,
-          pull_number: number,
-          event,
-          body: body?.trim() || undefined,
-          comments: comments?.length ? comments : undefined,
-        },
-      );
+      const res = await client.request("POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews", {
+        owner,
+        repo,
+        pull_number: number,
+        event,
+        body: body?.trim() || undefined,
+        comments: comments?.length ? comments : undefined,
+      });
       return ReviewSchema.parse(res.data);
     },
     onSuccess: async () => {
@@ -838,20 +1170,18 @@ export function useSetPrDraft(owner: string, repo: string, number: number) {
 
 const ReviewCommentsResponseSchema = z.array(ReviewCommentSchema);
 
-export const prReviewCommentsQueryOptions = (
-  owner: string,
-  repo: string,
-  number: number,
-) =>
+export const prReviewCommentsQueryOptions = (owner: string, repo: string, number: number) =>
   queryOptions({
     queryKey: pullsKeys.reviewComments(owner, repo, number),
     staleTime: 15_000,
     queryFn: async (): Promise<ReviewComment[]> => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "GET /repos/{owner}/{repo}/pulls/{pull_number}/comments",
-        { owner, repo, pull_number: number, per_page: 100 },
-      );
+      const res = await client.request("GET /repos/{owner}/{repo}/pulls/{pull_number}/comments", {
+        owner,
+        repo,
+        pull_number: number,
+        per_page: 100,
+      });
       return ReviewCommentsResponseSchema.parse(res.data);
     },
   });
@@ -872,13 +1202,7 @@ export function useReplyToReviewComment(
 ) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      inReplyToId,
-      body,
-    }: {
-      inReplyToId: number;
-      body: string;
-    }) => {
+    mutationFn: async ({ inReplyToId, body }: { inReplyToId: number; body: string }) => {
       const client = getGitHubClient();
       const res = await client.request(
         "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies",
@@ -925,10 +1249,7 @@ export function useReplyToReviewComment(
           eyes: 0,
         },
       };
-      queryClient.setQueryData<ReviewComment[]>(key, (old) => [
-        ...(old ?? []),
-        optimistic,
-      ]);
+      queryClient.setQueryData<ReviewComment[]>(key, (old) => [...(old ?? []), optimistic]);
       await queryClient.cancelQueries({ queryKey: key });
       return { prev, tempId, key };
     },
@@ -948,7 +1269,12 @@ export function useReplyToReviewComment(
 
 // ─── Review comment reactions ─────────────────────────────────────────────
 
-import { EMPTY_MY_REACTIONS, ReactionListSchema, type ReactionContent, type MyReactionsMap } from "@/app/features/issues/schemas";
+import {
+  EMPTY_MY_REACTIONS,
+  type MyReactionsMap,
+  type ReactionContent,
+  ReactionListSchema,
+} from "@/app/features/issues/schemas";
 
 export function useMyReviewCommentReactions(
   owner: string,
@@ -958,7 +1284,14 @@ export function useMyReviewCommentReactions(
 ) {
   const token = useAuthStore((s) => s.token);
   return useQuery({
-    queryKey: [...pullsKeys.all, "review-comment-reactions", owner, repo, commentId, meId ?? 0] as const,
+    queryKey: [
+      ...pullsKeys.all,
+      "review-comment-reactions",
+      owner,
+      repo,
+      commentId,
+      meId ?? 0,
+    ] as const,
     staleTime: 60_000,
     enabled: !!token && !!owner && !!repo && !!meId && commentId > 0,
     queryFn: async (): Promise<MyReactionsMap> => {
@@ -1013,11 +1346,20 @@ export function useToggleReviewCommentReaction(
       await queryClient.cancelQueries({ queryKey: key });
       const prev = queryClient.getQueryData<ReviewComment[]>(key);
       if (prev) {
-        queryClient.setQueryData<ReviewComment[]>(key, prev.map((c) => {
-          if (c.id !== commentId) return c;
-          const delta = existingReactionId ? -1 : 1;
-          return { ...c, reactions: { ...c.reactions, [content]: Math.max(0, (c.reactions[content] ?? 0) + delta) } };
-        }));
+        queryClient.setQueryData<ReviewComment[]>(
+          key,
+          prev.map((c) => {
+            if (c.id !== commentId) return c;
+            const delta = existingReactionId ? -1 : 1;
+            return {
+              ...c,
+              reactions: {
+                ...c.reactions,
+                [content]: Math.max(0, (c.reactions[content] ?? 0) + delta),
+              },
+            };
+          }),
+        );
       }
       return { prev, key };
     },
@@ -1025,7 +1367,14 @@ export function useToggleReviewCommentReaction(
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
     onSuccess: ({ newReactionId, content, commentId }) => {
-      const myKey = [...pullsKeys.all, "review-comment-reactions", owner, repo, commentId, meId ?? 0];
+      const myKey = [
+        ...pullsKeys.all,
+        "review-comment-reactions",
+        owner,
+        repo,
+        commentId,
+        meId ?? 0,
+      ];
       queryClient.setQueryData<MyReactionsMap>(myKey, (old) => {
         const next = new Map(old ?? []);
         if (newReactionId != null) next.set(content, newReactionId);
@@ -1061,6 +1410,20 @@ const THREAD_RESOLUTION_QUERY = `
   }
 `;
 
+type ThreadResolutionQueryResponse = {
+  repository?: {
+    pullRequest?: {
+      reviewThreads?: {
+        nodes?: Array<{
+          id: string;
+          isResolved: boolean;
+          comments: { nodes: Array<{ databaseId: number }> };
+        }>;
+      };
+    } | null;
+  } | null;
+};
+
 export function useThreadResolution(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
   return useQuery({
@@ -1069,12 +1432,12 @@ export function useThreadResolution(owner: string, repo: string, number: number)
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
     queryFn: async (): Promise<ThreadResolutionMap> => {
       const client = getGitHubClient();
-      const res: any = await client.graphql(THREAD_RESOLUTION_QUERY, { owner, repo, number });
-      const nodes = res.repository.pullRequest.reviewThreads.nodes as Array<{
-        id: string;
-        isResolved: boolean;
-        comments: { nodes: Array<{ databaseId: number }> };
-      }>;
+      const res = (await client.graphql(THREAD_RESOLUTION_QUERY, {
+        owner,
+        repo,
+        number,
+      })) as ThreadResolutionQueryResponse;
+      const nodes = res.repository?.pullRequest?.reviewThreads?.nodes ?? [];
       const map: ThreadResolutionMap = new Map();
       for (const t of nodes) {
         const rootId = t.comments.nodes[0]?.databaseId;
@@ -1114,7 +1477,9 @@ export function useResolveThread(owner: string, repo: string, number: number) {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: pullsKeys.threadResolution(owner, repo, number) });
+      await queryClient.invalidateQueries({
+        queryKey: pullsKeys.threadResolution(owner, repo, number),
+      });
     },
   });
 }
@@ -1151,7 +1516,13 @@ export function useMyPrCommentReactions(
       const client = getGitHubClient();
       const res = await client.request(
         "GET /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions",
-        { owner, repo, comment_id: commentId, per_page: 100, headers: { accept: "application/vnd.github+json" } },
+        {
+          owner,
+          repo,
+          comment_id: commentId,
+          per_page: 100,
+          headers: { accept: "application/vnd.github+json" },
+        },
       );
       return buildMyReactionsMap(ReactionListSchema.parse(res.data), meId as number);
     },
@@ -1179,19 +1550,38 @@ export function useTogglePrCommentReaction(
       if (existingReactionId && existingReactionId > 0) {
         await client.request(
           "DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions/{reaction_id}",
-          { owner, repo, comment_id: commentId, reaction_id: existingReactionId, headers: { accept: "application/vnd.github+json" } },
+          {
+            owner,
+            repo,
+            comment_id: commentId,
+            reaction_id: existingReactionId,
+            headers: { accept: "application/vnd.github+json" },
+          },
         );
         return { newReactionId: null as number | null, content };
       }
       const res = await client.request(
         "POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions",
-        { owner, repo, comment_id: commentId, content, headers: { accept: "application/vnd.github+json" } },
+        {
+          owner,
+          repo,
+          comment_id: commentId,
+          content,
+          headers: { accept: "application/vnd.github+json" },
+        },
       );
       return { newReactionId: (res.data as { id: number }).id, content };
     },
     onMutate: async ({ commentId, content, existingReactionId }) => {
       const commentsKey = pullsKeys.comments(owner, repo, prNumber);
-      const myKey = [...pullsKeys.all, "comment-reactions", owner, repo, commentId, meId ?? 0] as const;
+      const myKey = [
+        ...pullsKeys.all,
+        "comment-reactions",
+        owner,
+        repo,
+        commentId,
+        meId ?? 0,
+      ] as const;
       await queryClient.cancelQueries({ queryKey: commentsKey });
       await queryClient.cancelQueries({ queryKey: myKey });
 
@@ -1204,7 +1594,13 @@ export function useTogglePrCommentReaction(
           commentsKey,
           prevList.map((c) =>
             c.id === commentId
-              ? { ...c, reactions: { ...c.reactions, [content]: Math.max(0, (c.reactions[content] ?? 0) + delta) } }
+              ? {
+                  ...c,
+                  reactions: {
+                    ...c.reactions,
+                    [content]: Math.max(0, (c.reactions[content] ?? 0) + delta),
+                  },
+                }
               : c,
           ),
         );
@@ -1280,10 +1676,12 @@ export function useUpdatePrComment(owner: string, repo: string, number: number) 
   return useMutation({
     mutationFn: async ({ commentId, body }: { commentId: number; body: string }) => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
-        { owner, repo, comment_id: commentId, body },
-      );
+      const res = await client.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+        owner,
+        repo,
+        comment_id: commentId,
+        body,
+      });
       return IssueCommentOnPrSchema.parse(res.data);
     },
     onMutate: async ({ commentId, body }) => {
@@ -1374,10 +1772,12 @@ export function useUpdateReviewComment(owner: string, repo: string, number: numb
   return useMutation({
     mutationFn: async ({ commentId, body }: { commentId: number; body: string }) => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "PATCH /repos/{owner}/{repo}/pulls/comments/{comment_id}",
-        { owner, repo, comment_id: commentId, body },
-      );
+      const res = await client.request("PATCH /repos/{owner}/{repo}/pulls/comments/{comment_id}", {
+        owner,
+        repo,
+        comment_id: commentId,
+        body,
+      });
       return ReviewCommentSchema.parse(res.data);
     },
     onMutate: async ({ commentId, body }) => {

@@ -1,5 +1,5 @@
 import { GitMerge } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import {
   Dialog,
@@ -17,22 +17,22 @@ import { cn } from "@/app/lib/cn";
 
 // ─── PrMergeDialog ─────────────────────────────────────────────────────────
 //
-// Merge confirmation modal. GitHub offers three strategies; we let the
-// user pick inline and customize the merge-commit title/body (only
-// applicable to "merge" — "squash" and "rebase" commit titles come from
-// the PR itself, matching github.com behavior).
+// Merge / auto-merge confirmation modal. GitHub offers three strategies;
+// callers pass the repo-allowed subset so disabled merge methods never show.
+// Commit title/body customization is kept for merge commits, matching the
+// existing in-app behavior.
 
 export type PrMergeDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pr: PullRequest;
-  onConfirm: (vars: {
-    method: MergeMethod;
-    commitTitle?: string;
-    commitMessage?: string;
-  }) => void;
+  onConfirm: (vars: { method: MergeMethod; commitTitle?: string; commitMessage?: string }) => void;
   isPending?: boolean;
+  intent?: "merge" | "auto-merge";
+  allowedMethods?: MergeMethod[];
 };
+
+const DEFAULT_ALLOWED_METHODS: MergeMethod[] = ["merge", "squash", "rebase"];
 
 const METHODS: Array<{
   id: MergeMethod;
@@ -62,10 +62,30 @@ export function PrMergeDialog({
   pr,
   onConfirm,
   isPending,
+  intent = "merge",
+  allowedMethods = DEFAULT_ALLOWED_METHODS,
 }: PrMergeDialogProps) {
-  const [method, setMethod] = useState<MergeMethod>("merge");
+  const availableMethods = useMemo(
+    () => METHODS.filter((m) => allowedMethods.includes(m.id)),
+    [allowedMethods],
+  );
+  const [method, setMethod] = useState<MergeMethod>(availableMethods[0]?.id ?? "merge");
   const [title, setTitle] = useState(`${pr.title} (#${pr.number})`);
   const [message, setMessage] = useState(pr.body?.trim() ?? "");
+  const isAutoMerge = intent === "auto-merge";
+
+  useEffect(() => {
+    const next = availableMethods[0]?.id ?? "merge";
+    if (!allowedMethods.includes(method)) setMethod(next);
+  }, [allowedMethods, availableMethods, method]);
+
+  const titleId = `merge-title-${pr.number}`;
+  const messageId = `merge-message-${pr.number}`;
+
+  useEffect(() => {
+    setTitle(`${pr.title} (#${pr.number})`);
+    setMessage(pr.body?.trim() ?? "");
+  }, [pr.body, pr.number, pr.title]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -73,16 +93,18 @@ export function PrMergeDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GitMerge className="size-4 text-[var(--color-pr-merged)]" />
-            Merge pull request
+            {isAutoMerge ? "Enable auto-merge" : "Merge pull request"}
           </DialogTitle>
           <DialogDescription>
-            Merging will close this pull request and write the branch into{" "}
+            {isAutoMerge
+              ? "GitHub will merge this pull request once all required checks and reviews pass."
+              : "Merging will close this pull request and write the branch into"}{" "}
             <span className="font-mono">{pr.base.ref}</span>.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-2">
-          {METHODS.map((m) => (
+          {availableMethods.map((m) => (
             <label
               key={m.id}
               className={cn(
@@ -111,17 +133,19 @@ export function PrMergeDialog({
 
         {method === "merge" && (
           <div className="flex flex-col gap-2">
-            <label className="text-caption font-medium text-foreground">
+            <label htmlFor={titleId} className="text-caption font-medium text-foreground">
               Commit title
               <Input
+                id={titleId}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="mt-1"
               />
             </label>
-            <label className="text-caption font-medium text-foreground">
+            <label htmlFor={messageId} className="text-caption font-medium text-foreground">
               Commit message
               <Textarea
+                id={messageId}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={4}
@@ -145,7 +169,13 @@ export function PrMergeDialog({
             }
             disabled={isPending}
           >
-            {isPending ? "Merging…" : `Confirm ${method}`}
+            {isPending
+              ? isAutoMerge
+                ? "Enabling…"
+                : "Merging…"
+              : isAutoMerge
+                ? "Enable auto-merge"
+                : `Confirm ${method}`}
           </Button>
         </DialogFooter>
       </DialogContent>
