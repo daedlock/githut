@@ -15,7 +15,7 @@ function Card({
   return (
     <div
       data-slot="card"
-      className={cn(cardVariants[variant], className)}
+      className={cn("shadow-sm border border-default border-transparent dark:border-[rgba(255,255,255,.03)]", cardVariants[variant], className)}
       {...props}
     />
   )
