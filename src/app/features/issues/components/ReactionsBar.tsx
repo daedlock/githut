@@ -1,6 +1,6 @@
+import { AnimatePresence, motion } from "framer-motion";
 import { Smile } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import type { MyReactionsMap, ReactionContent, ReactionsMap } from "@/app/features/issues/schemas";
 import { REACTION_CONTENTS, REACTION_EMOJIS, reactionsHaveAny } from "@/app/features/issues/utils";
 import { cn } from "@/app/lib/cn";
@@ -13,13 +13,21 @@ const N = REACTION_CONTENTS.length;
 const pickerVariants = {
   hidden: { opacity: 0, scale: 0 },
   show: (i: number) => ({ opacity: 1, scale: 1, transition: { ...POP, delay: i * 0.018 } }),
-  gone: (i: number) => ({ opacity: 0, scale: 0, transition: { ...POP, delay: (N - 1 - i) * 0.014 } }),
+  gone: (i: number) => ({
+    opacity: 0,
+    scale: 0,
+    transition: { ...POP, delay: (N - 1 - i) * 0.014 },
+  }),
 };
 
 const badgeVariants = {
   hidden: { opacity: 0, scale: 0.5 },
   show: { opacity: 1, scale: 1, transition: BADGE },
-  gone: { opacity: 0, scale: 0.5, transition: { duration: 0.12, ease: [0.4, 0, 1, 1] as [number, number, number, number] } },
+  gone: {
+    opacity: 0,
+    scale: 0.5,
+    transition: { duration: 0.12, ease: [0.4, 0, 1, 1] as [number, number, number, number] },
+  },
 };
 
 export function ReactionsBar({
@@ -49,7 +57,13 @@ export function ReactionsBar({
   }, [open]);
 
   return (
-    <div ref={barRef} className={cn("mt-3 flex flex-wrap items-center gap-1 border-t border-border pt-2.5", className)}>
+    <div
+      ref={barRef}
+      className={cn(
+        "mt-3 flex flex-wrap items-center gap-1 border-t border-border pt-2.5",
+        className,
+      )}
+    >
       <AnimatePresence mode="popLayout">
         {REACTION_CONTENTS.filter((k) => (reactions[k] ?? 0) > 0).map((k) => {
           const mineId = myReactions.get(k);
@@ -77,7 +91,12 @@ export function ReactionsBar({
               )}
             >
               <span className="text-[11px] leading-none">{REACTION_EMOJIS[k]}</span>
-              <span className={cn("inline-flex font-mono text-[10px] tabular-nums leading-none", mine && "font-semibold")}>
+              <span
+                className={cn(
+                  "inline-flex font-mono text-[10px] tabular-nums leading-none",
+                  mine && "font-semibold",
+                )}
+              >
                 <AnimatePresence mode="popLayout" initial={false}>
                   <motion.span
                     key={reactions[k]}
@@ -103,7 +122,7 @@ export function ReactionsBar({
         aria-label="Add reaction"
         aria-expanded={open}
         className={cn(
-          "inline-flex h-5 items-center gap-1 rounded-full border px-2 leading-none",
+          "inline-flex h-6 items-center gap-1 rounded-full border px-2.5 leading-none",
           "outline-none transition-colors",
           "focus-visible:ring-1 focus-visible:ring-foreground/15",
           open
@@ -135,7 +154,7 @@ export function ReactionsBar({
                   setOpen(false);
                 }}
                 className={cn(
-                  "flex size-5 items-center justify-center rounded-full leading-none",
+                  "flex size-6 items-center justify-center rounded-full leading-none",
                   "outline-none",
                   mine && "bg-[var(--color-bg-sunken)]",
                 )}
