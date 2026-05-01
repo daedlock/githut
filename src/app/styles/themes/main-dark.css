@@ -14,9 +14,9 @@
   --color-fg-muted: #8a8ea0;
   --color-fg-faint: #505468;
 
-  /* Brand — clean blue */
-  --color-brand: #5ba4f5;
-  --color-brand-hover: #74b4f7;
+  /* Brand — same blue family as main-light, lifted for dark-mode contrast */
+  --color-brand: #68adf7;
+  --color-brand-hover: #83c1ff;
   --color-brand-fg: #1c1d24;
   --color-primary: var(--color-brand);
   --color-primary-foreground: var(--color-brand-fg);
