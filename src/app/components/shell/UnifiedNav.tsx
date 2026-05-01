@@ -67,7 +67,7 @@ function LogoLink() {
     <Link
       to="/"
       aria-label="Go to dashboard"
-      className="group mr-2 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-foreground outline-none transition-colors hover:bg-muted hover:text-primary focus-visible:ring-1 focus-visible:ring-(--color-focus)"
+      className="group mr-2 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-1 focus-visible:ring-(--color-focus)"
     >
       <svg
         width="21"
@@ -160,7 +160,7 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
           <Link
             to="/$owner/$repo/code"
             params={{ owner, repo }}
-            className="min-w-0 max-w-40 truncate font-medium text-foreground transition-colors hover:text-primary focus-visible:outline-none"
+            className="min-w-0 max-w-40 truncate font-medium text-foreground underline-offset-2 hover:underline focus-visible:outline-none"
           >
             {repo}
           </Link>

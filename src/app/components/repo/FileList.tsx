@@ -49,7 +49,7 @@ export function Breadcrumb({
       <button
         type="button"
         onClick={() => onNavigate("")}
-        className="text-primary hover:underline truncate outline-none rounded-sm focus-visible:ring-1 focus-visible:ring-foreground/15"
+        className="truncate rounded-sm text-foreground underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-foreground/15"
       >
         {repo}
       </button>
@@ -65,7 +65,7 @@ export function Breadcrumb({
               <button
                 type="button"
                 onClick={() => onNavigate(segPath)}
-                className="text-primary hover:underline truncate outline-none rounded-sm focus-visible:ring-1 focus-visible:ring-foreground/15"
+                className="truncate rounded-sm text-muted-foreground underline-offset-2 outline-none hover:text-foreground hover:underline focus-visible:ring-1 focus-visible:ring-foreground/15"
               >
                 {part}
               </button>
@@ -228,17 +228,11 @@ function FileRow({
       <td className="min-w-0 py-2 pl-4 pr-4">
         <div className="flex items-center gap-2 min-w-0">
           {isDir ? (
-            <Folder className="size-4 text-primary flex-shrink-0" />
+            <Folder className="size-4 text-[var(--color-fg-faint)] flex-shrink-0" />
           ) : (
             <FileText className="size-4 text-[var(--color-fg-faint)] flex-shrink-0" />
           )}
-          <span
-            className={cn(
-              "font-mono text-code transition-colors duration-75 truncate",
-              isDir ? "text-foreground group-hover:text-primary" : "text-foreground",
-            )}
-            title={entry.name}
-          >
+          <span className="font-mono text-code text-foreground truncate" title={entry.name}>
             {entry.name}
           </span>
         </div>

@@ -71,7 +71,7 @@ function AboutCard({ repo }: { repo: Repo | undefined }) {
                 href={repo.homepage}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-w-0 items-center gap-1.5 text-caption text-primary transition-colors hover:text-[var(--color-brand-hover)]"
+                className="inline-flex min-w-0 items-center gap-1.5 text-caption text-muted-foreground transition-colors hover:text-foreground"
               >
                 <Globe className="size-3 flex-shrink-0" />
                 <span className="truncate">{repo.homepage.replace(/^https?:\/\//, "")}</span>

@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronDown, Code, Copy, Download, ExternalLink } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
 import { cn } from "@/app/lib/cn";
@@ -49,7 +49,7 @@ export function CloneDropdown({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button size="sm" variant="default" className="gap-1.5">
+        <Button size="sm" variant="outline" className="gap-1.5">
           <Code data-icon="inline-start" />
           <span>Code</span>
           <ChevronDown
