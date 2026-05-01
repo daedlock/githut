@@ -1,5 +1,5 @@
 import { Columns2, PanelLeftClose, PanelLeftOpen, Rows2 } from "lucide-react";
-import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type ChangedFile, ChangedFileTree } from "@/app/components/repo/ChangedFileTree";
 import { cn } from "@/app/lib/cn";
 import { ChangeStatsBadge } from "./ChangeStatsBadge";
@@ -183,6 +183,11 @@ export function DiffLayout({
         {reviewActions}
       </div>
 
+      <div
+        className="pointer-events-none sticky top-[84px] z-[4] -mb-5 h-5 bg-background"
+        aria-hidden
+      />
+
       <div className="flex min-h-[calc(100dvh-44px)] w-full">
         {sidebarOpen && (
           <aside
@@ -195,30 +200,32 @@ export function DiffLayout({
 
         <DiffModeContext value={mode}>
           <div className="min-w-0 flex-1 p-4">
-            <div className="flex flex-col gap-5">
-              {files.map((file) => (
-                <div
-                  key={file.filename}
-                  ref={(el) => {
-                    if (el) fileRefs.current.set(file.filename, el);
-                    else fileRefs.current.delete(file.filename);
-                  }}
-                  data-filename={file.filename}
-                  style={{
-                    contentVisibility: "auto",
-                    containIntrinsicBlockSize: "auto 40px",
-                    scrollMarginTop: TOPBAR_H,
-                  }}
-                >
-                  <FileItem
-                    file={file}
-                    review={getReviewHooks?.(file.filename)}
-                    owner={owner}
-                    repo={repo}
-                    headRef={headRef}
-                    baseRef={baseRef}
-                  />
-                </div>
+            <div className="flex flex-col">
+              {files.map((file, index) => (
+                <Fragment key={file.filename}>
+                  {index > 0 && <div className="h-5 shrink-0 bg-background" aria-hidden />}
+                  <div
+                    ref={(el) => {
+                      if (el) fileRefs.current.set(file.filename, el);
+                      else fileRefs.current.delete(file.filename);
+                    }}
+                    data-filename={file.filename}
+                    style={{
+                      contentVisibility: "auto",
+                      containIntrinsicBlockSize: "auto 40px",
+                      scrollMarginTop: TOPBAR_H,
+                    }}
+                  >
+                    <FileItem
+                      file={file}
+                      review={getReviewHooks?.(file.filename)}
+                      owner={owner}
+                      repo={repo}
+                      headRef={headRef}
+                      baseRef={baseRef}
+                    />
+                  </div>
+                </Fragment>
               ))}
             </div>
           </div>
