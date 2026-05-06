@@ -1,6 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { AppShell } from "@/app/components/shell/AppShell";
-import { ShellFooter } from "@/app/components/shell/ShellFooter";
 import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
 import { profileQueryOptions } from "@/app/features/profile/hooks";
 import { ProfileView } from "@/app/features/profile/ProfileView";
@@ -24,10 +23,7 @@ export const Route = createFileRoute("/$username")({
 function ProfilePage() {
   const { username } = Route.useParams();
   return (
-    <AppShell
-      header={<UnifiedNav />}
-      footer={<ShellFooter bordered origin="localhost:5173" />}
-    >
+    <AppShell header={<UnifiedNav />}>
       <ProfileView login={username} />
     </AppShell>
   );

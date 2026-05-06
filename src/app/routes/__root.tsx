@@ -3,6 +3,7 @@ import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { CommandPalette } from "@/app/components/CommandPalette";
 import { FileHistorySheet } from "@/app/components/code/FileHistorySheet";
 import { KeyboardHelp } from "@/app/components/KeyboardHelp";
+import { OpenInGithubLink } from "@/app/components/OpenInGithubLink";
 import { TabSyncProvider } from "@/app/components/shell/TabSyncProvider";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
@@ -12,6 +13,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       <CommandPalette />
       <KeyboardHelp />
       <FileHistorySheet />
+      <OpenInGithubLink />
     </TabSyncProvider>
   ),
 });

@@ -3,7 +3,6 @@ import { cn } from "@/app/lib/cn";
 
 export type AppShellProps = {
   header: ReactNode;
-  footer?: ReactNode;
   children: ReactNode;
   className?: string;
   /**
@@ -15,13 +14,7 @@ export type AppShellProps = {
   stickyHeader?: boolean;
 };
 
-export function AppShell({
-  header,
-  footer,
-  children,
-  className,
-  stickyHeader = true,
-}: AppShellProps) {
+export function AppShell({ header, children, className, stickyHeader = true }: AppShellProps) {
   return (
     <div className={cn("flex min-h-full flex-col", className)}>
       {/*
@@ -30,7 +23,6 @@ export function AppShell({
        */}
       <div className={cn("bg-background", stickyHeader && "sticky top-0 z-40")}>{header}</div>
       <main className="flex flex-1 flex-col">{children}</main>
-      {footer}
     </div>
   );
 }

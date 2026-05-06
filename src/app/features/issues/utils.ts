@@ -51,6 +51,22 @@ export function pickTextColor(hexColor: string): "#111827" | "#f9fafb" {
   return luminance > 0.63 ? "#111827" : "#f9fafb";
 }
 
-export function labelStyle(color: string): { backgroundColor: string; color: string } {
-  return { backgroundColor: `#${color}`, color: pickTextColor(color) };
+function normalizeLabelColor(color: string): string | null {
+  const hex = color.trim().replace("#", "");
+  return /^[0-9a-fA-F]{6}$/.test(hex) ? `#${hex}` : null;
+}
+
+export function labelStyle(color: string): {
+  backgroundColor?: string;
+  borderColor?: string;
+  color?: string;
+} {
+  const hex = normalizeLabelColor(color);
+  if (!hex) return {};
+
+  return {
+    borderColor: `color-mix(in oklab, ${hex} 40%, var(--color-border))`,
+    backgroundColor: `color-mix(in oklab, ${hex} 8%, var(--color-bg-subtle))`,
+    color: `color-mix(in oklab, ${hex} 45%, var(--color-fg))`,
+  };
 }

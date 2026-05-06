@@ -16,6 +16,7 @@ import {
   type PullsFilters,
   type PullsSort,
   type PullsState,
+  usePrReviewDecisions,
   usePulls,
   usePullsCounts,
 } from "@/app/features/pulls/hooks";
@@ -71,6 +72,11 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
   }, [items, searchText]);
 
   const currentState = (filters.state ?? "open") as PullsState;
+  const reviewDecisions = usePrReviewDecisions(
+    owner,
+    repo,
+    filtered.map((pr) => pr.number),
+  );
 
   return (
     <Container size="lg" className="py-6">
@@ -122,10 +128,7 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
                   params: { owner, repo },
                   search: (prev) => ({
                     ...prev,
-                    sort:
-                      e.target.value === "newest"
-                        ? undefined
-                        : (e.target.value as PullsSort),
+                    sort: e.target.value === "newest" ? undefined : (e.target.value as PullsSort),
                   }),
                 })
               }
@@ -164,7 +167,13 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
         ) : (
           <>
             {filtered.map((pr) => (
-              <PrRow key={pr.id} owner={owner} repo={repo} pr={pr} />
+              <PrRow
+                key={pr.id}
+                owner={owner}
+                repo={repo}
+                pr={pr}
+                reviewDecision={reviewDecisions.get(pr.number) ?? null}
+              />
             ))}
             {pulls.hasNextPage && !searchText ? (
               <LoadMoreButton
@@ -196,13 +205,7 @@ function PrListSkeleton() {
   );
 }
 
-function EmptyState({
-  hasSearch,
-  state,
-}: {
-  hasSearch: boolean;
-  state: PullsState;
-}) {
+function EmptyState({ hasSearch, state }: { hasSearch: boolean; state: PullsState }) {
   const Icon = state === "open" ? GitPullRequest : GitPullRequestClosed;
   return (
     <div className="px-5 py-16 text-center">
@@ -218,13 +221,7 @@ function EmptyState({
   );
 }
 
-function LoadMoreButton({
-  isFetching,
-  onClick,
-}: {
-  isFetching: boolean;
-  onClick: () => void;
-}) {
+function LoadMoreButton({ isFetching, onClick }: { isFetching: boolean; onClick: () => void }) {
   return (
     <button
       type="button"

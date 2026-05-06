@@ -1,11 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { MessageSquare } from "lucide-react";
+import { CircleCheck, CircleX, MessageSquare } from "lucide-react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import { PrStateIcon } from "@/app/features/pulls/components/PrStatePill";
 import type { PrListItem } from "@/app/features/pulls/hooks";
 import { toUiState } from "@/app/features/pulls/lib/prStatus";
+import type { ReviewDecision } from "@/app/features/pulls/lib/reviewDecision";
 import { formatRelativeTime } from "@/app/lib/time";
 
 // ─── PrRow ─────────────────────────────────────────────────────────────────
@@ -23,9 +24,10 @@ export type PrRowProps = {
   owner: string;
   repo: string;
   pr: PrListItem;
+  reviewDecision?: ReviewDecision;
 };
 
-export function PrRow({ owner, repo, pr }: PrRowProps) {
+export function PrRow({ owner, repo, pr, reviewDecision }: PrRowProps) {
   const state = toUiState({
     state: pr.state,
     draft: pr.draft ?? false,
@@ -85,6 +87,7 @@ export function PrRow({ owner, repo, pr }: PrRowProps) {
                 {pr.comments}
               </span>
             )}
+            <ReviewDecisionText decision={reviewDecision} />
             {pr.assignees.length > 0 && (
               <div className="mt-0.5 flex ">
                 {pr.assignees.slice(0, 3).map((a) => (
@@ -97,4 +100,32 @@ export function PrRow({ owner, repo, pr }: PrRowProps) {
       </div>
     </Link>
   );
+}
+
+function ReviewDecisionText({ decision }: { decision: ReviewDecision | undefined }) {
+  if (decision === "approved") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-caption text-(--color-success)"
+        title="Approved"
+      >
+        <CircleCheck className="size-3" aria-hidden />
+        Approved
+      </span>
+    );
+  }
+
+  if (decision === "changes_requested") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-caption text-(--color-danger)"
+        title="Changes requested"
+      >
+        <CircleX className="size-3" aria-hidden />
+        Changes requested
+      </span>
+    );
+  }
+
+  return null;
 }

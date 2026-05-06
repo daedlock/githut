@@ -3,10 +3,15 @@ import {
   queryOptions,
   useInfiniteQuery,
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
 import { z } from "zod";
+import {
+  type ReviewDecision as AggregatedReviewDecision,
+  aggregateReviews,
+} from "@/app/features/pulls/lib/reviewDecision";
 import {
   type IssueCommentOnPr,
   IssueCommentOnPrSchema,
@@ -359,6 +364,29 @@ export function usePrReviews(owner: string, repo: string, number: number) {
     ...prReviewsQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
   });
+}
+
+export function usePrReviewDecisions(
+  owner: string,
+  repo: string,
+  numbers: number[],
+): Map<number, AggregatedReviewDecision> {
+  const token = useAuthStore((s) => s.token);
+  const uniqueNumbers = Array.from(new Set(numbers)).filter(Number.isFinite);
+  const results = useQueries({
+    queries: uniqueNumbers.map((number) => ({
+      ...prReviewsQueryOptions(owner, repo, number),
+      enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    })),
+  });
+
+  const decisions = new Map<number, AggregatedReviewDecision>();
+  results.forEach((result, index) => {
+    const number = uniqueNumbers[index];
+    if (number === undefined || !result.data) return;
+    decisions.set(number, aggregateReviews(result.data));
+  });
+  return decisions;
 }
 
 export const prTimelineQueryOptions = (owner: string, repo: string, number: number) =>

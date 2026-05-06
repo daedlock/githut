@@ -2,7 +2,6 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useEffect } from "react";
 
 import { AppShell } from "@/app/components/shell/AppShell";
-import { ShellFooter } from "@/app/components/shell/ShellFooter";
 import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
 import { repoQueryOptions } from "@/app/hooks/useRepo";
 import { useAuthStore } from "@/app/stores/auth";
@@ -30,11 +29,7 @@ function RepoLayout() {
   const { owner, repo } = Route.useParams();
 
   return (
-    <AppShell
-      header={<UnifiedNav repoContext={{ owner, repo }} />}
-      footer={<ShellFooter bordered origin="localhost:5173" />}
-      stickyHeader
-    >
+    <AppShell header={<UnifiedNav repoContext={{ owner, repo }} />} stickyHeader>
       <TabScrollRegistrar />
       <Outlet />
     </AppShell>

@@ -3,7 +3,7 @@ import { labelStyle } from "@/app/features/issues/utils";
 import { cn } from "@/app/lib/cn";
 
 /**
- * LabelPill — rounded-full GitHub-style label chip.
+ * LabelPill — muted surface with a user-authored colored edge.
  * Two sizes:
  *   xs → list rows (tighter line-height so they sit flush with titles)
  *   sm → sidebar / detail header
@@ -20,7 +20,7 @@ export function LabelPill({
   return (
     <span
       className={cn(
-        "rounded-full font-medium",
+        "rounded-full border font-medium",
         size === "xs" ? "px-2 py-px text-micro leading-5" : "px-2 py-0.5 text-caption",
         className,
       )}

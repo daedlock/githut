@@ -1,7 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { ThemePicker } from "@/app/components/settings/ThemePicker";
 import { AppShell } from "@/app/components/shell/AppShell";
-import { ShellFooter } from "@/app/components/shell/ShellFooter";
 import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
 import { Container } from "@/app/components/ui/Container";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
@@ -22,7 +21,7 @@ function SettingsPage() {
   const { data: me } = useMe();
 
   return (
-    <AppShell header={<UnifiedNav />} footer={<ShellFooter bordered origin="localhost:5173" />}>
+    <AppShell header={<UnifiedNav />}>
       <Container className="py-6 sm:py-8">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
           <header className="flex flex-col gap-1">
