@@ -8,12 +8,21 @@ import { pullsQueryOptions } from "@/app/features/pulls/hooks";
 const SORT = ["newest", "oldest", "updated", "comments"] as const;
 const STATE = ["open", "closed", "all"] as const;
 
+const stringArray = z
+  .union([z.string(), z.array(z.string())])
+  .optional()
+  .transform((v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v]));
+
 const searchSchema = z.object({
   state: z.enum(STATE).optional(),
-  author: z.string().optional(),
-  label: z.string().optional(),
-  reviewer: z.string().optional(),
-  assignee: z.string().optional(),
+  author: stringArray,
+  label: stringArray,
+  reviewer: stringArray,
+  assignee: stringArray,
+  excludeAuthor: stringArray,
+  excludeLabel: stringArray,
+  excludeReviewer: stringArray,
+  excludeAssignee: stringArray,
   sort: z.enum(SORT).optional(),
 });
 
@@ -29,6 +38,10 @@ export const Route = createFileRoute("/$owner/$repo/pulls/")({
         label: deps.label,
         reviewer: deps.reviewer,
         assignee: deps.assignee,
+        excludeAuthor: deps.excludeAuthor,
+        excludeLabel: deps.excludeLabel,
+        excludeReviewer: deps.excludeReviewer,
+        excludeAssignee: deps.excludeAssignee,
         sort: deps.sort ?? "newest",
       }),
     );

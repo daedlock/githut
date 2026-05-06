@@ -1,13 +1,27 @@
 import { useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
+  ArrowDownUp,
+  Check,
   ChevronDown,
   GitPullRequest,
   GitPullRequestClosed,
   Search,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Container } from "@/app/components/ui/Container";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/app/components/ui/dropdown-menu";
+import {
+  type ActiveFilter,
+  type FilterFieldDef,
+  FilterBar,
+  FilterTrigger,
+} from "@/app/components/ui/filter-bar";
 import { Input } from "@/app/components/ui/input";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { PrRow } from "@/app/features/pulls/components/PrRow";
@@ -20,6 +34,11 @@ import {
   usePulls,
   usePullsCounts,
 } from "@/app/features/pulls/hooks";
+import {
+  useRepoCollaborators,
+  useRepoLabels,
+} from "@/app/features/pulls/pickers";
+import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
 import { cn } from "@/app/lib/cn";
 
 export type PrListPageProps = {
@@ -27,10 +46,14 @@ export type PrListPageProps = {
   repo: string;
   search: {
     state?: PullsState;
-    author?: string;
-    label?: string;
-    reviewer?: string;
-    assignee?: string;
+    author?: string[];
+    label?: string[];
+    reviewer?: string[];
+    assignee?: string[];
+    excludeAuthor?: string[];
+    excludeLabel?: string[];
+    excludeReviewer?: string[];
+    excludeAssignee?: string[];
     sort?: PullsSort;
   };
 };
@@ -42,6 +65,54 @@ const SORT_OPTIONS: { value: PullsSort; label: string }[] = [
   { value: "comments", label: "Most commented" },
 ];
 
+// ─── URL ↔ ActiveFilter mapping ────────────────────────────────────────────
+
+type PrFieldId = "label" | "author" | "assignee" | "reviewer";
+
+const FIELD_KEYS: Record<PrFieldId, { is: keyof PullsFilters; isNot: keyof PullsFilters }> = {
+  label: { is: "label", isNot: "excludeLabel" },
+  author: { is: "author", isNot: "excludeAuthor" },
+  assignee: { is: "assignee", isNot: "excludeAssignee" },
+  reviewer: { is: "reviewer", isNot: "excludeReviewer" },
+};
+
+function filtersToActive(f: PullsFilters): ActiveFilter[] {
+  const out: ActiveFilter[] = [];
+  for (const id of Object.keys(FIELD_KEYS) as PrFieldId[]) {
+    const inc = f[FIELD_KEYS[id].is];
+    if (Array.isArray(inc)) {
+      for (const v of inc) out.push({ fieldId: id, op: "is", value: v });
+    }
+    const exc = f[FIELD_KEYS[id].isNot];
+    if (Array.isArray(exc)) {
+      for (const v of exc) out.push({ fieldId: id, op: "is_not", value: v });
+    }
+  }
+  return out;
+}
+
+function activeToPatch(active: ActiveFilter[]): Record<string, string[] | undefined> {
+  const patch: Record<string, string[] | undefined> = {
+    label: undefined,
+    excludeLabel: undefined,
+    author: undefined,
+    excludeAuthor: undefined,
+    assignee: undefined,
+    excludeAssignee: undefined,
+    reviewer: undefined,
+    excludeReviewer: undefined,
+  };
+  for (const a of active) {
+    const keys = FIELD_KEYS[a.fieldId as PrFieldId];
+    if (!keys) continue;
+    const slot = a.op === "is" ? keys.is : keys.isNot;
+    (patch[slot] ??= []).push(a.value);
+  }
+  return patch;
+}
+
+// ─── Page ──────────────────────────────────────────────────────────────────
+
 export function PrListPage({ owner, repo, search }: PrListPageProps) {
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState("");
@@ -52,11 +123,17 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
     label: search.label,
     reviewer: search.reviewer,
     assignee: search.assignee,
+    excludeAuthor: search.excludeAuthor,
+    excludeLabel: search.excludeLabel,
+    excludeReviewer: search.excludeReviewer,
+    excludeAssignee: search.excludeAssignee,
     sort: search.sort ?? "newest",
   };
 
   const pulls = usePulls(owner, repo, filters);
   const counts = usePullsCounts(owner, repo);
+  const labelsQuery = useRepoLabels(owner, repo);
+  const collaboratorsQuery = useRepoCollaborators(owner, repo);
 
   const items = useMemo(() => pulls.data?.pages.flat() ?? [], [pulls.data]);
 
@@ -78,82 +155,97 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
     filtered.map((pr) => pr.number),
   );
 
+  const labels = labelsQuery.data ?? [];
+  const collaborators = collaboratorsQuery.data ?? [];
+
+  const fields = useMemo<FilterFieldDef[]>(
+    () => buildRepoFilterFields({ labels, collaborators }),
+    [labels, collaborators],
+  );
+  const active = useMemo(() => filtersToActive(filters), [filters]);
+
+  const onActiveChange = useCallback(
+    (next: ActiveFilter[]) => {
+      const patch = activeToPatch(next);
+      navigate({
+        to: "/$owner/$repo/pulls",
+        params: { owner, repo },
+        search: (prev) => ({ ...prev, ...patch }),
+      });
+    },
+    [navigate, owner, repo],
+  );
+
   return (
     <Container size="lg" className="py-6">
-      {/* Toolbar — sits on subtle surface */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted px-2 py-1">
-        <div className="flex items-center">
-          <PrStateTab
-            state="open"
-            count={counts.data?.open}
-            isActive={currentState === "open"}
-            onClick={() =>
-              navigate({
-                to: "/$owner/$repo/pulls",
-                params: { owner, repo },
-                search: (prev) => ({ ...prev, state: undefined }),
-              })
-            }
-          />
-          <PrStateTab
-            state="closed"
-            count={counts.data?.closed}
-            isActive={currentState === "closed"}
-            onClick={() =>
-              navigate({
-                to: "/$owner/$repo/pulls",
-                params: { owner, repo },
-                search: (prev) => ({ ...prev, state: "closed" }),
-              })
-            }
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search…"
-              className="h-7 w-44 pl-8 text-ui"
+      <div className="mb-2 flex flex-col gap-2">
+        {/* Toolbar — raised surface */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted p-2">
+          <div className="flex items-center">
+            <PrStateTab
+              state="open"
+              count={counts.data?.open}
+              isActive={currentState === "open"}
+              onClick={() =>
+                navigate({
+                  to: "/$owner/$repo/pulls",
+                  params: { owner, repo },
+                  search: (prev) => ({ ...prev, state: undefined }),
+                })
+              }
+            />
+            <PrStateTab
+              state="closed"
+              count={counts.data?.closed}
+              isActive={currentState === "closed"}
+              onClick={() =>
+                navigate({
+                  to: "/$owner/$repo/pulls",
+                  params: { owner, repo },
+                  search: (prev) => ({ ...prev, state: "closed" }),
+                })
+              }
             />
           </div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                placeholder="Search…"
+                className="h-7 w-44 pl-8 text-ui"
+              />
+            </div>
 
-          <div className="relative">
-            <select
+            <SortMenu
               value={filters.sort ?? "newest"}
-              onChange={(e) =>
+              onChange={(next) =>
                 navigate({
                   to: "/$owner/$repo/pulls",
                   params: { owner, repo },
                   search: (prev) => ({
                     ...prev,
-                    sort: e.target.value === "newest" ? undefined : (e.target.value as PullsSort),
+                    sort: next === "newest" ? undefined : next,
                   }),
                 })
               }
-              className={cn(
-                "h-7 appearance-none rounded-sm bg-background",
-                "pl-2 pr-6 font-sans text-caption text-muted-foreground outline-none",
-                "hover:text-foreground",
-                "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
-              )}
-            >
-              {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
             />
+
+            <FilterTrigger fields={fields} active={active} onChange={onActiveChange} />
           </div>
         </div>
+
+        {/* Filter pills — only when active */}
+        <FilterBar
+          fields={fields}
+          active={active}
+          onChange={onActiveChange}
+          className="px-2"
+        />
       </div>
 
-      {/* List — flat rows, hover surface shift */}
+      {/* List */}
       <div className="mt-4 flex flex-col gap-1">
         {pulls.isPending ? (
           <PrListSkeleton />
@@ -185,6 +277,56 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
         )}
       </div>
     </Container>
+  );
+}
+
+// ─── Sort menu ─────────────────────────────────────────────────────────────
+
+function SortMenu({
+  value,
+  onChange,
+}: {
+  value: PullsSort;
+  onChange: (next: PullsSort) => void;
+}) {
+  const current = SORT_OPTIONS.find((o) => o.value === value) ?? SORT_OPTIONS[0]!;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "inline-flex h-7 items-center gap-1.5 rounded-md px-2",
+            "font-sans text-caption text-muted-foreground outline-none",
+            "hover:bg-accent hover:text-foreground",
+            "aria-expanded:bg-accent aria-expanded:text-foreground",
+            "focus-visible:ring-2 focus-visible:ring-ring",
+          )}
+        >
+          <ArrowDownUp className="size-3" aria-hidden />
+          <span>{current.label}</span>
+          <ChevronDown className="size-3 opacity-70" aria-hidden />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={6} className="w-44">
+        {SORT_OPTIONS.map((o) => (
+          <DropdownMenuItem
+            key={o.value}
+            onSelect={() => onChange(o.value)}
+            className="font-sans text-ui"
+          >
+            <Check
+              className={cn(
+                "size-3.5",
+                o.value === value ? "opacity-100" : "opacity-0",
+              )}
+              aria-hidden
+            />
+            {o.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

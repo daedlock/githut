@@ -1,13 +1,21 @@
 import { AlertCircle, CheckCircle2, CircleDot, Plus, Search, X } from "lucide-react";
+import { useMemo } from "react";
 import { Button } from "@/app/components/ui/button";
 import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import { Container } from "@/app/components/ui/Container";
+import {
+  type ActiveFilter,
+  FilterBar,
+  FilterTrigger,
+} from "@/app/components/ui/filter-bar";
 import { Input } from "@/app/components/ui/input";
-import { cn } from "@/app/lib/cn";
 import { IssueListSkeleton } from "@/app/features/issues/components/IssueListSkeleton";
 import { IssueRow } from "@/app/features/issues/components/IssueRow";
 import { type StateFilter, StateTab } from "@/app/features/issues/components/StateTab";
 import type { RepoIssue } from "@/app/features/issues/schemas";
+import { useRepoCollaborators, useRepoLabels } from "@/app/features/pulls/pickers";
+import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
+import { cn } from "@/app/lib/cn";
 
 export type IssueListProps = {
   owner: string;
@@ -21,6 +29,8 @@ export type IssueListProps = {
   onStateFilter: (s: StateFilter) => void;
   searchText: string;
   onSearch: (s: string) => void;
+  activeFilters: ActiveFilter[];
+  onActiveFiltersChange: (next: ActiveFilter[]) => void;
   isComposing: boolean;
   onToggleCompose: () => void;
   newIssueTitle: string;
@@ -43,6 +53,8 @@ export function IssueList({
   onStateFilter,
   searchText,
   onSearch,
+  activeFilters,
+  onActiveFiltersChange,
   isComposing,
   onToggleCompose,
   newIssueTitle,
@@ -52,6 +64,18 @@ export function IssueList({
   onSubmitIssue,
   isSubmittingIssue,
 }: IssueListProps) {
+  const labelsQuery = useRepoLabels(owner, repo);
+  const collaboratorsQuery = useRepoCollaborators(owner, repo);
+  const fields = useMemo(
+    () =>
+      buildRepoFilterFields({
+        labels: labelsQuery.data ?? [],
+        collaborators: collaboratorsQuery.data ?? [],
+        include: ["label", "author", "assignee"],
+      }),
+    [labelsQuery.data, collaboratorsQuery.data],
+  );
+
   return (
     <Container size="lg" className="py-6">
       {isComposing ? (
@@ -100,36 +124,50 @@ export function IssueList({
       ) : (
         <>
           {/* Toolbar — sits on subtle surface */}
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted px-2 py-1">
-            <div className="flex items-center">
-              <StateTab
-                state="open"
-                count={openCount}
-                isActive={stateFilter === "open"}
-                onClick={() => onStateFilter("open")}
-              />
-              <StateTab
-                state="closed"
-                count={closedCount}
-                isActive={stateFilter === "closed"}
-                onClick={() => onStateFilter("closed")}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={searchText}
-                  onChange={(e) => onSearch(e.target.value)}
-                  placeholder="Search…"
-                  className="h-7 w-44 pl-8 text-ui"
+          <div className="mb-2 flex flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted p-2">
+              <div className="flex items-center">
+                <StateTab
+                  state="open"
+                  count={openCount}
+                  isActive={stateFilter === "open"}
+                  onClick={() => onStateFilter("open")}
+                />
+                <StateTab
+                  state="closed"
+                  count={closedCount}
+                  isActive={stateFilter === "closed"}
+                  onClick={() => onStateFilter("closed")}
                 />
               </div>
-              <Button size="sm" variant="default" onClick={onToggleCompose}>
-                <Plus data-icon="inline-start" />
-                New issue
-              </Button>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchText}
+                    onChange={(e) => onSearch(e.target.value)}
+                    placeholder="Search…"
+                    className="h-7 w-44 pl-8 text-ui"
+                  />
+                </div>
+                <FilterTrigger
+                  fields={fields}
+                  active={activeFilters}
+                  onChange={onActiveFiltersChange}
+                />
+                <Button size="sm" variant="default" onClick={onToggleCompose}>
+                  <Plus data-icon="inline-start" />
+                  New issue
+                </Button>
+              </div>
             </div>
+
+            <FilterBar
+              fields={fields}
+              active={activeFilters}
+              onChange={onActiveFiltersChange}
+              className="px-2"
+            />
           </div>
 
           {/* List — flat rows, hover surface shift */}

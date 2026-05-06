@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ActiveFilter } from "@/app/components/ui/filter-bar";
 import type { StateFilter } from "@/app/features/issues/components/StateTab";
 import {
   useCreateIssue,
@@ -23,6 +24,23 @@ export type RepoIssuesPageProps = {
   onIssueIsPullRequest: (issueNumber: number) => void;
 };
 
+function matchIssueFilter(
+  issue: { labels: { name: string }[]; user: { login: string }; assignees: { login: string }[] },
+  fieldId: string,
+  value: string,
+): boolean {
+  switch (fieldId) {
+    case "label":
+      return issue.labels.some((l) => l.name === value);
+    case "author":
+      return issue.user.login === value;
+    case "assignee":
+      return issue.assignees.some((a) => a.login === value);
+    default:
+      return false;
+  }
+}
+
 export function RepoIssuesPage({
   owner,
   repo,
@@ -35,6 +53,7 @@ export function RepoIssuesPage({
 
   const [stateFilter, setStateFilter] = useState<StateFilter>("open");
   const [searchText, setSearchText] = useState("");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const [isComposing, setIsComposing] = useState(false);
   const [newIssueTitle, setNewIssueTitle] = useState("");
   const [newIssueBody, setNewIssueBody] = useState("");
@@ -65,7 +84,15 @@ export function RepoIssuesPage({
   );
 
   const filteredIssues = useMemo(() => {
-    const list = (issuesQuery.data ?? []).filter((i) => i.state === stateFilter);
+    let list = (issuesQuery.data ?? []).filter((i) => i.state === stateFilter);
+
+    for (const f of activeFilters) {
+      list = list.filter((i) => {
+        const has = matchIssueFilter(i, f.fieldId, f.value);
+        return f.op === "is" ? has : !has;
+      });
+    }
+
     const q = searchText.trim().toLowerCase();
     if (!q) return list;
     return list.filter(
@@ -74,7 +101,7 @@ export function RepoIssuesPage({
         i.body?.toLowerCase().includes(q) ||
         i.user.login.toLowerCase().includes(q),
     );
-  }, [issuesQuery.data, stateFilter, searchText]);
+  }, [issuesQuery.data, stateFilter, searchText, activeFilters]);
 
   const selectedIssue = issueQuery.data;
 
@@ -142,6 +169,8 @@ export function RepoIssuesPage({
       onStateFilter={setStateFilter}
       searchText={searchText}
       onSearch={setSearchText}
+      activeFilters={activeFilters}
+      onActiveFiltersChange={setActiveFilters}
       isComposing={isComposing}
       onToggleCompose={() => {
         setIsComposing((v) => !v);
