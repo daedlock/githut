@@ -142,9 +142,7 @@ function normalizeFilters(f: PullsFilters): string {
     .sort(([a], [b]) => a.localeCompare(b));
   return entries.length === 0
     ? "default"
-    : entries
-        .map(([k, v]) => `${k}=${Array.isArray(v) ? v.join(",") : v}`)
-        .join("&");
+    : entries.map(([k, v]) => `${k}=${Array.isArray(v) ? v.join(",") : v}`).join("&");
 }
 
 /**
@@ -762,6 +760,7 @@ export type PrMergeStatusData = {
   } | null;
   viewerCanEnableAutoMerge: boolean;
   viewerCanDisableAutoMerge: boolean;
+  viewerCanMergeAsAdmin: boolean;
   viewerCanDeleteHeadRef: boolean;
   viewerCanUpdateBranch: boolean;
   viewerCannotUpdateReasons: string[];
@@ -796,6 +795,7 @@ type PrMergeStatusQueryResponse = {
       } | null;
       viewerCanEnableAutoMerge?: boolean;
       viewerCanDisableAutoMerge?: boolean;
+      viewerCanMergeAsAdmin?: boolean;
       viewerCanDeleteHeadRef?: boolean;
       viewerCanUpdate?: boolean;
       viewerCannotUpdateReasons?: string[];
@@ -836,6 +836,7 @@ const PR_MERGE_STATUS_QUERY = `
         }
         viewerCanEnableAutoMerge
         viewerCanDisableAutoMerge
+        viewerCanMergeAsAdmin
         viewerCanDeleteHeadRef
         viewerCanUpdate
         viewerCannotUpdateReasons
@@ -923,6 +924,7 @@ export const prMergeStatusQueryOptions = (owner: string, repo: string, number: n
           : null,
         viewerCanEnableAutoMerge: firstPull.viewerCanEnableAutoMerge ?? false,
         viewerCanDisableAutoMerge: firstPull.viewerCanDisableAutoMerge ?? false,
+        viewerCanMergeAsAdmin: firstPull.viewerCanMergeAsAdmin ?? false,
         viewerCanDeleteHeadRef: firstPull.viewerCanDeleteHeadRef ?? false,
         viewerCanUpdateBranch: firstPull.viewerCanUpdate ?? false,
         viewerCannotUpdateReasons: firstPull.viewerCannotUpdateReasons ?? [],
@@ -952,6 +954,14 @@ export function usePrMergeStatus(owner: string, repo: string, number: number) {
   });
 }
 
+type MergePullRequestResponse = {
+  mergePullRequest?: {
+    pullRequest?: {
+      mergeCommit?: { oid?: string | null } | null;
+    } | null;
+  } | null;
+};
+
 export function useMergePr(owner: string, repo: string, number: number) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -959,8 +969,46 @@ export function useMergePr(owner: string, repo: string, number: number) {
       method: MergeMethod;
       commitTitle?: string;
       commitMessage?: string;
+      pullRequestId?: string;
+      expectedHeadOid?: string;
+      bypassRequirements?: boolean;
     }) => {
       const client = getGitHubClient();
+      if (vars.bypassRequirements) {
+        if (!vars.pullRequestId) throw new Error("Pull request ID is required for admin merge");
+        const res = (await client.graphql(
+          `mutation(
+            $id: ID!,
+            $method: PullRequestMergeMethod!,
+            $headline: String,
+            $body: String,
+            $expectedHeadOid: GitObjectID
+          ) {
+            mergePullRequest(input: {
+              pullRequestId: $id,
+              mergeMethod: $method,
+              commitHeadline: $headline,
+              commitBody: $body,
+              expectedHeadOid: $expectedHeadOid
+            }) {
+              pullRequest { mergeCommit { oid } }
+            }
+          }`,
+          {
+            id: vars.pullRequestId,
+            method: toGraphqlMergeMethod(vars.method),
+            headline: vars.commitTitle,
+            body: vars.commitMessage,
+            expectedHeadOid: vars.expectedHeadOid,
+          },
+        )) as MergePullRequestResponse;
+        return {
+          sha: res.mergePullRequest?.pullRequest?.mergeCommit?.oid ?? "",
+          merged: true,
+          message: "Pull request merged with administrator privileges",
+        };
+      }
+
       const res = await client.request("PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge", {
         owner,
         repo,

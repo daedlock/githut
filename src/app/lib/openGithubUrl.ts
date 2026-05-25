@@ -1,6 +1,6 @@
 const RESERVED_PROFILE_PATHS = new Set(["login", "playground", "settings"]);
 
-const FULL_WIDTH_REPO_PATHS = [/^commit\/[^/]+\/?$/, /^review\/\d+\/?$/] as const;
+const FULL_WIDTH_REPO_PATHS = [/^commit\/[^/]+\/?$/, /^pr\/\d+(?:\/code)?\/?$/, /^review\/\d+\/?$/] as const;
 
 type LocationLike = {
   pathname: string;

@@ -81,7 +81,7 @@ export function PrSubTabs({ owner, repo, number, counts, changeStats }: PrSubTab
           <ChangeStatsBadge additions={changeStats.additions} deletions={changeStats.deletions} />
         )}
         <Button variant="default" asChild>
-          <Link to="/$owner/$repo/review/$number" params={{ owner, repo, number }}>
+          <Link to="/$owner/$repo/pr/$number" params={{ owner, repo, number }}>
             <Code2 data-icon="inline-start" />
             <span>Review</span>
           </Link>

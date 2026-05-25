@@ -5,7 +5,7 @@ import { createFileRoute, Outlet } from "@tanstack/react-router";
 //   /pull/$number          → detail (conversation by default)
 //   /pull/$number/commits  → commits in PR
 //   /pull/$number/checks   → checks
-//   /review/$number        → unified file-diff review surface
+//   /pr/$number            → unified file-diff review surface
 // This parent route is mostly a pass-through; the list and detail layouts
 // do their own chrome.
 

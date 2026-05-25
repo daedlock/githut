@@ -28,7 +28,7 @@ export type PrMergeDialogProps = {
   pr: PullRequest;
   onConfirm: (vars: { method: MergeMethod; commitTitle?: string; commitMessage?: string }) => void;
   isPending?: boolean;
-  intent?: "merge" | "auto-merge";
+  intent?: "merge" | "auto-merge" | "admin-merge";
   allowedMethods?: MergeMethod[];
 };
 
@@ -73,6 +73,7 @@ export function PrMergeDialog({
   const [title, setTitle] = useState(`${pr.title} (#${pr.number})`);
   const [message, setMessage] = useState(pr.body?.trim() ?? "");
   const isAutoMerge = intent === "auto-merge";
+  const isAdminMerge = intent === "admin-merge";
 
   useEffect(() => {
     const next = availableMethods[0]?.id ?? "merge";
@@ -93,15 +94,28 @@ export function PrMergeDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GitMerge className="size-4 text-[var(--color-pr-merged)]" />
-            {isAutoMerge ? "Enable auto-merge" : "Merge pull request"}
+            {isAutoMerge
+              ? "Enable auto-merge"
+              : isAdminMerge
+                ? "Bypass requirements and merge"
+                : "Merge pull request"}
           </DialogTitle>
           <DialogDescription>
             {isAutoMerge
               ? "GitHub will merge this pull request once all required checks and reviews pass."
-              : "Merging will close this pull request and write the branch into"}{" "}
+              : isAdminMerge
+                ? "Your GitHub permissions allow bypassing required checks or reviews. This will close the pull request and write the branch into"
+                : "Merging will close this pull request and write the branch into"}{" "}
             <span className="font-mono">{pr.base.ref}</span>.
           </DialogDescription>
         </DialogHeader>
+
+        {isAdminMerge && (
+          <div className="rounded-md border border-[color-mix(in_oklab,var(--color-warning)_40%,var(--color-border))] bg-[color-mix(in_oklab,var(--color-warning)_8%,var(--color-bg-subtle))] px-3 py-2 text-caption text-foreground">
+            This uses administrator bypass on GitHub. Only proceed if the remaining requirements are
+            intentionally being overridden.
+          </div>
+        )}
 
         <div className="flex flex-col gap-2">
           {availableMethods.map((m) => (
@@ -175,7 +189,9 @@ export function PrMergeDialog({
                 : "Merging…"
               : isAutoMerge
                 ? "Enable auto-merge"
-                : `Confirm ${method}`}
+                : isAdminMerge
+                  ? `Bypass and ${method}`
+                  : `Confirm ${method}`}
           </Button>
         </DialogFooter>
       </DialogContent>
