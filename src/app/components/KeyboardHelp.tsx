@@ -58,7 +58,7 @@ function promoteScope(scope: Scope): readonly Scope[] {
 
 function scopeForPath(pathname: string): Scope {
   if (/\/[^/]+\/[^/]+\/commit\/[^/]+/.test(pathname)) return "diff";
-  if (/\/[^/]+\/[^/]+\/pulls\/[^/]+/.test(pathname)) return "diff";
+  if (/\/[^/]+\/[^/]+\/pr\/[^/]+/.test(pathname)) return "diff";
   if (/^\/[^/]+\/[^/]+(\/|$)/.test(pathname) && !pathname.startsWith("/w/")) return "repo";
   return "global";
 }

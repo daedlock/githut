@@ -508,7 +508,7 @@ export function ComposeBox({
           <div className="animate-in fade-in-0 duration-150 min-h-[80px] px-3 py-2.5">
             {hasContent ? (
               <div className="readme-prose max-w-none text-body">
-                <GithubMarkdown>{value}</GithubMarkdown>
+                <GithubMarkdown repoContext={{ owner, repo }}>{value}</GithubMarkdown>
               </div>
             ) : (
               <p className="text-body italic text-muted-foreground">Nothing to preview.</p>

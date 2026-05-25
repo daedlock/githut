@@ -152,7 +152,7 @@ export function reviewerDisplayLogin(login: string) {
 function reviewerAliases(login: string) {
   const known = knownGitHubAppActorForInput(login);
   return [login, known?.reviewerLogin, known?.botLogin, known?.mentionLogin].filter(
-    (value) => !!value,
+    (value): value is string => !!value,
   );
 }
 

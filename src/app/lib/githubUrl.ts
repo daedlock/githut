@@ -63,6 +63,13 @@ const RULES: Rule[] = [
     },
   },
   {
+    name: "repo:pull-files",
+    match: (p) => {
+      const m = p.match(/^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/files\/?$/);
+      return m ? `/${m[1]}/${m[2]}/pr/${m[3]}` : null;
+    },
+  },
+  {
     name: "repo:pull",
     match: (p) => {
       const m = p.match(/^\/([^/]+)\/([^/]+)\/pull\/(\d+)\/?$/);

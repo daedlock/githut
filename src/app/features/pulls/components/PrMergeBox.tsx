@@ -127,6 +127,14 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
     pr.mergeable === true &&
     !blockedByRequirements &&
     allowedMethods.length > 0;
+  const canBypassRequirements =
+    state !== "draft" &&
+    !hasConflicts &&
+    pr.mergeable === true &&
+    blockedByRequirements &&
+    !!mergeStatus?.viewerCanMergeAsAdmin &&
+    allowedMethods.length > 0;
+  const canOpenMergeDialog = canMergeNow || canBypassRequirements;
   const canEnableAutoMerge =
     repoQuery.data?.allow_auto_merge !== false &&
     !mergeStatus?.autoMergeRequest &&
@@ -185,13 +193,21 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
         />
         <div className="min-w-0 flex-1">
           <p className="text-body font-medium text-foreground">
-            {readinessTitle({ hasConflicts, state, canMergeNow, isBehind, mergeStatus })}
+            {readinessTitle({
+              hasConflicts,
+              state,
+              canMergeNow,
+              canBypassRequirements,
+              isBehind,
+              mergeStatus,
+            })}
           </p>
           <p className="mt-0.5 text-caption text-muted-foreground">
             {readinessDetail({
               hasConflicts,
               state,
               canMergeNow,
+              canBypassRequirements,
               isBehind,
               mergeStatus,
               allowedMethods,
@@ -217,13 +233,22 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
           {state !== "draft" && !hasConflicts && pr.mergeable && (
             <Button
               size="sm"
-              disabled={merge.isPending || !canMergeNow}
+              disabled={merge.isPending || !canOpenMergeDialog}
               onClick={() => setMergeOpen(true)}
-              className="border border-[color-mix(in_oklab,var(--color-success)_50%,var(--color-border))] bg-[color-mix(in_oklab,var(--color-success)_12%,var(--color-bg-subtle))] text-foreground hover:bg-[color-mix(in_oklab,var(--color-success)_20%,var(--color-bg-subtle))]"
-              title={canMergeNow ? undefined : "Resolve merge requirements first"}
+              className={cn(
+                "border text-foreground",
+                canBypassRequirements
+                  ? "border-[color-mix(in_oklab,var(--color-warning)_50%,var(--color-border))] bg-[color-mix(in_oklab,var(--color-warning)_12%,var(--color-bg-subtle))] hover:bg-[color-mix(in_oklab,var(--color-warning)_20%,var(--color-bg-subtle))]"
+                  : "border-[color-mix(in_oklab,var(--color-success)_50%,var(--color-border))] bg-[color-mix(in_oklab,var(--color-success)_12%,var(--color-bg-subtle))] hover:bg-[color-mix(in_oklab,var(--color-success)_20%,var(--color-bg-subtle))]",
+              )}
+              title={
+                canOpenMergeDialog
+                  ? undefined
+                  : "Resolve merge requirements first, or use a GitHub account with bypass access"
+              }
             >
               <GitMerge data-icon="inline-start" />
-              Merge
+              {canBypassRequirements ? "Bypass and merge" : "Merge"}
             </Button>
           )}
         </div>
@@ -234,8 +259,21 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
         onOpenChange={setMergeOpen}
         pr={pr}
         isPending={merge.isPending}
+        intent={canBypassRequirements ? "admin-merge" : "merge"}
         allowedMethods={allowedMethods}
-        onConfirm={(vars) => merge.mutate(vars, { onSuccess: () => setMergeOpen(false) })}
+        onConfirm={(vars) =>
+          merge.mutate(
+            canBypassRequirements
+              ? {
+                  ...vars,
+                  pullRequestId: pr.node_id,
+                  expectedHeadOid: pr.head.sha,
+                  bypassRequirements: true,
+                }
+              : vars,
+            { onSuccess: () => setMergeOpen(false) },
+          )
+        }
       />
       <PrMergeDialog
         open={autoMergeOpen}
@@ -841,18 +879,21 @@ function readinessTitle({
   hasConflicts,
   state,
   canMergeNow,
+  canBypassRequirements,
   isBehind,
   mergeStatus,
 }: {
   hasConflicts: boolean;
   state: string;
   canMergeNow: boolean;
+  canBypassRequirements: boolean;
   isBehind: boolean;
   mergeStatus: PrMergeStatusData | undefined;
 }) {
   if (hasConflicts) return "Conflicts must be resolved";
   if (state === "draft") return "Draft pull request";
   if (canMergeNow) return "Ready to merge";
+  if (canBypassRequirements) return "Administrator bypass available";
   if (mergeStatus?.autoMergeRequest) return "Waiting for auto-merge";
   if (isBehind) return "Branch update needed";
   if (mergeStatus?.mergeStateStatus === "BLOCKED") return "Blocked by repository rules";
@@ -863,6 +904,7 @@ function readinessDetail({
   hasConflicts,
   state,
   canMergeNow,
+  canBypassRequirements,
   isBehind,
   mergeStatus,
   allowedMethods,
@@ -870,6 +912,7 @@ function readinessDetail({
   hasConflicts: boolean;
   state: string;
   canMergeNow: boolean;
+  canBypassRequirements: boolean;
   isBehind: boolean;
   mergeStatus: PrMergeStatusData | undefined;
   allowedMethods: MergeMethod[];
@@ -878,6 +921,8 @@ function readinessDetail({
   if (hasConflicts) return "Resolve conflicts locally or on GitHub before merging.";
   if (state === "draft") return "Mark as ready for review to enable merging.";
   if (canMergeNow) return `Available methods: ${allowedMethods.map(formatMethod).join(", ")}.`;
+  if (canBypassRequirements)
+    return "Your GitHub permissions allow merging without waiting for these requirements.";
   if (mergeStatus?.autoMergeRequest)
     return "GitHub will merge this PR once the remaining requirements pass.";
   if (isBehind) return "Update the branch, then wait for required checks to rerun.";
