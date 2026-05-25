@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/daedlock/githut/discussions
+    about: Ask questions, discuss design, or propose early ideas.
+  - name: Security vulnerability
+    url: https://github.com/daedlock/githut/security/advisories/new
+    about: Please report vulnerabilities privately.

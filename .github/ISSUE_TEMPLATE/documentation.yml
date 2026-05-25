@@ -1,0 +1,22 @@
+name: Documentation improvement
+description: Report missing, confusing, or outdated documentation
+title: "docs: "
+labels: [documentation]
+body:
+  - type: textarea
+    id: issue
+    attributes:
+      label: What needs to be improved?
+      placeholder: Describe the missing, confusing, or outdated docs.
+    validations:
+      required: true
+  - type: textarea
+    id: location
+    attributes:
+      label: Where is it?
+      placeholder: Link to README section, file, route, or issue.
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested change
+      placeholder: If you know what should be written, include a draft here.

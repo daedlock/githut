@@ -1,0 +1,80 @@
+name: Bug report
+description: Report a reproducible bug or unexpected behavior
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please do not include tokens, cookies, OAuth codes, or private repository content.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+      placeholder: Describe the bug in one or two sentences.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide a minimal, reliable reproduction.
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: What happened instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: repo_visibility
+    attributes:
+      label: Repository type
+      options:
+        - Public repository
+        - Private repository
+        - Organization repository
+        - Fork
+        - Not repository-specific
+        - Unknown / other
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      placeholder: Chrome 123, Firefox 124, Safari 17, etc.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: macOS, Windows, Linux, iOS, Android
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console or network errors
+      description: Redact sensitive data before pasting.
+      render: text
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots or recordings
+      description: Drag screenshots or videos here if helpful.
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context

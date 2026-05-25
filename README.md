@@ -1,87 +1,171 @@
 # GitHut
 
-**GitHub's UI, rebuilt for speed.**
+<p align="center">
+  <img src="logo.svg" alt="GitHut" width="88" height="88" />
+</p>
 
-[![GitHub stars](https://img.shields.io/github/stars/daedlock/githut?style=social)](https://github.com/daedlock/githut)
-[![License](https://img.shields.io/github/license/daedlock/githut)](LICENSE)
-[![Issues](https://img.shields.io/github/issues/daedlock/githut)](https://github.com/daedlock/githut/issues)
+<p align="center">
+  <strong>A fast, keyboard-friendly GitHub client for people who live in repositories.</strong>
+</p>
+
+<p align="center">
+  <a href="https://githut.app"><strong>Try GitHut</strong></a>
+  ·
+  <a href="CONTRIBUTING.md">Contribute</a>
+  ·
+  <a href="https://github.com/daedlock/githut/issues">Issues</a>
+  ·
+  <a href="plan.md">Roadmap</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/daedlock/githut/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/daedlock/githut/ci.yml?branch=main&label=ci"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/daedlock/githut"></a>
+  <a href="https://github.com/daedlock/githut/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/daedlock/githut?style=social"></a>
+</p>
 
 ---
 
-**[→ Try GitHut Live](https://githut.app)** *(connects to your GitHub)*
+GitHut is a client-side GitHub interface focused on speed, review flow, and repository navigation. It uses GitHub's APIs directly, keeps navigation instant, and gives common repo/issue/PR workflows a modern application feel.
 
----
+> GitHut is independent open-source software and is not affiliated with GitHub, Inc.
 
-## The Problem
+## Why GitHut?
 
-GitHub's UI is server-side rendered. Every click waits for a server roundtrip. For developers who live in the repo browser, issues, and PRs — that slowness adds up.
+GitHub is powerful, but frequent page transitions, heavy navigation, and context switching can slow down day-to-day repository work. GitHut treats GitHub as an API and builds a responsive application on top:
 
-## The Solution
-
-GitHut is a client-side GitHub UI:
-- **Instant navigation** — No page reloads, no waiting
-- **Full GitHub integration** — OAuth login, real data from GitHub API
-- **World-class UX** — Clean, stays out of your way, dark/light modes
-
-```
-GitHub:  Click → Wait 800ms → Render
-GitHut:  Click → Render (instant)
-```
+- **Instant navigation** across repositories, files, issues, pull requests, commits, and reviews.
+- **Productive pull request review** with rich diffs, inline comments, review drafts, checks, and merge controls.
+- **GitHub-native data** via OAuth and the GitHub REST/GraphQL APIs.
+- **Large-repo friendly UI** with virtualized lists, lazy syntax grammars, and responsive layouts.
+- **Polished interface** built with React, TanStack Router/Query, Tailwind CSS, shadcn/ui, and Shiki.
 
 ## Features
 
-| Feature | Status |
-|---------|--------|
-| Code browsing | ✅ |
-| Commit & branch browsing | ✅ |
-| Issues (CRUD + reactions) | ✅ |
-| Pull requests (CRUD + code review) | ✅ |
-| GitHub Actions | 🚧 In progress |
-| Syntax highlighting (Shiki) | ✅ |
-| Diff viewer | ✅ |
-| Virtual scrolling (large repos) | ✅ |
+| Area | Status |
+| --- | --- |
+| Repository browsing | Code, branches, files, history, commits |
+| Issues | Lists, filters, comments, labels, assignees, reactions |
+| Pull requests | Conversation, files, commits, checks, reviews, merge/auto-merge/admin bypass |
+| Review workflow | Inline comments, pending draft comments, submit review |
+| GitHub auth | OAuth login, org access management, token revocation redirect |
+| Uploads | Authenticated image uploads backed by Cloudflare R2 |
+| Deployment | Cloudflare Workers + static assets |
 
-## Quick Start
+See [`plan.md`](plan.md) for the active roadmap.
 
-### Use it
+## Try it
 
-Just connect your GitHub account at **[githut.app](https://githut.app)** — no installation needed.
+Use the hosted app at **https://githut.app**.
 
-### Run locally
+GitHut asks GitHub for these OAuth scopes:
+
+- `repo` — read/write repository data needed for private repos, issues, PRs, reviews, and merge actions.
+- `read:user` — read your user profile.
+- `read:org` — read organization membership for access-aware repository workflows.
+
+You can revoke access at any time from GitHub's authorized OAuth apps page.
+
+## Local development
+
+### Requirements
+
+- [Bun](https://bun.sh/) 1.2+
+- A GitHub OAuth app for local login
+- Optional for production-like uploads: a Cloudflare account with an R2 bucket
+
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/daedlock/githut.git
 cd githut
 bun install
+```
+
+### 2. Configure local secrets
+
+Create `.dev.vars` for Wrangler and/or `.env` for local tooling. Start from the example:
+
+```bash
+cp .env.example .env
+cp .env.example .dev.vars
+```
+
+For local OAuth, create a GitHub OAuth app with:
+
+- Homepage URL: `http://localhost:5173`
+- Authorization callback URL: `http://localhost:5173/api/auth/callback`
+
+Then set:
+
+```ini
+GITHUB_CLIENT_ID=your_local_oauth_client_id
+GITHUB_CLIENT_SECRET=your_local_oauth_client_secret
+OAUTH_STATE_SECRET=generate_a_long_random_secret
+APP_URL=http://localhost:5173
+```
+
+### 3. Run the app
+
+```bash
 bun run dev
 ```
 
-## Tech Stack
+This starts Vite and Wrangler together. Open `http://localhost:5173`.
 
-- **React 19** + **TanStack Router & Query**
-- **Tailwind CSS 4** + **shadcn/ui**
-- **Shiki** for syntax highlighting
-- **Cloudflare Workers** for edge deployment
-- **Octokit** for GitHub API
+## Common commands
+
+```bash
+bun run dev          # Vite + Cloudflare Worker dev server
+bun tsc --noEmit     # Type-check
+bun test             # Run tests
+bun run build        # Production build
+bun run deploy       # Build and deploy with Wrangler
+bun run check        # Biome lint/format check
+bun run format       # Format with Biome
+```
+
+## Architecture
+
+```text
+src/
+  app/
+    components/       Shared UI and shell components
+    features/         Feature modules for pulls, issues, dashboard, etc.
+    hooks/            Data and interaction hooks
+    lib/              GitHub client, routing helpers, utilities
+    routes/           TanStack Router file routes
+    styles/           Tailwind theme and global styles
+  worker/             Cloudflare Worker API (OAuth, uploads, proxy endpoints)
+public/               Static public assets
+.github/              Workflows, issue forms, repository metadata
+```
+
+### Technology
+
+- **Runtime/package manager:** Bun
+- **Frontend:** React 19, TanStack Router, TanStack Query
+- **Styling:** Tailwind CSS 4, shadcn/ui, custom design system
+- **GitHub API:** Octokit, REST, GraphQL
+- **Syntax highlighting:** Shiki
+- **Edge/API:** Cloudflare Workers, Hono, R2
+- **Quality:** TypeScript, Biome, GitHub Actions
 
 ## Contributing
 
-GitHut is open source and contributor-friendly.
+We welcome high-quality issues, discussions, documentation improvements, bug fixes, and feature work. Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request.
 
-1. Check [Good First Issues](https://github.com/daedlock/githut/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
-2. Read the [Contributing Guide](CONTRIBUTING.md)
-3. Join the discussion in [GitHub Discussions](https://github.com/daedlock/githut/discussions)
+Good starting points:
 
-## Roadmap
+- Issues labeled [`good first issue`](https://github.com/daedlock/githut/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+- Small documentation improvements
+- Reproduction cases for GitHub API or browser-specific bugs
+- Performance improvements with clear before/after notes
 
-See [plan.md](plan.md) for the full roadmap and current progress.
+## Security
+
+Please do not open public issues for vulnerabilities. See [`SECURITY.md`](SECURITY.md) for the private reporting process.
 
 ## License
 
-[MIT](LICENSE)
-
----
-
-<p align="center">
-  <b>Star ⭐ the repo if you find it useful</b>
-</p>
+GitHut is released under the [MIT License](LICENSE).
