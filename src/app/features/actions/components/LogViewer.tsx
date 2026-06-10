@@ -29,6 +29,9 @@ export type LogViewerProps = {
   errorStatus?: number;
   /** Live mode: auto-tail to the latest line when it arrives. */
   isLive?: boolean;
+  /** Soft wait state for GitHub/Azure's delayed log materialization. */
+  isPreparing?: boolean;
+  preparingLabel?: string;
   className?: string;
 };
 
@@ -38,6 +41,8 @@ function LogViewer({
   isError,
   errorStatus,
   isLive = false,
+  isPreparing = false,
+  preparingLabel,
   className,
 }: LogViewerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -125,22 +130,26 @@ function LogViewer({
     );
   }
 
-  // Live + no lines yet: single stable "Waiting for output…" state. Covers
-  // initial fetch, polling retries, and 404s from Azure while the blob is
-  // still being written — every path ends here for a running step.
-  if (isLive && !hasLines) {
+  // Live/preparing + no lines yet: single stable wait state. Covers initial
+  // fetch, polling retries, and 404s from Azure while the blob is still being
+  // written. Non-active completed steps use isPreparing so they don't render
+  // a red error while GitHub is merely late to publish logs.
+  if ((isLive || isPreparing) && !hasLines) {
     return (
       <div className={cn("border-t border-border bg-muted px-4 py-5 text-center", className)}>
         <Loader2
           className="mx-auto mb-1.5 size-4 animate-spin text-(--color-warning)"
           aria-hidden
         />
-        <p className="font-mono text-caption text-muted-foreground">Waiting for output…</p>
+        <p className="font-mono text-caption text-muted-foreground">
+          {preparingLabel ?? (isLive ? "Waiting for output…" : "Logs are still being prepared…")}
+        </p>
       </div>
     );
   }
 
-  // Terminal step + error: show scoped error. Skipped for live (handled above).
+  // Terminal step + hard error: show scoped error. Skipped for live/preparing
+  // states (handled above) so transient 404s don't look fatal.
   if (isError && !hasLines) {
     return (
       <div className={cn("border-t border-border bg-muted px-4 py-6 text-center", className)}>

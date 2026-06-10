@@ -6,9 +6,11 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { getGitHubClient } from "@/app/lib/github/client";
 import { useRepoFile } from "@/app/hooks/useRepoFile";
+import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
+import { parseDispatchInputs, type WorkflowDispatchSchema } from "./lib/parseDispatchInputs";
+import { isTerminal, toUiStatus } from "./lib/statusMap";
 import {
   type Artifact,
   ArtifactsResponseSchema,
@@ -20,8 +22,6 @@ import {
   WorkflowRunsResponseSchema,
   WorkflowsResponseSchema,
 } from "./schemas";
-import { parseDispatchInputs, type WorkflowDispatchSchema } from "./lib/parseDispatchInputs";
-import { isTerminal, toUiStatus } from "./lib/statusMap";
 
 // ─── Query keys ────────────────────────────────────────────────────────────
 
@@ -29,8 +29,7 @@ export const actionsKeys = {
   workflows: (owner: string, repo: string) => ["actions-workflows", owner, repo] as const,
   runs: (owner: string, repo: string, filters: RunsFilters) =>
     ["actions-runs", owner, repo, normalizeFilters(filters)] as const,
-  run: (owner: string, repo: string, runId: number) =>
-    ["actions-run", owner, repo, runId] as const,
+  run: (owner: string, repo: string, runId: number) => ["actions-run", owner, repo, runId] as const,
   jobs: (owner: string, repo: string, runId: number) =>
     ["actions-jobs", owner, repo, runId] as const,
   artifacts: (owner: string, repo: string, runId: number) =>
@@ -93,11 +92,7 @@ export function useWorkflows(owner: string, repo: string) {
 
 const RUNS_PER_PAGE = 30;
 
-export const workflowRunsQueryOptions = (
-  owner: string,
-  repo: string,
-  filters: RunsFilters = {},
-) =>
+export const workflowRunsQueryOptions = (owner: string, repo: string, filters: RunsFilters = {}) =>
   infiniteQueryOptions({
     queryKey: actionsKeys.runs(owner, repo, filters),
     staleTime: 30_000,
@@ -117,10 +112,10 @@ export const workflowRunsQueryOptions = (
         ...(filters.actor ? { actor: filters.actor } : {}),
       } as const;
       const res = filters.workflowId
-        ? await client.request(
-            "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
-            { ...base, workflow_id: filters.workflowId },
-          )
+        ? await client.request("GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs", {
+            ...base,
+            workflow_id: filters.workflowId,
+          })
         : await client.request("GET /repos/{owner}/{repo}/actions/runs", base);
       return WorkflowRunsResponseSchema.parse(res.data).workflow_runs;
     },
@@ -179,10 +174,12 @@ export const runJobsQueryOptions = (owner: string, repo: string, runId: number) 
     staleTime: 10_000,
     queryFn: async (): Promise<Job[]> => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs",
-        { owner, repo, run_id: runId, per_page: 100 },
-      );
+      const res = await client.request("GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs", {
+        owner,
+        repo,
+        run_id: runId,
+        per_page: 100,
+      });
       return JobsResponseSchema.parse(res.data).jobs;
     },
   });
@@ -220,10 +217,11 @@ export function useJob(owner: string, repo: string, jobId: number) {
     enabled: !!token && !!owner && !!repo && Number.isFinite(jobId) && jobId > 0,
     queryFn: async (): Promise<Job> => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "GET /repos/{owner}/{repo}/actions/jobs/{job_id}",
-        { owner, repo, job_id: jobId },
-      );
+      const res = await client.request("GET /repos/{owner}/{repo}/actions/jobs/{job_id}", {
+        owner,
+        repo,
+        job_id: jobId,
+      });
       return JobSchema.parse(res.data);
     },
   });
@@ -309,14 +307,24 @@ export function useJobLogs(
   owner: string,
   repo: string,
   jobId: number,
-  opts: { isLive?: boolean; enabled?: boolean } = {},
+  opts: { isLive?: boolean; enabled?: boolean; pollUntil?: number } = {},
 ) {
   const token = useAuthStore((s) => s.token);
-  const { isLive = false, enabled = true } = opts;
+  const { isLive = false, enabled = true, pollUntil } = opts;
   return useQuery({
     ...jobLogsQueryOptions(owner, repo, jobId, { isLive }),
     enabled: enabled && !!token && !!owner && !!repo && Number.isFinite(jobId),
-    refetchInterval: isLive ? 3_000 : false,
+    refetchInterval: (q) => {
+      if (isLive) return 3_000;
+      // GitHub/Azure often materializes the downloadable job-log blob a bit
+      // after a job flips to completed. Keep polling recent terminal jobs
+      // while we still have no successful body, instead of freezing a 404.
+      if (pollUntil && !q.state.data) {
+        const remaining = pollUntil - Date.now();
+        if (remaining > 0) return Math.max(500, Math.min(3_000, remaining));
+      }
+      return false;
+    },
     refetchIntervalInBackground: false,
   });
 }
@@ -413,10 +421,7 @@ function optimisticRerunAndClearJobs(
   return { ...base, jobsKey, prevJobs };
 }
 
-function rollbackRerun(
-  qc: ReturnType<typeof useQueryClient>,
-  ctx: RerunCtx | undefined,
-) {
+function rollbackRerun(qc: ReturnType<typeof useQueryClient>, ctx: RerunCtx | undefined) {
   if (!ctx) return;
   if (ctx.prev) qc.setQueryData(ctx.key, ctx.prev);
   if (ctx.prevJobs !== undefined) qc.setQueryData(ctx.jobsKey, ctx.prevJobs);
@@ -444,10 +449,11 @@ export function useRerunFailedJobs(owner: string, repo: string) {
   return useMutation({
     mutationFn: async (runId: number) => {
       const client = getGitHubClient();
-      await client.request(
-        "POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs",
-        { owner, repo, run_id: runId },
-      );
+      await client.request("POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs", {
+        owner,
+        repo,
+        run_id: runId,
+      });
     },
     onMutate: (runId) => optimisticRerunAndClearJobs(qc, owner, repo, runId),
     onError: (_err, _runId, ctx) => rollbackRerun(qc, ctx),
@@ -485,11 +491,7 @@ export function useCancelRun(owner: string, repo: string) {
  * or if the path is empty; the caller renders a "Run workflow" button only
  * when `schema.dispatchable` is true.
  */
-export function useWorkflowDispatchSchema(
-  owner: string,
-  repo: string,
-  path: string | undefined,
-) {
+export function useWorkflowDispatchSchema(owner: string, repo: string, path: string | undefined) {
   const file = useRepoFile(owner, repo, path ?? "");
   const schema: WorkflowDispatchSchema | null = file.data
     ? parseDispatchInputs(file.data.content)

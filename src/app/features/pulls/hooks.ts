@@ -954,14 +954,6 @@ export function usePrMergeStatus(owner: string, repo: string, number: number) {
   });
 }
 
-type MergePullRequestResponse = {
-  mergePullRequest?: {
-    pullRequest?: {
-      mergeCommit?: { oid?: string | null } | null;
-    } | null;
-  } | null;
-};
-
 export function useMergePr(owner: string, repo: string, number: number) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -974,41 +966,6 @@ export function useMergePr(owner: string, repo: string, number: number) {
       bypassRequirements?: boolean;
     }) => {
       const client = getGitHubClient();
-      if (vars.bypassRequirements) {
-        if (!vars.pullRequestId) throw new Error("Pull request ID is required for admin merge");
-        const res = (await client.graphql(
-          `mutation(
-            $id: ID!,
-            $method: PullRequestMergeMethod!,
-            $headline: String,
-            $body: String,
-            $expectedHeadOid: GitObjectID
-          ) {
-            mergePullRequest(input: {
-              pullRequestId: $id,
-              mergeMethod: $method,
-              commitHeadline: $headline,
-              commitBody: $body,
-              expectedHeadOid: $expectedHeadOid
-            }) {
-              pullRequest { mergeCommit { oid } }
-            }
-          }`,
-          {
-            id: vars.pullRequestId,
-            method: toGraphqlMergeMethod(vars.method),
-            headline: vars.commitTitle,
-            body: vars.commitMessage,
-            expectedHeadOid: vars.expectedHeadOid,
-          },
-        )) as MergePullRequestResponse;
-        return {
-          sha: res.mergePullRequest?.pullRequest?.mergeCommit?.oid ?? "",
-          merged: true,
-          message: "Pull request merged with administrator privileges",
-        };
-      }
-
       const res = await client.request("PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge", {
         owner,
         repo,
@@ -1016,6 +973,7 @@ export function useMergePr(owner: string, repo: string, number: number) {
         merge_method: vars.method,
         commit_title: vars.commitTitle,
         commit_message: vars.commitMessage,
+        sha: vars.expectedHeadOid,
       });
       return res.data as { sha: string; merged: boolean; message: string };
     },

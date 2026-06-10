@@ -1,5 +1,5 @@
-import type { LogLine } from "./parseLog";
 import type { Step } from "../schemas";
+import type { LogLine } from "./parseLog";
 
 // ─── splitLogByStep ────────────────────────────────────────────────────────
 //
@@ -20,18 +20,21 @@ export type StepLogMap = Map<number /* step.number */, LogLine[]>;
 type Window = { number: number; start: number; end: number };
 
 export function splitLogByStep(lines: LogLine[], steps: Step[]): StepLogMap {
-  // Only steps that actually ran have a window. Sort by start — we rely on
-  // GitHub serialising steps (no overlapping windows in normal runs).
+  // Only steps that actually ran have a window. Sort by start — GitHub
+  // serialises normal job steps, but we still guard invalid dates so one bad
+  // timestamp from the API doesn't make every step look empty.
   const windows: Window[] = steps
     .filter((s) => !!s.started_at)
-    .map((s) => ({
-      number: s.number,
-      // biome-ignore lint/style/noNonNullAssertion: filter guarantees started_at
-      start: new Date(s.started_at!).getTime(),
-      end: s.completed_at
-        ? new Date(s.completed_at).getTime()
-        : Number.POSITIVE_INFINITY,
-    }))
+    .map((s) => {
+      const start = new Date(s.started_at ?? "").getTime();
+      const end = s.completed_at ? new Date(s.completed_at).getTime() : Number.POSITIVE_INFINITY;
+      return {
+        number: s.number,
+        start,
+        end: Number.isFinite(end) ? end : Number.POSITIVE_INFINITY,
+      };
+    })
+    .filter((w) => Number.isFinite(w.start))
     .sort((a, b) => a.start - b.start);
 
   const out: StepLogMap = new Map();
@@ -39,25 +42,28 @@ export function splitLogByStep(lines: LogLine[], steps: Step[]): StepLogMap {
 
   if (windows.length === 0) return out;
 
-  // Pointer walks through windows as lines advance past each step's end.
+  // Pointer walks through windows as timestamped lines advance past each
+  // step's end. Untimestamped continuation lines stay with the most recent
+  // timestamped window instead of being dropped (important for multiline
+  // stack traces and non-GitHub log sources).
   let cursor = 0;
+  let sawTimestamp = false;
   for (const line of lines) {
-    if (!line.timestamp) continue;
-    const t = new Date(line.timestamp).getTime();
-    if (!Number.isFinite(t)) continue;
-
-    // Advance past windows whose end we've passed. `cursor < last` keeps
-    // us on the last window for any trailing lines (post-job cleanup,
-    // GitHub sometimes emits after the last step's completed_at).
-    while (cursor < windows.length - 1 && t > (windows[cursor]?.end ?? Infinity)) {
-      cursor++;
+    if (line.timestamp) {
+      const t = new Date(line.timestamp).getTime();
+      if (Number.isFinite(t)) {
+        sawTimestamp = true;
+        while (cursor < windows.length - 1 && t > (windows[cursor]?.end ?? Infinity)) {
+          cursor++;
+        }
+      }
+    } else if (!sawTimestamp && windows.length > 1) {
+      // Preamble before the first timestamp belongs with the first step.
+      cursor = 0;
     }
 
     const w = windows[cursor];
     if (!w) continue;
-    // Attach the line to windows[cursor]. Lines before the first step's
-    // start (rare — would be job-setup output) still attach to window 0,
-    // keeping the prologue visible in the first step.
     out.get(w.number)?.push(line);
   }
 

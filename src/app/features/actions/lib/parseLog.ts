@@ -46,7 +46,7 @@ const GROUP_END = /^##\[endgroup\]\s*$/;
 // severity signal as the `::error::` form, different bracket syntax).
 const ANNOTATION = /^##\[(error|warning|notice|debug)\](.*)$/;
 const COMMAND = /^::(error|warning|notice|debug)(?:\s[^:]*)?::(.*)$/;
-const TIMESTAMP = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)\s/;
+const TIMESTAMP = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s?/;
 
 // Plain-text lines flagged as errors even without a workflow-command prefix.
 // Covers the common CI-failure shapes across ecosystems. Tested against the
@@ -85,8 +85,7 @@ export function parseLog(raw: string): LogLine[] {
   const out: LogLine[] = new Array(rawLines.length);
 
   for (let i = 0; i < rawLines.length; i++) {
-    // biome-ignore lint/style/noNonNullAssertion: loop over own array
-    let line = rawLines[i]!;
+    let line = rawLines[i] ?? "";
     let timestamp: string | undefined;
 
     const ts = TIMESTAMP.exec(line);

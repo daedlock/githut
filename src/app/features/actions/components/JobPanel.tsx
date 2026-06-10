@@ -11,6 +11,8 @@ import { useNow } from "@/app/features/actions/lib/useNow";
 import type { Job, Step } from "@/app/features/actions/schemas";
 import { cn } from "@/app/lib/cn";
 
+const LOG_MATERIALIZATION_GRACE_MS = 5 * 60_000;
+
 export type JobPanelProps = {
   owner: string;
   repo: string;
@@ -33,6 +35,10 @@ export function JobPanel({ owner, repo, job, defaultOpen = false }: JobPanelProp
   const ui = toUiStatus(job.status, job.conclusion);
   const isLive = !isTerminal(ui);
   const durationMs = durationOf(job.started_at, job.completed_at, now);
+  const completedAtMs = millisFromIso(job.completed_at);
+  const logPollUntil =
+    !isLive && completedAtMs !== null ? completedAtMs + LOG_MATERIALIZATION_GRACE_MS : undefined;
+  const logsStillMaterializing = logPollUntil !== undefined && Date.now() < logPollUntil;
 
   // Which step is actively running right now (started but not completed)?
   // Drives auto-expand + the collapsed-header "▶ current step" hint.
@@ -44,10 +50,16 @@ export function JobPanel({ owner, repo, job, defaultOpen = false }: JobPanelProp
   const anyStepStarted = job.steps.some((s) => !!s.started_at);
   const logsQuery = useJobLogs(owner, repo, job.id, {
     // Don't fetch until at least one step has started — jobs still in the
-    // queue have no logs and GitHub returns 404 for them.
+    // queue have no logs and GitHub returns 404 for them. Completed jobs get
+    // a short grace polling window because the Azure log blob often appears
+    // after GitHub has already marked the step green.
     enabled: open && anyStepStarted,
     isLive,
+    pollUntil: logPollUntil,
   });
+  const logErrorStatus = statusFromLogError(logsQuery.error);
+  const logsTransient = isTransientLogStatus(logErrorStatus) && (isLive || logsStillMaterializing);
+  const logsHardError = logsQuery.isError && !logsTransient;
 
   // Parse once per fetch; slice per step. Both memoise on the raw string
   // reference, which only changes when a poll returned new bytes.
@@ -121,9 +133,14 @@ export function JobPanel({ owner, repo, job, defaultOpen = false }: JobPanelProp
                 step={step}
                 lines={stepLogs.get(step.number) ?? []}
                 isActive={activeStep?.number === step.number}
-                logsPending={logsQuery.isPending && !!step.started_at}
-                logsError={logsQuery.isError}
-                errorStatus={(logsQuery.error as { status?: number } | null)?.status}
+                logsPreparing={
+                  !!step.started_at &&
+                  (logsQuery.isPending ||
+                    logsTransient ||
+                    (!logsQuery.data && (isLive || logsStillMaterializing)))
+                }
+                logsError={logsHardError}
+                errorStatus={logErrorStatus}
               />
             ))
           )}
@@ -145,7 +162,7 @@ type StepWithLogsProps = {
   step: Step;
   lines: import("@/app/features/actions/lib/parseLog").LogLine[];
   isActive: boolean;
-  logsPending: boolean;
+  logsPreparing: boolean;
   logsError: boolean;
   errorStatus?: number;
 };
@@ -154,7 +171,7 @@ const StepWithLogs = memo(function StepWithLogs({
   step,
   lines,
   isActive,
-  logsPending,
+  logsPreparing,
   logsError,
   errorStatus,
 }: StepWithLogsProps) {
@@ -231,10 +248,16 @@ const StepWithLogs = memo(function StepWithLogs({
         <div id={`step-${step.number}-logs`}>
           <LogViewer
             lines={lines}
-            isPending={logsPending && lines.length === 0}
+            isPending={false}
             isError={logsError}
             errorStatus={errorStatus}
             isLive={isActive}
+            isPreparing={!isActive && logsPreparing && lines.length === 0}
+            preparingLabel={
+              logsPreparing && lines.length === 0 && isActive
+                ? "Waiting for GitHub logs…"
+                : undefined
+            }
           />
         </div>
       ) : null}
@@ -249,8 +272,25 @@ function durationOf(
   endIso: string | null | undefined,
   now: number,
 ): number | null {
-  if (!startIso) return null;
-  const start = new Date(startIso).getTime();
-  const end = endIso ? new Date(endIso).getTime() : now;
+  const start = millisFromIso(startIso);
+  if (start === null) return null;
+  const end = millisFromIso(endIso) ?? now;
   return Math.max(0, end - start);
+}
+
+function millisFromIso(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+function statusFromLogError(error: unknown): number | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  if ("status" in error && typeof error.status === "number") return error.status;
+  return undefined;
+}
+
+function isTransientLogStatus(status: number | undefined): boolean {
+  if (status === undefined) return false;
+  return status === 404 || status === 429 || status === 502 || status === 503 || status === 504;
 }

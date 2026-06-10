@@ -1,4 +1,4 @@
-import { GitMerge } from "lucide-react";
+import { AlertCircle, GitMerge } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import {
@@ -30,6 +30,7 @@ export type PrMergeDialogProps = {
   isPending?: boolean;
   intent?: "merge" | "auto-merge" | "admin-merge";
   allowedMethods?: MergeMethod[];
+  errorMessage?: string;
 };
 
 const DEFAULT_ALLOWED_METHODS: MergeMethod[] = ["merge", "squash", "rebase"];
@@ -64,6 +65,7 @@ export function PrMergeDialog({
   isPending,
   intent = "merge",
   allowedMethods = DEFAULT_ALLOWED_METHODS,
+  errorMessage,
 }: PrMergeDialogProps) {
   const availableMethods = useMemo(
     () => METHODS.filter((m) => allowedMethods.includes(m.id)),
@@ -114,6 +116,16 @@ export function PrMergeDialog({
           <div className="rounded-md border border-[color-mix(in_oklab,var(--color-warning)_40%,var(--color-border))] bg-[color-mix(in_oklab,var(--color-warning)_8%,var(--color-bg-subtle))] px-3 py-2 text-caption text-foreground">
             This uses administrator bypass on GitHub. Only proceed if the remaining requirements are
             intentionally being overridden.
+          </div>
+        )}
+
+        {errorMessage && (
+          <div
+            className="flex items-start gap-2 rounded-md border border-[color-mix(in_oklab,var(--color-danger)_40%,var(--color-border))] bg-[color-mix(in_oklab,var(--color-danger)_8%,var(--color-bg-subtle))] px-3 py-2 text-caption text-foreground"
+            role="alert"
+          >
+            <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-[var(--color-danger)]" />
+            <span>{errorMessage}</span>
           </div>
         )}
 

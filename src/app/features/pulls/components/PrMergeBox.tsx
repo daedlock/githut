@@ -225,7 +225,14 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
             Close
           </Button>
           {canEnableAutoMerge && (
-            <Button size="sm" variant="outline" onClick={() => setAutoMergeOpen(true)}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                autoMerge.reset();
+                setAutoMergeOpen(true);
+              }}
+            >
               <Clock data-icon="inline-start" />
               Auto-merge
             </Button>
@@ -234,7 +241,10 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
             <Button
               size="sm"
               disabled={merge.isPending || !canOpenMergeDialog}
-              onClick={() => setMergeOpen(true)}
+              onClick={() => {
+                merge.reset();
+                setMergeOpen(true);
+              }}
               className={cn(
                 "border text-foreground",
                 canBypassRequirements
@@ -261,6 +271,7 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
         isPending={merge.isPending}
         intent={canBypassRequirements ? "admin-merge" : "merge"}
         allowedMethods={allowedMethods}
+        errorMessage={merge.isError ? formatMutationError(merge.error) : undefined}
         onConfirm={(vars) =>
           merge.mutate(
             canBypassRequirements
@@ -282,6 +293,7 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
         intent="auto-merge"
         isPending={autoMerge.isPending}
         allowedMethods={allowedMethods}
+        errorMessage={autoMerge.isError ? formatMutationError(autoMerge.error) : undefined}
         onConfirm={(vars) =>
           autoMerge.mutate(
             {
@@ -927,6 +939,17 @@ function readinessDetail({
     return "GitHub will merge this PR once the remaining requirements pass.";
   if (isBehind) return "Update the branch, then wait for required checks to rerun.";
   return "Complete required reviews, checks, and conversation resolution first.";
+}
+
+function formatMutationError(error: unknown): string {
+  if (error && typeof error === "object") {
+    if ("response" in error) {
+      const response = error.response as { data?: { message?: unknown } } | undefined;
+      if (typeof response?.data?.message === "string") return response.data.message;
+    }
+    if ("message" in error && typeof error.message === "string") return error.message;
+  }
+  return "GitHub rejected this request. Check your bypass permissions and try again.";
 }
 
 function allowedMergeMethods(repo: ReturnType<typeof useRepo>["data"]): MergeMethod[] {
