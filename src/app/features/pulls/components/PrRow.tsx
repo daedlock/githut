@@ -1,12 +1,23 @@
 import { Link } from "@tanstack/react-router";
-import { CircleCheck, CircleX, MessageSquare } from "lucide-react";
+import {
+  Check,
+  CircleCheck,
+  CircleX,
+  Loader2,
+  type LucideIcon,
+  MessageSquare,
+  Minus,
+  X,
+} from "lucide-react";
 import { Avatar } from "@/app/components/ui/avatar";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/app/components/ui/hover-card";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import { PrStateIcon } from "@/app/features/pulls/components/PrStatePill";
-import type { PrListItem } from "@/app/features/pulls/hooks";
+import type { CheckContextStatus, PrCheckRollup, PrListItem } from "@/app/features/pulls/hooks";
 import { toUiState } from "@/app/features/pulls/lib/prStatus";
 import type { ReviewDecision } from "@/app/features/pulls/lib/reviewDecision";
+import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 
 // ─── PrRow ─────────────────────────────────────────────────────────────────
@@ -25,9 +36,10 @@ export type PrRowProps = {
   repo: string;
   pr: PrListItem;
   reviewDecision?: ReviewDecision;
+  checkRollup?: PrCheckRollup;
 };
 
-export function PrRow({ owner, repo, pr, reviewDecision }: PrRowProps) {
+export function PrRow({ owner, repo, pr, reviewDecision, checkRollup }: PrRowProps) {
   const state = toUiState({
     state: pr.state,
     draft: pr.draft ?? false,
@@ -50,6 +62,7 @@ export function PrRow({ owner, repo, pr, reviewDecision }: PrRowProps) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span className="text-body font-[475] text-foreground">{pr.title}</span>
+            <ChecksBadge rollup={checkRollup} />
             {pr.labels.map((l) => (
               <LabelPill
                 key={l.id}
@@ -99,6 +112,114 @@ export function PrRow({ owner, repo, pr, reviewDecision }: PrRowProps) {
         </div>
       </div>
     </Link>
+  );
+}
+
+// Per-check lifecycle → a bare glyph (no enclosing circle) + tone, matching
+// GitHub: a check for pass, an X for fail, a spinner while running.
+const CHECK_GLYPH: Record<CheckContextStatus, { Icon: LucideIcon; tone: string; spin?: boolean }> =
+  {
+    success: { Icon: Check, tone: "text-(--color-success)" },
+    failure: { Icon: X, tone: "text-(--color-danger)" },
+    pending: { Icon: Loader2, tone: "text-(--color-warning)", spin: true },
+    neutral: { Icon: Minus, tone: "text-(--color-fg-muted)" },
+    skipped: { Icon: Minus, tone: "text-(--color-fg-faint)" },
+    cancelled: { Icon: Minus, tone: "text-(--color-fg-faint)" },
+  };
+
+function CheckGlyph({ status, className }: { status: CheckContextStatus; className?: string }) {
+  const { Icon, tone, spin } = CHECK_GLYPH[status];
+  return (
+    <Icon
+      aria-label={status}
+      className={cn("size-4 shrink-0", tone, spin && "animate-spin", className)}
+      strokeWidth={2.5}
+    />
+  );
+}
+
+// CI rollup next to the title — the same green-check / red-X / amber-spinner
+// GitHub shows, with a hover-card listing every check (step/action) and its
+// result. `undefined` (still loading) and PRs with no checks render nothing,
+// so the title line stays quiet until there's a real signal.
+function ChecksBadge({ rollup }: { rollup: PrCheckRollup | undefined }) {
+  if (!rollup) return null;
+
+  return (
+    <HoverCard openDelay={120} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        {/* self-center realigns the icon within the baseline-aligned title row */}
+        <span className="inline-flex shrink-0 items-center self-center">
+          <CheckGlyph status={rollup.state} />
+        </span>
+      </HoverCardTrigger>
+      <HoverCardContent align="start" sideOffset={8} className="w-72 p-0">
+        <ChecksList rollup={rollup} />
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+function ChecksList({ rollup }: { rollup: PrCheckRollup }) {
+  const passed = rollup.contexts.filter((c) => c.status === "success").length;
+  const failed = rollup.contexts.filter((c) => c.status === "failure").length;
+  const pending = rollup.contexts.filter((c) => c.status === "pending").length;
+
+  const summary =
+    failed > 0
+      ? `${failed} failing${passed > 0 ? `, ${passed} successful` : ""}`
+      : pending > 0
+        ? `${pending} pending${passed > 0 ? `, ${passed} successful` : ""}`
+        : `All ${passed || rollup.contexts.length} checks passed`;
+
+  return (
+    <div>
+      <div className="border-b border-(--color-border) px-3 py-2">
+        <span className="text-caption font-medium text-foreground">{summary}</span>
+      </div>
+      {rollup.contexts.length === 0 ? (
+        <div className="px-3 py-3 text-center text-caption text-muted-foreground">
+          No checks reported
+        </div>
+      ) : (
+        <div className="max-h-[260px] overflow-y-auto py-1">
+          {rollup.contexts.map((c, i) => {
+            const row = (
+              <>
+                <CheckGlyph status={c.status} className="size-3.5" />
+                <span className="min-w-0 flex-1 truncate text-ui text-foreground">{c.name}</span>
+                {c.description ? (
+                  <span className="shrink-0 truncate text-caption text-muted-foreground">
+                    {c.description}
+                  </span>
+                ) : null}
+              </>
+            );
+            const rowClass = "flex items-center gap-2 px-3 py-1.5";
+            // Content is portaled outside the row Link, but stop propagation
+            // anyway so an external check link never also triggers navigation.
+            return c.url ? (
+              <a
+                // biome-ignore lint/suspicious/noArrayIndexKey: check order is stable within a rollup; name+index disambiguates duplicate contexts.
+                key={`${c.name}-${i}`}
+                href={c.url}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className={cn(rowClass, "transition-colors hover:bg-muted")}
+              >
+                {row}
+              </a>
+            ) : (
+              // biome-ignore lint/suspicious/noArrayIndexKey: check order is stable within a rollup; name+index disambiguates duplicate contexts.
+              <div key={`${c.name}-${i}`} className={rowClass}>
+                {row}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 

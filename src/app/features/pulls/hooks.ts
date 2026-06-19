@@ -106,6 +106,8 @@ export const pullsKeys = {
     [...pullsKeys.all, "commits", owner, repo, number] as const,
   checks: (owner: string, repo: string, sha: string) =>
     [...pullsKeys.all, "checks", owner, repo, sha] as const,
+  checkRollup: (owner: string, repo: string, number: number) =>
+    [...pullsKeys.all, "check-rollup", owner, repo, number] as const,
   mergeStatus: (owner: string, repo: string, number: number) =>
     [...pullsKeys.all, "merge-status", owner, repo, number] as const,
   reviewComments: (owner: string, repo: string, number: number) =>
@@ -735,6 +737,234 @@ export function usePrChecks(owner: string, repo: string, sha: string | undefined
     },
     refetchIntervalInBackground: false,
   });
+}
+
+// ─── Check rollup (list-row CI status) ─────────────────────────────────────
+//
+// The PR-list rows come from the Search API, which never carries a head
+// SHA — so we can't reuse the REST checks endpoints (keyed on SHA) there.
+// Instead we ask GraphQL for the rolled-up status of each PR's last commit
+// (`statusCheckRollup`) plus its individual contexts — both modern CheckRuns
+// (GitHub Actions / third-party) and legacy StatusContexts — so the row can
+// show GitHub's green-check / red-X / amber signal *and* a hover-card listing
+// every step. Batched across the visible list via `useQueries` so each PR
+// caches independently and survives infinite scroll — mirrors
+// `usePrReviewDecisions`.
+
+export type CheckRollupState = "success" | "failure" | "pending";
+
+/** Normalized per-check lifecycle, mapped to a `StatusPill` variant in views. */
+export type CheckContextStatus =
+  | "success"
+  | "failure"
+  | "pending"
+  | "neutral"
+  | "skipped"
+  | "cancelled";
+
+/** One row in the checks hover-card — a CheckRun or a legacy StatusContext. */
+export type CheckRollupContext = {
+  name: string;
+  status: CheckContextStatus;
+  description: string | null;
+  url: string | null;
+};
+
+export type PrCheckRollup = {
+  state: CheckRollupState;
+  contexts: CheckRollupContext[];
+};
+
+type RawCheckRunNode = {
+  __typename: "CheckRun";
+  name?: string | null;
+  status?: string | null;
+  conclusion?: string | null;
+  detailsUrl?: string | null;
+};
+
+type RawStatusContextNode = {
+  __typename: "StatusContext";
+  context?: string | null;
+  state?: string | null;
+  description?: string | null;
+  targetUrl?: string | null;
+};
+
+type CheckRollupQueryResponse = {
+  repository?: {
+    pullRequest?: {
+      commits?: {
+        nodes?: Array<{
+          commit?: {
+            statusCheckRollup?: {
+              state?: string | null;
+              contexts?: { nodes?: Array<RawCheckRunNode | RawStatusContextNode> } | null;
+            } | null;
+          } | null;
+        }>;
+      } | null;
+    } | null;
+  } | null;
+};
+
+const PR_CHECK_ROLLUP_QUERY = `
+  query($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) {
+        commits(last: 1) {
+          nodes {
+            commit {
+              statusCheckRollup {
+                state
+                contexts(first: 100) {
+                  nodes {
+                    __typename
+                    ... on CheckRun {
+                      name
+                      status
+                      conclusion
+                      detailsUrl
+                    }
+                    ... on StatusContext {
+                      context
+                      state
+                      description
+                      targetUrl
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+// GraphQL rollup enum → our UI tri-state. Anything else (incl. no checks
+// configured → null) returns null so the row shows no icon, matching GitHub.
+function toCheckRollupState(state: string | null | undefined): CheckRollupState | null {
+  switch (state) {
+    case "SUCCESS":
+      return "success";
+    case "FAILURE":
+    case "ERROR":
+      return "failure";
+    case "PENDING":
+    case "EXPECTED":
+      return "pending";
+    default:
+      return null;
+  }
+}
+
+// A modern CheckRun: running until `COMPLETED`, then keyed off its conclusion.
+function checkRunStatus(
+  status: string | null | undefined,
+  conclusion: string | null | undefined,
+): CheckContextStatus {
+  if (status !== "COMPLETED") return "pending";
+  switch (conclusion) {
+    case "SUCCESS":
+      return "success";
+    case "FAILURE":
+    case "TIMED_OUT":
+    case "STARTUP_FAILURE":
+    case "ACTION_REQUIRED":
+      return "failure";
+    case "SKIPPED":
+      return "skipped";
+    case "CANCELLED":
+    case "STALE":
+      return "cancelled";
+    default:
+      return "neutral";
+  }
+}
+
+// A legacy StatusContext (Travis-era providers): a flat state enum.
+function statusContextStatus(state: string | null | undefined): CheckContextStatus {
+  switch (state) {
+    case "SUCCESS":
+      return "success";
+    case "FAILURE":
+    case "ERROR":
+      return "failure";
+    case "PENDING":
+    case "EXPECTED":
+      return "pending";
+    default:
+      return "neutral";
+  }
+}
+
+function toRollupContext(node: RawCheckRunNode | RawStatusContextNode): CheckRollupContext | null {
+  if (node.__typename === "CheckRun") {
+    return {
+      name: node.name ?? "Check",
+      status: checkRunStatus(node.status, node.conclusion),
+      description: null,
+      url: node.detailsUrl ?? null,
+    };
+  }
+  if (node.__typename === "StatusContext") {
+    return {
+      name: node.context ?? "Status",
+      status: statusContextStatus(node.state),
+      description: node.description ?? null,
+      url: node.targetUrl ?? null,
+    };
+  }
+  return null;
+}
+
+export const prCheckRollupQueryOptions = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: pullsKeys.checkRollup(owner, repo, number),
+    staleTime: 15_000,
+    queryFn: async (): Promise<PrCheckRollup | null> => {
+      const client = getGitHubClient();
+      const res = (await client.graphql(PR_CHECK_ROLLUP_QUERY, {
+        owner,
+        repo,
+        number,
+      })) as CheckRollupQueryResponse;
+      const rollup = res.repository?.pullRequest?.commits?.nodes?.[0]?.commit?.statusCheckRollup;
+      const state = toCheckRollupState(rollup?.state);
+      if (!state) return null;
+      const contexts = (rollup?.contexts?.nodes ?? [])
+        .map(toRollupContext)
+        .filter((c): c is CheckRollupContext => c !== null);
+      return { state, contexts };
+    },
+  });
+
+export function usePrCheckRollups(
+  owner: string,
+  repo: string,
+  numbers: number[],
+): Map<number, PrCheckRollup> {
+  const token = useAuthStore((s) => s.token);
+  const uniqueNumbers = Array.from(new Set(numbers)).filter(Number.isFinite);
+  const results = useQueries({
+    queries: uniqueNumbers.map((number) => ({
+      ...prCheckRollupQueryOptions(owner, repo, number),
+      enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+      // Keep ticking while a PR's checks are still running; stop once terminal.
+      refetchInterval: (q: { state: { data?: PrCheckRollup | null } }) =>
+        q.state.data?.state === "pending" ? 15_000 : false,
+    })),
+  });
+
+  const rollups = new Map<number, PrCheckRollup>();
+  results.forEach((result, index) => {
+    const number = uniqueNumbers[index];
+    if (number === undefined || !result.data) return;
+    rollups.set(number, result.data);
+  });
+  return rollups;
 }
 
 // ─── PR lifecycle actions ──────────────────────────────────────────────────

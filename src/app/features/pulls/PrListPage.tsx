@@ -18,8 +18,8 @@ import {
 } from "@/app/components/ui/dropdown-menu";
 import {
   type ActiveFilter,
-  type FilterFieldDef,
   FilterBar,
+  type FilterFieldDef,
   FilterTrigger,
 } from "@/app/components/ui/filter-bar";
 import { Input } from "@/app/components/ui/input";
@@ -30,14 +30,12 @@ import {
   type PullsFilters,
   type PullsSort,
   type PullsState,
+  usePrCheckRollups,
   usePrReviewDecisions,
   usePulls,
   usePullsCounts,
 } from "@/app/features/pulls/hooks";
-import {
-  useRepoCollaborators,
-  useRepoLabels,
-} from "@/app/features/pulls/pickers";
+import { useRepoCollaborators, useRepoLabels } from "@/app/features/pulls/pickers";
 import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
 import { cn } from "@/app/lib/cn";
 
@@ -149,11 +147,9 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
   }, [items, searchText]);
 
   const currentState = (filters.state ?? "open") as PullsState;
-  const reviewDecisions = usePrReviewDecisions(
-    owner,
-    repo,
-    filtered.map((pr) => pr.number),
-  );
+  const prNumbers = useMemo(() => filtered.map((pr) => pr.number), [filtered]);
+  const reviewDecisions = usePrReviewDecisions(owner, repo, prNumbers);
+  const checkRollups = usePrCheckRollups(owner, repo, prNumbers);
 
   const labels = labelsQuery.data ?? [];
   const collaborators = collaboratorsQuery.data ?? [];
@@ -237,12 +233,7 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
         </div>
 
         {/* Filter pills — only when active */}
-        <FilterBar
-          fields={fields}
-          active={active}
-          onChange={onActiveChange}
-          className="px-2"
-        />
+        <FilterBar fields={fields} active={active} onChange={onActiveChange} className="px-2" />
       </div>
 
       {/* List */}
@@ -265,6 +256,7 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
                 repo={repo}
                 pr={pr}
                 reviewDecision={reviewDecisions.get(pr.number) ?? null}
+                checkRollup={checkRollups.get(pr.number)}
               />
             ))}
             {pulls.hasNextPage && !searchText ? (
@@ -282,13 +274,7 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
 
 // ─── Sort menu ─────────────────────────────────────────────────────────────
 
-function SortMenu({
-  value,
-  onChange,
-}: {
-  value: PullsSort;
-  onChange: (next: PullsSort) => void;
-}) {
+function SortMenu({ value, onChange }: { value: PullsSort; onChange: (next: PullsSort) => void }) {
   const current = SORT_OPTIONS.find((o) => o.value === value) ?? SORT_OPTIONS[0]!;
   return (
     <DropdownMenu>
@@ -316,10 +302,7 @@ function SortMenu({
             className="font-sans text-ui"
           >
             <Check
-              className={cn(
-                "size-3.5",
-                o.value === value ? "opacity-100" : "opacity-0",
-              )}
+              className={cn("size-3.5", o.value === value ? "opacity-100" : "opacity-0")}
               aria-hidden
             />
             {o.label}
