@@ -15,6 +15,7 @@ const stringArray = z
 
 const searchSchema = z.object({
   state: z.enum(STATE).optional(),
+  draft: z.enum(["true", "false"]).optional(),
   author: stringArray,
   label: stringArray,
   reviewer: stringArray,
@@ -34,6 +35,7 @@ export const Route = createFileRoute("/$owner/$repo/pulls/")({
     void context.queryClient.prefetchInfiniteQuery(
       pullsQueryOptions(params.owner, params.repo, {
         state: deps.state ?? "open",
+        draft: deps.draft,
         author: deps.author,
         label: deps.label,
         reviewer: deps.reviewer,

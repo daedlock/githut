@@ -4,12 +4,19 @@ import {
   ArrowDownUp,
   Check,
   ChevronDown,
+  CircleDashed,
   GitPullRequest,
   GitPullRequestClosed,
   Search,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { Container } from "@/app/components/ui/Container";
+import {
+  Command,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/app/components/ui/command";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +51,7 @@ export type PrListPageProps = {
   repo: string;
   search: {
     state?: PullsState;
+    draft?: "true" | "false";
     author?: string[];
     label?: string[];
     reviewer?: string[];
@@ -76,6 +84,7 @@ const FIELD_KEYS: Record<PrFieldId, { is: keyof PullsFilters; isNot: keyof Pulls
 
 function filtersToActive(f: PullsFilters): ActiveFilter[] {
   const out: ActiveFilter[] = [];
+  if (f.draft) out.push({ fieldId: "draft", op: "is", value: f.draft });
   for (const id of Object.keys(FIELD_KEYS) as PrFieldId[]) {
     const inc = f[FIELD_KEYS[id].is];
     if (Array.isArray(inc)) {
@@ -89,8 +98,8 @@ function filtersToActive(f: PullsFilters): ActiveFilter[] {
   return out;
 }
 
-function activeToPatch(active: ActiveFilter[]): Record<string, string[] | undefined> {
-  const patch: Record<string, string[] | undefined> = {
+function activeToPatch(active: ActiveFilter[]) {
+  const arrays: Record<string, string[] | undefined> = {
     label: undefined,
     excludeLabel: undefined,
     author: undefined,
@@ -100,13 +109,18 @@ function activeToPatch(active: ActiveFilter[]): Record<string, string[] | undefi
     reviewer: undefined,
     excludeReviewer: undefined,
   };
+  let draft: "true" | "false" | undefined;
   for (const a of active) {
+    if (a.fieldId === "draft") {
+      draft = a.value as "true" | "false";
+      continue;
+    }
     const keys = FIELD_KEYS[a.fieldId as PrFieldId];
     if (!keys) continue;
     const slot = a.op === "is" ? keys.is : keys.isNot;
-    (patch[slot] ??= []).push(a.value);
+    (arrays[slot] ??= []).push(a.value);
   }
-  return patch;
+  return { ...arrays, draft };
 }
 
 // ─── Page ──────────────────────────────────────────────────────────────────
@@ -117,6 +131,7 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
 
   const filters: PullsFilters = {
     state: search.state ?? "open",
+    draft: search.draft,
     author: search.author,
     label: search.label,
     reviewer: search.reviewer,
@@ -154,9 +169,21 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
   const labels = labelsQuery.data ?? [];
   const collaborators = collaboratorsQuery.data ?? [];
 
+  const draftField = useMemo<FilterFieldDef>(
+    () => ({
+      id: "draft",
+      label: "Draft",
+      icon: CircleDashed,
+      negatable: false,
+      ValuePicker: DraftPicker,
+      renderValue: (v) => <span className="font-sans">{v === "true" ? "Draft" : "Ready"}</span>,
+    }),
+    [],
+  );
+
   const fields = useMemo<FilterFieldDef[]>(
-    () => buildRepoFilterFields({ labels, collaborators }),
-    [labels, collaborators],
+    () => [draftField, ...buildRepoFilterFields({ labels, collaborators })],
+    [draftField, labels, collaborators],
   );
   const active = useMemo(() => filtersToActive(filters), [filters]);
 
@@ -269,6 +296,34 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
         )}
       </div>
     </Container>
+  );
+}
+
+// ─── Draft picker ──────────────────────────────────────────────────────────
+
+const DRAFT_OPTIONS = [
+  { value: "true", label: "Draft" },
+  { value: "false", label: "Ready for review" },
+] as const;
+
+function DraftPicker({ value, onSelect }: { value?: string; onSelect: (v: string) => void }) {
+  return (
+    <Command>
+      <CommandList>
+        <CommandGroup>
+          {DRAFT_OPTIONS.map((o) => (
+            <CommandItem key={o.value} value={o.value} onSelect={() => onSelect(o.value)}>
+              <span
+                className={cn("inline-block w-3", value === o.value ? "text-foreground" : "opacity-0")}
+              >
+                ✓
+              </span>
+              <span className="font-sans">{o.label}</span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      </CommandList>
+    </Command>
   );
 }
 

@@ -123,6 +123,7 @@ export type PullsState = "open" | "closed" | "all";
 
 export type PullsFilters = {
   state?: PullsState;
+  draft?: "true" | "false";
   author?: string[];
   label?: string[];
   reviewer?: string[];
@@ -158,6 +159,8 @@ function buildSearchQuery(owner: string, repo: string, f: PullsFilters): string 
   const state = f.state ?? "open";
   if (state === "open") parts.push("is:open");
   else if (state === "closed") parts.push("is:closed");
+  if (f.draft === "true") parts.push("draft:true");
+  else if (f.draft === "false") parts.push("draft:false");
   for (const v of f.author ?? []) parts.push(`author:${v}`);
   for (const v of f.excludeAuthor ?? []) parts.push(`-author:${v}`);
   for (const v of f.label ?? []) parts.push(`label:"${v}"`);

@@ -175,7 +175,7 @@ export function PrMergeDialog({
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={4}
-                className="mt-1 font-mono text-caption"
+                className="mt-1 max-h-48 overflow-y-auto font-mono text-caption"
               />
             </label>
           </div>
