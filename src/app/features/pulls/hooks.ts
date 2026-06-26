@@ -114,6 +114,8 @@ export const pullsKeys = {
     [...pullsKeys.all, "review-comments", owner, repo, number] as const,
   threadResolution: (owner: string, repo: string, number: number) =>
     [...pullsKeys.all, "thread-resolution", owner, repo, number] as const,
+  branchRefs: (owner: string, repo: string, number: number) =>
+    [...pullsKeys.all, "branch-refs", owner, repo, number] as const,
 };
 
 // ─── Filters ───────────────────────────────────────────────────────────────
@@ -2184,4 +2186,76 @@ export function useDeleteReviewComment(owner: string, repo: string, number: numb
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
   });
+}
+
+// ─── Branch refs (list-row stacking) ──────────────────────────────────────
+//
+// The Search API doesn't return head/base branch names. We fetch them per-PR
+// via a tiny GraphQL query so `buildPrTree` can detect stacked PRs (where
+// one PR's base branch matches another PR's head branch). Batched across the
+// visible list via `useQueries` — same pattern as `usePrCheckRollups`.
+
+export type PrBranchRefs = {
+  headRefName: string;
+  baseRefName: string;
+};
+
+type BranchRefsQueryResponse = {
+  repository?: {
+    pullRequest?: {
+      headRefName?: string | null;
+      baseRefName?: string | null;
+    } | null;
+  } | null;
+};
+
+const PR_BRANCH_REFS_QUERY = `
+  query($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) {
+        headRefName
+        baseRefName
+      }
+    }
+  }
+`;
+
+export const prBranchRefsQueryOptions = (owner: string, repo: string, number: number) =>
+  queryOptions({
+    queryKey: pullsKeys.branchRefs(owner, repo, number),
+    staleTime: 60_000,
+    queryFn: async (): Promise<PrBranchRefs | null> => {
+      const client = getGitHubClient();
+      const res = (await client.graphql(PR_BRANCH_REFS_QUERY, {
+        owner,
+        repo,
+        number,
+      })) as BranchRefsQueryResponse;
+      const pr = res.repository?.pullRequest;
+      if (!pr?.headRefName || !pr?.baseRefName) return null;
+      return { headRefName: pr.headRefName, baseRefName: pr.baseRefName };
+    },
+  });
+
+export function usePrBranchRefs(
+  owner: string,
+  repo: string,
+  numbers: number[],
+): Map<number, PrBranchRefs> {
+  const token = useAuthStore((s) => s.token);
+  const uniqueNumbers = Array.from(new Set(numbers)).filter(Number.isFinite);
+  const results = useQueries({
+    queries: uniqueNumbers.map((number) => ({
+      ...prBranchRefsQueryOptions(owner, repo, number),
+      enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    })),
+  });
+
+  const refs = new Map<number, PrBranchRefs>();
+  results.forEach((result, index) => {
+    const number = uniqueNumbers[index];
+    if (number === undefined || !result.data) return;
+    refs.set(number, result.data);
+  });
+  return refs;
 }

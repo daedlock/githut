@@ -2,6 +2,7 @@ import { Columns2, PanelLeftClose, PanelLeftOpen, Rows2 } from "lucide-react";
 import { Fragment, memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type ChangedFile, ChangedFileTree } from "@/app/components/repo/ChangedFileTree";
 import { cn } from "@/app/lib/cn";
+import { useSettingsStore } from "@/app/stores/settings";
 import { ChangeStatsBadge } from "./ChangeStatsBadge";
 import { type DiffMode, DiffModeContext, type DiffReviewHooks } from "./DiffView";
 import { FileDiff } from "./FileDiff";
@@ -63,7 +64,8 @@ export function DiffLayout({
   reviewActions,
 }: DiffLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(initialSidebarOpen);
-  const [mode, setMode] = useState<DiffMode>(defaultMode);
+  const mode = useSettingsStore((s) => s.diffMode);
+  const setMode = useSettingsStore((s) => s.setDiffMode);
   const [activeFile, setActiveFile] = useState<string | undefined>(files[0]?.filename);
 
   const fileRefs = useRef<Map<string, HTMLElement>>(new Map());

@@ -15,6 +15,7 @@ import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import { PrStateIcon } from "@/app/features/pulls/components/PrStatePill";
 import type { CheckContextStatus, PrCheckRollup, PrListItem } from "@/app/features/pulls/hooks";
+import type { TreePosition } from "@/app/features/pulls/lib/buildPrTree";
 import { toUiState } from "@/app/features/pulls/lib/prStatus";
 import type { ReviewDecision } from "@/app/features/pulls/lib/reviewDecision";
 import { cn } from "@/app/lib/cn";
@@ -37,9 +38,24 @@ export type PrRowProps = {
   pr: PrListItem;
   reviewDecision?: ReviewDecision;
   checkRollup?: PrCheckRollup;
+  depth?: number;
+  treePosition?: TreePosition;
+  ancestorContinuations?: number[];
 };
 
-export function PrRow({ owner, repo, pr, reviewDecision, checkRollup }: PrRowProps) {
+// Indent step per depth level (px). Connector line sits at the midpoint.
+const DEPTH_INDENT = 24;
+
+export function PrRow({
+  owner,
+  repo,
+  pr,
+  reviewDecision,
+  checkRollup,
+  depth = 0,
+  treePosition = "root",
+  ancestorContinuations = [],
+}: PrRowProps) {
   const state = toUiState({
     state: pr.state,
     draft: pr.draft ?? false,
@@ -48,6 +64,7 @@ export function PrRow({ owner, repo, pr, reviewDecision, checkRollup }: PrRowPro
   const isClosedLike = state === "closed" || state === "merged";
   const timeAt = isClosedLike ? (pr.closed_at ?? pr.updated_at) : pr.created_at;
   const timeVerb = state === "merged" ? "merged" : state === "closed" ? "closed" : "opened";
+  const isChild = depth > 0;
 
   return (
     <Link
@@ -55,11 +72,21 @@ export function PrRow({ owner, repo, pr, reviewDecision, checkRollup }: PrRowPro
       params={{ owner, repo, number: pr.number }}
       className="group block rounded-lg outline-none transition-colors focus-visible:bg-muted hover:bg-muted"
     >
-      <div className="flex w-full items-start gap-3 px-4 py-2.5 text-left">
-        <div className="mt-0.5 flex-shrink-0">
+      <div
+        className="relative flex w-full items-start gap-3 py-2.5 text-left"
+        style={{ paddingLeft: 16 + depth * DEPTH_INDENT + (isChild ? 6 : 0), paddingRight: 16 }}
+      >
+        {isChild && (
+          <TreeConnector
+            depth={depth}
+            treePosition={treePosition}
+            ancestorContinuations={ancestorContinuations}
+          />
+        )}
+        <div className={cn("mt-0.5 flex-shrink-0", isChild && "opacity-60")}>
           <PrStateIcon state={state} size={4} />
         </div>
-        <div className="min-w-0 flex-1">
+        <div className={cn("min-w-0 flex-1", isChild && "opacity-70")}>
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span className="text-body font-[475] text-foreground">{pr.title}</span>
             <ChecksBadge rollup={checkRollup} />
@@ -218,6 +245,65 @@ function ChecksList({ rollup }: { rollup: PrCheckRollup }) {
             );
           })}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Tree connector lines ──────────────────────────────────────────────────
+//
+// Geometry:
+//   paddingLeft per row = 16 + depth * DEPTH_INDENT (+ 6 for children)
+//   connector X for depth d = 4 + d * DEPTH_INDENT  (midpoint of indent gap)
+//   arm width = DEPTH_INDENT / 2  (horizontal branch to content)
+//
+// When siblings follow (first/middle child), the vertical line runs the full
+// row height as one continuous stroke with a horizontal arm at center.
+// Only the last (or only) child draws a rounded L-bend that terminates.
+
+function TreeConnector({
+  depth,
+  treePosition,
+  ancestorContinuations,
+}: {
+  depth: number;
+  treePosition: TreePosition;
+  ancestorContinuations: number[];
+}) {
+  const hasMore = treePosition === "first-child" || treePosition === "middle-child";
+  const connX = 4 + depth * DEPTH_INDENT;
+  const armWidth = DEPTH_INDENT / 2;
+
+  return (
+    <div className="pointer-events-none absolute inset-0" aria-hidden>
+      {/* Ancestor continuation lines — full-height verticals */}
+      {ancestorContinuations.map((ancDepth) => (
+        <div
+          key={ancDepth}
+          className="absolute top-0 h-full border-l border-(--color-border)"
+          style={{ left: 4 + (ancDepth + 1) * DEPTH_INDENT }}
+        />
+      ))}
+
+      {hasMore ? (
+        <>
+          {/* Continuous vertical line through the full row */}
+          <div
+            className="absolute top-0 h-full border-l border-(--color-border)"
+            style={{ left: connX }}
+          />
+          {/* Horizontal arm branching off at center */}
+          <div
+            className="absolute top-1/2 border-t border-(--color-border)"
+            style={{ left: connX, width: armWidth }}
+          />
+        </>
+      ) : (
+        /* Last/only child — L-bend with rounded corner, terminates here */
+        <div
+          className="absolute top-0 border-b border-l border-(--color-border) rounded-bl-lg"
+          style={{ left: connX, width: armWidth, height: "50%" }}
+        />
       )}
     </div>
   );

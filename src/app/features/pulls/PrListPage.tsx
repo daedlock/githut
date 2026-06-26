@@ -37,13 +37,16 @@ import {
   type PullsFilters,
   type PullsSort,
   type PullsState,
+  usePrBranchRefs,
   usePrCheckRollups,
   usePrReviewDecisions,
   usePulls,
   usePullsCounts,
 } from "@/app/features/pulls/hooks";
+import { buildPrTree } from "@/app/features/pulls/lib/buildPrTree";
 import { useRepoCollaborators, useRepoLabels } from "@/app/features/pulls/pickers";
 import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
+import { useRepo } from "@/app/hooks/useRepo";
 import { cn } from "@/app/lib/cn";
 
 export type PrListPageProps = {
@@ -165,6 +168,14 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
   const prNumbers = useMemo(() => filtered.map((pr) => pr.number), [filtered]);
   const reviewDecisions = usePrReviewDecisions(owner, repo, prNumbers);
   const checkRollups = usePrCheckRollups(owner, repo, prNumbers);
+  const branchRefs = usePrBranchRefs(owner, repo, prNumbers);
+  const repoData = useRepo(owner, repo);
+  const defaultBranch = repoData.data?.default_branch;
+
+  const treeNodes = useMemo(
+    () => buildPrTree(filtered, branchRefs, defaultBranch),
+    [filtered, branchRefs, defaultBranch],
+  );
 
   const labels = labelsQuery.data ?? [];
   const collaborators = collaboratorsQuery.data ?? [];
@@ -276,14 +287,17 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
           <EmptyState hasSearch={!!searchText} state={currentState} />
         ) : (
           <>
-            {filtered.map((pr) => (
+            {treeNodes.map((node) => (
               <PrRow
-                key={pr.id}
+                key={node.pr.id}
                 owner={owner}
                 repo={repo}
-                pr={pr}
-                reviewDecision={reviewDecisions.get(pr.number) ?? null}
-                checkRollup={checkRollups.get(pr.number)}
+                pr={node.pr}
+                reviewDecision={reviewDecisions.get(node.pr.number) ?? null}
+                checkRollup={checkRollups.get(node.pr.number)}
+                depth={node.depth}
+                treePosition={node.treePosition}
+                ancestorContinuations={node.ancestorContinuations}
               />
             ))}
             {pulls.hasNextPage && !searchText ? (

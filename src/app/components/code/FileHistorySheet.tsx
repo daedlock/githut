@@ -12,7 +12,8 @@ import {
   X as XIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { DiffView, type DiffMode } from "@/app/components/code/DiffView";
+import { type DiffMode, DiffView } from "@/app/components/code/DiffView";
+import { useSettingsStore } from "@/app/stores/settings";
 import { FileContextPanel } from "@/app/components/code/FileDiff";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
@@ -66,7 +67,8 @@ export function FileHistorySheet() {
 }
 
 function SheetBody({ session }: { session: ReturnType<typeof useFileHistorySession> }) {
-  const [mode, setMode] = useState<DiffMode>("split");
+  const mode = useSettingsStore((s) => s.diffMode);
+  const setMode = useSettingsStore((s) => s.setDiffMode);
   const [contextOpen, setContextOpen] = useState(false);
   useFileHistoryKeys(session, () => setContextOpen((c) => !c));
 
