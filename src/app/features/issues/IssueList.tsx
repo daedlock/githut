@@ -3,11 +3,7 @@ import { useMemo } from "react";
 import { Button } from "@/app/components/ui/button";
 import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import { Container } from "@/app/components/ui/Container";
-import {
-  type ActiveFilter,
-  FilterBar,
-  FilterTrigger,
-} from "@/app/components/ui/filter-bar";
+import { type ActiveFilter, FilterBar, FilterTrigger } from "@/app/components/ui/filter-bar";
 import { Input } from "@/app/components/ui/input";
 import { IssueListSkeleton } from "@/app/features/issues/components/IssueListSkeleton";
 import { IssueRow } from "@/app/features/issues/components/IssueRow";
@@ -15,6 +11,7 @@ import { type StateFilter, StateTab } from "@/app/features/issues/components/Sta
 import type { RepoIssue } from "@/app/features/issues/schemas";
 import { useRepoCollaborators, useRepoLabels } from "@/app/features/pulls/pickers";
 import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
+import { useListNavigation } from "@/app/hooks/useListNavigation";
 import { cn } from "@/app/lib/cn";
 
 export type IssueListProps = {
@@ -64,6 +61,8 @@ export function IssueList({
   onSubmitIssue,
   isSubmittingIssue,
 }: IssueListProps) {
+  useListNavigation(!isLoading && !isError && !isComposing);
+
   const labelsQuery = useRepoLabels(owner, repo);
   const collaboratorsQuery = useRepoCollaborators(owner, repo);
   const fields = useMemo(
@@ -78,6 +77,7 @@ export function IssueList({
 
   return (
     <Container size="lg" className="py-6">
+      <h1 className="sr-only">Issues</h1>
       {isComposing ? (
         <form onSubmit={onSubmitIssue} className="mb-4 flex flex-col gap-3">
           <div className="flex items-center justify-between">
@@ -144,6 +144,10 @@ export function IssueList({
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
                   <Input
+                    type="search"
+                    name="issue-search"
+                    aria-label="Search issues"
+                    autoComplete="off"
                     value={searchText}
                     onChange={(e) => onSearch(e.target.value)}
                     placeholder="Search…"
@@ -193,13 +197,7 @@ export function IssueList({
   );
 }
 
-function EmptyState({
-  hasSearch,
-  state,
-}: {
-  hasSearch: boolean;
-  state: StateFilter;
-}) {
+function EmptyState({ hasSearch, state }: { hasSearch: boolean; state: StateFilter }) {
   const Icon = state === "open" ? CircleDot : CheckCircle2;
   return (
     <div className="px-5 py-16 text-center">

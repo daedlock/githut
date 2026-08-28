@@ -50,6 +50,7 @@ export function DashRow({ item, date, showReason }: DashRowProps) {
   return (
     <Link
       {...linkProps}
+      data-keyboard-list-item
       className="group block rounded-lg outline-none transition-colors hover:bg-muted focus-visible:bg-muted"
     >
       <div className="flex w-full items-start gap-3 px-4 py-2.5 text-left">

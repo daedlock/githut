@@ -160,6 +160,9 @@ function CodePage() {
 
   return (
     <Container className="py-6">
+      <h1 className="sr-only">
+        Code for {owner}/{repo}
+      </h1>
       <div className="flex gap-6 items-start">
         {/* main column */}
         <div className="flex min-w-0 flex-1 flex-col gap-3">

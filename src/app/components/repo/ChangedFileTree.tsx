@@ -160,6 +160,10 @@ export function ChangedFileTree({
                 </InputGroupAddon>
                 <InputGroupInput
                   ref={searchInputRef}
+                  type="search"
+                  name="changed-file-search"
+                  aria-label="Filter changed files"
+                  autoComplete="off"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(event) => {

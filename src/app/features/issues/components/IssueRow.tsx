@@ -8,6 +8,7 @@ import { issueKeys } from "@/app/features/issues/hooks";
 import type { RepoIssue } from "@/app/features/issues/schemas";
 import { IssueCommentsSchema, IssueDetailSchema } from "@/app/features/issues/schemas";
 import { REACTION_CONTENTS, REACTION_EMOJIS, reactionsHaveAny } from "@/app/features/issues/utils";
+import { cn } from "@/app/lib/cn";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { formatRelativeTime } from "@/app/lib/time";
 
@@ -52,13 +53,7 @@ export function IssueRow({
   const timeVerb = isOpen ? "opened" : "closed";
 
   return (
-    <Link
-      to="/$owner/$repo/issues/$number"
-      params={{ owner, repo, number: issue.number }}
-      className="group block rounded-lg outline-none transition-colors hover:bg-muted focus-visible:bg-muted"
-      onMouseEnter={prefetch}
-      onFocus={prefetch}
-    >
+    <div className="group relative rounded-lg transition-colors hover:bg-muted">
       <div className="flex w-full items-start gap-3 px-4 py-2.5 text-left">
         <div className="mt-0.5 flex-shrink-0">
           {isOpen ? (
@@ -68,23 +63,31 @@ export function IssueRow({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <Link
+            to="/$owner/$repo/issues/$number"
+            params={{ owner, repo, number: issue.number }}
+            aria-label={`Open issue #${issue.number}: ${issue.title}`}
+            data-keyboard-list-item
+            onMouseEnter={prefetch}
+            onFocus={prefetch}
+            className={cn(
+              "flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-sm outline-none",
+              "after:absolute after:inset-0 after:z-10 after:rounded-lg after:content-['']",
+              "focus-visible:after:ring-1 focus-visible:after:ring-foreground/20",
+            )}
+          >
             <span className="text-body font-[475] text-foreground">{issue.title}</span>
             {issue.labels.map((label) => (
-              <LabelPill key={label.id} label={label} size="xs" />
+              <LabelPill key={label.id} label={label} size="xs" className="relative z-20" />
             ))}
-          </div>
+          </Link>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-ui text-muted-foreground">
             <span>
               <span className="font-mono">#{issue.number}</span>
               {" · "}
               {timeVerb} {formatRelativeTime(timeAt)}
               {" by "}
-              <ProfileLink
-                login={issue.user.login}
-                stopPropagation
-                className="text-muted-foreground"
-              >
+              <ProfileLink login={issue.user.login} className="relative z-20 text-muted-foreground">
                 {issue.user.login}
               </ProfileLink>
             </span>
@@ -122,6 +125,6 @@ export function IssueRow({
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

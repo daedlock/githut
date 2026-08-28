@@ -1,0 +1,144 @@
+/* Catppuccin Latte + Mocha, adapted to GitHut's semantic token system.
+ * Contrast-sensitive text and status roles are tuned for WCAG AA at 11–14px. */
+
+[data-theme="catppuccin-light"] {
+  color-scheme: light;
+
+  --color-bg: #eff1f5;
+  --color-bg-subtle: #e6e9ef;
+  --color-bg-sunken: #dce0e8;
+  --color-border: #ccd0da;
+  --color-border-strong: #9ca0b0;
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 88%, white);
+
+  --color-fg: #4c4f69;
+  --color-fg-muted: #5c5f77;
+  --color-fg-faint: #7c7f93;
+
+  --color-brand: #1c60e8;
+  --color-brand-hover: #1853cc;
+  --color-brand-fg: #ffffff;
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-fg);
+  --color-focus: var(--color-brand);
+
+  --color-success: #267a22;
+  --color-danger: #c01c3f;
+  --color-warning: #7a5600;
+  --color-pr-merged: #7c2ec4;
+  --color-pr-merged-bg: #e8dcf3;
+  --color-pr-merged-fg: #64229f;
+  --color-issue-open-bg: #dcebd8;
+  --color-issue-open-fg: #236f20;
+  --color-issue-closed-bg: #eadcf3;
+  --color-issue-closed-fg: #64229f;
+
+  --syntax-keyword: #7c2ec4;
+  --syntax-string: #267a22;
+  --syntax-number: #b94708;
+  --syntax-function: #1c60e8;
+  --syntax-type: #7a5600;
+  --syntax-property: #1c60e8;
+  --syntax-constant: #b94708;
+  --syntax-variable: #4c4f69;
+  --syntax-operator: #5c5f77;
+  --syntax-punctuation: #5c5f77;
+  --syntax-tag: #c01c3f;
+  --syntax-attribute: #7a5600;
+  --syntax-meta: #64229f;
+  --syntax-comment: #5c5f77;
+  --syntax-regex: #9b356d;
+
+  --icon-ts: #1c60e8;
+  --icon-js: #7a5600;
+  --icon-python: #176f9f;
+  --icon-rust: #b94708;
+  --icon-go: #087f72;
+  --icon-ruby: #c01c3f;
+  --icon-markup: #b94708;
+  --icon-style: #7c2ec4;
+  --icon-data: #7a5600;
+  --icon-image: #9b356d;
+  --icon-docker: #176f9f;
+  --icon-shell: #267a22;
+  --icon-default: #7c7f93;
+
+  --chart-slot-1: #1c60e8;
+  --chart-slot-2: #267a22;
+  --chart-slot-3: #c01c3f;
+  --chart-slot-4: #7a5600;
+  --chart-slot-5: #087f72;
+  --chart-slot-6: #7c2ec4;
+  --chart-other: #7c7f93;
+}
+
+[data-theme="catppuccin-dark"] {
+  color-scheme: dark;
+
+  --color-bg: #1e1e2e;
+  --color-bg-subtle: #252536;
+  --color-bg-sunken: #313244;
+  --color-border: #313244;
+  --color-border-strong: #45475a;
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 85%, var(--color-bg-sunken));
+
+  --color-fg: #cdd6f4;
+  --color-fg-muted: #a6adc8;
+  --color-fg-faint: #7f849c;
+
+  --color-brand: #89b4fa;
+  --color-brand-hover: #a7c7ff;
+  --color-brand-fg: #1e1e2e;
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-fg);
+  --color-focus: var(--color-brand);
+
+  --color-success: #a6e3a1;
+  --color-danger: #f38ba8;
+  --color-warning: #f9e2af;
+  --color-pr-merged: #cba6f7;
+  --color-pr-merged-bg: #352d4d;
+  --color-pr-merged-fg: #d9bff8;
+  --color-issue-open-bg: #263d32;
+  --color-issue-open-fg: #a6e3a1;
+  --color-issue-closed-bg: #3c2d4d;
+  --color-issue-closed-fg: #cba6f7;
+
+  --syntax-keyword: #cba6f7;
+  --syntax-string: #a6e3a1;
+  --syntax-number: #fab387;
+  --syntax-function: #89b4fa;
+  --syntax-type: #f9e2af;
+  --syntax-property: #89dceb;
+  --syntax-constant: #fab387;
+  --syntax-variable: #cdd6f4;
+  --syntax-operator: #a6adc8;
+  --syntax-punctuation: #a6adc8;
+  --syntax-tag: #f38ba8;
+  --syntax-attribute: #f9e2af;
+  --syntax-meta: #cba6f7;
+  --syntax-comment: #9399b2;
+  --syntax-regex: #f5c2e7;
+
+  --icon-ts: #89b4fa;
+  --icon-js: #f9e2af;
+  --icon-python: #74c7ec;
+  --icon-rust: #fab387;
+  --icon-go: #94e2d5;
+  --icon-ruby: #f38ba8;
+  --icon-markup: #fab387;
+  --icon-style: #cba6f7;
+  --icon-data: #f9e2af;
+  --icon-image: #f5c2e7;
+  --icon-docker: #74c7ec;
+  --icon-shell: #a6e3a1;
+  --icon-default: #7f849c;
+
+  --chart-slot-1: #89b4fa;
+  --chart-slot-2: #a6e3a1;
+  --chart-slot-3: #f38ba8;
+  --chart-slot-4: #f9e2af;
+  --chart-slot-5: #94e2d5;
+  --chart-slot-6: #cba6f7;
+  --chart-other: #7f849c;
+}

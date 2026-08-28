@@ -42,12 +42,12 @@ import { logout } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
 import { clearRecentItems, pushRecentItem, type RecentItem } from "@/app/lib/recentItems";
 import { getTabMeta } from "@/app/lib/tabMeta";
-import { runThemeTransition } from "@/app/lib/themeTransition";
+import { THEME_OPTIONS } from "@/app/lib/themeCatalog";
 import { formatRelativeTime } from "@/app/lib/time";
 import { useCommandPalette, useCommandPaletteStore } from "@/app/stores/commandPalette";
 import { useSettingsStore } from "@/app/stores/settings";
 import { hrefToTabId, useTabsStore } from "@/app/stores/tabs";
-import { type Palette, useThemeStore } from "@/app/stores/theme";
+import { useThemeStore } from "@/app/stores/theme";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -61,104 +61,6 @@ type PaletteCommand = {
 };
 
 type RepoContext = { owner: string; repo: string } | null;
-
-// ─── Theme definitions ───────────────────────────────────────────────────────
-// Mirrors ThemePicker CARDS — kept here to avoid coupling the palette to the
-// settings page. Each theme becomes its own command so you can type "lagoon"
-// or ">ember" and switch instantly.
-
-const THEME_DEFS: readonly {
-  id: string;
-  name: string;
-  palette: Palette;
-  preference: "light" | "dark";
-  keywords: string[];
-}[] = [
-  {
-    id: "stone-light",
-    name: "Stone Light",
-    palette: "stone",
-    preference: "light",
-    keywords: ["warm", "daylight", "default"],
-  },
-  {
-    id: "stone-dark",
-    name: "Stone Dark",
-    palette: "stone",
-    preference: "dark",
-    keywords: ["warm", "night", "default"],
-  },
-  {
-    id: "ember-light",
-    name: "Ember Light",
-    palette: "ember",
-    preference: "light",
-    keywords: ["parchment", "ivory"],
-  },
-  {
-    id: "ember",
-    name: "Ember",
-    palette: "ember",
-    preference: "dark",
-    keywords: ["coral", "graphite", "spark"],
-  },
-  {
-    id: "ember-soft",
-    name: "Ember Soft",
-    palette: "ember-soft",
-    preference: "dark",
-    keywords: ["coral", "soft", "lifted"],
-  },
-  {
-    id: "dune",
-    name: "Dune",
-    palette: "dune",
-    preference: "dark",
-    keywords: ["amber", "charcoal", "earth"],
-  },
-  {
-    id: "haze",
-    name: "Haze",
-    palette: "haze",
-    preference: "dark",
-    keywords: ["lavender", "mauve", "purple"],
-  },
-  {
-    id: "lagoon-light",
-    name: "Lagoon Light",
-    palette: "lagoon",
-    preference: "light",
-    keywords: ["seafoam", "coral", "paper", "light"],
-  },
-  {
-    id: "lagoon",
-    name: "Lagoon",
-    palette: "lagoon",
-    preference: "dark",
-    keywords: ["coral", "teal", "reef"],
-  },
-  {
-    id: "matrix",
-    name: "Matrix",
-    palette: "matrix",
-    preference: "dark",
-    keywords: ["green", "phosphor", "hacker"],
-  },
-  {
-    id: "moss",
-    name: "Moss",
-    palette: "moss",
-    preference: "dark",
-    keywords: ["forest", "earthy", "green"],
-  },
-  {
-    id: "sagecream",
-    name: "Sagecream",
-    palette: "sagecream",
-    preference: "dark",
-    keywords: ["sage", "cream", "neutral"],
-  },
-];
 
 // ─── Command builder ─────────────────────────────────────────────────────────
 // Returns a flat array of all available commands. cmdk handles the filtering.
@@ -288,16 +190,13 @@ function buildCommands(
     },
   ];
 
-  const themes: PaletteCommand[] = THEME_DEFS.map((t) => ({
+  const themes: PaletteCommand[] = THEME_OPTIONS.map((t) => ({
     id: `theme:${t.id}`,
     label: t.name,
     icon: PaletteIcon,
     keywords: ["theme", "appearance", "color", ...t.keywords],
     run: () => {
-      runThemeTransition(() => {
-        useThemeStore.getState().setPalette(t.palette);
-        useThemeStore.getState().setPreference(t.preference);
-      });
+      useThemeStore.getState().setTheme(t.palette, t.preference);
       close();
     },
   }));
@@ -437,6 +336,16 @@ export function CommandPalette() {
     ((codeSearch.data?.length ?? 0) > 0 || codeSearch.isFetching || codeSearch.isError);
   const showSearch = issueSearchEnabled && issueQuery.length >= 2;
   const shouldFilter = mode.kind === "all" || mode.kind === "actions" || mode.kind === "repos";
+  const searchAnnouncement =
+    mode.kind === "issues"
+      ? search.isFetching
+        ? "Searching issues and pull requests…"
+        : `${search.data?.length ?? 0} issue and pull request results`
+      : mode.kind === "files"
+        ? repoTree.isFetching || codeSearch.isFetching
+          ? "Searching files and code…"
+          : `${fileResults.length + (codeSearch.data?.length ?? 0)} file and code results`
+        : "";
 
   return (
     <CommandDialog
@@ -468,6 +377,9 @@ export function CommandPalette() {
               : "Search, > commands, @ repos, # issues…"
           }
         />
+        <span className="sr-only" aria-live="polite" aria-atomic="true">
+          {searchAnnouncement}
+        </span>
 
         <CommandList>
           <CommandEmpty>

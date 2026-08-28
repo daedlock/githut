@@ -1,4 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useId } from "react";
+import { CodeFontPicker } from "@/app/components/settings/CodeFontPicker";
 import { ThemePicker } from "@/app/components/settings/ThemePicker";
 import { AppShell } from "@/app/components/shell/AppShell";
 import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
@@ -29,13 +31,14 @@ function SettingsPage() {
               Settings
             </h1>
             <p className="font-sans text-ui text-muted-foreground">
-              Keep it simple for now. Appearance preferences are saved in this browser.
+              Tune GitHut for the way you read and review. Preferences stay in this browser.
             </p>
           </header>
 
           <section className="flex flex-col gap-3 rounded-lg bg-muted p-4">
             <h2 className="font-sans text-ui font-medium text-foreground">Appearance</h2>
             <ThemePicker />
+            <CodeFontPicker />
           </section>
 
           <WorkspaceTabsSection />
@@ -106,19 +109,29 @@ function SettingsSwitchRow({
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
 }) {
+  const titleId = useId();
+  const descriptionId = useId();
+
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="flex flex-col gap-1">
-        <span className="font-sans text-ui font-medium text-foreground">{title}</span>
-        <span className="font-sans text-caption text-muted-foreground">{description}</span>
+        <span id={titleId} className="font-sans text-ui font-medium text-foreground">
+          {title}
+        </span>
+        <span id={descriptionId} className="font-sans text-caption text-muted-foreground">
+          {description}
+        </span>
       </div>
       <button
         type="button"
         onClick={() => onCheckedChange(!checked)}
         role="switch"
         aria-checked={checked}
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
         className={cn(
           "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border border-border transition-colors duration-150",
+          "outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-muted",
           checked ? "bg-primary" : "bg-(--color-bg-sunken)",
         )}
       >

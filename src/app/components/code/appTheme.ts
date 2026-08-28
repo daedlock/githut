@@ -38,23 +38,25 @@ const P = {
   regex: "#ff00ff",
 } as const;
 
+const syntaxColor = (role: string) => `var(--code-syntax-${role}, var(--syntax-${role}))`;
+
 const colorReplacements: Record<string, string> = {
   [P.default]: "var(--color-fg)",
-  [P.comment]: "var(--syntax-comment)",
-  [P.keyword]: "var(--syntax-keyword)",
-  [P.string]: "var(--syntax-string)",
-  [P.number]: "var(--syntax-number)",
-  [P.function]: "var(--syntax-function)",
-  [P.type]: "var(--syntax-type)",
-  [P.property]: "var(--syntax-property)",
-  [P.constant]: "var(--syntax-constant)",
-  [P.variable]: "var(--syntax-variable)",
-  [P.operator]: "var(--syntax-operator)",
-  [P.punctuation]: "var(--syntax-punctuation)",
-  [P.tag]: "var(--syntax-tag)",
-  [P.attribute]: "var(--syntax-attribute)",
-  [P.meta]: "var(--syntax-meta)",
-  [P.regex]: "var(--syntax-regex)",
+  [P.comment]: syntaxColor("comment"),
+  [P.keyword]: syntaxColor("keyword"),
+  [P.string]: syntaxColor("string"),
+  [P.number]: syntaxColor("number"),
+  [P.function]: syntaxColor("function"),
+  [P.type]: syntaxColor("type"),
+  [P.property]: syntaxColor("property"),
+  [P.constant]: syntaxColor("constant"),
+  [P.variable]: syntaxColor("variable"),
+  [P.operator]: syntaxColor("operator"),
+  [P.punctuation]: syntaxColor("punctuation"),
+  [P.tag]: syntaxColor("tag"),
+  [P.attribute]: syntaxColor("attribute"),
+  [P.meta]: syntaxColor("meta"),
+  [P.regex]: syntaxColor("regex"),
 };
 
 export const appSyntaxTheme: ThemeRegistrationRaw = {

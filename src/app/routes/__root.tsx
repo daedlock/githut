@@ -4,11 +4,13 @@ import { CommandPalette } from "@/app/components/CommandPalette";
 import { FileHistorySheet } from "@/app/components/code/FileHistorySheet";
 import { KeyboardHelp } from "@/app/components/KeyboardHelp";
 import { OpenInGithubLink } from "@/app/components/OpenInGithubLink";
+import { DocumentTitle } from "@/app/components/shell/DocumentTitle";
 import { TabSyncProvider } from "@/app/components/shell/TabSyncProvider";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: () => (
     <TabSyncProvider>
+      <DocumentTitle />
       <Outlet />
       <CommandPalette />
       <KeyboardHelp />

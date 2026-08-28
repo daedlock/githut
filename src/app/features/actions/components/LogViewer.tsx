@@ -188,14 +188,14 @@ function LogViewer({
       ref={scrollRef}
       className={cn(
         "overflow-auto border-t border-border bg-muted",
-        "font-mono text-code leading-[18px]",
+        "font-feature-settings-code text-code leading-[18px]",
         className,
       )}
       style={{
         height: containerH,
-        // Force the mono token inline so unlayered font-family inherits can't
+        // Force the code-font token inline so unlayered font-family inherits can't
         // steal it (same technique as CodeView).
-        fontFamily: "var(--font-mono)",
+        fontFamily: "var(--font-code)",
       }}
     >
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>

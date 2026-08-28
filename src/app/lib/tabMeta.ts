@@ -8,6 +8,7 @@ import {
   type LucideIcon,
   Play,
   Settings,
+  User,
 } from "lucide-react";
 
 export type TabMeta = {
@@ -34,11 +35,19 @@ type PatternRule = {
 const RULES: PatternRule[] = [
   {
     match: /^\/$/,
-    meta: () => ({ label: "Home", icon: Home }),
+    meta: () => ({ label: "Dashboard", icon: Home }),
   },
   {
     match: /^\/settings$/,
     meta: () => ({ label: "Settings", icon: Settings }),
+  },
+  {
+    match: /^\/login$/,
+    meta: () => ({ label: "Sign In", icon: User }),
+  },
+  {
+    match: /^\/playground$/,
+    meta: () => ({ label: "Playground", icon: Code2 }),
   },
   {
     match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/code$/,
@@ -104,6 +113,10 @@ const RULES: PatternRule[] = [
       icon: Play,
     }),
   },
+  {
+    match: /^\/(?<username>[^/]+)$/,
+    meta: (g) => ({ label: `@${g.username}`, icon: User }),
+  },
 ];
 
 /**
@@ -123,4 +136,9 @@ export function getTabMeta(pathname: string): TabMeta {
     label: segments[segments.length - 1] ?? pathname,
     icon: FileText,
   };
+}
+
+export function getDocumentTitle(pathname: string): string {
+  const meta = getTabMeta(pathname);
+  return meta.sublabel ? `${meta.label} · ${meta.sublabel} · GitHut` : `${meta.label} · GitHut`;
 }

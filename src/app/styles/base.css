@@ -13,7 +13,17 @@ body,
   scrollbar-color: var(--color-fg-faint) transparent;
 }
 
-button, [role="button"], [role="menuitem"], [role="option"], [role="menuitemcheckbox"], [role="menuitemradio"], a, summary, [type="submit"], [type="reset"], [type="button"] {
+button,
+[role="button"],
+[role="menuitem"],
+[role="option"],
+[role="menuitemcheckbox"],
+[role="menuitemradio"],
+a,
+summary,
+[type="submit"],
+[type="reset"],
+[type="button"] {
   cursor: pointer;
 }
 
@@ -95,6 +105,28 @@ html.dark .shiki span {
  * The gutter sits inside the same row and overrides to the -gutter token
  * so the line-number column reads as "part of the frame, not part of the content".
  */
+.diff-line-add,
+.diff-line-del {
+  /* Preserve each theme's syntax hues on tinted rows while maintaining 4.5:1
+     text contrast. Percentages are the highest safe rounded values measured
+     across every add/delete background in the theme gallery. */
+  --code-syntax-comment: color-mix(in oklab, var(--syntax-comment) 40%, var(--color-fg));
+  --code-syntax-keyword: color-mix(in oklab, var(--syntax-keyword) 65%, var(--color-fg));
+  --code-syntax-string: color-mix(in oklab, var(--syntax-string) 60%, var(--color-fg));
+  --code-syntax-number: color-mix(in oklab, var(--syntax-number) 55%, var(--color-fg));
+  --code-syntax-function: color-mix(in oklab, var(--syntax-function) 60%, var(--color-fg));
+  --code-syntax-type: color-mix(in oklab, var(--syntax-type) 65%, var(--color-fg));
+  --code-syntax-property: color-mix(in oklab, var(--syntax-property) 60%, var(--color-fg));
+  --code-syntax-constant: color-mix(in oklab, var(--syntax-constant) 55%, var(--color-fg));
+  --code-syntax-variable: var(--syntax-variable);
+  --code-syntax-operator: color-mix(in oklab, var(--syntax-operator) 50%, var(--color-fg));
+  --code-syntax-punctuation: color-mix(in oklab, var(--syntax-punctuation) 50%, var(--color-fg));
+  --code-syntax-tag: color-mix(in oklab, var(--syntax-tag) 65%, var(--color-fg));
+  --code-syntax-attribute: color-mix(in oklab, var(--syntax-attribute) 70%, var(--color-fg));
+  --code-syntax-meta: color-mix(in oklab, var(--syntax-meta) 70%, var(--color-fg));
+  --code-syntax-regex: color-mix(in oklab, var(--syntax-regex) 65%, var(--color-fg));
+}
+
 .diff-line-add {
   background: var(--diff-add-bg);
   border-left: 3px solid var(--diff-add-marker);
@@ -105,14 +137,14 @@ html.dark .shiki span {
 }
 .diff-line-add .diff-gutter {
   background: var(--diff-add-gutter);
-  /* Anchor the line number on changed lines — the muted shade reads as
-     "structural", not a code token. Context lines stay faint (set in JSX). */
-  color: var(--color-fg-muted);
+  /* Changed-line numbers are small text, so they use the full foreground.
+     Context line numbers stay faint (set in JSX). */
+  color: var(--color-fg);
 }
 
 .diff-line-del .diff-gutter {
   background: var(--diff-del-gutter);
-  color: var(--color-fg-muted);
+  color: var(--color-fg);
 }
 .diff-line-comment {
   background: var(--diff-comment-bg);
@@ -143,7 +175,7 @@ html.dark .shiki span {
   font-family: var(--font-sans);
 }
 .diff-line-comment .readme-prose pre {
-  font-family: var(--font-mono);
+  font-family: var(--font-code);
 }
 
 /*
@@ -160,15 +192,72 @@ html.dark .shiki span {
   border-radius: 2px;
 }
 .font-feature-settings-code {
-  font-feature-settings:
-    "liga" 1,
-    "calt" 1,
-    "cv02",
-    "cv03",
-    "cv04",
-    "cv11";
+  font-family: var(--font-code);
+  font-size: var(--font-code-size);
+  font-feature-settings: var(--font-code-features);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+html[data-ui-font="inter"] {
+  --font-sans:
+    "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+}
+
+html[data-ui-font="rubik"] {
+  --font-sans:
+    "Rubik Variable", "Rubik", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+}
+
+html[data-ui-font="geist"] {
+  --font-sans:
+    "Geist Variable", "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+}
+
+html[data-ui-font="ibm-plex-sans"] {
+  --font-sans:
+    "IBM Plex Sans Variable", "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+}
+
+html[data-code-font="fira-code"] {
+  --font-mono: "Fira Code Variable", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+html[data-code-font="berkeley-mono"] {
+  --font-mono:
+    "Berkeley Mono SemiCondensed", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+html[data-code-font="jetbrains-mono"] {
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+html[data-code-font="ibm-plex-mono"] {
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+html[data-code-font="source-code-pro"] {
+  --font-mono: "Source Code Pro Variable", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+html[data-code-font-size="compact"] {
+  --font-code-size: 12px;
+}
+
+html[data-code-font-size="comfortable"] {
+  --font-code-size: 13px;
+}
+
+html[data-code-font-size="large"] {
+  --font-code-size: 14px;
+}
+
+html[data-code-ligatures="off"] {
+  --font-code-features: "liga" 0, "calt" 0, "cv02", "cv03", "cv04", "cv11";
 }
 
 /*
@@ -294,7 +383,8 @@ html.dark .shiki span {
 /* ProfileActivity — today's cell breathes a quiet pulse so the present
    anchors the eye on a strip that's otherwise flat-on-page. */
 @keyframes activity-today-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 8px 0 color-mix(in oklab, var(--color-success) 32%, transparent);
   }
   50% {
@@ -364,11 +454,25 @@ body {
 }
 
 @keyframes spread {
-  from { opacity: 0; transform: scaleX(0.6); transform-origin: left; }
-  to { opacity: 1; transform: scaleX(1); transform-origin: left; }
+  from {
+    opacity: 0;
+    transform: scaleX(0.6);
+    transform-origin: left;
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+    transform-origin: left;
+  }
 }
 
 @keyframes pop {
-  from { opacity: 0; transform: scale(0.5); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }

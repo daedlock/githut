@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { CheckCircle2, Code2, GitCommit, MessageSquare } from "lucide-react";
+import { CheckCircle2, FileDiff, GitCommit, MessageSquare } from "lucide-react";
 import { ChangeStatsBadge } from "@/app/components/code";
 import { Button } from "@/app/components/ui/button";
 import { cn } from "@/app/lib/cn";
@@ -20,31 +20,54 @@ export type PrSubTabsProps = {
   };
 };
 
+export type PrSubTabKey = "conversation" | "commits" | "checks";
+
+export function getActivePrSubTab(
+  pathname: string,
+  owner: string,
+  repo: string,
+  number: number,
+): PrSubTabKey | null {
+  const base = `/${owner}/${repo}/pull/${number}`;
+  if (pathname === `${base}/commits` || pathname.startsWith(`${base}/commits/`)) return "commits";
+  if (pathname === `${base}/checks` || pathname.startsWith(`${base}/checks/`)) return "checks";
+  if (pathname === base || pathname === `${base}/`) return "conversation";
+  return null;
+}
+
 export function PrSubTabs({ owner, repo, number, counts, changeStats }: PrSubTabsProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const base = `/${owner}/${repo}/pull/${number}`;
+  const activeTab = getActivePrSubTab(pathname, owner, repo, number);
 
   const tabs = [
     {
+      key: "conversation" as const,
       to: `${base}`,
-      suffix: "",
       label: "Conversation",
       icon: MessageSquare,
       count: counts.conversation,
     },
     {
+      key: "commits" as const,
       to: `${base}/commits`,
-      suffix: "/commits",
       label: "Commits",
       icon: GitCommit,
       count: counts.commits,
     },
     {
+      key: "checks" as const,
       to: `${base}/checks`,
-      suffix: "/checks",
       label: "Checks",
       icon: CheckCircle2,
       count: counts.checks,
+    },
+    {
+      key: "files" as const,
+      to: `/${owner}/${repo}/pr/${number}`,
+      label: "Files changed",
+      icon: FileDiff,
+      count: counts.files,
     },
   ];
 
@@ -52,14 +75,10 @@ export function PrSubTabs({ owner, repo, number, counts, changeStats }: PrSubTab
     <nav aria-label="Pull request sections" className="flex items-center py-3">
       <div className="flex items-center gap-1">
         {tabs.map((t) => {
-          const target = `${base}${t.suffix}`;
-          const isActive =
-            t.suffix === ""
-              ? pathname === base || pathname === `${base}/`
-              : pathname === target || pathname.startsWith(`${target}/`);
+          const isActive = activeTab === t.key;
           const Icon = t.icon;
           return (
-            <Button key={t.suffix} variant="ghost" asChild>
+            <Button key={t.key} variant="ghost" asChild>
               <Link
                 to={t.to}
                 className={cn(isActive && "bg-muted !text-foreground font-medium")}
@@ -80,12 +99,6 @@ export function PrSubTabs({ owner, repo, number, counts, changeStats }: PrSubTab
         {changeStats && (
           <ChangeStatsBadge additions={changeStats.additions} deletions={changeStats.deletions} />
         )}
-        <Button variant="default" asChild>
-          <Link to="/$owner/$repo/pr/$number" params={{ owner, repo, number }}>
-            <Code2 data-icon="inline-start" />
-            <span>Review</span>
-          </Link>
-        </Button>
       </div>
     </nav>
   );

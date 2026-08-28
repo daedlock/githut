@@ -15,6 +15,7 @@ import {
   workflowRunsQueryOptions,
 } from "@/app/features/actions/hooks";
 import { toUiStatus } from "@/app/features/actions/lib/statusMap";
+import { useListNavigation } from "@/app/hooks/useListNavigation";
 import { cn } from "@/app/lib/cn";
 
 // ─── Search params ─────────────────────────────────────────────────────────
@@ -85,6 +86,7 @@ function ActionsPage() {
 
   // Flatten pages once — cheap enough at 30/page even on very active repos.
   const runs = useMemo(() => runsQuery.data?.pages.flat() ?? [], [runsQuery.data]);
+  useListNavigation(!runsQuery.isPending && !runsQuery.isError);
 
   const liveCount = useMemo(
     () =>
@@ -118,7 +120,7 @@ function ActionsPage() {
         </div>
 
         {/* Runs — flat dashboard-style list */}
-        <main className="min-w-0 flex-1 lg:max-w-3xl">
+        <div className="min-w-0 flex-1 lg:max-w-3xl">
           <MainHeader title="Actions" meta={meta} />
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted px-2 py-1">
@@ -170,7 +172,7 @@ function ActionsPage() {
               </>
             )}
           </div>
-        </main>
+        </div>
       </div>
     </Container>
   );

@@ -4,7 +4,7 @@ import { cn } from "@/app/lib/cn";
 import type { CodeLine, CodeLineWithHtml, LineKind } from "./types";
 import { FS_BOLD, FS_ITALIC, FS_STRIKETHROUGH, FS_UNDERLINE } from "./types";
 
-const LINE_H = 20; // px — Berkeley Mono 13px × 1.5 line-height ≈ 20px
+const LINE_H = 20; // px — fixed reading rhythm across the 12–14px code-size options
 const MAX_H = "75vh";
 
 function fontStyleToCSS(fs: number | undefined): React.CSSProperties {
@@ -82,10 +82,10 @@ export function CodeView({
       style={{
         height: containerH,
         maxHeight: MAX_H,
-        // Force the mono token inline so Tailwind's @layer utilities cascade
+        // Force the code-font token inline so Tailwind's @layer utilities cascade
         // (which body's unlayered font-family: var(--font-sans) can outrank)
         // can never steal the code viewer's font.
-        fontFamily: "var(--font-mono)",
+        fontFamily: "var(--font-code)",
       }}
     >
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>

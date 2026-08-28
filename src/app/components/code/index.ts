@@ -12,4 +12,8 @@ export { FileDiff, type FileDiffProps, type FileStatus } from "./FileDiff";
 export type { DiffLine, DiffLineKind } from "./parseDiff";
 export { countChanges, type DiffHunk, parseUnifiedDiff } from "./parseDiff";
 export type { CodeLine, CodeToken, LineKind } from "./types";
-export { codeTokensQueryOptions, useCodeTokens } from "./useCodeTokens";
+export {
+  codeTokenChunksQueryOptions,
+  codeTokensQueryOptions,
+  useCodeTokens,
+} from "./useCodeTokens";

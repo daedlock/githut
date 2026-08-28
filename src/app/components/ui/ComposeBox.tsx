@@ -450,6 +450,9 @@ export function ComposeBox({
             <PopoverAnchor virtualRef={virtualAnchorRef} />
             <textarea
               ref={textareaRef}
+              aria-label={placeholder}
+              name="comment-body"
+              autoComplete="off"
               value={value}
               onChange={handleChange}
               onKeyDown={handleKeyDown}

@@ -1,138 +1,31 @@
 import { Check } from "lucide-react";
 import { track } from "@/app/lib/analytics";
 import { cn } from "@/app/lib/cn";
-import { runThemeTransition } from "@/app/lib/themeTransition";
-import { type Palette, type ThemePreference, useThemeStore } from "@/app/stores/theme";
-
-type ThemeOption = {
-  id: string;
-  label: string;
-  mode: "light" | "dark";
-  palette: Palette;
-  preference: "light" | "dark";
-  swatches: [string, string, string];
-};
-
-const OPTIONS: ThemeOption[] = [
-  {
-    id: "stone-light",
-    label: "Stone",
-    mode: "light",
-    palette: "stone",
-    preference: "light",
-    swatches: ["#fafaf9", "#1c1917", "#ea580c"],
-  },
-  {
-    id: "stone-dark",
-    label: "Stone",
-    mode: "dark",
-    palette: "stone",
-    preference: "dark",
-    swatches: ["#0c0a09", "#d6d3d1", "#fb923c"],
-  },
-  {
-    id: "ember-light",
-    label: "Ember",
-    mode: "light",
-    palette: "ember",
-    preference: "light",
-    swatches: ["#fef3e2", "#2f241f", "#e46f3a"],
-  },
-  {
-    id: "ember-soft",
-    label: "Ember Soft",
-    mode: "dark",
-    palette: "ember-soft",
-    preference: "dark",
-    swatches: ["#1d1a1a", "#e0d7d3", "#ea7a4a"],
-  },
-  {
-    id: "ember",
-    label: "Ember",
-    mode: "dark",
-    palette: "ember",
-    preference: "dark",
-    swatches: ["#141212", "#ddd6d3", "#f97316"],
-  },
-  {
-    id: "dune",
-    label: "Dune",
-    mode: "dark",
-    palette: "dune",
-    preference: "dark",
-    swatches: ["#1a1712", "#d9d2c6", "#d6a554"],
-  },
-  {
-    id: "haze",
-    label: "Haze",
-    mode: "dark",
-    palette: "haze",
-    preference: "dark",
-    swatches: ["#17131c", "#ded4e9", "#b38bd8"],
-  },
-  {
-    id: "lagoon-light",
-    label: "Lagoon",
-    mode: "light",
-    palette: "lagoon",
-    preference: "light",
-    swatches: ["#d8eae6", "#2d2818", "#b85540"],
-  },
-  {
-    id: "lagoon",
-    label: "Lagoon",
-    mode: "dark",
-    palette: "lagoon",
-    preference: "dark",
-    swatches: ["#0f1718", "#d7e3de", "#2aa29f"],
-  },
-  {
-    id: "matrix",
-    label: "Matrix",
-    mode: "dark",
-    palette: "matrix",
-    preference: "dark",
-    swatches: ["#0b120a", "#c5dcbf", "#4ad66d"],
-  },
-  {
-    id: "moss",
-    label: "Moss",
-    mode: "dark",
-    palette: "moss",
-    preference: "dark",
-    swatches: ["#12150f", "#d8decf", "#7ea66a"],
-  },
-  {
-    id: "sagecream",
-    label: "Sagecream",
-    mode: "dark",
-    palette: "sagecream",
-    preference: "dark",
-    swatches: ["#161715", "#ddddd5", "#9db89f"],
-  },
-];
+import { THEME_OPTIONS } from "@/app/lib/themeCatalog";
+import { type ThemePreference, useResolvedTheme, useThemeStore } from "@/app/stores/theme";
 
 export function ThemePicker() {
   const palette = useThemeStore((s) => s.palette);
   const preference = useThemeStore((s) => s.preference);
-  const setPalette = useThemeStore((s) => s.setPalette);
+  const setTheme = useThemeStore((s) => s.setTheme);
   const setPreference = useThemeStore((s) => s.setPreference);
+  const resolvedTheme = useResolvedTheme();
 
-  const activeId = OPTIONS.find((o) => o.palette === palette && o.preference === preference)?.id;
+  const effectivePreference = preference === "system" ? resolvedTheme : preference;
+  const activeId = THEME_OPTIONS.find(
+    (option) => option.palette === palette && option.preference === effectivePreference,
+  )?.id;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {OPTIONS.map((option) => (
+        {THEME_OPTIONS.map((option) => (
           <button
             key={option.id}
             type="button"
             onClick={() => {
               track("theme_changed", { palette: option.palette, preference: option.preference });
-              runThemeTransition(() => {
-                setPalette(option.palette);
-                setPreference(option.preference);
-              });
+              setTheme(option.palette, option.preference);
             }}
             className={cn(
               "flex items-center gap-3 rounded-md border px-3 py-2 text-left",
@@ -143,6 +36,7 @@ export function ThemePicker() {
                 : "border-transparent text-muted-foreground hover:bg-background hover:text-foreground",
             )}
             aria-pressed={activeId === option.id}
+            aria-label={`${option.name} theme`}
           >
             <span className="inline-flex items-center gap-1">
               {option.swatches.map((c) => (
@@ -203,6 +97,7 @@ function PreferenceToggle({
                 ? "bg-[var(--color-bg-sunken)] text-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
+            aria-pressed={current === o.value}
           >
             {o.label}
           </button>

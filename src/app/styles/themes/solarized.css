@@ -1,0 +1,144 @@
+/* Solarized Light + Dark, mapped to GitHut's semantic roles.
+ * The classic base scale is preserved; small-text accents are AA-tuned. */
+
+[data-theme="solarized-light"] {
+  color-scheme: light;
+
+  --color-bg: #fdf6e3;
+  --color-bg-subtle: #eee8d5;
+  --color-bg-sunken: #e4dec9;
+  --color-border: #d7d0bb;
+  --color-border-strong: #93a1a1;
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 88%, white);
+
+  --color-fg: #002b36;
+  --color-fg-muted: #586e75;
+  --color-fg-faint: #657b83;
+
+  --color-brand: #176f9f;
+  --color-brand-hover: #105f8a;
+  --color-brand-fg: #ffffff;
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-fg);
+  --color-focus: var(--color-brand);
+
+  --color-success: #647700;
+  --color-danger: #c52f2f;
+  --color-warning: #7b6500;
+  --color-pr-merged: #5d62ad;
+  --color-pr-merged-bg: #e5dfdf;
+  --color-pr-merged-fg: #4d518f;
+  --color-issue-open-bg: #e1e8c9;
+  --color-issue-open-fg: #596a00;
+  --color-issue-closed-bg: #e8dce3;
+  --color-issue-closed-fg: #8f275f;
+
+  --syntax-keyword: #8f275f;
+  --syntax-string: #647700;
+  --syntax-number: #a33c11;
+  --syntax-function: #176f9f;
+  --syntax-type: #7b6500;
+  --syntax-property: #176f9f;
+  --syntax-constant: #a33c11;
+  --syntax-variable: #002b36;
+  --syntax-operator: #586e75;
+  --syntax-punctuation: #586e75;
+  --syntax-tag: #c52f2f;
+  --syntax-attribute: #647700;
+  --syntax-meta: #5d62ad;
+  --syntax-comment: #586e75;
+  --syntax-regex: #8f275f;
+
+  --icon-ts: #176f9f;
+  --icon-js: #7b6500;
+  --icon-python: #176f9f;
+  --icon-rust: #a33c11;
+  --icon-go: #1a756f;
+  --icon-ruby: #c52f2f;
+  --icon-markup: #a33c11;
+  --icon-style: #5d62ad;
+  --icon-data: #7b6500;
+  --icon-image: #8f275f;
+  --icon-docker: #176f9f;
+  --icon-shell: #647700;
+  --icon-default: #657b83;
+
+  --chart-slot-1: #176f9f;
+  --chart-slot-2: #647700;
+  --chart-slot-3: #c52f2f;
+  --chart-slot-4: #7b6500;
+  --chart-slot-5: #1a756f;
+  --chart-slot-6: #5d62ad;
+  --chart-other: #657b83;
+}
+
+[data-theme="solarized-dark"] {
+  color-scheme: dark;
+
+  --color-bg: #002b36;
+  --color-bg-subtle: #073642;
+  --color-bg-sunken: #0f4652;
+  --color-border: #164e59;
+  --color-border-strong: #586e75;
+  --color-code-bg: color-mix(in oklab, var(--color-bg) 85%, var(--color-bg-sunken));
+
+  --color-fg: #eee8d5;
+  --color-fg-muted: #93a1a1;
+  --color-fg-faint: #657b83;
+
+  --color-brand: #3aa6d8;
+  --color-brand-hover: #56b9e5;
+  --color-brand-fg: #002b36;
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: var(--color-brand-fg);
+  --color-focus: var(--color-brand);
+
+  --color-success: #9bb51a;
+  --color-danger: #f05a56;
+  --color-warning: #d4aa1e;
+  --color-pr-merged: #9b9fe3;
+  --color-pr-merged-bg: #24394b;
+  --color-pr-merged-fg: #b6b9ee;
+  --color-issue-open-bg: #263e2f;
+  --color-issue-open-fg: #afc735;
+  --color-issue-closed-bg: #422d42;
+  --color-issue-closed-fg: #e77bb7;
+
+  --syntax-keyword: #e071ad;
+  --syntax-string: #9bb51a;
+  --syntax-number: #e57539;
+  --syntax-function: #3aa6d8;
+  --syntax-type: #d4aa1e;
+  --syntax-property: #43b5ac;
+  --syntax-constant: #e57539;
+  --syntax-variable: #eee8d5;
+  --syntax-operator: #93a1a1;
+  --syntax-punctuation: #93a1a1;
+  --syntax-tag: #f05a56;
+  --syntax-attribute: #9bb51a;
+  --syntax-meta: #9b9fe3;
+  --syntax-comment: #93a1a1;
+  --syntax-regex: #e071ad;
+
+  --icon-ts: #3aa6d8;
+  --icon-js: #d4aa1e;
+  --icon-python: #3aa6d8;
+  --icon-rust: #e57539;
+  --icon-go: #43b5ac;
+  --icon-ruby: #f05a56;
+  --icon-markup: #e57539;
+  --icon-style: #9b9fe3;
+  --icon-data: #d4aa1e;
+  --icon-image: #e071ad;
+  --icon-docker: #3aa6d8;
+  --icon-shell: #9bb51a;
+  --icon-default: #657b83;
+
+  --chart-slot-1: #3aa6d8;
+  --chart-slot-2: #9bb51a;
+  --chart-slot-3: #f05a56;
+  --chart-slot-4: #d4aa1e;
+  --chart-slot-5: #43b5ac;
+  --chart-slot-6: #9b9fe3;
+  --chart-other: #657b83;
+}

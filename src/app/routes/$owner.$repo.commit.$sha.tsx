@@ -1,10 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertCircle, ArrowLeft } from "lucide-react";
-import { Fragment, useMemo } from "react";
-import { DiffLayout, type DiffLayoutFile, type FileStatus } from "@/app/components/code";
+import { AlertCircle, ArrowLeft, Files, GitCommitHorizontal } from "lucide-react";
+import { type ReactNode, useMemo } from "react";
+import {
+  ChangeStatsBadge,
+  DiffLayout,
+  type DiffLayoutFile,
+  type FileStatus,
+} from "@/app/components/code";
 import { StatusMessage } from "@/app/components/StatusMessage";
-import { Skeleton } from "@/app/components/ui/skeleton";
 import { ShaChip } from "@/app/components/ui/ShaChip";
+import { Skeleton } from "@/app/components/ui/skeleton";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { type CommitFile, repoCommitQueryOptions, useRepoCommit } from "@/app/hooks/useRepoCommit";
 import { cn } from "@/app/lib/cn";
@@ -40,52 +45,37 @@ function CommitDetailPage() {
 
   return (
     <div className="flex w-full flex-col">
-      {/*
-       * Editorial header — full-bleed, no Container wrap. Horizontal gutter
-       * (px-4/sm:px-6) matches the app's global gutter so the header text
-       * lines up with the rest of the app's content column, but the header
-       * itself is a full-width strip that joins seamlessly to the diff region
-       * below via a single hairline. Tight vertical rhythm (py-4) keeps the
-       * diff above the fold.
-       */}
-      <div className="w-full px-4 py-3 sm:px-6 sm:py-4">
-        <Link
-          to="/$owner/$repo/commits"
-          params={{ owner, repo }}
-          className={cn(
-            "mb-2 inline-flex items-center gap-1 rounded-sm px-1 py-0.5 -ml-1",
-            "text-caption text-(--color-fg-muted) outline-none transition-colors",
-            "hover:text-(--color-fg)",
-            "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
-          )}
-        >
-          <ArrowLeft className="size-3" strokeWidth={2.25} />
-          <span>All commits</span>
-        </Link>
-
-        {isPending ? (
-          <CommitHeaderSkeleton />
-        ) : isError || !commit ? (
-          <div className="rounded-md border border-border bg-muted px-4 py-6 text-center">
-            <AlertCircle className="mx-auto mb-2 size-4 text-destructive" />
-            <p className="text-ui text-muted-foreground">Could not load this commit.</p>
+      <header className="w-full border-b border-border bg-[var(--color-bg-subtle)]/35">
+        <div className="grid lg:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="border-b border-border px-4 py-4 lg:border-r lg:border-b-0">
+            <CommitBackLink owner={owner} repo={repo} />
+            {commit ? <CommitManifest commit={commit} owner={owner} repo={repo} /> : null}
           </div>
-        ) : (
-          <CommitHeader commit={commit} owner={owner} repo={repo} />
-        )}
-      </div>
+
+          <div className="min-w-0 px-5 py-5 lg:px-7 lg:py-6">
+            {isPending ? (
+              <CommitHeaderSkeleton />
+            ) : isError || !commit ? (
+              <div className="rounded-md border border-border bg-muted px-4 py-6 text-center">
+                <AlertCircle className="mx-auto mb-2 size-4 text-destructive" />
+                <p className="text-ui text-muted-foreground">Could not load this commit.</p>
+              </div>
+            ) : (
+              <CommitHeader commit={commit} />
+            )}
+          </div>
+        </div>
+      </header>
 
       {commit && diffFiles.length > 0 && (
-        <div className="border-t border-border">
-          <DiffLayout
-            files={diffFiles}
-            initialSidebarOpen={diffFiles.length > 1}
-            owner={owner}
-            repo={repo}
-            headRef={commit.sha}
-            baseRef={commit.parents[0]?.sha}
-          />
-        </div>
+        <DiffLayout
+          files={diffFiles}
+          initialSidebarOpen={diffFiles.length > 1}
+          owner={owner}
+          repo={repo}
+          headRef={commit.sha}
+          baseRef={commit.parents[0]?.sha}
+        />
       )}
 
       {commit && diffFiles.length === 0 && (
@@ -101,35 +91,30 @@ function CommitDetailPage() {
 
 function CommitHeader({
   commit,
-  owner,
-  repo,
 }: {
   commit: NonNullable<ReturnType<typeof useRepoCommit>["data"]>;
-  owner: string;
-  repo: string;
 }) {
-  const { title, body } = splitMessage(commit.commit.message);
+  const { title, paragraphs, trailers } = parseCommitMessage(commit.commit.message);
+  const keyedParagraphs = withOccurrenceKeys(paragraphs);
   const displayAuthor = commit.author?.login ?? commit.commit.author.name;
   const authorLogin = commit.author?.login;
   const avatar = commit.author?.avatar_url;
 
   return (
-    <section className="flex flex-col gap-1.5">
-      {/* Title row — title + SHA chip top-aligned, no absolute positioning */}
-      <div className="flex items-start justify-between gap-3">
-        <h1 className="min-w-0 text-body font-medium leading-snug text-(--color-fg) sm:text-title">
-          {title}
-        </h1>
-        <ShaChip sha={commit.sha} variant="compact" />
-      </div>
+    <section className="max-w-5xl">
+      <p className="mb-2 font-mono text-micro uppercase tracking-[0.16em] text-(--color-fg-faint)">
+        Commit summary
+      </p>
+      <h1 className="text-heading font-semibold leading-tight tracking-tight text-(--color-fg)">
+        {title}
+      </h1>
 
-      {/* Meta — single compact line */}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-ui text-(--color-fg-muted)">
+      <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-ui text-(--color-fg-muted)">
         {avatar ? (
           <img
             src={avatar}
             alt=""
-            className="size-4 flex-shrink-0 rounded-full border border-border"
+            className="size-5 flex-shrink-0 rounded-full border border-border"
           />
         ) : null}
         {authorLogin ? (
@@ -140,47 +125,127 @@ function CommitHeader({
           <span className="font-medium text-(--color-fg)">{displayAuthor}</span>
         )}
         <span>committed {formatRelativeTime(commit.commit.author.date)}</span>
-
-        {commit.parents.length > 0 && (
-          <>
-            <span className="text-(--color-fg-faint)" aria-hidden>
-              ·
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span>{commit.parents.length > 1 ? "parents" : "parent"}</span>
-              {commit.parents.map((p, i) => (
-                <Fragment key={p.sha}>
-                  {i > 0 && (
-                    <span className="text-(--color-fg-faint)" aria-hidden>
-                      +
-                    </span>
-                  )}
-                  <Link
-                    to="/$owner/$repo/commit/$sha"
-                    params={{ owner, repo, sha: p.sha }}
-                    className={cn(
-                      "rounded-sm font-mono text-caption tabular-nums",
-                      "text-(--color-fg-muted) outline-none",
-                      "underline decoration-(--color-border-strong) decoration-1 underline-offset-[3px] transition-colors",
-                      "hover:text-(--color-fg) hover:decoration-(--color-fg-muted)",
-                      "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
-                    )}
-                  >
-                    {p.sha.slice(0, 7)}
-                  </Link>
-                </Fragment>
-              ))}
-            </span>
-          </>
-        )}
       </div>
 
-      {body && (
-        <pre className="mt-1 max-w-3xl whitespace-pre-wrap border-l-2 border-(--color-border-strong) pl-3 font-mono text-code text-(--color-fg-muted)">
-          {body}
-        </pre>
-      )}
+      {paragraphs.length > 0 || trailers.length > 0 ? (
+        <div className="mt-5 max-w-[82ch] border-t border-border pt-4">
+          <div className="flex flex-col gap-3 text-body leading-6 text-(--color-fg-muted)">
+            {keyedParagraphs.map((paragraph) => (
+              <p key={paragraph.key} className="whitespace-pre-wrap">
+                {paragraph.value}
+              </p>
+            ))}
+          </div>
+
+          {trailers.length > 0 ? (
+            <dl className="mt-4 flex flex-col gap-1.5 border-l-2 border-(--color-border-strong) pl-3">
+              {trailers.map((trailer) => (
+                <div key={`${trailer.label}:${trailer.value}`} className="flex flex-wrap gap-x-2">
+                  <dt className="font-mono text-caption text-(--color-fg-faint)">
+                    {trailer.label}
+                  </dt>
+                  <dd className="font-mono text-caption text-(--color-fg-muted)">
+                    {trailer.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+function CommitBackLink({ owner, repo }: { owner: string; repo: string }) {
+  return (
+    <Link
+      to="/$owner/$repo/commits"
+      params={{ owner, repo }}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-sm px-1 py-0.5 -ml-1",
+        "text-caption text-(--color-fg-muted) outline-none transition-colors",
+        "hover:text-(--color-fg)",
+        "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
+      )}
+    >
+      <ArrowLeft className="size-3" strokeWidth={2.25} />
+      <span>All commits</span>
+    </Link>
+  );
+}
+
+function CommitManifest({
+  commit,
+  owner,
+  repo,
+}: {
+  commit: NonNullable<ReturnType<typeof useRepoCommit>["data"]>;
+  owner: string;
+  repo: string;
+}) {
+  const additions =
+    commit.stats?.additions ?? commit.files.reduce((sum, file) => sum + file.additions, 0);
+  const deletions =
+    commit.stats?.deletions ?? commit.files.reduce((sum, file) => sum + file.deletions, 0);
+
+  return (
+    <div className="mt-7 flex flex-col gap-5">
+      <ManifestFact icon={<GitCommitHorizontal className="size-3.5" />} label="Commit">
+        <ShaChip sha={commit.sha} variant="compact" className="h-6" />
+      </ManifestFact>
+
+      <ManifestFact icon={<Files className="size-3.5" />} label="Changed">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-ui font-medium text-(--color-fg)">
+            {commit.files.length} {commit.files.length === 1 ? "file" : "files"}
+          </span>
+          <ChangeStatsBadge additions={additions} deletions={deletions} />
+        </div>
+      </ManifestFact>
+
+      {commit.parents.length > 0 ? (
+        <ManifestFact label={commit.parents.length > 1 ? "Parents" : "Parent"}>
+          <div className="flex flex-wrap items-center gap-2">
+            {commit.parents.map((parent) => (
+              <Link
+                key={parent.sha}
+                to="/$owner/$repo/commit/$sha"
+                params={{ owner, repo, sha: parent.sha }}
+                className={cn(
+                  "rounded-sm font-mono text-caption tabular-nums text-(--color-fg-muted)",
+                  "underline decoration-(--color-border-strong) underline-offset-[3px] outline-none transition-colors",
+                  "hover:text-(--color-fg) hover:decoration-(--color-fg-muted)",
+                  "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
+                )}
+              >
+                {parent.sha.slice(0, 7)}
+              </Link>
+            ))}
+          </div>
+        </ManifestFact>
+      ) : null}
+    </div>
+  );
+}
+
+function ManifestFact({
+  icon,
+  label,
+  children,
+}: {
+  icon?: ReactNode;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-1.5 font-mono text-micro uppercase tracking-[0.14em] text-(--color-fg-faint)">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <div>{children}</div>
+    </div>
   );
 }
 
@@ -208,7 +273,7 @@ function CommitHeaderSkeleton() {
   );
 }
 
-function splitMessage(message: string): { title: string; body: string } {
+export function splitMessage(message: string): { title: string; body: string } {
   const trimmed = message.trim();
   const splitIdx = trimmed.indexOf("\n\n");
   if (splitIdx === -1) return { title: trimmed, body: "" };
@@ -216,4 +281,48 @@ function splitMessage(message: string): { title: string; body: string } {
     title: trimmed.slice(0, splitIdx).trim(),
     body: trimmed.slice(splitIdx + 2).trim(),
   };
+}
+
+type CommitTrailer = { label: string; value: string };
+
+export function parseCommitMessage(message: string): {
+  title: string;
+  paragraphs: string[];
+  trailers: CommitTrailer[];
+} {
+  const { title, body } = splitMessage(message);
+  if (!body) return { title, paragraphs: [], trailers: [] };
+
+  const blocks = body
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+  const trailerPattern = /^([A-Za-z][A-Za-z-]+):\s+(.+)$/;
+  const trailerBlock = blocks.at(-1);
+  const trailerLines = trailerBlock?.split("\n") ?? [];
+  const parsedTrailers = trailerLines.map((line) => line.match(trailerPattern));
+  const hasTrailerBlock = parsedTrailers.length > 0 && parsedTrailers.every(Boolean);
+
+  const trailers: CommitTrailer[] = hasTrailerBlock
+    ? parsedTrailers.map((match) => ({ label: `${match![1]}:`, value: match![2]! }))
+    : [];
+  const bodyBlocks = hasTrailerBlock ? blocks.slice(0, -1) : blocks;
+  const paragraphs = bodyBlocks.map(normalizeCommitParagraph);
+
+  return { title, paragraphs, trailers };
+}
+
+function withOccurrenceKeys(values: string[]): Array<{ key: string; value: string }> {
+  const occurrences = new Map<string, number>();
+  return values.map((value) => {
+    const occurrence = occurrences.get(value) ?? 0;
+    occurrences.set(value, occurrence + 1);
+    return { key: `${value}\u0000${occurrence}`, value };
+  });
+}
+
+function normalizeCommitParagraph(paragraph: string): string {
+  const lines = paragraph.split("\n").map((line) => line.trimEnd());
+  const preservesLineBreaks = lines.some((line) => /^\s*(?:[-*+] |\d+[.)] )/.test(line));
+  return preservesLineBreaks ? lines.join("\n") : lines.map((line) => line.trim()).join(" ");
 }

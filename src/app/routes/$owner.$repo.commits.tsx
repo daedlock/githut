@@ -10,6 +10,7 @@ import { Skeleton } from "@/app/components/ui/skeleton";
 import { repoQueryOptions, useRepo } from "@/app/hooks/useRepo";
 import { repoBranchesQueryOptions, useRepoBranches } from "@/app/hooks/useRepoBranches";
 import { useInfiniteRepoCommits } from "@/app/hooks/useRepoCommits";
+import { useListNavigation } from "@/app/hooks/useListNavigation";
 import { formatFullDate, groupByDay } from "@/app/lib/time";
 
 const commitsSearchSchema = z.object({
@@ -37,13 +38,14 @@ function CommitsPage() {
   const commits = useMemo(() => commitsQuery.data?.pages.flat() ?? [], [commitsQuery.data]);
 
   const grouped = useMemo(() => groupByDay(commits, (c) => c.commit.author.date), [commits]);
+  useListNavigation(!commitsQuery.isPending && !commitsQuery.isError);
 
   return (
     <Container size="lg" className="py-6">
       {/* Toolbar — sits on subtle surface */}
       <div className="mb-2 flex items-center justify-between gap-3 rounded-lg bg-muted px-2 py-1">
         <div className="flex items-center gap-3">
-          <span className="text-caption font-medium text-foreground">Commits</span>
+          <h1 className="text-caption font-medium text-foreground">Commits</h1>
           {commits && (
             <span className="tabular-nums text-caption text-muted-foreground">
               {commits.length}
