@@ -91,3 +91,17 @@ After adding:
 2. If the registry file uses icons from a library we don't use, swap to `lucide-react`.
 3. Cross-check against the shadcn skill's critical rules.
 4. Run `bun tsc --noEmit` — must be clean.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues for `daedlock/githut`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five default Matt Pocock triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository. See `docs/agents/domain.md`.
