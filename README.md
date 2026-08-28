@@ -56,6 +56,16 @@ bun install
 bun run dev
 ```
 
+## Deployment
+
+Production is deployed from GitHub. Every commit merged to `main` runs the
+[`Deploy production`](https://github.com/daedlock/githut/actions/workflows/deploy.yml)
+workflow, which typechecks, builds, and deploys the exact commit to Cloudflare.
+
+For routine releases, merge a pull request instead of running `bun run deploy`
+locally. The manual workflow trigger is the break-glass path for redeploying a
+commit that is already on `main`.
+
 ## Tech Stack
 
 - **React 19** + **TanStack Router & Query**
