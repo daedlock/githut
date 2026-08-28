@@ -47,27 +47,38 @@ function plainTokenize(code: string): CodeLineWithHtml[] {
 }
 
 export function codeTokensQueryOptions(code: string, lang: string) {
+  return codeTokenChunksQueryOptions(code, lang);
+}
+
+/**
+ * Tokenize a virtual source while resetting TextMate state at the supplied
+ * line indexes. Diff hunks are not actually contiguous source: the omitted
+ * lines may close a block comment, string, or other multiline construct.
+ * Treating separated hunks as one source leaks lexer state across that gap.
+ */
+export function codeTokenChunksQueryOptions(
+  code: string,
+  lang: string,
+  chunkStarts: readonly number[] = [],
+) {
+  const normalizedStarts = normalizeChunkStarts(code, chunkStarts);
   return {
-    queryKey: ["shiki-tokens", "githut-theme-v2", lang, djb2(code)],
+    queryKey: ["shiki-tokens", "githut-theme-v4", lang, djb2(code), normalizedStarts.join(",")],
     staleTime: Infinity,
     gcTime: 10 * 60_000,
     placeholderData: plainTokenize(code),
     queryFn: async (): Promise<CodeLineWithHtml[]> => {
       const safeLang = resolveLang(lang);
       try {
-        const { tokens } = await codeToTokens(code, {
-          lang: safeLang,
-          theme: appSyntaxTheme,
+        if (normalizedStarts.length <= 1) return tokenizeCode(code, safeLang);
+
+        const lines = code.split("\n");
+        const chunks = normalizedStarts.map((start, index) => {
+          const end = normalizedStarts[index + 1] ?? lines.length;
+          return lines.slice(start, end).join("\n");
         });
-        return tokens.map((lineTokens) => {
-          const toks = lineTokens.map((token) => ({
-            content: token.content,
-            color: token.color,
-            fontStyle: token.fontStyle,
-          }));
-          const html = lineTokens.map((t) => tokenToHtml(t.content, t.color, t.fontStyle)).join("");
-          return { tokens: toks, html };
-        });
+        const tokenChunks = await Promise.all(chunks.map((chunk) => tokenizeCode(chunk, safeLang)));
+        return tokenChunks.flat();
       } catch {
         return plainTokenize(code);
       }
@@ -75,6 +86,31 @@ export function codeTokensQueryOptions(code: string, lang: string) {
   };
 }
 
-export function useCodeTokens(code: string, lang: string) {
-  return useQuery(codeTokensQueryOptions(code, lang));
+function normalizeChunkStarts(code: string, chunkStarts: readonly number[]): number[] {
+  const lineCount = code.split("\n").length;
+  const validStarts = chunkStarts.filter((start) => start >= 0 && start < lineCount);
+  return [...new Set([0, ...validStarts])].sort((a, b) => a - b);
+}
+
+async function tokenizeCode(
+  code: string,
+  lang: BundledLanguage | "text",
+): Promise<CodeLineWithHtml[]> {
+  const { tokens } = await codeToTokens(code, {
+    lang,
+    theme: appSyntaxTheme,
+  });
+  return tokens.map((lineTokens) => {
+    const toks = lineTokens.map((token) => ({
+      content: token.content,
+      color: token.color,
+      fontStyle: token.fontStyle,
+    }));
+    const html = lineTokens.map((t) => tokenToHtml(t.content, t.color, t.fontStyle)).join("");
+    return { tokens: toks, html };
+  });
+}
+
+export function useCodeTokens(code: string, lang: string, chunkStarts?: readonly number[]) {
+  return useQuery(codeTokenChunksQueryOptions(code, lang, chunkStarts));
 }

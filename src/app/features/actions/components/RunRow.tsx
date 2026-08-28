@@ -33,28 +33,31 @@ export function RunRow({ owner, repo, run }: RunRowProps) {
   const actor = run.actor ?? run.triggering_actor;
 
   return (
-    <Link
-      to="/$owner/$repo/actions/runs/$runId"
-      params={{ owner, repo, runId: String(run.id) }}
-      className={cn(
-        "group block rounded-lg outline-none transition-colors",
-        "hover:bg-muted focus-visible:bg-muted",
-      )}
-    >
+    <div className="group relative rounded-lg transition-colors hover:bg-muted">
       <div className="flex w-full items-start gap-3 px-4 py-2.5 text-left">
         <div className="mt-0.5 shrink-0">
           <StatusIcon variant={ui.kind} size={4} />
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-baseline gap-2">
+          <Link
+            to="/$owner/$repo/actions/runs/$runId"
+            params={{ owner, repo, runId: String(run.id) }}
+            aria-label={`Open workflow run #${run.run_number}: ${commitTitle}`}
+            data-keyboard-list-item
+            className={cn(
+              "flex min-w-0 items-baseline gap-2 rounded-sm outline-none",
+              "after:absolute after:inset-0 after:z-10 after:rounded-lg after:content-['']",
+              "focus-visible:after:ring-1 focus-visible:after:ring-foreground/20",
+            )}
+          >
             <span className="min-w-0 truncate text-body font-[475] text-foreground">
               {commitTitle}
             </span>
             <span className="shrink-0 font-mono text-caption tabular-nums text-(--color-fg-faint)">
               #{run.run_number}
             </span>
-          </div>
+          </Link>
 
           <div className="mt-0.5 flex min-w-0 items-center gap-1.5 overflow-hidden whitespace-nowrap text-ui text-muted-foreground">
             <span className="min-w-0 truncate">
@@ -66,11 +69,7 @@ export function RunRow({ owner, repo, run }: RunRowProps) {
               {actor ? (
                 <>
                   <span> by </span>
-                  <ProfileLink
-                    login={actor.login}
-                    stopPropagation
-                    className="text-muted-foreground"
-                  >
+                  <ProfileLink login={actor.login} className="relative z-20 text-muted-foreground">
                     {actor.login}
                   </ProfileLink>
                 </>
@@ -80,7 +79,7 @@ export function RunRow({ owner, repo, run }: RunRowProps) {
             {run.head_branch ? (
               <>
                 <Sep />
-                <BranchRef branch={run.head_branch} className="max-w-44 shrink-0" />
+                <BranchRef branch={run.head_branch} className="relative z-20 max-w-44 shrink-0" />
               </>
             ) : null}
 
@@ -107,7 +106,7 @@ export function RunRow({ owner, repo, run }: RunRowProps) {
           </span>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 

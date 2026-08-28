@@ -17,12 +17,24 @@ export type AppShellProps = {
 export function AppShell({ header, children, className, stickyHeader = true }: AppShellProps) {
   return (
     <div className={cn("flex min-h-full flex-col", className)}>
+      <a
+        href="#main-content"
+        className={cn(
+          "fixed left-3 top-3 z-[100] -translate-y-20 rounded-md bg-foreground px-3 py-2",
+          "text-ui font-medium text-background shadow-sm transition-transform",
+          "focus:translate-y-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        )}
+      >
+        Skip to main content
+      </a>
       {/*
        * Sticky header stack. UnifiedNav sticks at the top of the viewport
        * when the page scrolls. z-40 sits above page content but below modals.
        */}
       <div className={cn("bg-background", stickyHeader && "sticky top-0 z-40")}>{header}</div>
-      <main className="flex flex-1 flex-col">{children}</main>
+      <main id="main-content" tabIndex={-1} className="flex flex-1 flex-col">
+        {children}
+      </main>
     </div>
   );
 }

@@ -1,9 +1,10 @@
 import { useRef } from "react";
 import { cn } from "@/app/lib/cn";
-import { type Palette, useResolvedTheme, useThemeStore } from "@/app/stores/theme";
+import { PALETTE_FAMILIES, type Palette, resolvePaletteDataTheme } from "@/app/lib/themeCatalog";
+import { useResolvedTheme, useThemeStore } from "@/app/stores/theme";
 
 /**
- * Palette picker — 10 theme chips in a 5×2 grid, each rendered in its own
+ * Palette picker — theme-family chips in a 6-column grid, each rendered in its own
  * `data-theme` scope so the chip LITERALLY previews the theme's palette.
  *
  * Every chip shows a miniature "H_" — fg letter + accent underscore — which
@@ -20,19 +21,7 @@ type PaletteDef = {
   name: string;
 };
 
-const PALETTES: PaletteDef[] = [
-  { id: "main", name: "main" },
-  { id: "stone", name: "stone" },
-  { id: "ember", name: "ember" },
-  { id: "ember-soft", name: "ember-soft" },
-  { id: "dune", name: "dune" },
-  { id: "haze", name: "haze" },
-  { id: "lagoon", name: "lagoon" },
-  { id: "lagoon-light", name: "lagoon-light" },
-  { id: "matrix", name: "matrix" },
-  { id: "moss", name: "moss" },
-  { id: "sagecream", name: "sagecream" },
-];
+const PALETTES: readonly PaletteDef[] = PALETTE_FAMILIES;
 
 const COLS = 6;
 
@@ -125,7 +114,8 @@ function PaletteChip({
   delayMs: number;
 }) {
   const resolved = useResolvedTheme();
-  const chipTheme = p.id === "main" ? (resolved === "dark" ? "main-dark" : "main-light") : p.id;
+  const chipTheme =
+    resolvePaletteDataTheme(p.id, resolved) ?? (resolved === "dark" ? "stone-dark" : "stone");
 
   return (
     <button

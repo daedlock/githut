@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { type Palette, resolvePaletteDataTheme } from "@/app/lib/themeCatalog";
 import { runThemeTransition } from "@/app/lib/themeTransition";
+
+export type { Palette } from "@/app/lib/themeCatalog";
 
 export type ThemePreference = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
@@ -12,24 +15,13 @@ export type ResolvedTheme = "light" | "dark";
  *
  * - stone       — canonical Githut warm-stone palette (default)
  * - ember       — warm graphite with a single coral hero (darkembertheme.com)
- * - ember-soft  — lifted-graphite ember variant, softer contrast
+ * - catppuccin  — paired Latte/Mocha presets
+ * - solarized   — paired Light/Dark classic presets
  */
-export type Palette =
-  | "main"
-  | "stone"
-  | "ember"
-  | "ember-soft"
-  | "dune"
-  | "haze"
-  | "lagoon"
-  | "lagoon-light"
-  | "matrix"
-  | "moss"
-  | "sagecream";
-
 type ThemeState = {
   palette: Palette;
   preference: ThemePreference;
+  setTheme: (palette: Palette, preference: ThemePreference) => void;
   setPalette: (p: Palette) => void;
   setPreference: (p: ThemePreference) => void;
   cyclePreference: () => void;
@@ -46,6 +38,8 @@ const DARK_DATA_THEMES = new Set([
   "matrix",
   "moss",
   "sagecream",
+  "catppuccin-dark",
+  "solarized-dark",
 ]);
 
 export const useThemeStore = create<ThemeState>()(
@@ -53,6 +47,7 @@ export const useThemeStore = create<ThemeState>()(
     (set, get) => ({
       palette: "main",
       preference: "system",
+      setTheme: (palette, preference) => runThemeTransition(() => set({ palette, preference })),
       setPalette: (palette) => runThemeTransition(() => set({ palette })),
       setPreference: (preference) => runThemeTransition(() => set({ preference })),
       cyclePreference: () => {
@@ -83,23 +78,10 @@ function resolve(pref: ThemePreference): ResolvedTheme {
  * tracks visual darkness, including dark-only palettes selected under a light
  * preference, so shared dark formulas still apply.
  *
- * ember-soft has no paired light — falls back to ember-light for consistency.
+ * Dark-only legacy palettes intentionally stay dark under any preference.
  */
 function resolveDataTheme(palette: Palette, resolved: ResolvedTheme): string | null {
-  if (palette === "main") return resolved === "dark" ? "main-dark" : "main-light";
-  if (palette === "stone") return null;
-  if (palette === "ember") return resolved === "dark" ? "ember" : "ember-light";
-  if (palette === "ember-soft") return resolved === "dark" ? "ember-soft" : "ember-light";
-  // Lagoon has paired light/dark; lagoon-light has no paired dark — falls back to lagoon-light.
-  if (palette === "lagoon") return resolved === "dark" ? "lagoon" : "lagoon-light";
-  if (palette === "lagoon-light") return resolved === "light" ? "lagoon-light" : "lagoon";
-  // Remaining doom-ported palettes are dark-only; light preference falls back to the same theme.
-  if (palette === "dune") return "dune";
-  if (palette === "haze") return "haze";
-  if (palette === "matrix") return "matrix";
-  if (palette === "moss") return "moss";
-  if (palette === "sagecream") return "sagecream";
-  return null;
+  return resolvePaletteDataTheme(palette, resolved);
 }
 
 function apply(palette: Palette, resolved: ResolvedTheme) {
@@ -120,6 +102,9 @@ function apply(palette: Palette, resolved: ResolvedTheme) {
   const bg = getComputedStyle(root).getPropertyValue("--color-bg").trim();
   if (bg) {
     root.style.backgroundColor = bg;
+    document
+      .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+      ?.setAttribute("content", bg);
   }
   root.style.colorScheme = visuallyDark ? "dark" : "light";
 }

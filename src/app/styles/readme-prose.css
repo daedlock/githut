@@ -1,7 +1,7 @@
 /*
  * Prose block for rendered README markdown.
  * Scoped via .readme-prose. Body + headings use sans; only code spans and
- * fenced blocks are monospace (inherits var(--font-mono) from their own rules below).
+ * fenced blocks use the app's selected monospace family via var(--font-code).
  */
 .readme-prose {
   color: var(--color-fg);
@@ -85,7 +85,8 @@
 }
 
 .readme-prose code {
-  font-family: var(--font-mono);
+  font-family: var(--font-code);
+  font-feature-settings: var(--font-code-features);
   font-size: 0.875em;
   padding: 0.1em 0.35em;
   background: var(--color-bg-sunken);
@@ -93,7 +94,8 @@
 }
 
 .readme-prose pre {
-  font-family: var(--font-mono);
+  font-family: var(--font-code);
+  font-feature-settings: var(--font-code-features);
   font-size: 0.85em;
   line-height: 1.5;
   margin: 1em 0;

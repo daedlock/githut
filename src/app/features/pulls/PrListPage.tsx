@@ -46,6 +46,7 @@ import {
 import { buildPrTree } from "@/app/features/pulls/lib/buildPrTree";
 import { useRepoCollaborators, useRepoLabels } from "@/app/features/pulls/pickers";
 import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
+import { useListNavigation } from "@/app/hooks/useListNavigation";
 import { useRepo } from "@/app/hooks/useRepo";
 import { cn } from "@/app/lib/cn";
 
@@ -197,6 +198,7 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
     [draftField, labels, collaborators],
   );
   const active = useMemo(() => filtersToActive(filters), [filters]);
+  useListNavigation(!pulls.isPending && !pulls.isError);
 
   const onActiveChange = useCallback(
     (next: ActiveFilter[]) => {
@@ -212,6 +214,7 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
 
   return (
     <Container size="lg" className="py-6">
+      <h1 className="sr-only">Pull requests</h1>
       <div className="mb-2 flex flex-col gap-2">
         {/* Toolbar — raised surface */}
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted p-2">
@@ -245,6 +248,9 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
+                aria-label="Search pull requests"
+                name="pull-request-search"
+                autoComplete="off"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 placeholder="Search…"

@@ -15,3 +15,20 @@
   --color-primary-foreground: var(--color-brand-fg);
   color-scheme: light;
 }
+
+/* Scoped preview for the user-menu chip. The selected Stone Dark theme still
+ * uses the canonical global `.dark` token set from tokens.css. */
+[data-theme="stone-dark"] {
+  color-scheme: dark;
+  --color-bg: #0c0a09;
+  --color-bg-subtle: #1c1917;
+  --color-bg-sunken: #292524;
+  --color-fg: #fafaf9;
+  --color-fg-muted: #a8a29e;
+  --color-fg-faint: #78716c;
+  --color-border: #292524;
+  --color-border-strong: #44403c;
+  --color-brand: #fb923c;
+  --color-brand-hover: #fdba74;
+  --color-brand-fg: #0c0a09;
+}

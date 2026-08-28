@@ -67,6 +67,8 @@ export function DiffLayout({
   const mode = useSettingsStore((s) => s.diffMode);
   const setMode = useSettingsStore((s) => s.setDiffMode);
   const [activeFile, setActiveFile] = useState<string | undefined>(files[0]?.filename);
+  const activeFileIndex = files.findIndex((file) => file.filename === activeFile);
+  const activeFileNumber = activeFileIndex >= 0 ? activeFileIndex + 1 : files.length > 0 ? 1 : 0;
 
   const fileRefs = useRef<Map<string, HTMLElement>>(new Map());
 
@@ -164,6 +166,15 @@ export function DiffLayout({
         )}
 
         <div className="flex-1" />
+
+        {reviewBar && (
+          <div className="flex shrink-0 items-baseline gap-1 text-caption text-muted-foreground">
+            <span>File</span>
+            <span className="tabular-nums font-medium text-foreground">{activeFileNumber}</span>
+            <span>of</span>
+            <span className="tabular-nums font-medium text-foreground">{files.length}</span>
+          </div>
+        )}
 
         {beforeModeSlot}
 

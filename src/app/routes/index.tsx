@@ -21,6 +21,7 @@ import {
   pickDate,
   sortEntries,
 } from "@/app/features/dashboard/lib/filter";
+import { useListNavigation } from "@/app/hooks/useListNavigation";
 import { reposQueryOptions } from "@/app/hooks/useRepos";
 import { cn } from "@/app/lib/cn";
 import { useAuthStore } from "@/app/stores/auth";
@@ -110,6 +111,7 @@ function IndexPage() {
 
   const isPending = yourTurn.isPending || myPrs.isPending;
   const isError = yourTurn.isError || myPrs.isError;
+  useListNavigation(!isPending && !isError);
 
   return (
     <AppShell header={<UnifiedNav />}>
@@ -125,7 +127,7 @@ function IndexPage() {
             counts={counts}
             repoCounts={repoCounts}
           />
-          <main className="min-w-0 flex-1 lg:max-w-3xl">
+          <div className="min-w-0 flex-1 lg:max-w-3xl">
             <MainHeader
               title={CATEGORY_TITLES[category]}
               shown={filtered.length}
@@ -149,7 +151,7 @@ function IndexPage() {
                 ))}
               </div>
             )}
-          </main>
+          </div>
         </div>
       </Container>
     </AppShell>

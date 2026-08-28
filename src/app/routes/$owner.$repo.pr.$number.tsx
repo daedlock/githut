@@ -5,7 +5,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildSources,
   ChangeStatsBadge,
-  codeTokensQueryOptions,
+  codeTokenChunksQueryOptions,
   DiffLayout,
   type DiffLayoutFile,
   type DiffReviewHooks,
@@ -81,9 +81,9 @@ function ReviewPage() {
       const lang = detectLang(f.filename);
       const hunks = parseUnifiedDiff(f.patch);
       if (hunks.length === 0) continue;
-      const { oldSource, newSource } = buildSources(hunks);
-      void qc.prefetchQuery(codeTokensQueryOptions(oldSource, lang));
-      void qc.prefetchQuery(codeTokensQueryOptions(newSource, lang));
+      const { oldSource, newSource, oldChunkStarts, newChunkStarts } = buildSources(hunks);
+      void qc.prefetchQuery(codeTokenChunksQueryOptions(oldSource, lang, oldChunkStarts));
+      void qc.prefetchQuery(codeTokenChunksQueryOptions(newSource, lang, newChunkStarts));
     }
   }, [filesQuery.data, qc]);
 
@@ -359,10 +359,10 @@ function ReviewBarLeft({
       {pr && uiState && (
         <>
           <PrStatePill state={uiState} size="sm" />
-          <span className="min-w-0 truncate text-ui text-foreground">
+          <h1 className="min-w-0 truncate text-ui font-normal text-foreground">
             {pr.title}
             <span className="ml-1.5 text-muted-foreground">#{number}</span>
-          </span>
+          </h1>
         </>
       )}
     </div>
@@ -389,11 +389,10 @@ function ReviewActions({
         }
       />
       <div className="flex items-center gap-2 shrink-0">
-        {pending.length > 0 && (
-          <span className="text-xs tabular-nums text-muted-foreground">
-            <span className="font-medium text-foreground">{pending.length}</span> pending
-          </span>
-        )}
+        <span className="text-xs tabular-nums text-muted-foreground">
+          <span className="font-medium text-foreground">{pending.length}</span>{" "}
+          pending {pending.length === 1 ? "comment" : "comments"}
+        </span>
         {reviewMode && (
           <Button size="xs" variant="ghost" onClick={() => cancelReview(owner, repo, number)}>Cancel</Button>
         )}

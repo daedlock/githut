@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Search } from "lucide-react";
-import { DiffLayout, type DiffLayoutFile } from "@/app/components/code";
+import { DiffLayout, type DiffLayoutFile, DiffView } from "@/app/components/code";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Kbd } from "@/app/components/ui/kbd";
+import { THEME_OPTIONS } from "@/app/lib/themeCatalog";
 
 export const Route = createFileRoute("/playground")({
   component: PlaygroundPage,
@@ -80,19 +81,48 @@ function PlaygroundPage() {
 
         <Section title="Input">
           <div className="w-64">
-            <Input placeholder="Search repositories…" />
+            <Input
+              name="playground-repository-search"
+              aria-label="Search repositories example"
+              autoComplete="off"
+              placeholder="Search repositories…"
+            />
           </div>
           <div className="w-64">
-            <Input className="font-mono tracking-tight" placeholder="deadbeef1234" />
+            <Input
+              name="playground-commit-sha"
+              aria-label="Commit SHA example"
+              autoComplete="off"
+              className="font-mono tracking-tight"
+              placeholder="deadbeef1234"
+            />
           </div>
           <div className="w-48">
-            <Input className="h-7 text-ui" placeholder="Small" />
+            <Input
+              name="playground-small-input"
+              aria-label="Small input example"
+              autoComplete="off"
+              className="h-7 text-ui"
+              placeholder="Small"
+            />
           </div>
           <div className="w-48">
-            <Input className="h-11 text-body" placeholder="Large" />
+            <Input
+              name="playground-large-input"
+              aria-label="Large input example"
+              autoComplete="off"
+              className="h-11 text-body"
+              placeholder="Large"
+            />
           </div>
           <div className="w-64">
-            <Input disabled placeholder="Disabled" />
+            <Input
+              disabled
+              name="playground-disabled-input"
+              aria-label="Disabled input example"
+              autoComplete="off"
+              placeholder="Disabled"
+            />
           </div>
         </Section>
 
@@ -132,7 +162,9 @@ function PlaygroundPage() {
             <p className="font-sans text-body">
               Sans — Inter. The quick brown fox jumps over the lazy dog.
             </p>
-            <p className="font-mono text-body">Mono — Berkeley Mono. const hash = "9f2c4b8e1a7d0"</p>
+            <p className="font-feature-settings-code text-body">
+              Code — selectable in Settings. const result = value !== null =&gt; value
+            </p>
           </div>
         </Section>
 
@@ -154,6 +186,35 @@ function PlaygroundPage() {
         </header>
         <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border-strong)]">
           <DiffLayout files={SAMPLE_DIFF_FILES} />
+        </div>
+      </section>
+
+      <section className="w-full px-6 py-10">
+        <header className="mb-4 flex items-baseline gap-3 border-t border-[var(--color-border)] pt-8">
+          <h2 className="font-sans text-ui font-medium uppercase tracking-widest">Diff contrast</h2>
+          <span className="font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)]">
+            every theme · comments · word highlights
+          </span>
+        </header>
+        <div className="grid grid-cols-2 gap-4">
+          {THEME_OPTIONS.map((theme) => (
+            <article
+              key={theme.id}
+              data-contrast-theme={theme.id}
+              data-theme={theme.id}
+              style={DIFF_CONTRAST_SCOPE_STYLE}
+              className={
+                theme.mode === "dark"
+                  ? "dark overflow-hidden rounded-lg"
+                  : "overflow-hidden rounded-lg"
+              }
+            >
+              <h3 className="bg-[var(--color-bg)] px-3 py-2 font-mono text-caption text-[var(--color-fg)]">
+                {theme.name}
+              </h3>
+              <DiffView patch={SAMPLE_DIFF_CONTRAST_PATCH} lang="typescript" />
+            </article>
+          ))}
         </div>
       </section>
 
@@ -246,6 +307,33 @@ const SAMPLE_README_PATCH = `@@ -1,6 +1,11 @@
 +- Blazing fast diff viewer with split view, word-level highlighting, and a real file tree
  `;
 
+// Regression fixture: omitted source between these hunks contains the closing
+// block-comment delimiter. The second hunk must start with fresh lexer state.
+const SAMPLE_LEXER_BOUNDARY_PATCH = `@@ -1,2 +1,2 @@
+ /* comment starts in this hunk
+ const stillComment = true;
+@@ -20,1 +20,1 @@
+-const oldValue = 1;
++const newValue = 2;`;
+
+const SAMPLE_DIFF_CONTRAST_PATCH = `@@ -20,2 +20,2 @@
+-// Removed comment explains the old behavior
+-const oldValue = 1;
++// Added comment explains the new behavior
++const newValue = 2;`;
+
+// Derived custom properties normally resolve on <html>, where the selected
+// theme also lives. Re-declare them on each nested gallery card so its local
+// theme variables drive the same formulas independently.
+const DIFF_CONTRAST_SCOPE_STYLE = {
+  "--diff-add-bg": "color-mix(in oklab, var(--color-success) 14%, var(--color-bg))",
+  "--diff-add-gutter": "color-mix(in oklab, var(--color-success) 30%, var(--color-bg))",
+  "--diff-add-bg-word": "color-mix(in oklab, var(--color-success) 24%, var(--color-bg))",
+  "--diff-del-bg": "color-mix(in oklab, var(--color-danger) 14%, var(--color-bg))",
+  "--diff-del-gutter": "color-mix(in oklab, var(--color-danger) 30%, var(--color-bg))",
+  "--diff-del-bg-word": "color-mix(in oklab, var(--color-danger) 24%, var(--color-bg))",
+} as React.CSSProperties;
+
 const SAMPLE_DIFF_FILES: DiffLayoutFile[] = [
   {
     filename: "src/app/lib/auth.ts",
@@ -253,6 +341,14 @@ const SAMPLE_DIFF_FILES: DiffLayoutFile[] = [
     additions: 3,
     deletions: 2,
     patch: SAMPLE_TS_PATCH,
+    lang: "typescript",
+  },
+  {
+    filename: "src/app/lib/lexer-boundary.ts",
+    status: "modified",
+    additions: 1,
+    deletions: 1,
+    patch: SAMPLE_LEXER_BOUNDARY_PATCH,
     lang: "typescript",
   },
   {

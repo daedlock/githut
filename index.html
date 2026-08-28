@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1c1d24" />
     <title>GitHut</title>
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -30,7 +31,9 @@
           "ember":"#1c1b19","ember-soft":"#242320","ember-light":"#e6dac4",
           "dune":"#171b1e","haze":"#2a292e",
           "lagoon":"#101a18","lagoon-light":"#d8eae6",
-          "matrix":"#0c120f","moss":"#1e2421","sagecream":"#1a1918"
+          "matrix":"#0c120f","moss":"#1e2421","sagecream":"#1a1918",
+          "catppuccin-light":"#eff1f5","catppuccin-dark":"#1e1e2e",
+          "solarized-light":"#fdf6e3","solarized-dark":"#002b36"
         };
         try {
           var raw = localStorage.getItem("githut.theme");
@@ -52,6 +55,8 @@
           else if (palette === "ember-soft") dataTheme = resolved === "dark" ? "ember-soft" : "ember-light";
           else if (palette === "lagoon") dataTheme = resolved === "dark" ? "lagoon" : "lagoon-light";
           else if (palette === "lagoon-light") dataTheme = resolved === "light" ? "lagoon-light" : "lagoon";
+          else if (palette === "catppuccin") dataTheme = resolved === "dark" ? "catppuccin-dark" : "catppuccin-light";
+          else if (palette === "solarized") dataTheme = resolved === "dark" ? "solarized-dark" : "solarized-light";
           else if (palette === "dune") dataTheme = "dune";
           else if (palette === "haze") dataTheme = "haze";
           else if (palette === "matrix") dataTheme = "matrix";
@@ -59,14 +64,39 @@
           else if (palette === "sagecream") dataTheme = "sagecream";
 
           var root = document.documentElement;
+          var uiFont = "inter";
+          var codeFont = "fira-code";
+          var codeFontSize = "compact";
+          var codeLigatures = true;
+          try {
+            var settingsRaw = localStorage.getItem("githut.settings");
+            var settingsState = settingsRaw && JSON.parse(settingsRaw);
+            var savedSettings = settingsState && settingsState.state;
+            var uiFonts = ["inter", "rubik", "geist", "ibm-plex-sans"];
+            var codeFonts = ["fira-code", "berkeley-mono", "jetbrains-mono", "ibm-plex-mono", "source-code-pro"];
+            var codeSizes = ["compact", "comfortable", "large"];
+            if (savedSettings && uiFonts.indexOf(savedSettings.uiFont) !== -1) uiFont = savedSettings.uiFont;
+            if (savedSettings && codeFonts.indexOf(savedSettings.codeFont) !== -1) codeFont = savedSettings.codeFont;
+            if (savedSettings && codeSizes.indexOf(savedSettings.codeFontSize) !== -1) codeFontSize = savedSettings.codeFontSize;
+            if (savedSettings && typeof savedSettings.codeLigatures === "boolean") codeLigatures = savedSettings.codeLigatures;
+          } catch (_) {
+            /* ignore — the settings store will re-apply on mount */
+          }
+          root.setAttribute("data-ui-font", uiFont);
+          root.setAttribute("data-code-font", codeFont);
+          root.setAttribute("data-code-font-size", codeFontSize);
+          root.setAttribute("data-code-ligatures", codeLigatures ? "on" : "off");
           if (dataTheme) root.setAttribute("data-theme", dataTheme);
-          if (resolved === "dark") root.classList.add("dark");
+          var darkThemes = ["main-dark","ember","ember-soft","dune","haze","lagoon","matrix","moss","sagecream","catppuccin-dark","solarized-dark"];
+          var visuallyDark = resolved === "dark" || darkThemes.indexOf(dataTheme) !== -1;
+          if (visuallyDark) root.classList.add("dark");
 
           var bg = dataTheme && BG[dataTheme]
             ? BG[dataTheme]
             : resolved === "dark" ? "#1c1d24" : "#f8f8f8";
           root.style.backgroundColor = bg;
-          root.style.colorScheme = resolved;
+          root.style.colorScheme = visuallyDark ? "dark" : "light";
+          document.querySelector('meta[name="theme-color"]')?.setAttribute("content", bg);
         } catch (_) {
           /* ignore — theme store will re-apply on mount */
         }
@@ -98,7 +128,7 @@
     <!-- Inline critical styles for the app shell skeleton -->
     <style>
       html, body, #root { height: 100%; margin: 0 }
-      body { font-family: "Inter Variable","Inter",ui-sans-serif,system-ui,-apple-system,sans-serif }
+      body { font-family: var(--font-sans, "Inter Variable","Inter",ui-sans-serif,system-ui,-apple-system,sans-serif) }
       #shell {
         display: flex; flex-direction: column; height: 100%;
         opacity: 1; transition: opacity 80ms ease-out;

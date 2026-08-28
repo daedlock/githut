@@ -26,29 +26,27 @@ export function CommitRow({ commit, owner, repo, graphSlot }: CommitRowProps) {
       {graphSlot}
       {/* Left: title + meta */}
       <div className="min-w-0 flex-1">
-        <Link
-          to="/$owner/$repo/commit/$sha"
-          params={{ owner, repo, sha: commit.sha }}
-          className="block outline-none rounded-sm focus-visible:ring-1 focus-visible:ring-foreground/15"
-        >
-          <p className="text-body font-[475] text-foreground leading-snug">
+        <div className="text-body font-[475] leading-snug text-foreground">
+          <Link
+            to="/$owner/$repo/commit/$sha"
+            params={{ owner, repo, sha: commit.sha }}
+            data-keyboard-list-item
+            className="rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-foreground/15"
+          >
             {title}
-            {body && !bodyOpen && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setBodyOpen(true);
-                }}
-                className="ml-1.5 inline-flex rounded-md bg-muted px-1.5 py-px text-micro text-muted-foreground transition-colors hover:text-foreground"
-                aria-expanded={false}
-              >
-                ···
-              </button>
-            )}
-          </p>
-        </Link>
+          </Link>
+          {body && !bodyOpen && (
+            <button
+              type="button"
+              onClick={() => setBodyOpen(true)}
+              className="ml-1.5 inline-flex rounded-md bg-muted px-1.5 py-px text-micro text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Expand commit message"
+              aria-expanded={false}
+            >
+              ···
+            </button>
+          )}
+        </div>
 
         {body && bodyOpen && (
           <>

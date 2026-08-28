@@ -29,8 +29,9 @@ import { formatRelativeTime } from "@/app/lib/time";
 // PR-specific: the leading state icon (git-pull-request family) and the
 // meta verb ("opened/merged/closed by").
 //
-// Interaction model also matches IssueRow: the whole row is a Link so
-// TanStack Router's intent-preload warms the detail route on hover.
+// The title link is stretched across the row with a pseudo-element. Keeping
+// the author link as its sibling avoids invalid nested anchors while retaining
+// native link behavior (keyboard focus, context menus, and modifier-clicks).
 
 export type PrRowProps = {
   owner: string;
@@ -67,11 +68,7 @@ export function PrRow({
   const isChild = depth > 0;
 
   return (
-    <Link
-      to="/$owner/$repo/pull/$number"
-      params={{ owner, repo, number: pr.number }}
-      className="group block rounded-lg outline-none transition-colors focus-visible:bg-muted hover:bg-muted"
-    >
+    <div className="group relative rounded-lg transition-colors hover:bg-muted">
       <div
         className="relative flex w-full items-start gap-3 py-2.5 text-left"
         style={{ paddingLeft: 16 + depth * DEPTH_INDENT + (isChild ? 6 : 0), paddingRight: 16 }}
@@ -87,7 +84,17 @@ export function PrRow({
           <PrStateIcon state={state} size={4} />
         </div>
         <div className={cn("min-w-0 flex-1", isChild && "opacity-70")}>
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <Link
+            to="/$owner/$repo/pull/$number"
+            params={{ owner, repo, number: pr.number }}
+            aria-label={`Open pull request #${pr.number}: ${pr.title}`}
+            data-keyboard-list-item
+            className={cn(
+              "flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-sm outline-none",
+              "after:absolute after:inset-0 after:z-10 after:rounded-lg after:content-['']",
+              "focus-visible:after:ring-1 focus-visible:after:ring-foreground/20",
+            )}
+          >
             <span className="text-body font-[475] text-foreground">{pr.title}</span>
             <ChecksBadge rollup={checkRollup} />
             {pr.labels.map((l) => (
@@ -100,9 +107,10 @@ export function PrRow({
                   description: l.description ?? null,
                 }}
                 size="xs"
+                className="relative z-20"
               />
             ))}
-          </div>
+          </Link>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-ui text-muted-foreground">
             <span>
               <span className="font-mono">#{pr.number}</span>
@@ -113,8 +121,7 @@ export function PrRow({
                   {" by "}
                   <ProfileLink
                     login={pr.user.login}
-                    stopPropagation
-                    className="text-muted-foreground"
+                    className="relative z-20 text-muted-foreground"
                   >
                     {pr.user.login}
                   </ProfileLink>
@@ -138,7 +145,7 @@ export function PrRow({
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -176,7 +183,7 @@ function ChecksBadge({ rollup }: { rollup: PrCheckRollup | undefined }) {
     <HoverCard openDelay={120} closeDelay={80}>
       <HoverCardTrigger asChild>
         {/* self-center realigns the icon within the baseline-aligned title row */}
-        <span className="inline-flex shrink-0 items-center self-center">
+        <span className="relative z-20 inline-flex shrink-0 items-center self-center">
           <CheckGlyph status={rollup.state} />
         </span>
       </HoverCardTrigger>

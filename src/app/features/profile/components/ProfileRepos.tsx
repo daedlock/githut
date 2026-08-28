@@ -73,6 +73,10 @@ export function ProfileRepos({ repos, isLoading }: ProfileReposProps) {
             aria-hidden
           />
           <Input
+            type="search"
+            name="repository-search"
+            aria-label="Search repositories"
+            autoComplete="off"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search repositories…"

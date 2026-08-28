@@ -63,17 +63,15 @@ export const DiffView = memo(function DiffView({
 }: DiffViewProps) {
   const hunks = useMemo(() => parseUnifiedDiff(patch), [patch]);
 
-  // Build the two "virtual" source files from the patch: old (context + dels)
-  // and new (context + adds). We feed each to Shiki in one go so token
-  // highlighting has full multi-line context (strings, block comments, etc.)
-  // rather than getting each line tokenized in isolation.
-  const { oldSource, newSource, oldLineMap, newLineMap } = useMemo(
+  // Build virtual old/new sources, retaining multiline lexer state inside a
+  // hunk while resetting it anywhere the actual file context was omitted.
+  const { oldSource, newSource, oldLineMap, newLineMap, oldChunkStarts, newChunkStarts } = useMemo(
     () => buildSources(hunks),
     [hunks],
   );
 
-  const { data: oldTokens, isPending: oldPending } = useCodeTokens(oldSource, lang);
-  const { data: newTokens, isPending: newPending } = useCodeTokens(newSource, lang);
+  const { data: oldTokens, isPending: oldPending } = useCodeTokens(oldSource, lang, oldChunkStarts);
+  const { data: newTokens, isPending: newPending } = useCodeTokens(newSource, lang, newChunkStarts);
 
   // Per-hunk expansion state: how many extra context lines to show above /
   // below each hunk. Keyed by hunk index. Loaded from the *new* file via
@@ -212,7 +210,7 @@ export const DiffView = memo(function DiffView({
         className={cn(
           "overflow-x-auto bg-[var(--color-code-bg)] text-code font-feature-settings-code @container/diff",
         )}
-        style={{ fontFamily: "var(--font-mono)" }}
+        style={{ fontFamily: "var(--font-code)" }}
       >
         {mode === "split" ? (
           <div className="w-full">
@@ -1025,41 +1023,25 @@ export function buildSources(hunks: DiffHunk[]) {
   const newParts: string[] = [];
   const oldLineMap = new Map<number, number>(); // old file line num → index in oldSource lines
   const newLineMap = new Map<number, number>();
-
-  let oldRow = 0;
-  let newRow = 0;
-  let lastOldEnd = 0;
-  let lastNewEnd = 0;
+  const oldChunkStarts: number[] = [];
+  const newChunkStarts: number[] = [];
 
   for (const hunk of hunks) {
-    // Gap marker between hunks keeps Shiki's per-line indexing consistent —
-    // any "missing" rows between hunks get filled with blank lines.
-    if (hunk.oldStart > lastOldEnd + 1) {
-      const gap = hunk.oldStart - lastOldEnd - 1;
-      for (let k = 0; k < gap; k++) oldParts.push("");
-      oldRow += gap;
-    }
-    if (hunk.newStart > lastNewEnd + 1) {
-      const gap = hunk.newStart - lastNewEnd - 1;
-      for (let k = 0; k < gap; k++) newParts.push("");
-      newRow += gap;
-    }
+    const oldChunkStart = oldParts.length;
+    const newChunkStart = newParts.length;
 
     for (const line of hunk.lines) {
       if (line.kind === "del" || line.kind === "context") {
+        if (oldParts.length === oldChunkStart) oldChunkStarts.push(oldChunkStart);
+        if (line.oldNum != null) oldLineMap.set(line.oldNum, oldParts.length);
         oldParts.push(line.content);
-        if (line.oldNum != null) oldLineMap.set(line.oldNum, oldRow);
-        oldRow++;
       }
       if (line.kind === "add" || line.kind === "context") {
+        if (newParts.length === newChunkStart) newChunkStarts.push(newChunkStart);
+        if (line.newNum != null) newLineMap.set(line.newNum, newParts.length);
         newParts.push(line.content);
-        if (line.newNum != null) newLineMap.set(line.newNum, newRow);
-        newRow++;
       }
     }
-
-    lastOldEnd = hunk.oldStart + hunk.oldLines - 1;
-    lastNewEnd = hunk.newStart + hunk.newLines - 1;
   }
 
   return {
@@ -1067,6 +1049,8 @@ export function buildSources(hunks: DiffHunk[]) {
     newSource: newParts.join("\n"),
     oldLineMap,
     newLineMap,
+    oldChunkStarts,
+    newChunkStarts,
   };
 }
 

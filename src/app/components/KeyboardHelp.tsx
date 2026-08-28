@@ -1,15 +1,10 @@
 import { useRouterState } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/app/components/ui/dialog";
+import { Kbd } from "@/app/components/ui/kbd";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { cn } from "@/app/lib/cn";
 import { useKeyboardHelpStore } from "@/app/stores/keyboardHelp";
-import { Kbd } from "@/app/components/ui/kbd";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/app/components/ui/dialog";
 
 type Scope = "global" | "repo" | "diff" | "list";
 
@@ -33,13 +28,10 @@ const SHORTCUTS: readonly Shortcut[] = [
   { chord: "k", label: "Previous file", scope: "diff" },
   { chord: "[", label: "Toggle file tree", scope: "diff" },
 
-  // List (inbox / issues / pulls — placeholders until P2)
+  // List navigation
   { chord: "j", label: "Move down", scope: "list" },
   { chord: "k", label: "Move up", scope: "list" },
   { chord: "Enter", label: "Open", scope: "list" },
-  { chord: "p", label: "Peek", scope: "list" },
-  { chord: "e", label: "Archive", scope: "list" },
-  { chord: "s", label: "Snooze", scope: "list" },
 ];
 
 const SCOPE_TITLES: Record<Scope, string> = {
@@ -59,6 +51,8 @@ function promoteScope(scope: Scope): readonly Scope[] {
 function scopeForPath(pathname: string): Scope {
   if (/\/[^/]+\/[^/]+\/commit\/[^/]+/.test(pathname)) return "diff";
   if (/\/[^/]+\/[^/]+\/pr\/[^/]+/.test(pathname)) return "diff";
+  if (pathname === "/" || /^\/[^/]+\/[^/]+\/(pulls|issues|commits|actions)\/?$/.test(pathname))
+    return "list";
   if (/^\/[^/]+\/[^/]+(\/|$)/.test(pathname) && !pathname.startsWith("/w/")) return "repo";
   return "global";
 }
@@ -67,8 +61,8 @@ function renderChord(chord: string): React.ReactNode {
   const tokens = chord.split(/\s+/).filter(Boolean);
   return (
     <span className="inline-flex items-center gap-[3px]">
-      {tokens.map((t, i) => (
-        <Kbd key={`${t}-${i}`}>{t}</Kbd>
+      {tokens.map((token) => (
+        <Kbd key={token}>{token}</Kbd>
       ))}
     </span>
   );

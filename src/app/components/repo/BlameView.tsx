@@ -83,7 +83,7 @@ export function BlameView({
       <div
         ref={scrollRef}
         className="overflow-auto text-code font-feature-settings-code"
-        style={{ height, maxHeight: MAX_H, fontFamily: "var(--font-mono)" }}
+        style={{ height, maxHeight: MAX_H, fontFamily: "var(--font-code)" }}
       >
         <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
           {virtualizer.getVirtualItems().map((item) => {
