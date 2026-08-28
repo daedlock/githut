@@ -94,6 +94,10 @@ After adding:
 
 ## Agent skills
 
+### Git workflow
+
+For code or documentation changes, follow `docs/agents/git-workflow.md`.
+
 ### Issue tracker
 
 Issues are tracked in GitHub Issues for `daedlock/githut`. See `docs/agents/issue-tracker.md`.
