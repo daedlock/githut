@@ -1,3 +1,10 @@
+import {
+  CodeIcon,
+  GitCommitIcon,
+  GitPullRequestIcon,
+  IssueOpenedIcon,
+  PlayIcon,
+} from "@primer/octicons-react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useMemo } from "react";
@@ -89,11 +96,11 @@ function LogoLink() {
 // ─── Repo section ──────────────────────────────────────────────────────────
 
 const REPO_TABS = [
-  { suffix: "/code", label: "Code" },
-  { suffix: "/commits", label: "Commits" },
-  { suffix: "/pulls", label: "PRs" },
-  { suffix: "/issues", label: "Issues" },
-  { suffix: "/actions", label: "Actions" },
+  { suffix: "/code", label: "Code", icon: CodeIcon },
+  { suffix: "/commits", label: "Commits", icon: GitCommitIcon },
+  { suffix: "/pulls", label: "PRs", icon: GitPullRequestIcon },
+  { suffix: "/issues", label: "Issues", icon: IssueOpenedIcon },
+  { suffix: "/actions", label: "Actions", icon: PlayIcon },
 ] as const;
 
 function RepoSection({ owner, repo }: { owner: string; repo: string }) {
@@ -107,6 +114,7 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
       REPO_TABS.map((t) => ({
         href: `/${owner}/${repo}${t.suffix}`,
         label: t.label,
+        icon: t.icon,
       })),
     [owner, repo],
   );
@@ -172,19 +180,21 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
       <nav className="flex items-stretch gap-0" aria-label="Repository sections">
         {tabs.map((tab) => {
           const isActive = tab.href === activeHref;
+          const Icon = tab.icon;
           return (
             <button
               key={tab.href}
               type="button"
               onClick={() => handleTabClick(tab.href)}
               className={cn(
-                "group relative flex items-center whitespace-nowrap rounded-md px-2.5 text-ui",
+                "group relative flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-ui",
                 "text-muted-foreground outline-none transition-colors",
                 "hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground",
                 isActive && "text-foreground",
               )}
               aria-current={isActive ? "page" : undefined}
             >
+              <Icon aria-hidden className="size-4 shrink-0" />
               <span>{tab.label}</span>
               {isActive && (
                 <span
