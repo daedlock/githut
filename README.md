@@ -36,10 +36,28 @@ GitHut:  Click → Render (instant)
 | Commit & branch browsing | ✅ |
 | Issues (CRUD + reactions) | ✅ |
 | Pull requests (CRUD + code review) | ✅ |
+| Collapsible issue and PR groups | ✅ |
 | GitHub Actions | 🚧 In progress |
 | Syntax highlighting (Shiki) | ✅ |
 | Diff viewer | ✅ |
 | Virtual scrolling (large repos) | ✅ |
+
+### Group issues and pull requests
+
+Open **Display → Grouping** to group a list by status, assignee, author, label, or
+milestone. Choose **No grouping** to return to a flat list. PR ordering is also
+available under **Display → Ordering**.
+
+Click a group header to collapse or expand it. **Alt-click** toggles all groups;
+the Display menu also has **Expand all groups** and **Collapse all groups**.
+Press **Shift V** to open Display, or **T** over a group to toggle it (**Alt T**
+toggles all). Focused headers also support the left/right arrow keys, and **J/K**
+navigation skips collapsed rows.
+
+Grouping and collapsed sections are saved separately for each repository's issues
+and PRs. Filters and search apply before grouping, and counts reflect the loaded,
+matching items. Items with multiple labels or assignees appear in each matching
+group. Stacked PRs remain nested when they share a group.
 
 ## Quick Start
 

@@ -1,9 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import {
   AlertCircle,
-  ArrowDownUp,
-  Check,
-  ChevronDown,
   CircleDashed,
   GitPullRequest,
   GitPullRequestClosed,
@@ -11,18 +8,7 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { Container } from "@/app/components/ui/Container";
-import {
-  Command,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from "@/app/components/ui/command";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/app/components/ui/dropdown-menu";
+import { Command, CommandGroup, CommandItem, CommandList } from "@/app/components/ui/command";
 import {
   type ActiveFilter,
   FilterBar,
@@ -45,10 +31,14 @@ import {
 } from "@/app/features/pulls/hooks";
 import { buildPrTree } from "@/app/features/pulls/lib/buildPrTree";
 import { useRepoCollaborators, useRepoLabels } from "@/app/features/pulls/pickers";
+import { GroupedList } from "@/app/features/repo/components/GroupedList";
+import { ListDisplayMenu } from "@/app/features/repo/components/ListDisplayMenu";
 import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
+import { groupListItems } from "@/app/features/repo/listGrouping";
 import { useListNavigation } from "@/app/hooks/useListNavigation";
 import { useRepo } from "@/app/hooks/useRepo";
 import { cn } from "@/app/lib/cn";
+import { useListGrouping } from "@/app/stores/listGrouping";
 
 export type PrListPageProps = {
   owner: string;
@@ -122,7 +112,8 @@ function activeToPatch(active: ActiveFilter[]) {
     const keys = FIELD_KEYS[a.fieldId as PrFieldId];
     if (!keys) continue;
     const slot = a.op === "is" ? keys.is : keys.isNot;
-    (arrays[slot] ??= []).push(a.value);
+    arrays[slot] ??= [];
+    arrays[slot].push(a.value);
   }
   return { ...arrays, draft };
 }
@@ -132,6 +123,7 @@ function activeToPatch(active: ActiveFilter[]) {
 export function PrListPage({ owner, repo, search }: PrListPageProps) {
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState("");
+  const grouping = useListGrouping(owner, repo, "pulls");
 
   const filters: PullsFilters = {
     state: search.state ?? "open",
@@ -173,9 +165,9 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
   const repoData = useRepo(owner, repo);
   const defaultBranch = repoData.data?.default_branch;
 
-  const treeNodes = useMemo(
-    () => buildPrTree(filtered, branchRefs, defaultBranch),
-    [filtered, branchRefs, defaultBranch],
+  const groups = useMemo(
+    () => groupListItems(filtered, grouping.groupBy),
+    [filtered, grouping.groupBy],
   );
 
   const labels = labelsQuery.data ?? [];
@@ -197,7 +189,7 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
     () => [draftField, ...buildRepoFilterFields({ labels, collaborators })],
     [draftField, labels, collaborators],
   );
-  const active = useMemo(() => filtersToActive(filters), [filters]);
+  const active = filtersToActive(filters);
   useListNavigation(!pulls.isPending && !pulls.isError);
 
   const onActiveChange = useCallback(
@@ -244,7 +236,7 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
               }
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -258,21 +250,28 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
               />
             </div>
 
-            <SortMenu
-              value={filters.sort ?? "newest"}
-              onChange={(next) =>
-                navigate({
-                  to: "/$owner/$repo/pulls",
-                  params: { owner, repo },
-                  search: (prev) => ({
-                    ...prev,
-                    sort: next === "newest" ? undefined : next,
-                  }),
-                })
-              }
-            />
-
             <FilterTrigger fields={fields} active={active} onChange={onActiveChange} />
+
+            <ListDisplayMenu
+              groupBy={grouping.groupBy}
+              onGroupByChange={grouping.setGroupBy}
+              groupKeys={groups.map((group) => group.key)}
+              collapsedGroups={grouping.collapsedGroups}
+              onGroupsCollapsed={grouping.setGroupsCollapsed}
+              ordering={{
+                value: filters.sort ?? "newest",
+                options: SORT_OPTIONS,
+                onChange: (next) =>
+                  navigate({
+                    to: "/$owner/$repo/pulls",
+                    params: { owner, repo },
+                    search: (prev) => ({
+                      ...prev,
+                      sort: next === "newest" ? undefined : next,
+                    }),
+                  }),
+              }}
+            />
           </div>
         </div>
 
@@ -293,19 +292,28 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
           <EmptyState hasSearch={!!searchText} state={currentState} />
         ) : (
           <>
-            {treeNodes.map((node) => (
-              <PrRow
-                key={node.pr.id}
-                owner={owner}
-                repo={repo}
-                pr={node.pr}
-                reviewDecision={reviewDecisions.get(node.pr.number) ?? null}
-                checkRollup={checkRollups.get(node.pr.number)}
-                depth={node.depth}
-                treePosition={node.treePosition}
-                ancestorContinuations={node.ancestorContinuations}
-              />
-            ))}
+            <GroupedList
+              groups={groups}
+              groupBy={grouping.groupBy}
+              kind="pulls"
+              collapsedGroups={grouping.collapsedGroups}
+              onGroupsCollapsed={grouping.setGroupsCollapsed}
+              renderItems={(items) =>
+                buildPrTree(items, branchRefs, defaultBranch).map((node) => (
+                  <PrRow
+                    key={node.pr.id}
+                    owner={owner}
+                    repo={repo}
+                    pr={node.pr}
+                    reviewDecision={reviewDecisions.get(node.pr.number) ?? null}
+                    checkRollup={checkRollups.get(node.pr.number)}
+                    depth={node.depth}
+                    treePosition={node.treePosition}
+                    ancestorContinuations={node.ancestorContinuations}
+                  />
+                ))
+              }
+            />
             {pulls.hasNextPage && !searchText ? (
               <LoadMoreButton
                 isFetching={pulls.isFetchingNextPage}
@@ -334,7 +342,10 @@ function DraftPicker({ value, onSelect }: { value?: string; onSelect: (v: string
           {DRAFT_OPTIONS.map((o) => (
             <CommandItem key={o.value} value={o.value} onSelect={() => onSelect(o.value)}>
               <span
-                className={cn("inline-block w-3", value === o.value ? "text-foreground" : "opacity-0")}
+                className={cn(
+                  "inline-block w-3",
+                  value === o.value ? "text-foreground" : "opacity-0",
+                )}
               >
                 ✓
               </span>
@@ -344,47 +355,6 @@ function DraftPicker({ value, onSelect }: { value?: string; onSelect: (v: string
         </CommandGroup>
       </CommandList>
     </Command>
-  );
-}
-
-// ─── Sort menu ─────────────────────────────────────────────────────────────
-
-function SortMenu({ value, onChange }: { value: PullsSort; onChange: (next: PullsSort) => void }) {
-  const current = SORT_OPTIONS.find((o) => o.value === value) ?? SORT_OPTIONS[0]!;
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "inline-flex h-7 items-center gap-1.5 rounded-md px-2",
-            "font-sans text-caption text-muted-foreground outline-none",
-            "hover:bg-accent hover:text-foreground",
-            "aria-expanded:bg-accent aria-expanded:text-foreground",
-            "focus-visible:ring-2 focus-visible:ring-ring",
-          )}
-        >
-          <ArrowDownUp className="size-3" aria-hidden />
-          <span>{current.label}</span>
-          <ChevronDown className="size-3 opacity-70" aria-hidden />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={6} className="w-44">
-        {SORT_OPTIONS.map((o) => (
-          <DropdownMenuItem
-            key={o.value}
-            onSelect={() => onChange(o.value)}
-            className="font-sans text-ui"
-          >
-            <Check
-              className={cn("size-3.5", o.value === value ? "opacity-100" : "opacity-0")}
-              aria-hidden
-            />
-            {o.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 
