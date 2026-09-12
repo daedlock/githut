@@ -111,6 +111,7 @@ export const IssueListItemSchema = z.object({
   user: NullableIssueUserSchema,
   labels: z.array(RawIssueLabelSchema).transform((ls) => ls.map(normalizeLabel)),
   assignees: z.array(NullableIssueUserSchema).default([]),
+  milestone: z.object({ id: z.number(), title: z.string() }).nullish(),
   reactions: ReactionsSchema,
   pull_request: z.object({}).optional(),
 });

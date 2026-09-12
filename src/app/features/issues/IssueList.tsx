@@ -10,9 +10,13 @@ import { IssueRow } from "@/app/features/issues/components/IssueRow";
 import { type StateFilter, StateTab } from "@/app/features/issues/components/StateTab";
 import type { RepoIssue } from "@/app/features/issues/schemas";
 import { useRepoCollaborators, useRepoLabels } from "@/app/features/pulls/pickers";
+import { GroupedList } from "@/app/features/repo/components/GroupedList";
+import { ListDisplayMenu } from "@/app/features/repo/components/ListDisplayMenu";
 import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
+import { groupListItems } from "@/app/features/repo/listGrouping";
 import { useListNavigation } from "@/app/hooks/useListNavigation";
 import { cn } from "@/app/lib/cn";
+import { useListGrouping } from "@/app/stores/listGrouping";
 
 export type IssueListProps = {
   owner: string;
@@ -62,6 +66,11 @@ export function IssueList({
   isSubmittingIssue,
 }: IssueListProps) {
   useListNavigation(!isLoading && !isError && !isComposing);
+  const grouping = useListGrouping(owner, repo, "issues");
+  const groups = useMemo(
+    () => groupListItems(issues, grouping.groupBy),
+    [issues, grouping.groupBy],
+  );
 
   const labelsQuery = useRepoLabels(owner, repo);
   const collaboratorsQuery = useRepoCollaborators(owner, repo);
@@ -140,7 +149,7 @@ export function IssueList({
                   onClick={() => onStateFilter("closed")}
                 />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -158,6 +167,13 @@ export function IssueList({
                   fields={fields}
                   active={activeFilters}
                   onChange={onActiveFiltersChange}
+                />
+                <ListDisplayMenu
+                  groupBy={grouping.groupBy}
+                  onGroupByChange={grouping.setGroupBy}
+                  groupKeys={groups.map((group) => group.key)}
+                  collapsedGroups={grouping.collapsedGroups}
+                  onGroupsCollapsed={grouping.setGroupsCollapsed}
                 />
                 <Button size="sm" variant="default" onClick={onToggleCompose}>
                   <Plus data-icon="inline-start" />
@@ -186,9 +202,18 @@ export function IssueList({
             ) : issues.length === 0 ? (
               <EmptyState hasSearch={!!searchText} state={stateFilter} />
             ) : (
-              issues.map((issue) => (
-                <IssueRow key={issue.id} issue={issue} owner={owner} repo={repo} />
-              ))
+              <GroupedList
+                groups={groups}
+                groupBy={grouping.groupBy}
+                kind="issues"
+                collapsedGroups={grouping.collapsedGroups}
+                onGroupsCollapsed={grouping.setGroupsCollapsed}
+                renderItems={(items) =>
+                  items.map((issue) => (
+                    <IssueRow key={issue.id} issue={issue} owner={owner} repo={repo} />
+                  ))
+                }
+              />
             )}
           </div>
         </>

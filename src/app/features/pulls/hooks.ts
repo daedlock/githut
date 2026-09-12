@@ -64,6 +64,7 @@ export const PrListItemSchema = z.object({
     )
     .default([]),
   assignees: z.array(z.object({ login: z.string(), avatar_url: z.string() })).default([]),
+  milestone: z.object({ id: z.number(), title: z.string() }).nullish(),
   pull_request: z
     .object({
       url: z.string(),
