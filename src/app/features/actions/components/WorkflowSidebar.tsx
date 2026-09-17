@@ -8,6 +8,7 @@ export type WorkflowSidebarProps = {
   repo: string;
   workflows: Workflow[] | undefined;
   isPending: boolean;
+  isError?: boolean;
   /** Selected workflow id from URL search params, or `null` for "All workflows". */
   selectedId: number | null;
 };
@@ -24,6 +25,7 @@ export function WorkflowSidebar({
   repo,
   workflows,
   isPending,
+  isError,
   selectedId,
 }: WorkflowSidebarProps) {
   const all = workflows ?? [];
@@ -75,7 +77,7 @@ export function WorkflowSidebar({
           ))
         )}
 
-        {!isPending && sorted.length === 0 ? (
+        {!isPending && !isError && sorted.length === 0 ? (
           <p className="py-2 font-sans text-caption text-(--color-fg-faint)">No workflows yet.</p>
         ) : null}
       </nav>

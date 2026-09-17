@@ -46,6 +46,7 @@ function LogViewer({
   className,
 }: LogViewerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hasLines = lines.length > 0;
   const virtualizer = useVirtualizer({
     count: lines.length,
     getScrollElement: () => scrollRef.current,
@@ -56,6 +57,7 @@ function LogViewer({
   // ─── Auto-tail in live mode, but respect user scroll position ────────────
   const stickToBottom = useRef(true);
   useEffect(() => {
+    if (!hasLines) return;
     const el = scrollRef.current;
     if (!el) return;
     const onScroll = () => {
@@ -64,7 +66,7 @@ function LogViewer({
     };
     el.addEventListener("scroll", onScroll);
     return () => el.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [hasLines]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: lines.length intentionally re-tails live logs when new bytes arrive.
   useEffect(() => {
@@ -115,8 +117,6 @@ function LogViewer({
   // for the cold first-load of a *terminal* step. A live step with no lines
   // yet, regardless of error/pending status, always shows the waiting
   // spinner — polling replaces it with logs the moment bytes arrive.
-  const hasLines = lines.length > 0;
-
   // Skeleton: only on the initial cold load of a terminal step.
   if (isPending && !isLive && !hasLines) {
     return (
@@ -134,7 +134,7 @@ function LogViewer({
   // fetch, polling retries, and 404s from Azure while the blob is still being
   // written. Non-active completed steps use isPreparing so they don't render
   // a red error while GitHub is merely late to publish logs.
-  if ((isLive || isPreparing) && !hasLines) {
+  if ((isLive || isPreparing) && !hasLines && !isError) {
     return (
       <div className={cn("border-t border-border bg-muted px-4 py-5 text-center", className)}>
         <Loader2
@@ -156,11 +156,11 @@ function LogViewer({
         <AlertCircle className="mx-auto mb-1.5 size-4 text-destructive" aria-hidden />
         <p className="text-caption text-muted-foreground">
           {errorStatus === 401 || errorStatus === 403
-            ? "Token is missing actions:read / workflow scope."
+            ? "GitHub denied access to these logs. Check repository access and Actions read permissions."
             : errorStatus === 404
               ? "Logs aren't available for this job yet."
               : errorStatus === 410
-                ? "Logs have expired (GitHub retains them 90 days)."
+                ? "These logs have expired."
                 : "Could not load logs."}
         </p>
         {errorStatus && errorStatus !== 401 && errorStatus !== 403 && errorStatus !== 404 ? (

@@ -61,12 +61,11 @@ export function Timeline({
   const span = Math.max(1, max - min);
 
   return (
-    <div
+    <section
       className={cn(
         "overflow-hidden rounded-md border border-border bg-(--color-bg-subtle)",
         className,
       )}
-      role="list"
       aria-label="Timeline"
     >
       {items.map((item, i) => {
@@ -83,7 +82,6 @@ export function Timeline({
           <button
             key={item.id}
             type="button"
-            role="listitem"
             onClick={() => onSelect?.(item.id)}
             title={item.tooltip ?? `${item.label} — ${formatDuration(endMs - startMs)}`}
             className={cn(
@@ -95,20 +93,11 @@ export function Timeline({
             style={{ height: ROW_HEIGHT }}
           >
             {/* Connector + label column */}
-            <div
-              className="flex h-full shrink-0 items-center gap-2"
-              style={{ width: labelWidth }}
-            >
+            <div className="flex h-full shrink-0 items-center gap-2" style={{ width: labelWidth }}>
               {/* Connector node — threaded through the column via flex-col */}
               <div className="relative flex h-full w-6 shrink-0 flex-col items-center justify-center pl-3">
                 {/* top stem */}
-                <span
-                  aria-hidden
-                  className={cn(
-                    "w-px flex-1 bg-border",
-                    isFirst && "invisible",
-                  )}
-                />
+                <span aria-hidden className={cn("w-px flex-1 bg-border", isFirst && "invisible")} />
                 {/* node */}
                 <span
                   aria-hidden
@@ -120,18 +109,10 @@ export function Timeline({
                   style={{ width: NODE_SIZE, height: NODE_SIZE }}
                 />
                 {/* bottom stem */}
-                <span
-                  aria-hidden
-                  className={cn(
-                    "w-px flex-1 bg-border",
-                    isLast && "invisible",
-                  )}
-                />
+                <span aria-hidden className={cn("w-px flex-1 bg-border", isLast && "invisible")} />
               </div>
 
-              <span className="truncate font-mono text-caption text-foreground">
-                {item.label}
-              </span>
+              <span className="truncate font-mono text-caption text-foreground">{item.label}</span>
             </div>
 
             {/* Bar track */}
@@ -160,7 +141,7 @@ export function Timeline({
           </button>
         );
       })}
-    </div>
+    </section>
   );
 }
 
@@ -176,14 +157,21 @@ function barFill(variant: StatusPillVariant): string {
     case "success":
       return "bg-[color-mix(in_oklab,var(--color-fg-muted)_55%,var(--color-bg-subtle))]";
     case "failure":
+    case "startup_failure":
+    case "timed_out":
       return "bg-[color-mix(in_oklab,var(--color-danger)_75%,var(--color-bg-subtle))]";
     case "running":
+    case "waiting":
+    case "action_required":
       return "bg-[color-mix(in_oklab,var(--color-warning)_70%,var(--color-bg-subtle))]";
     case "queued":
       return "bg-[color-mix(in_oklab,var(--color-fg-faint)_50%,var(--color-bg-subtle))]";
     case "cancelled":
     case "skipped":
     case "neutral":
+    case "pending":
+    case "stale":
+    case "unknown":
       return "bg-[color-mix(in_oklab,var(--color-fg-faint)_35%,var(--color-bg-subtle))]";
   }
 }
@@ -193,14 +181,21 @@ function nodeTone(variant: StatusPillVariant): string {
     case "success":
       return "bg-(--color-fg-muted)";
     case "failure":
+    case "startup_failure":
+    case "timed_out":
       return "bg-(--color-danger)";
     case "running":
+    case "waiting":
+    case "action_required":
       return "bg-(--color-warning)";
     case "queued":
       return "bg-(--color-fg-muted)";
     case "cancelled":
     case "skipped":
     case "neutral":
+    case "pending":
+    case "stale":
+    case "unknown":
       return "bg-(--color-fg-faint)";
   }
 }

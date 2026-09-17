@@ -27,7 +27,7 @@ export function DispatchBar({ owner, repo, workflow }: DispatchBarProps) {
 
   // No bar until we know the workflow is dispatchable. Avoids flashing
   // the "Run workflow" affordance on every workflow switch.
-  if (isPending || !schema || !schema.dispatchable) return null;
+  if (isPending || !schema || !schema.dispatchable || workflow.state !== "active") return null;
 
   const hasInputs = schema.inputs.length > 0;
 

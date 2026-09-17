@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertCircle, Play } from "lucide-react";
+import { AlertCircle, Play, RefreshCw } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
+import { Button } from "@/app/components/ui/button";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { DispatchBar } from "@/app/features/actions/components/DispatchBar";
@@ -9,29 +10,21 @@ import { RunFilters } from "@/app/features/actions/components/RunFilters";
 import { RunRow } from "@/app/features/actions/components/RunRow";
 import { WorkflowSidebar } from "@/app/features/actions/components/WorkflowSidebar";
 import {
+  RUN_STATUSES,
   type RunsFilters,
   useWorkflowRuns,
   useWorkflows,
   workflowRunsQueryOptions,
 } from "@/app/features/actions/hooks";
-import { toUiStatus } from "@/app/features/actions/lib/statusMap";
+import { isTerminal, toUiStatus } from "@/app/features/actions/lib/statusMap";
 import { useListNavigation } from "@/app/hooks/useListNavigation";
 import { cn } from "@/app/lib/cn";
 
 // ─── Search params ─────────────────────────────────────────────────────────
 
-const STATUS_VALUES = [
-  "queued",
-  "in_progress",
-  "completed",
-  "success",
-  "failure",
-  "cancelled",
-] as const;
-
 const searchSchema = z.object({
   workflow: z.coerce.number().int().positive().optional(),
-  status: z.enum(STATUS_VALUES).optional(),
+  status: z.enum(RUN_STATUSES).optional(),
   branch: z.string().optional(),
   event: z.string().optional(),
   actor: z.string().optional(),
@@ -85,14 +78,17 @@ function ActionsPage() {
       : null;
 
   // Flatten pages once — cheap enough at 30/page even on very active repos.
-  const runs = useMemo(() => runsQuery.data?.pages.flat() ?? [], [runsQuery.data]);
+  const runs = useMemo(
+    () => [...new Map((runsQuery.data?.pages.flat() ?? []).map((run) => [run.id, run])).values()],
+    [runsQuery.data],
+  );
   useListNavigation(!runsQuery.isPending && !runsQuery.isError);
 
   const liveCount = useMemo(
     () =>
       runs.filter((r) => {
         const u = toUiStatus(r.status, r.conclusion);
-        return u.kind === "running" || u.kind === "queued";
+        return !isTerminal(u);
       }).length,
     [runs],
   );
@@ -106,22 +102,71 @@ function ActionsPage() {
       : `${runs.length}${hasNext ? "+" : ""}`;
 
   return (
-    <Container size="xl" className="max-w-5xl py-6">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-12">
+    <Container size="xl" className="py-6">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
         {/* Sidebar — unframed, sticky, RepoAbout-style vocabulary */}
-        <div className="hidden w-52 shrink-0 self-start sm:block lg:sticky lg:top-28 lg:mt-12">
+        <div className="hidden w-56 shrink-0 self-start lg:block lg:sticky lg:top-28 lg:mt-12">
           <WorkflowSidebar
             owner={owner}
             repo={repo}
             workflows={workflowsQuery.data}
             isPending={workflowsQuery.isPending}
+            isError={workflowsQuery.isError}
             selectedId={search.workflow ?? null}
           />
+          {workflowsQuery.isError ? (
+            <div role="alert" className="mt-2 text-caption text-destructive">
+              Could not refresh workflows.{" "}
+              <button type="button" className="underline" onClick={() => workflowsQuery.refetch()}>
+                Retry
+              </button>
+            </div>
+          ) : null}
         </div>
 
         {/* Runs — flat dashboard-style list */}
-        <div className="min-w-0 flex-1 lg:max-w-3xl">
-          <MainHeader title="Actions" meta={meta} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-4">
+            <MainHeader title={selectedWorkflow?.name ?? "All workflows"} meta={meta} />
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={runsQuery.isFetching}
+              onClick={() => runsQuery.refetch()}
+            >
+              <RefreshCw className={runsQuery.isFetching ? "motion-safe:animate-spin" : ""} />
+              Refresh
+            </Button>
+          </div>
+          <p className="mt-1 text-caption text-muted-foreground">
+            Workflow runs, deployments, and checks. Updates automatically.
+          </p>
+          <select
+            aria-label="Choose workflow"
+            value={search.workflow ?? ""}
+            onChange={(e) =>
+              navigate({
+                search: { workflow: e.target.value ? Number(e.target.value) : undefined },
+              })
+            }
+            className="mt-4 h-9 w-full rounded-md border border-input bg-background px-2 text-ui lg:hidden"
+          >
+            <option value="">All workflows</option>
+            {workflowsQuery.data?.map((workflow) => (
+              <option key={workflow.id} value={workflow.id}>
+                {workflow.name}
+                {workflow.state === "active" ? "" : " (disabled)"}
+              </option>
+            ))}
+          </select>
+          {workflowsQuery.isError ? (
+            <div role="alert" className="mt-2 text-caption text-destructive lg:hidden">
+              Could not load workflows.{" "}
+              <button type="button" className="underline" onClick={() => workflowsQuery.refetch()}>
+                Retry
+              </button>
+            </div>
+          ) : null}
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted px-2 py-1">
             <RunFilters
@@ -129,6 +174,9 @@ function ActionsPage() {
               branch={search.branch}
               event={search.event}
               actor={search.actor}
+              onFiltersChange={(filters) =>
+                navigate({ search: (prev) => ({ ...prev, ...filters }) })
+              }
               onStatusChange={(next) =>
                 navigate({
                   search: (prev) => ({
@@ -151,11 +199,23 @@ function ActionsPage() {
             </div>
           ) : null}
 
+          {runsQuery.isError && runsQuery.data ? (
+            <div role="alert" className="mt-3 rounded-lg bg-muted p-3 text-ui text-destructive">
+              Could not refresh runs. Showing the last received results.{" "}
+              <button type="button" className="underline" onClick={() => runsQuery.refetch()}>
+                Retry
+              </button>
+            </div>
+          ) : null}
           <div className="mt-4 flex flex-col gap-1">
             {runsQuery.isPending ? (
               <RunListSkeleton />
-            ) : runsQuery.isError ? (
-              <ErrorState />
+            ) : runsQuery.isError && !runsQuery.data ? (
+              <ErrorState
+                retry={() => {
+                  void runsQuery.refetch();
+                }}
+              />
             ) : runs.length === 0 ? (
               <EmptyState hasFilter={hasAnyFilter(search)} />
             ) : (
@@ -237,15 +297,14 @@ function EmptyState({ hasFilter }: { hasFilter: boolean }) {
   );
 }
 
-function ErrorState() {
+function ErrorState({ retry }: { retry: () => void }) {
   return (
     <div className="px-4 py-12 text-center">
       <AlertCircle className="mx-auto mb-2 size-5 text-destructive" aria-hidden />
       <p className="text-ui text-muted-foreground">Could not load runs.</p>
-      <p className="mt-1 text-caption text-(--color-fg-faint)">
-        Your token may be missing the{" "}
-        <span className="font-mono text-(--color-fg-muted)">actions:read</span> scope.
-      </p>
+      <Button variant="ghost" size="sm" className="mt-2" onClick={retry}>
+        Retry
+      </Button>
     </div>
   );
 }

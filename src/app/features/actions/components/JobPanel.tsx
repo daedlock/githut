@@ -6,7 +6,11 @@ import { LogViewer } from "@/app/features/actions/components/LogViewer";
 import { useJobLogs } from "@/app/features/actions/hooks";
 import { parseLog } from "@/app/features/actions/lib/parseLog";
 import { splitLogByStep } from "@/app/features/actions/lib/splitLogByStep";
-import { isTerminal, toUiStatus } from "@/app/features/actions/lib/statusMap";
+import {
+  durationMs as elapsedDuration,
+  isTerminal,
+  toUiStatus,
+} from "@/app/features/actions/lib/statusMap";
 import { useNow } from "@/app/features/actions/lib/useNow";
 import type { Job, Step } from "@/app/features/actions/schemas";
 import { cn } from "@/app/lib/cn";
@@ -34,7 +38,12 @@ export function JobPanel({ owner, repo, job, defaultOpen = false }: JobPanelProp
   const now = useNow();
   const ui = toUiStatus(job.status, job.conclusion);
   const isLive = !isTerminal(ui);
-  const durationMs = durationOf(job.started_at, job.completed_at, now);
+  const durationMs = elapsedDuration(
+    job.started_at,
+    job.completed_at,
+    job.status === "in_progress",
+    now,
+  );
   const completedAtMs = millisFromIso(job.completed_at);
   const logPollUntil =
     !isLive && completedAtMs !== null ? completedAtMs + LOG_MATERIALIZATION_GRACE_MS : undefined;
@@ -43,7 +52,7 @@ export function JobPanel({ owner, repo, job, defaultOpen = false }: JobPanelProp
   // Which step is actively running right now (started but not completed)?
   // Drives auto-expand + the collapsed-header "▶ current step" hint.
   const activeStep = useMemo(
-    () => job.steps.find((s) => s.started_at && !s.completed_at) ?? null,
+    () => job.steps.find((s) => s.status === "in_progress") ?? null,
     [job.steps],
   );
 
@@ -122,6 +131,21 @@ export function JobPanel({ owner, repo, job, defaultOpen = false }: JobPanelProp
           id={`job-${job.id}-body`}
           className="ml-6 flex flex-col gap-1 border-l border-border/60 py-1"
         >
+          {logsHardError ? (
+            <div
+              role="alert"
+              className="flex items-center justify-between gap-3 px-4 py-2 text-caption text-destructive"
+            >
+              <span>Could not load job logs.</span>
+              <button
+                type="button"
+                onClick={() => logsQuery.refetch()}
+                className="rounded px-2 py-1 underline focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Retry logs
+              </button>
+            </div>
+          ) : null}
           {job.steps.length === 0 ? (
             <p className="px-10 py-3 font-mono text-caption text-(--color-fg-faint)">
               No steps recorded.
@@ -147,7 +171,9 @@ export function JobPanel({ owner, repo, job, defaultOpen = false }: JobPanelProp
 
           {!anyStepStarted ? (
             <p className="px-10 py-4 font-mono text-caption text-(--color-fg-faint)">
-              Waiting for a runner — logs stream in once the first step starts.
+              {isLive
+                ? "Waiting for a runner. Step status updates automatically; logs appear when GitHub makes them available."
+                : "No steps ran in this job."}
             </p>
           ) : null}
         </div>
@@ -178,12 +204,17 @@ const StepWithLogs = memo(function StepWithLogs({
   const now = useNow();
   const ui = toUiStatus(step.status, step.conclusion);
   const hasStarted = !!step.started_at;
-  const durationMs = durationOf(step.started_at, step.completed_at, now);
+  const durationMs = elapsedDuration(
+    step.started_at,
+    step.completed_at,
+    step.status === "in_progress",
+    now,
+  );
 
   // Expand the active step by default; others collapsed. Track locally so
   // user can override. When a new step becomes active, auto-expand it
   // (one-shot — we don't re-expand if user closed it).
-  const [open, setOpen] = useState(isActive);
+  const [open, setOpen] = useState(isActive || ui.kind === "failure" || ui.kind === "timed_out");
   const prevActive = useRef(isActive);
   useEffect(() => {
     if (isActive && !prevActive.current) setOpen(true);
@@ -266,17 +297,6 @@ const StepWithLogs = memo(function StepWithLogs({
 });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
-
-function durationOf(
-  startIso: string | null | undefined,
-  endIso: string | null | undefined,
-  now: number,
-): number | null {
-  const start = millisFromIso(startIso);
-  if (start === null) return null;
-  const end = millisFromIso(endIso) ?? now;
-  return Math.max(0, end - start);
-}
 
 function millisFromIso(value: string | null | undefined): number | null {
   if (!value) return null;

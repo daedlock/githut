@@ -6,26 +6,25 @@ import { formatRelativeTime } from "@/app/lib/time";
 
 export type ArtifactListProps = {
   artifacts: Artifact[];
+  runUrl: string;
 };
 
 /**
- * Compact artifact chips. Download buttons are placeholders — actual bytes
- * come through the Worker proxy in P4. Expired artifacts fade out (they
- * can't be downloaded anyway) but stay visible so the user sees the full
- * history of what the run produced.
+ * GitHub handles authenticated artifact downloads. Expired artifacts remain
+ * visible so the run retains its history without offering a broken download.
  */
-export function ArtifactList({ artifacts }: ArtifactListProps) {
+export function ArtifactList({ artifacts, runUrl }: ArtifactListProps) {
   if (artifacts.length === 0) return null;
   return (
     <div className="flex flex-col">
       {artifacts.map((a) => (
-        <ArtifactRow key={a.id} artifact={a} />
+        <ArtifactRow key={a.id} artifact={a} runUrl={runUrl} />
       ))}
     </div>
   );
 }
 
-function ArtifactRow({ artifact }: { artifact: Artifact }) {
+function ArtifactRow({ artifact, runUrl }: { artifact: Artifact; runUrl: string }) {
   const expired = artifact.expired;
   return (
     <div className={cn("group flex items-center gap-3 rounded-lg px-3 py-2.5")}>
@@ -68,16 +67,21 @@ function ArtifactRow({ artifact }: { artifact: Artifact }) {
         </p>
       </div>
 
-      <Button
-        type="button"
-        variant="outline"
-        size="xs"
-        disabled={expired}
-        title={expired ? "Artifact expired" : "Download (wired to Worker proxy in P4)"}
-      >
-        <Download data-icon="inline-start" aria-hidden />
-        Download
-      </Button>
+      {expired ? (
+        <span className="text-caption text-muted-foreground">Expired</span>
+      ) : (
+        <Button asChild variant="outline" size="xs">
+          <a
+            href={`${runUrl}/artifacts/${artifact.id}`}
+            target="_blank"
+            rel="noreferrer"
+            title="Download artifact on GitHub"
+          >
+            <Download data-icon="inline-start" aria-hidden />
+            Download
+          </a>
+        </Button>
+      )}
     </div>
   );
 }

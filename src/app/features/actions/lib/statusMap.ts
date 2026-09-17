@@ -1,56 +1,77 @@
-import type { RunConclusion, RunStatus } from "@/app/features/actions/schemas";
+import type { RunConclusion, RunStatus } from "../schemas";
 
-// ─── UiStatus — the UI's narrow state space ────────────────────────────────
-//
-// GitHub splits "status" (queued/in_progress/completed) from "conclusion"
-// (success/failure/…). Every surface that renders state needs to collapse
-// the two into one label. Centralising that mapping here means the UI
-// layer never touches raw GitHub enums — add a case here and every pill,
-// icon, dot, and timeline entry updates in lockstep.
+export type UiStatusKind =
+  | "running"
+  | "queued"
+  | "waiting"
+  | "pending"
+  | "action_required"
+  | "success"
+  | "failure"
+  | "timed_out"
+  | "cancelled"
+  | "skipped"
+  | "neutral"
+  | "stale"
+  | "startup_failure"
+  | "unknown";
+export type UiStatus = { kind: UiStatusKind; terminal: boolean };
 
-export type UiStatus =
-  | { kind: "running" }
-  | { kind: "queued" }
-  | { kind: "success" }
-  | { kind: "failure" }
-  | { kind: "cancelled" }
-  | { kind: "skipped" }
-  | { kind: "neutral" };
+const LABELS: Record<UiStatusKind, string> = {
+  running: "In progress",
+  queued: "Queued",
+  waiting: "Waiting",
+  pending: "Pending",
+  action_required: "Action required",
+  success: "Success",
+  failure: "Failure",
+  timed_out: "Timed out",
+  cancelled: "Cancelled",
+  skipped: "Skipped",
+  neutral: "Neutral",
+  stale: "Stale",
+  startup_failure: "Startup failure",
+  unknown: "Unknown",
+};
 
-export type UiStatusKind = UiStatus["kind"];
-
+// Conclusions describe results only after completion. Waiting for approval
+// must keep polling; a completed run without a result must never look green.
 export function toUiStatus(status: RunStatus, conclusion: RunConclusion): UiStatus {
   if (status !== "completed") {
-    // pending / waiting / requested / action_required all read as "queued"
-    // for display purposes — the nuance isn't actionable here.
-    if (status === "in_progress") return { kind: "running" };
-    return { kind: "queued" };
+    const kind =
+      status === "in_progress"
+        ? "running"
+        : status === "requested"
+          ? "queued"
+          : ["queued", "waiting", "pending", "action_required"].includes(status)
+            ? (status as UiStatusKind)
+            : "unknown";
+    return { kind, terminal: false };
   }
-  switch (conclusion) {
-    case "success":
-      return { kind: "success" };
-    case "failure":
-    case "timed_out":
-    case "startup_failure":
-      return { kind: "failure" };
-    case "cancelled":
-      return { kind: "cancelled" };
-    case "skipped":
-    case "stale":
-      return { kind: "skipped" };
-    case "action_required":
-    case "neutral":
-    case null:
-      return { kind: "neutral" };
-  }
+  const kind =
+    conclusion && Object.hasOwn(LABELS, conclusion) ? (conclusion as UiStatusKind) : "unknown";
+  return { kind, terminal: true };
 }
 
-// Stable, human-readable label. Used by aria-label and tooltip copy.
 export function statusLabel(s: UiStatus): string {
-  return s.kind.charAt(0).toUpperCase() + s.kind.slice(1);
+  return LABELS[s.kind];
+}
+export function isTerminal(s: UiStatus): boolean {
+  return s.terminal;
 }
 
-// Is this a terminal state? Drives polling decisions.
-export function isTerminal(s: UiStatus): boolean {
-  return s.kind !== "running" && s.kind !== "queued";
+export function isFailure(s: UiStatus): boolean {
+  return ["failure", "timed_out", "startup_failure"].includes(s.kind);
+}
+
+export function durationMs(
+  start: string | null | undefined,
+  end: string | null | undefined,
+  live: boolean,
+  now = Date.now(),
+): number | null {
+  if (!start || (!end && !live)) return null;
+  const from = Date.parse(start);
+  const to = end ? Date.parse(end) : now;
+  return Number.isFinite(from) && Number.isFinite(to) ? Math.max(0, to - from) : null;
 }

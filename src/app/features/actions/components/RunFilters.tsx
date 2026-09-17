@@ -1,38 +1,15 @@
-import { X } from "lucide-react";
-import { ToggleGroup, ToggleGroupItem } from "@/app/components/ui/toggle-group";
-import { cn } from "@/app/lib/cn";
+import { Search, X } from "lucide-react";
+import { Button } from "@/app/components/ui/button";
+import { RUN_STATUSES, type RunsFilters } from "../hooks";
 
-// ─── Filters ───────────────────────────────────────────────────────────────
-//
-// Slot-compatible with `<Widget actions={...}>` — lives inside the widget
-// header band (DESIGN.md's Widget pattern) instead of floating above the
-// list. `rounded-sm` chips instead of `rounded-full` to match the rest of
-// the app's chrome.
-
-type StatusFilter =
-  | "all"
-  | "queued"
-  | "in_progress"
-  | "completed"
-  | "success"
-  | "failure"
-  | "cancelled";
-
-const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "success", label: "Success" },
-  { value: "failure", label: "Failure" },
-  { value: "in_progress", label: "In progress" },
-  { value: "queued", label: "Queued" },
-  { value: "cancelled", label: "Cancelled" },
-];
-
+type StatusFilter = NonNullable<RunsFilters["status"]> | "all";
 export type RunFiltersProps = {
   status?: StatusFilter;
   branch?: string;
   event?: string;
   actor?: string;
   onStatusChange: (next: StatusFilter) => void;
+  onFiltersChange: (filters: Pick<RunsFilters, "branch" | "event" | "actor">) => void;
   onClear: (field: "branch" | "event" | "actor") => void;
 };
 
@@ -42,61 +19,103 @@ export function RunFilters({
   event,
   actor,
   onStatusChange,
+  onFiltersChange,
   onClear,
 }: RunFiltersProps) {
-  const pinnedChips: Array<{ field: "branch" | "event" | "actor"; label: string; value: string }> =
-    [
-      branch && { field: "branch" as const, label: "branch", value: branch },
-      event && { field: "event" as const, label: "event", value: event },
-      actor && { field: "actor" as const, label: "actor", value: actor },
-    ].filter((x): x is { field: "branch" | "event" | "actor"; label: string; value: string } =>
-      Boolean(x),
-    );
-
   return (
-    <div className="flex items-center gap-1.5">
-      <ToggleGroup
-        type="single"
-        value={status}
-        onValueChange={(next) => {
-          if (next) onStatusChange(next as StatusFilter);
-        }}
-        size="sm"
-        variant="default"
-        className="rounded-md"
-      >
-        {STATUS_OPTIONS.map((opt) => (
-          <ToggleGroupItem
-            key={opt.value}
-            value={opt.value}
-            className="h-6 rounded-md px-2 text-caption data-[state=on]:bg-background data-[state=on]:text-foreground"
+    <div className="w-full space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 text-caption text-muted-foreground">
+          Status
+          <select
+            aria-label="Filter by status"
+            value={status}
+            onChange={(e) => onStatusChange(e.target.value as StatusFilter)}
+            className="h-8 rounded-md border border-input bg-background px-2 text-ui text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {opt.label}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
-
-      {pinnedChips.length > 0 ? (
-        <span aria-hidden className="h-4 w-px self-center bg-border" />
-      ) : null}
-
-      {pinnedChips.map((c) => (
-        <button
-          key={c.field}
-          type="button"
-          onClick={() => onClear(c.field)}
-          title={`Clear ${c.label} filter`}
-          className={cn(
-            "group inline-flex h-6 items-center gap-1 rounded-sm px-1.5",
-            "bg-accent font-mono text-caption text-foreground outline-none",
-            "focus-visible:ring-1 focus-visible:ring-(--color-focus)",
-          )}
+            <option value="all">All statuses</option>
+            {RUN_STATUSES.map((value) => (
+              <option key={value} value={value}>
+                {value === "in_progress"
+                  ? "In progress"
+                  : value.charAt(0).toUpperCase() + value.slice(1).replaceAll("_", " ")}
+              </option>
+            ))}
+          </select>
+        </label>
+        <form
+          key={`${branch}-${event}-${actor}`}
+          className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const data = new FormData(e.currentTarget);
+            onFiltersChange({
+              branch: String(data.get("branch") ?? "").trim() || undefined,
+              event: String(data.get("event") ?? "").trim() || undefined,
+              actor: String(data.get("actor") ?? "").trim() || undefined,
+            });
+          }}
         >
-          <span className="text-(--color-fg-faint)">{c.label}</span>
-          <span>{c.value}</span>
-          <X className="size-3 text-(--color-fg-faint) group-hover:text-foreground" />
-        </button>
-      ))}
+          <input
+            name="branch"
+            aria-label="Filter by branch"
+            placeholder="Branch"
+            defaultValue={branch}
+            className="h-8 min-w-0 w-28 flex-1 rounded-md border border-input bg-background px-2 text-ui"
+          />
+          <input
+            name="event"
+            aria-label="Filter by event"
+            placeholder="Event"
+            defaultValue={event}
+            list="action-events"
+            className="h-8 min-w-0 w-28 flex-1 rounded-md border border-input bg-background px-2 text-ui"
+          />
+          <datalist id="action-events">
+            {[
+              "push",
+              "pull_request",
+              "workflow_dispatch",
+              "schedule",
+              "workflow_run",
+              "release",
+            ].map((value) => (
+              <option key={value} value={value} />
+            ))}
+          </datalist>
+          <input
+            name="actor"
+            aria-label="Filter by actor"
+            placeholder="Actor"
+            defaultValue={actor}
+            className="h-8 min-w-0 w-28 flex-1 rounded-md border border-input bg-background px-2 text-ui"
+          />
+          <Button type="submit" size="sm" variant="outline">
+            <Search />
+            Filter
+          </Button>
+        </form>
+      </div>
+      {branch || event || actor ? (
+        <div className="flex flex-wrap gap-2">
+          {(["branch", "event", "actor"] as const).map((field) => {
+            const value = { branch, event, actor }[field];
+            return value ? (
+              <button
+                key={field}
+                type="button"
+                onClick={() => onClear(field)}
+                aria-label={`Clear ${field} filter`}
+                className="inline-flex max-w-full items-center gap-2 rounded-md bg-accent px-2 py-1 text-caption"
+              >
+                <span className="text-muted-foreground">{field}</span>
+                <span className="truncate">{value}</span>
+                <X className="size-3 shrink-0" />
+              </button>
+            ) : null;
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
