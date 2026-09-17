@@ -6,30 +6,10 @@ import { z } from "zod";
 // crash Zod parsing. `toUiStatus` collapses whatever we receive into the
 // narrow union the UI actually cares about.
 
-export const RunStatusSchema = z.enum([
-  "queued",
-  "in_progress",
-  "completed",
-  "waiting",
-  "pending",
-  "requested",
-  "action_required",
-]);
+export const RunStatusSchema = z.string();
 export type RunStatus = z.infer<typeof RunStatusSchema>;
 
-export const RunConclusionSchema = z
-  .enum([
-    "success",
-    "failure",
-    "cancelled",
-    "skipped",
-    "timed_out",
-    "action_required",
-    "neutral",
-    "stale",
-    "startup_failure",
-  ])
-  .nullable();
+export const RunConclusionSchema = z.string().nullable();
 export type RunConclusion = z.infer<typeof RunConclusionSchema>;
 
 // ─── Actors ────────────────────────────────────────────────────────────────
@@ -80,7 +60,7 @@ export const WorkflowRunSchema = z.object({
   html_url: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
-  run_started_at: z.string().optional(),
+  run_started_at: z.string().nullish(),
   actor: ActorSchema,
   triggering_actor: ActorSchema,
   head_commit: z

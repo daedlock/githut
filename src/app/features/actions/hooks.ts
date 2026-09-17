@@ -6,15 +6,16 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useEffect, useMemo } from "react";
 import { useRepoFile } from "@/app/hooks/useRepoFile";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
-import { parseDispatchInputs, type WorkflowDispatchSchema } from "./lib/parseDispatchInputs";
-import { isTerminal, toUiStatus } from "./lib/statusMap";
+import { parseDispatchInputs } from "./lib/parseDispatchInputs";
 import {
   type Artifact,
   ArtifactsResponseSchema,
   type Job,
+  JobSchema,
   JobsResponseSchema,
   type Workflow,
   type WorkflowRun,
@@ -23,244 +24,251 @@ import {
   WorkflowsResponseSchema,
 } from "./schemas";
 
-// ─── Query keys ────────────────────────────────────────────────────────────
-
 export const actionsKeys = {
   workflows: (owner: string, repo: string) => ["actions-workflows", owner, repo] as const,
   runs: (owner: string, repo: string, filters: RunsFilters) =>
-    ["actions-runs", owner, repo, normalizeFilters(filters)] as const,
+    ["actions-runs", owner, repo, filters] as const,
   run: (owner: string, repo: string, runId: number) => ["actions-run", owner, repo, runId] as const,
-  jobs: (owner: string, repo: string, runId: number) =>
-    ["actions-jobs", owner, repo, runId] as const,
+  jobs: (owner: string, repo: string, runId: number, attempt?: number) =>
+    ["actions-jobs", owner, repo, runId, ...(attempt ? [attempt] : [])] as const,
   artifacts: (owner: string, repo: string, runId: number) =>
     ["actions-artifacts", owner, repo, runId] as const,
   logs: (owner: string, repo: string, jobId: number) =>
     ["actions-logs", owner, repo, jobId] as const,
 };
 
-// ─── Filters ───────────────────────────────────────────────────────────────
-
+export const RUN_STATUSES = [
+  "queued",
+  "in_progress",
+  "waiting",
+  "pending",
+  "completed",
+  "success",
+  "failure",
+  "cancelled",
+  "skipped",
+  "timed_out",
+  "action_required",
+  "neutral",
+  "stale",
+  "requested",
+] as const;
 export type RunsFilters = {
   workflowId?: number;
-  status?: "queued" | "in_progress" | "completed" | "success" | "failure" | "cancelled";
+  status?: (typeof RUN_STATUSES)[number];
   branch?: string;
   event?: string;
   actor?: string;
 };
-
-// Stable cache key regardless of property order.
-function normalizeFilters(f: RunsFilters): string {
-  const entries = Object.entries(f)
-    .filter(([, v]) => v !== undefined && v !== "")
-    .sort(([a], [b]) => a.localeCompare(b));
-  return entries.length === 0 ? "all" : entries.map(([k, v]) => `${k}=${v}`).join("&");
-}
-
-// ─── Workflows ─────────────────────────────────────────────────────────────
+const validId = (id: number) => Number.isSafeInteger(id) && id > 0;
+const retry = (count: number, error: unknown) =>
+  count < 2 && ![401, 403, 404, 422, 429].includes((error as { status?: number })?.status ?? 0);
+const requestOptions = { retry, refetchIntervalInBackground: false };
 
 export const workflowsQueryOptions = (owner: string, repo: string) =>
   queryOptions({
+    ...requestOptions,
     queryKey: actionsKeys.workflows(owner, repo),
-    // Workflows are YAML files that rarely change within a session.
     staleTime: 10 * 60_000,
-    queryFn: async (): Promise<Workflow[]> => {
-      const client = getGitHubClient();
-      const res = await client.request("GET /repos/{owner}/{repo}/actions/workflows", {
-        owner,
-        repo,
-        per_page: 100,
-      });
-      return WorkflowsResponseSchema.parse(res.data).workflows;
+    queryFn: async ({ signal }): Promise<Workflow[]> => {
+      const workflows: Workflow[] = [];
+      for (let page = 1; ; page++) {
+        const res = await getGitHubClient().request("GET /repos/{owner}/{repo}/actions/workflows", {
+          owner,
+          repo,
+          per_page: 100,
+          page,
+          request: { signal },
+        });
+        const data = WorkflowsResponseSchema.parse(res.data);
+        workflows.push(...data.workflows);
+        if (data.workflows.length < 100 || workflows.length >= data.total_count) return workflows;
+      }
     },
   });
-
 export function useWorkflows(owner: string, repo: string) {
   const token = useAuthStore((s) => s.token);
-  return useQuery({
-    ...workflowsQueryOptions(owner, repo),
-    enabled: !!token && !!owner && !!repo,
-  });
+  return useQuery({ ...workflowsQueryOptions(owner, repo), enabled: !!token && !!owner && !!repo });
 }
 
-// ─── Runs (infinite) ───────────────────────────────────────────────────────
-//
-// `useInfiniteQuery` paginates cleanly — each filter combination is its own
-// cache entry (via normalizeFilters), so flipping filters cold shows the
-// standard skeleton (matches Commits/Issues/Code loading language), and
-// flipping back to a warmed filter is instant.
-// per_page: 30 — fast first paint; pagination fills the rest on scroll.
-
 const RUNS_PER_PAGE = 30;
-
 export const workflowRunsQueryOptions = (owner: string, repo: string, filters: RunsFilters = {}) =>
   infiniteQueryOptions({
+    ...requestOptions,
     queryKey: actionsKeys.runs(owner, repo, filters),
-    staleTime: 30_000,
+    staleTime: 10_000,
     initialPageParam: 1,
     getNextPageParam: (lastPage: WorkflowRun[], _all, lastPageParam) =>
-      lastPage.length < RUNS_PER_PAGE ? undefined : (lastPageParam as number) + 1,
-    queryFn: async ({ pageParam }): Promise<WorkflowRun[]> => {
-      const client = getGitHubClient();
+      lastPage.length < RUNS_PER_PAGE ? undefined : lastPageParam + 1,
+    queryFn: async ({ pageParam, signal }): Promise<WorkflowRun[]> => {
+      const { workflowId, ...rest } = filters;
       const base = {
         owner,
         repo,
+        ...rest,
         per_page: RUNS_PER_PAGE,
-        page: pageParam as number,
-        ...(filters.status ? { status: filters.status } : {}),
-        ...(filters.branch ? { branch: filters.branch } : {}),
-        ...(filters.event ? { event: filters.event } : {}),
-        ...(filters.actor ? { actor: filters.actor } : {}),
-      } as const;
-      const res = filters.workflowId
+        page: pageParam,
+        request: { signal },
+      };
+      const client = getGitHubClient();
+      const res = workflowId
         ? await client.request("GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs", {
             ...base,
-            workflow_id: filters.workflowId,
+            workflow_id: workflowId,
           })
         : await client.request("GET /repos/{owner}/{repo}/actions/runs", base);
       return WorkflowRunsResponseSchema.parse(res.data).workflow_runs;
     },
   });
-
 export function useWorkflowRuns(owner: string, repo: string, filters: RunsFilters = {}) {
   const token = useAuthStore((s) => s.token);
   return useInfiniteQuery({
     ...workflowRunsQueryOptions(owner, repo, filters),
     enabled: !!token && !!owner && !!repo,
+    // Idle lists also refresh so newly dispatched runs can appear.
+    refetchInterval: (q) =>
+      q.state.data?.pages.some((page) => page.some((run) => run.status !== "completed"))
+        ? 5_000
+        : 30_000,
   });
 }
 
-// ─── Run detail ────────────────────────────────────────────────────────────
-//
-// A single run's metadata. Polls when the run is non-terminal so "queued"
-// → "running" → "completed" transitions flow in without a refresh.
-
 export const workflowRunQueryOptions = (owner: string, repo: string, runId: number) =>
   queryOptions({
+    ...requestOptions,
     queryKey: actionsKeys.run(owner, repo, runId),
-    staleTime: 15_000,
-    queryFn: async (): Promise<WorkflowRun> => {
-      const client = getGitHubClient();
-      const res = await client.request("GET /repos/{owner}/{repo}/actions/runs/{run_id}", {
-        owner,
-        repo,
-        run_id: runId,
-      });
+    staleTime: 5_000,
+    queryFn: async ({ signal }): Promise<WorkflowRun> => {
+      const res = await getGitHubClient().request(
+        "GET /repos/{owner}/{repo}/actions/runs/{run_id}",
+        {
+          owner,
+          repo,
+          run_id: runId,
+          request: { signal },
+        },
+      );
       return WorkflowRunSchema.parse(res.data);
     },
   });
-
 export function useWorkflowRun(owner: string, repo: string, runId: number) {
   const token = useAuthStore((s) => s.token);
   return useQuery({
     ...workflowRunQueryOptions(owner, repo, runId),
-    enabled: !!token && !!owner && !!repo && Number.isFinite(runId),
-    // Poll only while the run is alive — completed runs are immutable.
-    // Pause when the tab is hidden to save rate limit + battery.
-    refetchInterval: (q) => {
-      const run = q.state.data;
-      if (!run) return false;
-      const ui = toUiStatus(run.status, run.conclusion);
-      return isTerminal(ui) ? false : 3_000;
-    },
-    refetchIntervalInBackground: false,
+    enabled: !!token && !!owner && !!repo && validId(runId),
+    refetchInterval: (q) => (q.state.data && q.state.data.status !== "completed" ? 3_000 : false),
   });
 }
 
-// ─── Jobs for a run ────────────────────────────────────────────────────────
-
-export const runJobsQueryOptions = (owner: string, repo: string, runId: number) =>
+export const runJobsQueryOptions = (owner: string, repo: string, runId: number, attempt?: number) =>
   queryOptions({
-    queryKey: actionsKeys.jobs(owner, repo, runId),
-    staleTime: 10_000,
-    queryFn: async (): Promise<Job[]> => {
-      const client = getGitHubClient();
-      const res = await client.request("GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs", {
-        owner,
-        repo,
-        run_id: runId,
-        per_page: 100,
-      });
-      return JobsResponseSchema.parse(res.data).jobs;
+    ...requestOptions,
+    queryKey: actionsKeys.jobs(owner, repo, runId, attempt),
+    staleTime: 5_000,
+    queryFn: async ({ signal }): Promise<Job[]> => {
+      const jobs: Job[] = [];
+      for (let page = 1; ; page++) {
+        const base = { owner, repo, run_id: runId, per_page: 100, page, request: { signal } };
+        const client = getGitHubClient();
+        const res = attempt
+          ? await client.request(
+              "GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs",
+              {
+                ...base,
+                attempt_number: attempt,
+              },
+            )
+          : await client.request("GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs", {
+              ...base,
+              filter: "latest",
+            });
+        const data = JobsResponseSchema.parse(res.data);
+        jobs.push(...data.jobs);
+        if (data.jobs.length < 100 || jobs.length >= data.total_count) return jobs;
+      }
     },
   });
-
-export function useRunJobs(owner: string, repo: string, runId: number) {
+export function useRunJobs(owner: string, repo: string, runId: number, run?: WorkflowRun) {
   const token = useAuthStore((s) => s.token);
+  const qc = useQueryClient();
+  const attempt = run?.run_attempt;
+  const status = run?.status;
+  // Reconcile once on completion even if a jobs response briefly trails run metadata.
+  useEffect(() => {
+    if (status === "completed")
+      void qc.invalidateQueries({ queryKey: actionsKeys.jobs(owner, repo, runId, attempt) });
+  }, [qc, owner, repo, runId, attempt, status]);
   return useQuery({
-    ...runJobsQueryOptions(owner, repo, runId),
-    enabled: !!token && !!owner && !!repo && Number.isFinite(runId),
-    refetchInterval: (q) => {
-      const jobs = q.state.data;
-      // Empty array = post-rerun optimistic clear, or just-queued run with
-      // no jobs assigned yet. Keep polling so new jobs appear as they get
-      // scheduled.
-      if (!jobs || jobs.length === 0) return 3_000;
-      const anyLive = jobs.some((j) => {
-        const ui = toUiStatus(j.status, j.conclusion);
-        return !isTerminal(ui);
-      });
-      return anyLive ? 3_000 : false;
-    },
-    refetchIntervalInBackground: false,
+    ...runJobsQueryOptions(owner, repo, runId, attempt),
+    enabled: !!token && validId(runId) && !!run,
+    refetchInterval: (q) =>
+      status !== "completed" || q.state.data?.some((j) => j.status !== "completed") ? 3_000 : false,
   });
 }
-
-// ─── Single job by ID ─────────────────────────────────────────────────────
-
-import { JobSchema } from "./schemas";
 
 export function useJob(owner: string, repo: string, jobId: number) {
   const token = useAuthStore((s) => s.token);
   return useQuery({
-    queryKey: ["actions-job", owner, repo, jobId] as const,
-    staleTime: 30_000,
-    enabled: !!token && !!owner && !!repo && Number.isFinite(jobId) && jobId > 0,
-    queryFn: async (): Promise<Job> => {
-      const client = getGitHubClient();
-      const res = await client.request("GET /repos/{owner}/{repo}/actions/jobs/{job_id}", {
-        owner,
-        repo,
-        job_id: jobId,
-      });
+    ...requestOptions,
+    queryKey: ["actions-job", owner, repo, jobId],
+    staleTime: 10_000,
+    enabled: !!token && !!owner && !!repo && validId(jobId),
+    queryFn: async ({ signal }): Promise<Job> => {
+      const res = await getGitHubClient().request(
+        "GET /repos/{owner}/{repo}/actions/jobs/{job_id}",
+        {
+          owner,
+          repo,
+          job_id: jobId,
+          request: { signal },
+        },
+      );
       return JobSchema.parse(res.data);
     },
+    refetchInterval: (q) => (q.state.data && q.state.data.status !== "completed" ? 3_000 : false),
   });
 }
-
-// ─── Artifacts for a run ───────────────────────────────────────────────────
 
 export const runArtifactsQueryOptions = (owner: string, repo: string, runId: number) =>
   queryOptions({
+    ...requestOptions,
     queryKey: actionsKeys.artifacts(owner, repo, runId),
-    // Artifacts are immutable once a run completes; short stale while the
-    // run might still be uploading them.
     staleTime: 30_000,
-    queryFn: async (): Promise<Artifact[]> => {
-      const client = getGitHubClient();
-      const res = await client.request(
-        "GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts",
-        { owner, repo, run_id: runId, per_page: 100 },
-      );
-      return ArtifactsResponseSchema.parse(res.data).artifacts;
+    queryFn: async ({ signal }): Promise<Artifact[]> => {
+      const artifacts: Artifact[] = [];
+      for (let page = 1; ; page++) {
+        const res = await getGitHubClient().request(
+          "GET /repos/{owner}/{repo}/actions/runs/{run_id}/artifacts",
+          {
+            owner,
+            repo,
+            run_id: runId,
+            per_page: 100,
+            page,
+            request: { signal },
+          },
+        );
+        const data = ArtifactsResponseSchema.parse(res.data);
+        artifacts.push(...data.artifacts);
+        if (data.artifacts.length < 100 || artifacts.length >= data.total_count) return artifacts;
+      }
     },
   });
-
-export function useRunArtifacts(owner: string, repo: string, runId: number) {
+export function useRunArtifacts(owner: string, repo: string, runId: number, run?: WorkflowRun) {
   const token = useAuthStore((s) => s.token);
+  const qc = useQueryClient();
+  const status = run?.status;
+  const attempt = run?.run_attempt;
+  useEffect(() => {
+    if (status === "completed" && attempt)
+      void qc.invalidateQueries({ queryKey: actionsKeys.artifacts(owner, repo, runId) });
+  }, [qc, owner, repo, runId, status, attempt]);
   return useQuery({
     ...runArtifactsQueryOptions(owner, repo, runId),
-    enabled: !!token && !!owner && !!repo && Number.isFinite(runId),
+    enabled: !!token && validId(runId) && !!run,
+    refetchInterval: status && status !== "completed" ? 10_000 : false,
   });
 }
-
-// ─── Job logs ──────────────────────────────────────────────────────────────
-//
-// Fetches plaintext logs via the Worker proxy (`/api/actions/jobs/:id/logs`)
-// — GitHub's direct endpoint redirects to an Azure Blob URL that doesn't
-// serve CORS, so the browser can't call it directly.
-//
-// Logs for a completed job are immutable, so staleTime goes to Infinity.
-// Live jobs are polled every 3s (tied to `isLive`) so the viewer can tail.
 
 export const jobLogsQueryOptions = (
   owner: string,
@@ -273,241 +281,111 @@ export const jobLogsQueryOptions = (
     staleTime: isLive ? 0 : Infinity,
     gcTime: 10 * 60_000,
     retry: false,
-    queryFn: async (): Promise<string> => {
+    queryFn: async ({ signal }): Promise<string> => {
       const token = useAuthStore.getState().token;
       if (!token) throw new Error("Not authenticated");
-      const url = `/api/actions/jobs/${jobId}/logs?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        // Surface the status + the Worker's passthrough `detail` field so
-        // consumers can render scoped errors and devs can see Azure's
-        // actual complaint during transient upstream failures.
-        let detail: string | undefined;
-        try {
-          const body = (await res.json()) as { detail?: string };
-          detail = body.detail;
-        } catch {
-          // body wasn't JSON — ignore.
-        }
-        const err = new Error(`Logs fetch failed: ${res.status}`) as Error & {
-          status: number;
-          detail?: string;
-        };
-        err.status = res.status;
-        err.detail = detail;
-        throw err;
-      }
-      return await res.text();
+      const res = await fetch(
+        `/api/actions/jobs/${jobId}/logs?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          signal,
+        },
+      );
+      if (!res.ok)
+        throw Object.assign(new Error(`Could not load logs (${res.status}).`), {
+          status: res.status,
+        });
+      return res.text();
     },
   });
-
 export function useJobLogs(
   owner: string,
   repo: string,
   jobId: number,
-  opts: { isLive?: boolean; enabled?: boolean; pollUntil?: number } = {},
+  {
+    isLive = false,
+    enabled = true,
+    pollUntil,
+  }: { isLive?: boolean; enabled?: boolean; pollUntil?: number } = {},
 ) {
   const token = useAuthStore((s) => s.token);
-  const { isLive = false, enabled = true, pollUntil } = opts;
+  const qc = useQueryClient();
+  // A final download is required even when a partial live log is cached forever.
+  useEffect(() => {
+    if (enabled && !isLive)
+      void qc.invalidateQueries({ queryKey: actionsKeys.logs(owner, repo, jobId) });
+  }, [qc, owner, repo, jobId, enabled, isLive]);
   return useQuery({
     ...jobLogsQueryOptions(owner, repo, jobId, { isLive }),
-    enabled: enabled && !!token && !!owner && !!repo && Number.isFinite(jobId),
+    enabled: enabled && !!token && validId(jobId),
     refetchInterval: (q) => {
-      if (isLive) return 3_000;
-      // GitHub/Azure often materializes the downloadable job-log blob a bit
-      // after a job flips to completed. Keep polling recent terminal jobs
-      // while we still have no successful body, instead of freezing a 404.
-      if (pollUntil && !q.state.data) {
-        const remaining = pollUntil - Date.now();
-        if (remaining > 0) return Math.max(500, Math.min(3_000, remaining));
-      }
-      return false;
+      const status = (q.state.error as { status?: number } | null)?.status;
+      if (status === 401 || status === 403 || status === 410 || status === 429) return false;
+      if (isLive) return 5_000;
+      return pollUntil &&
+        Date.now() < pollUntil &&
+        (!q.state.data || q.state.isInvalidated || q.state.status === "error")
+        ? 3_000
+        : false;
     },
     refetchIntervalInBackground: false,
   });
 }
 
-// ─── Mutations: rerun / rerun-failed / cancel ─────────────────────────────
-//
-// Optimistic pattern mirrors `useUpdateIssueState`: flip the cached run into
-// the post-mutation state synchronously so the UI feels instant, then let
-// background polling reconcile with the server. Errors roll back via
-// `onError`. All three invalidate run + jobs + runs-list on settle so the
-// other surfaces (detail, list, sub-tabs) converge without page refresh.
-
-function optimisticRerun(
-  qc: ReturnType<typeof useQueryClient>,
-  owner: string,
-  repo: string,
-  runId: number,
-) {
-  const key = actionsKeys.run(owner, repo, runId);
-  qc.cancelQueries({ queryKey: key });
-  const prev = qc.getQueryData<WorkflowRun>(key);
-  if (prev) {
-    qc.setQueryData<WorkflowRun>(key, {
-      ...prev,
-      // Flip to queued; polling will reconcile attempt number + timestamps
-      // with truth. We intentionally don't bump run_attempt here — the real
-      // value from GitHub is load-bearing elsewhere and pre-flipping it
-      // caused users to see "attempt N" before GitHub acknowledged.
-      status: "queued",
-      conclusion: null,
-      updated_at: new Date().toISOString(),
-      run_started_at: undefined,
-    });
-  }
-  return { prev, key };
-}
-
-// For rerun-style mutations: delayed invalidation. GitHub's backend takes
-// up to ~2 s to propagate a rerun, and an immediate refetch would return
-// the *old* completed state, flickering over the optimistic "queued" flip
-// and making the button feel dead. The delay lets polling take over
-// naturally once truth matches optimism.
-function invalidateAfterRerun(
-  qc: ReturnType<typeof useQueryClient>,
-  owner: string,
-  repo: string,
-  runId: number,
-) {
-  // Runs list can refresh immediately — it doesn't have optimistic state
-  // to protect and the list item's status lags behind by design.
-  qc.invalidateQueries({ queryKey: ["actions-runs", owner, repo] });
-  // Run + jobs + artifacts delayed so GitHub has time to propagate.
-  window.setTimeout(() => {
-    qc.invalidateQueries({ queryKey: actionsKeys.run(owner, repo, runId) });
-    qc.invalidateQueries({ queryKey: actionsKeys.jobs(owner, repo, runId) });
-    qc.invalidateQueries({ queryKey: actionsKeys.artifacts(owner, repo, runId) });
-  }, 2500);
-}
-
-function invalidateAfterCancel(
-  qc: ReturnType<typeof useQueryClient>,
-  owner: string,
-  repo: string,
-  runId: number,
-) {
-  qc.invalidateQueries({ queryKey: actionsKeys.run(owner, repo, runId) });
-  qc.invalidateQueries({ queryKey: actionsKeys.jobs(owner, repo, runId) });
-  qc.invalidateQueries({ queryKey: actionsKeys.artifacts(owner, repo, runId) });
-  qc.invalidateQueries({ queryKey: ["actions-runs", owner, repo] });
-}
-
-// Context shape returned from onMutate for rerun mutations — lets onError
-// roll back both the run state AND the optimistically-cleared jobs list.
-type RerunCtx = {
-  prev?: WorkflowRun;
-  key: readonly unknown[];
-  jobsKey: readonly unknown[];
-  prevJobs?: Job[];
-};
-
-function optimisticRerunAndClearJobs(
-  qc: ReturnType<typeof useQueryClient>,
-  owner: string,
-  repo: string,
-  runId: number,
-): RerunCtx {
-  const base = optimisticRerun(qc, owner, repo, runId);
-  // Clear jobs so stale "all jobs succeeded" state doesn't contradict the
-  // optimistically-queued run. Polling will repopulate with the new
-  // attempt's jobs once GitHub propagates.
-  const jobsKey = actionsKeys.jobs(owner, repo, runId);
-  const prevJobs = qc.getQueryData<Job[]>(jobsKey);
-  qc.setQueryData<Job[]>(jobsKey, []);
-  return { ...base, jobsKey, prevJobs };
-}
-
-function rollbackRerun(qc: ReturnType<typeof useQueryClient>, ctx: RerunCtx | undefined) {
-  if (!ctx) return;
-  if (ctx.prev) qc.setQueryData(ctx.key, ctx.prev);
-  if (ctx.prevJobs !== undefined) qc.setQueryData(ctx.jobsKey, ctx.prevJobs);
-}
-
-export function useRerunRun(owner: string, repo: string) {
+type RunCommand = "rerun" | "rerun-failed-jobs" | "cancel";
+function useRunCommand(owner: string, repo: string, command: RunCommand) {
   const qc = useQueryClient();
   return useMutation({
+    mutationKey: ["actions-command", owner, repo],
     mutationFn: async (runId: number) => {
-      const client = getGitHubClient();
-      await client.request("POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun", {
-        owner,
-        repo,
-        run_id: runId,
-      });
+      const previousAttempt = qc.getQueryData<WorkflowRun>(
+        actionsKeys.run(owner, repo, runId),
+      )?.run_attempt;
+      await getGitHubClient().request(
+        `POST /repos/{owner}/{repo}/actions/runs/{run_id}/${command}`,
+        {
+          owner,
+          repo,
+          run_id: runId,
+        },
+      );
+      return previousAttempt;
     },
-    onMutate: (runId) => optimisticRerunAndClearJobs(qc, owner, repo, runId),
-    onError: (_err, _runId, ctx) => rollbackRerun(qc, ctx),
-    onSuccess: (_data, runId) => invalidateAfterRerun(qc, owner, repo, runId),
+    onSuccess: async (previousAttempt, runId) => {
+      // Keep server state truthful while GitHub propagates the command. Never
+      // overwrite a completed attempt with a fabricated queued/cancelled state.
+      for (let i = 0; i < 10; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 3_000));
+        const run = await qc
+          .fetchQuery({ ...workflowRunQueryOptions(owner, repo, runId), staleTime: 0 })
+          .catch(() => undefined);
+        if (
+          run &&
+          (command === "cancel" ? run.status === "completed" : run.run_attempt !== previousAttempt)
+        )
+          break;
+      }
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: actionsKeys.jobs(owner, repo, runId) }),
+        qc.invalidateQueries({ queryKey: actionsKeys.artifacts(owner, repo, runId) }),
+        qc.invalidateQueries({ queryKey: ["actions-runs", owner, repo] }),
+      ]);
+    },
   });
 }
+export const useRerunRun = (owner: string, repo: string) => useRunCommand(owner, repo, "rerun");
+export const useRerunFailedJobs = (owner: string, repo: string) =>
+  useRunCommand(owner, repo, "rerun-failed-jobs");
+export const useCancelRun = (owner: string, repo: string) => useRunCommand(owner, repo, "cancel");
 
-export function useRerunFailedJobs(owner: string, repo: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (runId: number) => {
-      const client = getGitHubClient();
-      await client.request("POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs", {
-        owner,
-        repo,
-        run_id: runId,
-      });
-    },
-    onMutate: (runId) => optimisticRerunAndClearJobs(qc, owner, repo, runId),
-    onError: (_err, _runId, ctx) => rollbackRerun(qc, ctx),
-    onSuccess: (_data, runId) => invalidateAfterRerun(qc, owner, repo, runId),
-  });
-}
-
-export function useCancelRun(owner: string, repo: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (runId: number) => {
-      const client = getGitHubClient();
-      await client.request("POST /repos/{owner}/{repo}/actions/runs/{run_id}/cancel", {
-        owner,
-        repo,
-        run_id: runId,
-      });
-    },
-    // No optimistic flip — GitHub has no "cancelling" status, and flipping
-    // to "completed/cancelled" would stop our polling. Let polling reveal
-    // the transition ("in_progress" → "completed/cancelled") naturally.
-    onSettled: (_data, _err, runId) => invalidateAfterCancel(qc, owner, repo, runId),
-  });
-}
-
-// ─── Workflow dispatch ─────────────────────────────────────────────────────
-//
-// Given a workflow's file path (e.g. `.github/workflows/deploy.yml`), fetch
-// the raw YAML and parse just the `on.workflow_dispatch` section. Reuses
-// our existing `useRepoFile` hook so the content lands in its cache and
-// stays immutable when pinned to a SHA.
-
-/**
- * Fetch and parse a workflow's dispatch schema. Returns `null` while loading
- * or if the path is empty; the caller renders a "Run workflow" button only
- * when `schema.dispatchable` is true.
- */
 export function useWorkflowDispatchSchema(owner: string, repo: string, path: string | undefined) {
   const file = useRepoFile(owner, repo, path ?? "");
-  const schema: WorkflowDispatchSchema | null = file.data
-    ? parseDispatchInputs(file.data.content)
-    : null;
-  return {
-    schema,
-    isPending: file.isPending,
-    isError: file.isError,
-  };
+  const schema = useMemo(
+    () => (file.data ? parseDispatchInputs(file.data.content) : null),
+    [file.data],
+  );
+  return { schema, isPending: file.isPending, isError: file.isError };
 }
-
-/**
- * POST /workflows/{id}/dispatches. Response is 204 No Content — there's no
- * new run id to return. After success we invalidate the runs list so the
- * freshly-queued run appears at the top.
- */
 export function useDispatchWorkflow(owner: string, repo: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -516,8 +394,7 @@ export function useDispatchWorkflow(owner: string, repo: string) {
       ref: string;
       inputs?: Record<string, string | boolean | number>;
     }) => {
-      const client = getGitHubClient();
-      await client.request(
+      await getGitHubClient().request(
         "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
         {
           owner,
@@ -525,16 +402,13 @@ export function useDispatchWorkflow(owner: string, repo: string) {
           workflow_id: vars.workflowId,
           ref: vars.ref,
           inputs: vars.inputs
-            ? // GitHub only accepts string inputs in the request body. Boolean
-              // + number types get coerced by the runner at eval time.
-              Object.fromEntries(Object.entries(vars.inputs).map(([k, v]) => [k, String(v)]))
+            ? Object.fromEntries(Object.entries(vars.inputs).map(([k, v]) => [k, String(v)]))
             : undefined,
         },
       );
     },
     onSuccess: () => {
-      // New run appears at the top of the runs list within a few seconds.
-      qc.invalidateQueries({ queryKey: ["actions-runs", owner, repo] });
+      void qc.invalidateQueries({ queryKey: ["actions-runs", owner, repo] });
     },
   });
 }

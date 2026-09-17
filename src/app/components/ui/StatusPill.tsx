@@ -1,12 +1,14 @@
 import {
+  AlertCircle,
   Ban,
   CheckCircle2,
   CircleDashed,
   CircleSlash,
+  Clock3,
   Loader2,
+  type LucideIcon,
   MinusCircle,
   XCircle,
-  type LucideIcon,
 } from "lucide-react";
 import type { ComponentPropsWithoutRef } from "react";
 import { cn } from "@/app/lib/cn";
@@ -23,6 +25,13 @@ import { cn } from "@/app/lib/cn";
 export type StatusPillVariant =
   | "running"
   | "queued"
+  | "waiting"
+  | "pending"
+  | "action_required"
+  | "timed_out"
+  | "startup_failure"
+  | "stale"
+  | "unknown"
   | "success"
   | "failure"
   | "cancelled"
@@ -40,11 +49,18 @@ type VariantStyle = {
 };
 
 const STYLES: Record<StatusPillVariant, VariantStyle> = {
+  waiting: { icon: Clock3, tone: "text-(--color-warning)", bg: "bg-muted" },
+  pending: { icon: CircleDashed, tone: "text-(--color-fg-muted)", bg: "bg-muted" },
+  action_required: { icon: AlertCircle, tone: "text-(--color-warning)", bg: "bg-muted" },
+  timed_out: { icon: Clock3, tone: "text-(--color-danger)", bg: "bg-muted" },
+  startup_failure: { icon: XCircle, tone: "text-(--color-danger)", bg: "bg-muted" },
+  stale: { icon: CircleSlash, tone: "text-(--color-fg-faint)", bg: "bg-muted" },
+  unknown: { icon: CircleDashed, tone: "text-(--color-fg-muted)", bg: "bg-muted" },
   running: {
     icon: Loader2,
     tone: "text-(--color-warning)",
     bg: "bg-[color-mix(in_oklab,var(--color-warning)_14%,var(--color-bg-subtle))]",
-    extra: "[&_[data-pill-icon]]:animate-spin",
+    extra: "[&_[data-pill-icon]]:motion-safe:animate-spin",
   },
   queued: {
     icon: CircleDashed,
@@ -130,7 +146,8 @@ export function StatusPill({
   return (
     <span
       {...rest}
-      aria-label={iconOnly ? text : undefined}
+      role="img"
+      aria-label={text}
       className={cn(
         "inline-flex items-center rounded-full font-medium leading-none select-none",
         sizing.wrapper,
@@ -159,11 +176,11 @@ export function StatusDot({
   ...rest
 }: { variant: StatusPillVariant } & ComponentPropsWithoutRef<"span">) {
   const tone =
-    variant === "running"
-      ? "bg-(--color-warning) animate-pulse"
+    variant === "running" || variant === "waiting" || variant === "action_required"
+      ? "bg-(--color-warning) motion-safe:animate-pulse"
       : variant === "success"
         ? "bg-(--color-success)"
-        : variant === "failure"
+        : variant === "failure" || variant === "timed_out" || variant === "startup_failure"
           ? "bg-(--color-danger)"
           : variant === "queued"
             ? "bg-(--color-fg-muted)"
@@ -178,7 +195,8 @@ export function StatusDot({
 }
 
 function defaultLabel(v: StatusPillVariant): string {
-  return v.charAt(0).toUpperCase() + v.slice(1);
+  if (v === "running") return "In progress";
+  return v.charAt(0).toUpperCase() + v.slice(1).replaceAll("_", " ");
 }
 
 // ─── StatusIcon (bare) ─────────────────────────────────────────────────────
@@ -204,9 +222,9 @@ export function StatusIcon({
     <Icon
       aria-label={defaultLabel(variant)}
       className={cn(
-        `size-${size}`,
+        size === 3 ? "size-3" : size === 5 ? "size-5" : "size-4",
         style.tone,
-        variant === "running" && "animate-spin",
+        variant === "running" && "motion-safe:animate-spin",
         className,
       )}
     />

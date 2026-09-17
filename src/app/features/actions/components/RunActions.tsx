@@ -1,4 +1,5 @@
-import { Ban, MoreHorizontal, RefreshCw, RotateCcw } from "lucide-react";
+import { useIsMutating } from "@tanstack/react-query";
+import { Ban, ExternalLink, MoreHorizontal, RefreshCw, RotateCcw } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import {
   DropdownMenu,
@@ -6,81 +7,78 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
-import { useCancelRun, useRerunFailedJobs, useRerunRun } from "@/app/features/actions/hooks";
-import { isTerminal, toUiStatus } from "@/app/features/actions/lib/statusMap";
-import type { WorkflowRun } from "@/app/features/actions/schemas";
+import { useCancelRun, useRerunFailedJobs, useRerunRun } from "../hooks";
+import { isFailure, isTerminal, toUiStatus } from "../lib/statusMap";
+import type { WorkflowRun } from "../schemas";
 
-export type RunActionsProps = {
+export function RunActions({
+  owner,
+  repo,
+  run,
+}: {
   owner: string;
   repo: string;
   run: WorkflowRun;
-};
-
-// ─── RunActions ────────────────────────────────────────────────────────────
-//
-// Three actions, state-gated:
-//   live  → [ Cancel ]
-//   done  → [ Rerun failed ] (only if any failure)  [ Rerun all ]
-//
-// All use optimistic flips wired in hooks.ts: Rerun instantly flips the
-// cached run to `queued` + increments `run_attempt`, so polling picks up
-// from there. Cancel intentionally does NOT flip — GitHub has no
-// "cancelling" state and an optimistic terminal flip would stop our 3 s
-// polling before the real cancellation propagates.
-
-export function RunActions({ owner, repo, run }: RunActionsProps) {
+}) {
   const ui = toUiStatus(run.status, run.conclusion);
   const live = !isTerminal(ui);
-  const hasFailure = ui.kind === "failure";
-
   const rerun = useRerunRun(owner, repo);
-  const rerunFailed = useRerunFailedJobs(owner, repo);
+  const failed = useRerunFailedJobs(owner, repo);
   const cancel = useCancelRun(owner, repo);
-
+  const pending =
+    useIsMutating({
+      mutationKey: ["actions-command", owner, repo],
+      predicate: (mutation) => mutation.state.variables === run.id,
+    }) > 0;
+  const error = rerun.error ?? failed.error ?? cancel.error;
+  const accepted = rerun.isSuccess || failed.isSuccess || cancel.isSuccess;
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Run actions">
-          <MoreHorizontal />
+    <div className="flex max-w-sm flex-col items-end gap-2">
+      <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={pending}
+          onClick={() => (live ? cancel.mutate(run.id) : rerun.mutate(run.id))}
+        >
+          {live ? <Ban /> : <RotateCcw />}
+          {pending ? "Requesting…" : live ? "Cancel workflow" : "Re-run all jobs"}
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[180px]">
-        {live ? (
-          <DropdownMenuItem
-            variant="destructive"
-            disabled={cancel.isPending}
-            onSelect={() => cancel.mutate(run.id)}
-          >
-            <Ban />
-            <span className="whitespace-nowrap">
-              {cancel.isPending ? "Cancelling…" : "Cancel run"}
-            </span>
-          </DropdownMenuItem>
-        ) : (
-          <>
-            {hasFailure ? (
-              <DropdownMenuItem
-                disabled={rerunFailed.isPending || rerun.isPending}
-                onSelect={() => rerunFailed.mutate(run.id)}
-              >
-                <RefreshCw className="text-muted-foreground" />
-                <span className="whitespace-nowrap">
-                  {rerunFailed.isPending ? "Rerunning…" : "Rerun failed jobs"}
-                </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="More run actions" disabled={pending}>
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {!live && isFailure(ui) ? (
+              <DropdownMenuItem onSelect={() => failed.mutate(run.id)}>
+                <RefreshCw />
+                Re-run failed jobs
               </DropdownMenuItem>
             ) : null}
-            <DropdownMenuItem
-              disabled={rerun.isPending || rerunFailed.isPending}
-              onSelect={() => rerun.mutate(run.id)}
-            >
-              <RotateCcw className="text-muted-foreground" />
-              <span className="whitespace-nowrap">
-                {rerun.isPending ? "Rerunning…" : "Rerun all jobs"}
-              </span>
+            <DropdownMenuItem asChild>
+              <a href={run.html_url} target="_blank" rel="noreferrer">
+                <ExternalLink />
+                View on GitHub
+              </a>
             </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      {error ? (
+        <p role="alert" className="text-caption text-destructive">
+          {error.message || "The request failed. Try again."}
+        </p>
+      ) : pending ? (
+        <p role="status" className="text-caption text-muted-foreground">
+          Waiting for GitHub to update the run…
+        </p>
+      ) : accepted ? (
+        <p role="status" className="text-caption text-muted-foreground">
+          Request accepted.
+        </p>
+      ) : null}
+    </div>
   );
 }

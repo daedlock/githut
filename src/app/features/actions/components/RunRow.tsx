@@ -4,7 +4,7 @@ import { StatusIcon } from "@/app/components/ui/StatusPill";
 import { formatDuration } from "@/app/components/ui/Timeline";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { BranchRef } from "@/app/features/actions/components/BranchRef";
-import { toUiStatus } from "@/app/features/actions/lib/statusMap";
+import { durationMs, statusLabel, toUiStatus } from "@/app/features/actions/lib/statusMap";
 import type { WorkflowRun } from "@/app/features/actions/schemas";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
@@ -23,14 +23,17 @@ export type RunRowProps = {
 export function RunRow({ owner, repo, run }: RunRowProps) {
   const ui = toUiStatus(run.status, run.conclusion);
   const startedAt = run.run_started_at ?? run.created_at;
-  const isTerminal = run.status === "completed";
-  const durationMs = isTerminal
-    ? new Date(run.updated_at).getTime() - new Date(startedAt).getTime()
-    : Date.now() - new Date(startedAt).getTime();
+  const elapsed = durationMs(
+    run.run_started_at,
+    run.status === "completed" ? run.updated_at : null,
+    run.status === "in_progress",
+  );
 
-  const commitTitle = firstLine(run.head_commit?.message ?? run.display_title);
+  const commitTitle = firstLine(
+    run.display_title || run.head_commit?.message || run.name || "Workflow run",
+  );
   const shortSha = run.head_sha.slice(0, 7);
-  const actor = run.actor ?? run.triggering_actor;
+  const actor = run.triggering_actor ?? run.actor;
 
   return (
     <div className="group relative rounded-lg transition-colors hover:bg-muted">
@@ -102,8 +105,9 @@ export function RunRow({ owner, repo, run }: RunRowProps) {
                   : "text-muted-foreground",
             )}
           >
-            {formatDuration(durationMs)}
+            {elapsed === null ? "—" : formatDuration(elapsed)}
           </span>
+          <span className="text-caption text-muted-foreground">{statusLabel(ui)}</span>
         </div>
       </div>
     </div>
@@ -112,7 +116,7 @@ export function RunRow({ owner, repo, run }: RunRowProps) {
 
 function Sep() {
   return (
-    <span className="text-(--color-fg-faint)" aria-hidden>
+    <span className="mx-1 text-(--color-fg-faint)" aria-hidden>
       ·
     </span>
   );
