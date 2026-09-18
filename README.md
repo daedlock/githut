@@ -59,6 +59,14 @@ and PRs. Filters and search apply before grouping, and counts reflect the loaded
 matching items. Items with multiple labels or assignees appear in each matching
 group. Stacked PRs remain nested when they share a group.
 
+### Choose a page width
+
+In **Settings → Workspace → Container width**, choose **Small** (896px),
+**Medium** (1280px, the default), **Large** (1536px), or **Full width**. The header
+and page content share the same bounds. Changes apply immediately and stay in
+this browser. Repository names and owners truncate when space is limited; hover
+or focus their header links to read the full text.
+
 ## Quick Start
 
 ### Use it

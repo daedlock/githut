@@ -32,7 +32,7 @@ import {
  *   7. All repos       — filterable list, also masked-and-collapsed
  *   8. Roster          — orgs (user) or members (org)
  *
- * Renders inside a narrow Container (size="lg" = max-w-4xl ≈ 896px).
+ * Uses the same saved container width as the navigation and other pages.
  * Surfaces win — the only borders in this layout are inside form inputs.
  */
 export function ProfileView({ login }: { login: string }) {
@@ -47,14 +47,14 @@ export function ProfileView({ login }: { login: string }) {
 
   if (profile.isError) {
     return (
-      <Container size="lg" className="py-12">
+      <Container className="py-12">
         <StatusMessage tone="danger">User or organization not found.</StatusMessage>
       </Container>
     );
   }
 
   return (
-    <Container size="lg" className="py-8 sm:py-10">
+    <Container className="py-8 sm:py-10">
       <div className="flex flex-col gap-10">
         <ProfileHero profile={profile.data} isLoading={profile.isPending} />
 

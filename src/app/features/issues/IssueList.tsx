@@ -85,7 +85,7 @@ export function IssueList({
   );
 
   return (
-    <Container size="lg" className="py-6">
+    <Container className="py-6">
       <h1 className="sr-only">Issues</h1>
       {isComposing ? (
         <form onSubmit={onSubmitIssue} className="mb-4 flex flex-col gap-3">

@@ -7,8 +7,7 @@ import { repoQueryOptions } from "@/app/hooks/useRepo";
 import { useAuthStore } from "@/app/stores/auth";
 import { useTabsStore } from "@/app/stores/tabs";
 
-// With the unified single-row nav, the header is always sticky.
-// DiffLayout's own sticky bar sits below it at top-10.
+// Sticky content follows the header's second row on narrow screens.
 
 export const Route = createFileRoute("/$owner/$repo")({
   beforeLoad: () => {
@@ -29,7 +28,11 @@ function RepoLayout() {
   const { owner, repo } = Route.useParams();
 
   return (
-    <AppShell header={<UnifiedNav repoContext={{ owner, repo }} />} stickyHeader>
+    <AppShell
+      header={<UnifiedNav repoContext={{ owner, repo }} />}
+      className="[--app-header-height:80px] md:[--app-header-height:40px]"
+      stickyHeader
+    >
       <TabScrollRegistrar />
       <Outlet />
     </AppShell>

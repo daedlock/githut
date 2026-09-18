@@ -86,7 +86,7 @@ function RunDetailPage() {
   const completed = jobs.filter((job) => job.status === "completed").length;
   return (
     <NowTicker enabled={live || jobs.some((j) => j.status !== "completed")}>
-      <Container className="max-w-[1600px] space-y-6 py-6">
+      <Container className="space-y-6 py-6">
         <RunHeader owner={owner} repo={repo} run={run} />
         {runQuery.isError ? (
           <QueryError

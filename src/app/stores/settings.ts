@@ -1,7 +1,12 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import type { DiffMode } from "@/app/components/code/DiffView";
 import { isAnalyticsEnabled, setAnalyticsEnabledPreference } from "@/app/lib/analytics";
+import {
+  type ContainerWidth,
+  DEFAULT_CONTAINER_WIDTH,
+  isContainerWidth,
+} from "@/app/lib/containerWidth";
 
 import {
   type CodeFont,
@@ -39,6 +44,9 @@ function applyCodeLigatures(codeLigatures: boolean) {
 }
 
 type SettingsState = {
+  /** Shared width for page content and navigation. */
+  containerWidth: ContainerWidth;
+  setContainerWidth: (width: ContainerWidth) => void;
   /** Enable the workspace tab bar. When off, the app uses plain router navigation. */
   tabsEnabled: boolean;
   /** Allow privacy-friendly product analytics. */
@@ -62,64 +70,73 @@ type SettingsState = {
   setCodeLigatures: (codeLigatures: boolean) => void;
 };
 
-export const useSettingsStore = create<SettingsState>()(
-  persist(
-    (set) => ({
-      tabsEnabled: true,
-      analyticsEnabled: isAnalyticsEnabled(),
-      diffMode: "split",
-      uiFont: DEFAULT_UI_FONT,
-      codeFont: DEFAULT_CODE_FONT,
-      codeFontSize: DEFAULT_CODE_FONT_SIZE,
-      codeLigatures: DEFAULT_CODE_LIGATURES,
-      setTabsEnabled: (tabsEnabled) => set({ tabsEnabled }),
-      setAnalyticsEnabled: (analyticsEnabled) => {
-        setAnalyticsEnabledPreference(analyticsEnabled);
-        set({ analyticsEnabled });
+export const createSettingsStore = (storage?: StateStorage) =>
+  create<SettingsState>()(
+    persist(
+      (set) => ({
+        containerWidth: DEFAULT_CONTAINER_WIDTH,
+        setContainerWidth: (containerWidth) => set({ containerWidth }),
+        tabsEnabled: true,
+        analyticsEnabled: isAnalyticsEnabled(),
+        diffMode: "split",
+        uiFont: DEFAULT_UI_FONT,
+        codeFont: DEFAULT_CODE_FONT,
+        codeFontSize: DEFAULT_CODE_FONT_SIZE,
+        codeLigatures: DEFAULT_CODE_LIGATURES,
+        setTabsEnabled: (tabsEnabled) => set({ tabsEnabled }),
+        setAnalyticsEnabled: (analyticsEnabled) => {
+          setAnalyticsEnabledPreference(analyticsEnabled);
+          set({ analyticsEnabled });
+        },
+        setDiffMode: (diffMode) => set({ diffMode }),
+        setUiFont: (uiFont) => {
+          applyUiFont(uiFont);
+          set({ uiFont });
+        },
+        setCodeFont: (codeFont) => {
+          applyCodeFont(codeFont);
+          set({ codeFont });
+        },
+        setCodeFontSize: (codeFontSize) => {
+          applyCodeFontSize(codeFontSize);
+          set({ codeFontSize });
+        },
+        setCodeLigatures: (codeLigatures) => {
+          applyCodeLigatures(codeLigatures);
+          set({ codeLigatures });
+        },
+      }),
+      {
+        name: "githut.settings",
+        storage: createJSONStorage(() => storage ?? localStorage),
+        merge: (persistedState, currentState) => {
+          const persisted = (persistedState ?? {}) as Partial<SettingsState>;
+          return {
+            ...currentState,
+            ...persisted,
+            containerWidth: isContainerWidth(persisted.containerWidth)
+              ? persisted.containerWidth
+              : DEFAULT_CONTAINER_WIDTH,
+            uiFont: isUiFont(persisted.uiFont) ? persisted.uiFont : currentState.uiFont,
+            codeFont: isCodeFont(persisted.codeFont) ? persisted.codeFont : currentState.codeFont,
+            codeFontSize: isCodeFontSize(persisted.codeFontSize)
+              ? persisted.codeFontSize
+              : currentState.codeFontSize,
+            codeLigatures:
+              typeof persisted.codeLigatures === "boolean"
+                ? persisted.codeLigatures
+                : currentState.codeLigatures,
+          };
+        },
+        onRehydrateStorage: () => (state) => {
+          setAnalyticsEnabledPreference(state?.analyticsEnabled ?? true);
+          applyUiFont(state?.uiFont ?? DEFAULT_UI_FONT);
+          applyCodeFont(state?.codeFont ?? DEFAULT_CODE_FONT);
+          applyCodeFontSize(state?.codeFontSize ?? DEFAULT_CODE_FONT_SIZE);
+          applyCodeLigatures(state?.codeLigatures ?? DEFAULT_CODE_LIGATURES);
+        },
       },
-      setDiffMode: (diffMode) => set({ diffMode }),
-      setUiFont: (uiFont) => {
-        applyUiFont(uiFont);
-        set({ uiFont });
-      },
-      setCodeFont: (codeFont) => {
-        applyCodeFont(codeFont);
-        set({ codeFont });
-      },
-      setCodeFontSize: (codeFontSize) => {
-        applyCodeFontSize(codeFontSize);
-        set({ codeFontSize });
-      },
-      setCodeLigatures: (codeLigatures) => {
-        applyCodeLigatures(codeLigatures);
-        set({ codeLigatures });
-      },
-    }),
-    {
-      name: "githut.settings",
-      merge: (persistedState, currentState) => {
-        const persisted = (persistedState ?? {}) as Partial<SettingsState>;
-        return {
-          ...currentState,
-          ...persisted,
-          uiFont: isUiFont(persisted.uiFont) ? persisted.uiFont : currentState.uiFont,
-          codeFont: isCodeFont(persisted.codeFont) ? persisted.codeFont : currentState.codeFont,
-          codeFontSize: isCodeFontSize(persisted.codeFontSize)
-            ? persisted.codeFontSize
-            : currentState.codeFontSize,
-          codeLigatures:
-            typeof persisted.codeLigatures === "boolean"
-              ? persisted.codeLigatures
-              : currentState.codeLigatures,
-        };
-      },
-      onRehydrateStorage: () => (state) => {
-        setAnalyticsEnabledPreference(state?.analyticsEnabled ?? true);
-        applyUiFont(state?.uiFont ?? DEFAULT_UI_FONT);
-        applyCodeFont(state?.codeFont ?? DEFAULT_CODE_FONT);
-        applyCodeFontSize(state?.codeFontSize ?? DEFAULT_CODE_FONT_SIZE);
-        applyCodeLigatures(state?.codeLigatures ?? DEFAULT_CODE_LIGATURES);
-      },
-    },
-  ),
-);
+    ),
+  );
+
+export const useSettingsStore = createSettingsStore();

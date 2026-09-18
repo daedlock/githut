@@ -41,7 +41,7 @@ function CommitsPage() {
   useListNavigation(!commitsQuery.isPending && !commitsQuery.isError);
 
   return (
-    <Container size="lg" className="py-6">
+    <Container className="py-6">
       {/* Toolbar — sits on subtle surface */}
       <div className="mb-2 flex items-center justify-between gap-3 rounded-lg bg-muted px-2 py-1">
         <div className="flex items-center gap-3">

@@ -64,7 +64,7 @@ function PrDetailLayout() {
       </Container>
 
       {/* Sticky tabs bar */}
-      <div className="sticky top-10 z-10 border-b border-border bg-background">
+      <div className="sticky top-(--app-header-height) z-10 border-b border-border bg-background">
         <Container>
           <PrSubTabs
             owner={owner}

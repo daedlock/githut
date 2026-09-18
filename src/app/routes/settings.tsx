@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useId } from "react";
 import { CodeFontPicker } from "@/app/components/settings/CodeFontPicker";
+import { ContainerWidthPicker } from "@/app/components/settings/ContainerWidthPicker";
 import { ThemePicker } from "@/app/components/settings/ThemePicker";
 import { AppShell } from "@/app/components/shell/AppShell";
 import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
@@ -25,7 +26,7 @@ function SettingsPage() {
   return (
     <AppShell header={<UnifiedNav />}>
       <Container className="py-6 sm:py-8">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+        <div className="flex w-full min-w-0 flex-col gap-5">
           <header className="flex flex-col gap-1">
             <h1 className="font-sans text-title font-medium tracking-tight text-foreground">
               Settings
@@ -68,6 +69,7 @@ function WorkspaceTabsSection() {
   return (
     <section className="flex flex-col gap-3 rounded-lg bg-muted p-4">
       <h2 className="font-sans text-ui font-medium text-foreground">Workspace</h2>
+      <ContainerWidthPicker />
       <SettingsSwitchRow
         title="Workspace tabs"
         description="Open pages in tabs for quick switching between repos, issues, and PRs."

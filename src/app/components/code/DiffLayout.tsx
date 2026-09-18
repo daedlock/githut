@@ -1,6 +1,16 @@
 import { Columns2, PanelLeftClose, PanelLeftOpen, Rows2 } from "lucide-react";
-import { Fragment, memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  memo,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { type ChangedFile, ChangedFileTree } from "@/app/components/repo/ChangedFileTree";
+import { Container } from "@/app/components/ui/Container";
 import { cn } from "@/app/lib/cn";
 import { useSettingsStore } from "@/app/stores/settings";
 import { ChangeStatsBadge } from "./ChangeStatsBadge";
@@ -45,13 +55,11 @@ export type DiffLayoutProps = {
 // off-screen files so the scrollbar is roughly correct before paint.
 // Once painted, the browser remembers the actual size.
 
-const NAV_H = 40;
 const TOPBAR_H = 44;
-const STICKY_TOP = NAV_H + TOPBAR_H; // 84px — below both nav + diff bar
+const STICKY_TOP = `calc(var(--app-header-height, 40px) + ${TOPBAR_H}px)`;
 
 export function DiffLayout({
   files,
-  defaultMode = "split",
   initialSidebarOpen = true,
   className,
   owner,
@@ -71,6 +79,7 @@ export function DiffLayout({
   const activeFileNumber = activeFileIndex >= 0 ? activeFileIndex + 1 : files.length > 0 ? 1 : 0;
 
   const fileRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const layoutRef = useRef<HTMLDivElement>(null);
 
   const totals = useMemo(() => {
     let add = 0;
@@ -84,21 +93,42 @@ export function DiffLayout({
 
   // Scroll-spy via IntersectionObserver — no JS per scroll tick.
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .map((e) => ({
-            name: (e.target as HTMLElement).dataset.filename ?? "",
-            top: e.boundingClientRect.top,
-          }))
-          .sort((a, b) => a.top - b.top);
-        if (visible[0]) setActiveFile(visible[0].name);
-      },
-      { root: null, rootMargin: `-${TOPBAR_H + 40}px 0px -55% 0px`, threshold: [0, 0.25] },
-    );
-    for (const el of fileRefs.current.values()) observer.observe(el);
-    return () => observer.disconnect();
+    const layout = layoutRef.current;
+    if (!layout) return;
+    let observer: IntersectionObserver | undefined;
+    const observeFiles = () => {
+      observer?.disconnect();
+      const headerHeight =
+        Number.parseFloat(getComputedStyle(layout).getPropertyValue("--app-header-height")) || 40;
+      observer = new IntersectionObserver(
+        (entries) => {
+          const visible = entries
+            .filter((e) => e.isIntersecting)
+            .map((e) => ({
+              name: (e.target as HTMLElement).dataset.filename ?? "",
+              top: e.boundingClientRect.top,
+            }))
+            .sort((a, b) => a.top - b.top);
+          if (visible[0]) setActiveFile(visible[0].name);
+        },
+        {
+          root: null,
+          rootMargin: `-${TOPBAR_H + headerHeight}px 0px -55% 0px`,
+          threshold: [0, 0.25],
+        },
+      );
+      for (const file of files) {
+        const el = fileRefs.current.get(file.filename);
+        if (el) observer.observe(el);
+      }
+    };
+    observeFiles();
+    const breakpoint = window.matchMedia("(min-width: 48rem)");
+    breakpoint.addEventListener("change", observeFiles);
+    return () => {
+      observer?.disconnect();
+      breakpoint.removeEventListener("change", observeFiles);
+    };
   }, [files]);
 
   const scrollToFile = useCallback((filename: string) => {
@@ -134,117 +164,122 @@ export function DiffLayout({
   }, [files, activeFile, scrollToFile]);
 
   return (
-    <div className={cn("w-full bg-background", className)}>
-      <div
-        className="sticky top-10 z-30 flex items-center gap-3 border-b border-border bg-background px-3 sm:px-4"
-        style={{ height: TOPBAR_H }}
-      >
-        {/* Left: review bar or sidebar toggle + file stats */}
-        {reviewBar ?? (
-          <>
-            <button
-              type="button"
-              onClick={() => setSidebarOpen((v) => !v)}
-              className="inline-flex size-7 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15"
-              title={sidebarOpen ? "Hide file tree" : "Show file tree"}
-              aria-label={sidebarOpen ? "Hide file tree" : "Show file tree"}
-            >
-              {sidebarOpen ? (
-                <PanelLeftClose className="size-3.5" />
-              ) : (
-                <PanelLeftOpen className="size-3.5" />
-              )}
-            </button>
-            <div className="flex items-center gap-2 text-caption">
-              <span className="flex items-baseline gap-1.5">
-                <span className="tabular-nums font-medium text-foreground">{files.length}</span>
-                <span className="text-muted-foreground">files</span>
-              </span>
-              <ChangeStatsBadge additions={totals.add} deletions={totals.del} />
+    <Container className={cn("bg-background", className)}>
+      <div ref={layoutRef}>
+        <div
+          className="sticky top-(--app-header-height) z-30 flex items-center gap-3 overflow-x-auto border-b border-border bg-background"
+          style={{ height: TOPBAR_H }}
+        >
+          {/* Left: review bar or sidebar toggle + file stats */}
+          {reviewBar ? (
+            <div className="min-w-48 flex-1">{reviewBar}</div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen((v) => !v)}
+                className="inline-flex size-7 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15"
+                title={sidebarOpen ? "Hide file tree" : "Show file tree"}
+                aria-label={sidebarOpen ? "Hide file tree" : "Show file tree"}
+              >
+                {sidebarOpen ? (
+                  <PanelLeftClose className="size-3.5" />
+                ) : (
+                  <PanelLeftOpen className="size-3.5" />
+                )}
+              </button>
+              <div className="flex shrink-0 items-center gap-2 text-caption">
+                <span className="flex items-baseline gap-1.5">
+                  <span className="tabular-nums font-medium text-foreground">{files.length}</span>
+                  <span className="text-muted-foreground">files</span>
+                </span>
+                <ChangeStatsBadge additions={totals.add} deletions={totals.del} />
+              </div>
+            </>
+          )}
+
+          <div className="flex-1" />
+
+          {reviewBar && (
+            <div className="flex shrink-0 items-baseline gap-1 text-caption text-muted-foreground">
+              <span>File</span>
+              <span className="tabular-nums font-medium text-foreground">{activeFileNumber}</span>
+              <span>of</span>
+              <span className="tabular-nums font-medium text-foreground">{files.length}</span>
             </div>
-          </>
-        )}
+          )}
 
-        <div className="flex-1" />
+          {beforeModeSlot}
 
-        {reviewBar && (
-          <div className="flex shrink-0 items-baseline gap-1 text-caption text-muted-foreground">
-            <span>File</span>
-            <span className="tabular-nums font-medium text-foreground">{activeFileNumber}</span>
-            <span>of</span>
-            <span className="tabular-nums font-medium text-foreground">{files.length}</span>
+          <div className="flex shrink-0 items-center rounded-lg bg-muted p-0.5">
+            <ModeBtn
+              active={mode === "unified"}
+              onClick={() => setMode("unified")}
+              title="Unified view"
+            >
+              <Rows2 className="size-3" />
+              <span>Unified</span>
+            </ModeBtn>
+            <ModeBtn active={mode === "split"} onClick={() => setMode("split")} title="Split view">
+              <Columns2 className="size-3" />
+              <span>Split</span>
+            </ModeBtn>
           </div>
-        )}
 
-        {beforeModeSlot}
-
-        <div className="flex items-center rounded-lg bg-muted p-0.5">
-          <ModeBtn
-            active={mode === "unified"}
-            onClick={() => setMode("unified")}
-            title="Unified view"
-          >
-            <Rows2 className="size-3" />
-            <span>Unified</span>
-          </ModeBtn>
-          <ModeBtn active={mode === "split"} onClick={() => setMode("split")} title="Split view">
-            <Columns2 className="size-3" />
-            <span>Split</span>
-          </ModeBtn>
+          {reviewActions}
         </div>
 
-        {reviewActions}
-      </div>
+        <div
+          className="pointer-events-none sticky z-[4] -mb-5 h-5 bg-background"
+          style={{ top: STICKY_TOP }}
+          aria-hidden
+        />
 
-      <div
-        className="pointer-events-none sticky top-[84px] z-[4] -mb-5 h-5 bg-background"
-        aria-hidden
-      />
+        <div className="flex min-h-[calc(100dvh-44px)] w-full">
+          {sidebarOpen && (
+            <aside
+              className="sticky z-10 hidden w-[320px] flex-shrink-0 self-stretch overflow-y-auto lg:block"
+              style={{ top: STICKY_TOP, maxHeight: `calc(100dvh - ${STICKY_TOP})` }}
+            >
+              <ChangedFileTree files={files} activeFile={activeFile} onFileClick={scrollToFile} />
+            </aside>
+          )}
 
-      <div className="flex min-h-[calc(100dvh-44px)] w-full">
-        {sidebarOpen && (
-          <aside
-            className="sticky z-10 hidden w-[320px] flex-shrink-0 self-stretch overflow-y-auto lg:block"
-            style={{ top: STICKY_TOP, maxHeight: `calc(100dvh - ${STICKY_TOP}px)` }}
-          >
-            <ChangedFileTree files={files} activeFile={activeFile} onFileClick={scrollToFile} />
-          </aside>
-        )}
-
-        <DiffModeContext value={mode}>
-          <div className="min-w-0 flex-1 p-4">
-            <div className="flex flex-col">
-              {files.map((file, index) => (
-                <Fragment key={file.filename}>
-                  {index > 0 && <div className="h-5 shrink-0 bg-background" aria-hidden />}
-                  <div
-                    ref={(el) => {
-                      if (el) fileRefs.current.set(file.filename, el);
-                      else fileRefs.current.delete(file.filename);
-                    }}
-                    data-filename={file.filename}
-                    style={{
-                      contentVisibility: "auto",
-                      containIntrinsicBlockSize: "auto 40px",
-                      scrollMarginTop: TOPBAR_H,
-                    }}
-                  >
-                    <FileItem
-                      file={file}
-                      review={getReviewHooks?.(file.filename)}
-                      owner={owner}
-                      repo={repo}
-                      headRef={headRef}
-                      baseRef={baseRef}
-                    />
-                  </div>
-                </Fragment>
-              ))}
+          <DiffModeContext value={mode}>
+            <div className="min-w-0 flex-1 p-4">
+              <div className="flex flex-col">
+                {files.map((file, index) => (
+                  <Fragment key={file.filename}>
+                    {index > 0 && <div className="h-5 shrink-0 bg-background" aria-hidden />}
+                    <div
+                      ref={(el) => {
+                        if (el) fileRefs.current.set(file.filename, el);
+                        else fileRefs.current.delete(file.filename);
+                      }}
+                      data-filename={file.filename}
+                      style={{
+                        contentVisibility: "auto",
+                        containIntrinsicBlockSize: "auto 40px",
+                        scrollMarginTop: STICKY_TOP,
+                      }}
+                    >
+                      <FileItem
+                        file={file}
+                        review={getReviewHooks?.(file.filename)}
+                        owner={owner}
+                        repo={repo}
+                        headRef={headRef}
+                        baseRef={baseRef}
+                      />
+                    </div>
+                  </Fragment>
+                ))}
+              </div>
             </div>
-          </div>
-        </DiffModeContext>
+          </DiffModeContext>
+        </div>
       </div>
-    </div>
+    </Container>
   );
 }
 
@@ -297,6 +332,7 @@ function ModeBtn({
       type="button"
       onClick={onClick}
       title={title}
+      aria-label={title}
       className={cn(
         "inline-flex h-6 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium",
         "outline-none transition-colors",
