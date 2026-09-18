@@ -8,8 +8,9 @@ import { Breadcrumb, FileList } from "@/app/components/repo/FileList";
 import { ReadmeViewer } from "@/app/components/repo/ReadmeViewer";
 import { RepoAbout } from "@/app/components/repo/RepoAbout";
 import { StarButton } from "@/app/components/repo/StarButton";
+import { StatusMessage } from "@/app/components/StatusMessage";
 import { Container } from "@/app/components/ui/Container";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { usePathCommit } from "@/app/hooks/usePathCommit";
 import { repoQueryOptions, useRepo } from "@/app/hooks/useRepo";
 import { repoBranchesQueryOptions, useRepoBranches } from "@/app/hooks/useRepoBranches";
@@ -91,7 +92,8 @@ function CodePage() {
   const activeLineRange = parseLineHash(hash);
   const navigate = Route.useNavigate();
 
-  const { data: repoData } = useRepo(owner, repo);
+  const repoQuery = useRepo(owner, repo);
+  const repoData = repoQuery.data;
   const branchesQuery = useRepoBranches(owner, repo);
   const defaultBranch = repoData?.default_branch;
   const branch = searchBranch ?? defaultBranch;
@@ -99,7 +101,7 @@ function CodePage() {
   const branchReady = !!searchBranch || !!defaultBranch;
   const isBlob = view === "blob";
 
-  const { data: contents, isPending: contentsPending } = useRepoContents(
+  const { data: contents, isPending: contentsPending, isError: contentsError } = useRepoContents(
     owner,
     repo,
     path,
@@ -109,7 +111,7 @@ function CodePage() {
   const { data: commit, isPending: commitPending } = usePathCommit(owner, repo, path, dataRef, {
     enabled: branchReady && !isBlob,
   });
-  const { data: readme } = useRepoReadme(owner, repo, dataRef, {
+  const { data: readme, isPending: readmePending } = useRepoReadme(owner, repo, dataRef, {
     enabled: branchReady && !isBlob && !path,
   });
   const { data: languages, isPending: languagesPending } = useRepoLanguages(owner, repo);
@@ -117,7 +119,7 @@ function CodePage() {
   const { data: contributors, isPending: contributorsPending } = useRepoContributors(owner, repo);
 
   // blob view
-  const { data: fileData, isPending: filePending } = useRepoFile(owner, repo, path, dataRef, {
+  const { data: fileData, isPending: filePending, isError: fileError } = useRepoFile(owner, repo, path, dataRef, {
     enabled: branchReady && isBlob && !!path,
   });
 
@@ -158,14 +160,22 @@ function CodePage() {
 
   const showSidebar = !isBlob || !path;
 
+  if (repoQuery.isError && !repoData) {
+    return (
+      <Container className="py-6">
+        <StatusMessage tone="danger">Could not load this repository.</StatusMessage>
+      </Container>
+    );
+  }
+
   return (
     <Container className="py-6">
       <h1 className="sr-only">
         Code for {owner}/{repo}
       </h1>
-      <div className="flex gap-6 items-start">
+      <div className="flex flex-col gap-6 items-start lg:flex-row">
         {/* main column */}
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <div className="flex w-full min-w-0 flex-1 flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
             <Breadcrumb repo={repo} path={path} branch={branch ?? ""} onNavigate={navigateToPath} />
             <div className="flex flex-shrink-0 items-center gap-2">
@@ -196,9 +206,11 @@ function CodePage() {
             </div>
           </div>
           {isBlob && path ? (
-            filePending || !fileData ? (
+            fileError && !fileData ? (
+              <StatusMessage tone="danger">Could not load this file.</StatusMessage>
+            ) : filePending ? (
               <BlobSkeleton />
-            ) : (
+            ) : fileData ? (
               <BlobViewer
                 file={fileData}
                 owner={owner}
@@ -216,20 +228,32 @@ function CodePage() {
                   });
                 }}
               />
-            )
+            ) : <StatusMessage tone="danger">This file is not available.</StatusMessage>
           ) : (
             <>
-              <FileList
-                owner={owner}
-                repo={repo}
-                refName={dataRef}
-                entries={contents}
-                isPending={contentsPending}
-                path={path}
-                commit={commit}
-                commitPending={commitPending}
-                onNavigate={navigateToEntry}
-              />
+              {contentsError && !contents ? (
+                <StatusMessage tone="danger">Could not load this directory.</StatusMessage>
+              ) : (
+                <FileList
+                  owner={owner}
+                  repo={repo}
+                  refName={dataRef}
+                  entries={contents}
+                  isPending={contentsPending}
+                  path={path}
+                  commit={commit}
+                  commitPending={commitPending}
+                  onNavigate={navigateToEntry}
+                />
+              )}
+              {!path && readmePending && (
+                <SkeletonGroup label="Loading README" className="space-y-3 rounded-md border border-border p-5">
+                  <Skeleton className="mb-5 h-6 w-48" />
+                  {[80, 100, 72, 60].map((width) => (
+                    <Skeleton key={width} className="h-4" style={{ width: `${width}%` }} />
+                  ))}
+                </SkeletonGroup>
+              )}
               {!path && readme && (
                 <ReadmeViewer readme={readme} owner={owner} repo={repo} ref={branch} />
               )}
@@ -241,7 +265,7 @@ function CodePage() {
             (24px) so the sidebar parks the same gap below the navbar
             that the buttons originally have above the file list. */}
         {showSidebar && (
-          <div className="w-64 flex-shrink-0 sticky top-[64px] flex flex-col gap-3">
+          <div className="w-full shrink-0 flex flex-col gap-3 lg:sticky lg:top-[calc(var(--app-header-height)+24px)] lg:w-64">
             <div className="flex items-center justify-end gap-2">
               <StarButton owner={owner} repo={repo} starCount={repoData?.stargazers_count} />
               <CloneDropdown owner={owner} repo={repo} branch={branch} />
@@ -264,13 +288,13 @@ function CodePage() {
 
 function BlobSkeleton() {
   return (
-    <div className="rounded-md border border-border overflow-hidden">
+    <SkeletonGroup label="Loading file" className="rounded-md border border-border overflow-hidden">
       <div className="h-10 bg-muted border-b border-border" />
       <div className="skeleton-fade p-4 flex flex-col gap-2">
         {BLOB_SKELETON_WIDTHS.map((width) => (
           <Skeleton key={width} className="h-4" style={{ width }} />
         ))}
       </div>
-    </div>
+    </SkeletonGroup>
   );
 }

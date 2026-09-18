@@ -385,7 +385,7 @@ export function ComposeBox({
       ref={containerRef}
       onFocusCapture={handleFocusCapture}
       className={cn(
-        "group/compose flex flex-col rounded-lg border transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
+        "group/compose @container/compose flex min-w-0 flex-col rounded-lg border transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
         focused
           ? "border-[var(--color-border-strong)] ring-1 ring-[var(--color-focus)]/20"
           : "border-[var(--color-border)] hover:border-[var(--color-border-strong)]",
@@ -393,7 +393,7 @@ export function ComposeBox({
       )}
     >
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
-      <div className="flex items-center px-1 py-0.5">
+      <div className="flex flex-wrap items-center px-1 py-0.5">
         <div className="relative flex">
           <TabPill active={mode === "write"} onClick={() => setMode("write")}>
             <Pencil className="size-3" />
@@ -434,7 +434,7 @@ export function ComposeBox({
             className="hidden"
             onChange={handleFileSelect}
           />
-          <span className="select-none font-mono text-micro text-[var(--color-fg-faint)]">
+          <span className="hidden select-none font-mono text-micro text-[var(--color-fg-faint)] @min-[24rem]/compose:inline">
             @ mention &middot; # reference
           </span>
         </div>
@@ -522,12 +522,12 @@ export function ComposeBox({
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
       {onSubmit && (
-        <div className="flex items-center justify-between border-t border-[var(--color-border)] px-3 py-2">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--color-border)] px-3 py-2">
 
-          <span className="font-mono text-micro text-[var(--color-fg-faint)] select-none">
+          <span className="mr-auto hidden font-mono text-micro text-[var(--color-fg-faint)] select-none @min-[24rem]/compose:inline">
             {navigator.platform?.includes("Mac") ? "⌘" : "Ctrl"}+Enter to submit
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {onCancel && (
               <button
                 type="button"

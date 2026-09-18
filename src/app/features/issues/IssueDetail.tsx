@@ -4,8 +4,11 @@ import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
+import { CommentSkeleton } from "@/app/components/ui/CommentSkeleton";
 import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import { Container } from "@/app/components/ui/Container";
+import { MetadataSkeleton } from "@/app/components/ui/MetadataSkeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { IssueCommentCard } from "@/app/features/issues/components/CommentCard";
 import { IssueSidebar } from "@/app/features/issues/components/IssueSidebar";
@@ -130,7 +133,7 @@ export function IssueDetail({
       </div>
 
       {isLoading ? (
-        <StatusMessage>Loading issue…</StatusMessage>
+        <IssueDetailSkeleton />
       ) : isError ? (
         <StatusMessage tone="danger">Could not load this issue.</StatusMessage>
       ) : !issue ? (
@@ -193,7 +196,7 @@ export function IssueDetail({
               </IssueCommentCard>
 
               {commentsLoading ? (
-                <StatusMessage>Loading comments…</StatusMessage>
+                <CommentSkeleton label="Loading comments" />
               ) : commentsError ? (
                 <StatusMessage tone="danger">Could not load comments.</StatusMessage>
               ) : (
@@ -236,7 +239,7 @@ export function IssueDetail({
 
             {/* Sidebar */}
             <aside className="w-full lg:w-[328px] lg:flex-shrink-0 self-stretch">
-              <div className="sticky top-14">
+              <div className="sticky top-[calc(var(--app-header-height)+16px)]">
                 <IssueSidebar owner={owner} repo={repo} issue={issue} />
               </div>
             </aside>
@@ -244,6 +247,29 @@ export function IssueDetail({
         </>
       )}
     </Container>
+  );
+}
+
+function IssueDetailSkeleton() {
+  return (
+    <div>
+      <SkeletonGroup label="Loading issue" className="mb-5 space-y-3">
+        <Skeleton className="h-7 w-3/4" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+      </SkeletonGroup>
+      <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
+        <div className="min-w-0 flex-1 space-y-3">
+          <CommentSkeleton label="Loading issue description" />
+          <CommentSkeleton label="Loading comments" />
+        </div>
+        <div className="w-full lg:w-[328px] lg:shrink-0">
+          <MetadataSkeleton />
+        </div>
+      </div>
+    </div>
   );
 }
 

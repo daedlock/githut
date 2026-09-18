@@ -10,7 +10,7 @@ import {
   TagIcon,
 } from "@primer/octicons-react";
 import { type ComponentType, useMemo, useState } from "react";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { cn } from "@/app/lib/cn";
 import type { GitHubEvent } from "../schemas";
 
@@ -212,10 +212,10 @@ function ActiveLine({ cell, pinned }: { cell: DayCell; pinned: boolean }) {
 
 function ActivitySkeleton() {
   return (
-    <div className="flex flex-col gap-2.5">
+    <SkeletonGroup label="Loading activity" className="flex flex-col gap-2.5">
       <Skeleton className="aspect-[30/1] w-full rounded-md" />
       <Skeleton className="h-3 w-3/5" />
-    </div>
+    </SkeletonGroup>
   );
 }
 

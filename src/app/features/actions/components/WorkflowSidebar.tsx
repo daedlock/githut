@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import type { Workflow } from "@/app/features/actions/schemas";
 import { cn } from "@/app/lib/cn";
 
@@ -130,10 +130,10 @@ function WorkflowRow({
 function SidebarSkeleton() {
   const widths = [62, 78, 54, 72, 68];
   return (
-    <div className="flex flex-col gap-2 py-2 pl-2">
+    <SkeletonGroup label="Loading workflows" className="flex flex-col gap-2 py-2 pl-2">
       {widths.map((w) => (
         <Skeleton key={w} className="h-3" style={{ width: `${w}%` }} />
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }

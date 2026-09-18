@@ -5,7 +5,7 @@ import { AppShell } from "@/app/components/shell/AppShell";
 import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Container } from "@/app/components/ui/Container";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/app/components/ui/toggle-group";
 import { DashboardSidebar } from "@/app/features/dashboard/components/DashboardSidebar";
 import { DashRow } from "@/app/features/dashboard/components/DashRow";
@@ -373,7 +373,7 @@ function githubAvatar(login: string): string {
 function RowsSkeleton() {
   const widths = [76, 58, 84, 50, 70, 64, 78];
   return (
-    <div className="skeleton-fade flex flex-col">
+    <SkeletonGroup label="Loading dashboard activity" className="skeleton-fade flex flex-col">
       {widths.map((w) => (
         <div key={w} className="flex items-center gap-3 px-3 py-2">
           <Skeleton className="size-1.5 shrink-0 rounded-full" />
@@ -383,7 +383,7 @@ function RowsSkeleton() {
           <Skeleton className="h-3 w-8" />
         </div>
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }
 

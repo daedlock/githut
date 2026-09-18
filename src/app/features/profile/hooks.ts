@@ -192,11 +192,11 @@ export function useProfile(login: string) {
 }
 
 /** Fetch repositories for a user or org profile page. */
-export function useProfileRepos(login: string, isOrg: boolean) {
+export function useProfileRepos(login: string, isOrg: boolean | undefined) {
   const token = useAuthStore((s) => s.token);
   return useQuery({
-    ...profileReposQueryOptions(login, isOrg),
-    enabled: !!token && !!login,
+    ...profileReposQueryOptions(login, !!isOrg),
+    enabled: !!token && !!login && isOrg !== undefined,
   });
 }
 

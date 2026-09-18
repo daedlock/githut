@@ -1,0 +1,27 @@
+name: UI regressions
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  browser:
+    name: Loading and review layouts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - run: bunx tsc --noEmit
+      - run: bun test
+      - run: bun run test:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: loading-layout-screenshots
+          path: test-results/loading-layouts
+          if-no-files-found: ignore

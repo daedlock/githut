@@ -1,7 +1,7 @@
 import { PeopleIcon, StarIcon } from "@primer/octicons-react";
 import { type ReactNode, useMemo } from "react";
 import { Card } from "@/app/components/ui/card";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import type { RepoSummary } from "@/shared/types";
 import type { GitHubProfile } from "../schemas";
 
@@ -148,7 +148,7 @@ function Tile({
 
 function BentoSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+    <SkeletonGroup label="Loading profile statistics" className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
       {[0, 1, 2, 3].map((i) => (
         <Card key={i} variant="muted" className="flex flex-col gap-2 px-4 py-3.5">
           <Skeleton className="h-3 w-24" />
@@ -156,7 +156,7 @@ function BentoSkeleton() {
           <Skeleton className="h-3 w-20" />
         </Card>
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }
 

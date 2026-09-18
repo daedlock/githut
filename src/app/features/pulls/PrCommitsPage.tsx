@@ -2,9 +2,9 @@ import { Link } from "@tanstack/react-router";
 import { AlertCircle, GitCommit } from "lucide-react";
 import { useState } from "react";
 import { ShaChip } from "@/app/components/ui/ShaChip";
-import { Skeleton } from "@/app/components/ui/skeleton";
-import { usePrCommits } from "@/app/features/pulls/hooks";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import type { PrCommit } from "@/app/features/pulls/hooks";
+import { usePrCommits } from "@/app/features/pulls/hooks";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 
@@ -140,7 +140,7 @@ function splitMessage(message: string): { title: string; body: string } {
 
 function CommitsSkeleton() {
   return (
-    <div className="skeleton-fade flex flex-col gap-1">
+    <SkeletonGroup label="Loading commits" className="skeleton-fade flex flex-col gap-1">
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex items-start gap-3 px-3 py-2.5">
           <div className="min-w-0 flex-1 flex flex-col gap-1.5">
@@ -150,6 +150,6 @@ function CommitsSkeleton() {
           <Skeleton className="h-5 w-16" />
         </div>
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }

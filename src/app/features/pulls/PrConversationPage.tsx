@@ -3,7 +3,8 @@ import { useMemo } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { CommentCardDisplay, CommentComposeCard } from "@/app/components/ui/CommentCard";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { CommentSkeleton } from "@/app/components/ui/CommentSkeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import type { ReactionContent } from "@/app/features/issues/schemas";
 import { PrMergeBox } from "@/app/features/pulls/components/PrMergeBox";
 import { PrCommitGroupRow, PrTimelineRow } from "@/app/features/pulls/components/PrTimelineRow";
@@ -387,30 +388,22 @@ function TimelineMarker(props: TimelineMarkerProps) {
 
 function ConversationSkeleton() {
   return (
-    <div className="skeleton-fade flex flex-col gap-3">
-      {[80, 64, 72].map((w) => (
-        <div key={w} className="rounded-lg bg-muted p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Skeleton className="size-6 rounded-full" />
-            <Skeleton className="h-3 w-32" />
-          </div>
-          <Skeleton className="h-3" style={{ width: `${w}%` }} />
-          <Skeleton className="mt-2 h-3 w-5/6" />
-        </div>
-      ))}
+    <div className="space-y-4">
+      <CommentSkeleton label="Loading pull request description" />
+      <CommentSkeleton label="Loading conversation" />
     </div>
   );
 }
 
 function FeedSkeleton() {
   return (
-    <div className="skeleton-fade flex flex-col gap-3">
+    <SkeletonGroup label="Loading conversation" className="skeleton-fade flex flex-col gap-3">
       {[60, 45].map((w) => (
         <div key={w} className="flex items-center gap-2 pl-2">
           <Skeleton className="size-3.5 rounded-full" />
           <Skeleton className="h-3" style={{ width: `${w}%` }} />
         </div>
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }

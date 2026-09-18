@@ -1,7 +1,7 @@
 import { UnfoldVertical } from "lucide-react";
 import { createContext, Fragment, memo, type ReactNode, useContext, useMemo, useState } from "react";
 import { Button } from "@/app/components/ui/button";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { useRepoFile } from "@/app/hooks/useRepoFile";
 import { cn } from "@/app/lib/cn";
 import { countChanges, type DiffHunk, type DiffLine, parseUnifiedDiff } from "./parseDiff";
@@ -1090,7 +1090,7 @@ function plainTokens(content: string): CodeLineWithHtml {
 
 function DiffSkeleton() {
   return (
-    <div className="overflow-hidden rounded-md border border-border bg-muted">
+    <SkeletonGroup label="Loading diff" className="overflow-hidden rounded-md border border-border bg-muted">
       <div className="border-b border-border bg-muted px-3 py-1.5">
         <Skeleton className="h-3 w-48" />
       </div>
@@ -1099,6 +1099,6 @@ function DiffSkeleton() {
           <Skeleton key={i} className="h-4" style={{ width: `${50 + ((i * 17) % 40)}%` }} />
         ))}
       </div>
-    </div>
+    </SkeletonGroup>
   );
 }

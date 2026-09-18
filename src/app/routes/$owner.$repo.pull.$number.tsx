@@ -1,7 +1,8 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { AlertCircle } from "lucide-react";
 import { Container } from "@/app/components/ui/Container";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { MetadataSkeleton } from "@/app/components/ui/MetadataSkeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { PrActions } from "@/app/features/pulls/components/PrActions";
 import { PrHeader } from "@/app/features/pulls/components/PrHeader";
 import { PrSidebar } from "@/app/features/pulls/components/PrSidebar";
@@ -30,15 +31,7 @@ function PrDetailLayout() {
   // Only show skeleton on initial load (no data yet)
   const isLoading = prQuery.isPending && !prQuery.data;
 
-  if (isLoading) {
-    return (
-      <Container className="py-5 sm:py-6">
-        <PrHeaderSkeleton />
-      </Container>
-    );
-  }
-
-  if (prQuery.isError || !pr) {
+  if (!Number.isSafeInteger(number) || number <= 0 || (!isLoading && !pr)) {
     return (
       <Container className="py-10">
         <div className="flex flex-col items-center gap-2 text-center">
@@ -55,12 +48,14 @@ function PrDetailLayout() {
     <>
       {/* Header */}
       <Container className="pt-5 sm:pt-6 pb-4">
-        <PrHeader
-          owner={owner}
-          repo={repo}
-          pr={pr}
-          actionsSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
-        />
+        {pr ? (
+          <PrHeader
+            owner={owner}
+            repo={repo}
+            pr={pr}
+            actionsSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
+          />
+        ) : <PrHeaderSkeleton />}
       </Container>
 
       {/* Sticky tabs bar */}
@@ -71,11 +66,11 @@ function PrDetailLayout() {
             repo={repo}
             number={number}
             counts={{
-              conversation: pr.comments + pr.review_comments,
-              commits: pr.commits,
-              files: pr.changed_files,
+              conversation: pr ? pr.comments + pr.review_comments : undefined,
+              commits: pr?.commits,
+              files: pr?.changed_files,
             }}
-            changeStats={{ additions: pr.additions, deletions: pr.deletions }}
+            changeStats={pr ? { additions: pr.additions, deletions: pr.deletions } : undefined}
           />
         </Container>
       </div>
@@ -91,7 +86,9 @@ function PrDetailLayout() {
           {/* Sticky sidebar */}
           <aside className="hidden lg:block w-[328px] flex-shrink-0">
             <div className="sticky top-24">
-              <PrSidebar owner={owner} repo={repo} pr={pr} reviews={reviews} />
+              {pr ? (
+                <PrSidebar owner={owner} repo={repo} pr={pr} reviews={reviews} />
+              ) : <MetadataSkeleton />}
             </div>
           </aside>
         </div>
@@ -102,7 +99,7 @@ function PrDetailLayout() {
 
 function PrHeaderSkeleton() {
   return (
-    <div className="skeleton-fade">
+    <SkeletonGroup label="Loading pull request" className="skeleton-fade">
       <Skeleton className="mb-4 h-4 w-28" />
       <Skeleton className="mb-3 h-7 w-3/4" />
       <div className="mb-2 flex items-center gap-2">
@@ -110,6 +107,6 @@ function PrHeaderSkeleton() {
         <Skeleton className="h-4 w-60" />
       </div>
       <Skeleton className="h-3 w-48" />
-    </div>
+    </SkeletonGroup>
   );
 }

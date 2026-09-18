@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { type DiffMode, DiffView } from "@/app/components/code/DiffView";
-import { useSettingsStore } from "@/app/stores/settings";
 import { FileContextPanel } from "@/app/components/code/FileDiff";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
@@ -24,12 +23,13 @@ import {
   DialogTitle,
 } from "@/app/components/ui/dialog";
 import { ShaChip } from "@/app/components/ui/ShaChip";
-import { Skeleton } from "@/app/components/ui/skeleton";
-import type { CommitSummary } from "@/app/hooks/useRepoCommits";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { useFileHistorySession } from "@/app/hooks/useFileHistorySession";
+import type { CommitSummary } from "@/app/hooks/useRepoCommits";
 import { cn } from "@/app/lib/cn";
 import { detectLang } from "@/app/lib/detectLang";
 import { formatRelativeTime } from "@/app/lib/time";
+import { useSettingsStore } from "@/app/stores/settings";
 
 const RAIL_PAGE_TRIGGER_MARGIN = 240;
 
@@ -698,7 +698,7 @@ const SKELETON_WIDTHS = [
 
 function DiffSkeleton() {
   return (
-    <div className="flex flex-col">
+    <SkeletonGroup label="Loading diff" className="flex flex-col">
       <div className="flex h-8 items-center gap-2 border-b border-border bg-[var(--color-bg-sunken)] px-3">
         <Skeleton className="h-3.5 w-40" />
       </div>
@@ -707,7 +707,7 @@ function DiffSkeleton() {
           <Skeleton key={w} className="h-4" style={{ width: w }} />
         ))}
       </div>
-    </div>
+    </SkeletonGroup>
   );
 }
 

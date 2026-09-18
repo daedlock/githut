@@ -7,10 +7,11 @@ import {
   type DiffLayoutFile,
   type FileStatus,
 } from "@/app/components/code";
+import { DiffLayoutSkeleton } from "@/app/components/code/DiffLayoutSkeleton";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Container } from "@/app/components/ui/Container";
 import { ShaChip } from "@/app/components/ui/ShaChip";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { type CommitFile, repoCommitQueryOptions, useRepoCommit } from "@/app/hooks/useRepoCommit";
 import { cn } from "@/app/lib/cn";
@@ -51,6 +52,13 @@ function CommitDetailPage() {
           <div className="border-b border-border px-4 py-4 lg:border-r lg:border-b-0">
             <CommitBackLink owner={owner} repo={repo} />
             {commit ? <CommitManifest commit={commit} owner={owner} repo={repo} /> : null}
+            {isPending && (
+              <div className="mt-4 space-y-3">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-48" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            )}
           </div>
 
           <div className="min-w-0 px-5 py-5 lg:px-7 lg:py-6">
@@ -67,6 +75,8 @@ function CommitDetailPage() {
           </div>
         </Container>
       </header>
+
+      {isPending && <DiffLayoutSkeleton />}
 
       {commit && diffFiles.length > 0 && (
         <DiffLayout
@@ -264,13 +274,13 @@ function normalizeStatus(status: CommitFile["status"]): FileStatus {
 
 function CommitHeaderSkeleton() {
   return (
-    <div className="flex flex-col gap-2">
+    <SkeletonGroup label="Loading commit" className="flex flex-col gap-2">
       <Skeleton className="h-5 w-2/3" />
       <div className="flex items-center gap-3">
         <Skeleton className="size-4 rounded-full" />
         <Skeleton className="h-3.5 w-48" />
       </div>
-    </div>
+    </SkeletonGroup>
   );
 }
 
