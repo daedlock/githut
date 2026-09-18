@@ -205,7 +205,7 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
   );
 
   return (
-    <Container size="lg" className="py-6">
+    <Container className="py-6">
       <h1 className="sr-only">Pull requests</h1>
       <div className="mb-2 flex flex-col gap-2">
         {/* Toolbar — raised surface */}

@@ -8,6 +8,7 @@ import {
   type FileStatus,
 } from "@/app/components/code";
 import { StatusMessage } from "@/app/components/StatusMessage";
+import { Container } from "@/app/components/ui/Container";
 import { ShaChip } from "@/app/components/ui/ShaChip";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
@@ -46,7 +47,7 @@ function CommitDetailPage() {
   return (
     <div className="flex w-full flex-col">
       <header className="w-full border-b border-border bg-[var(--color-bg-subtle)]/35">
-        <div className="grid lg:grid-cols-[320px_minmax(0,1fr)]">
+        <Container className="grid lg:grid-cols-[320px_minmax(0,1fr)]">
           <div className="border-b border-border px-4 py-4 lg:border-r lg:border-b-0">
             <CommitBackLink owner={owner} repo={repo} />
             {commit ? <CommitManifest commit={commit} owner={owner} repo={repo} /> : null}
@@ -64,7 +65,7 @@ function CommitDetailPage() {
               <CommitHeader commit={commit} />
             )}
           </div>
-        </div>
+        </Container>
       </header>
 
       {commit && diffFiles.length > 0 && (

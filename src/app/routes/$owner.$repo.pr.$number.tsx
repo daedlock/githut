@@ -359,7 +359,7 @@ function ReviewBarLeft({
       {pr && uiState && (
         <>
           <PrStatePill state={uiState} size="sm" />
-          <h1 className="min-w-0 truncate text-ui font-normal text-foreground">
+          <h1 className="min-w-0 truncate text-ui font-normal text-foreground" title={`${pr.title} #${number}`}>
             {pr.title}
             <span className="ml-1.5 text-muted-foreground">#{number}</span>
           </h1>

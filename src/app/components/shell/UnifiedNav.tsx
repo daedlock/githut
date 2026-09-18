@@ -10,6 +10,13 @@ import { Search } from "lucide-react";
 import { useMemo } from "react";
 import { UserMenu } from "@/app/components/shell/UserMenu";
 import { Avatar } from "@/app/components/ui/avatar";
+import { Container } from "@/app/components/ui/Container";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/app/components/ui/tooltip";
 import { useMe } from "@/app/hooks/useMe";
 import { logout, manageGitHubAccess } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
@@ -20,8 +27,7 @@ import { hrefToTabId, useTabsStore } from "@/app/stores/tabs";
 
 // ─── UnifiedNav ────────────────────────────────────────────────────────────
 //
-// One bar to rule them all. A single row carries repo identity, section tabs,
-// search, and account controls without stacked sticky chrome.
+// A compact row on desktop; repository sections get their own row on mobile.
 //
 // Layout:
 //   [logo] [owner avatar] [owner / repo] │ Code Commits PRs Issues Actions  ──  [⌘K] [avatar]
@@ -31,7 +37,7 @@ import { hrefToTabId, useTabsStore } from "@/app/stores/tabs";
 //   • Logo always returns to the dashboard
 //   • Mono font for paths — matches GitHub's technical feel
 //   • Underline-on-active tabs — same 2px primary indicator
-//   • Full-width — no Container constraint (content below can Container itself)
+//   • Shared Container bounds keep navigation aligned with page content
 
 type RepoContext = {
   owner: string;
@@ -43,28 +49,29 @@ export function UnifiedNav({ repoContext }: { repoContext?: RepoContext }) {
   const { open: openPalette } = useCommandPalette();
 
   return (
-    <header className="flex h-10 min-h-10 w-full shrink-0 items-center overflow-hidden border-b border-border bg-background px-2 sm:px-3">
-      <LogoLink />
+    <header className="h-(--app-header-height) w-full shrink-0 border-b border-border bg-background">
+      <TooltipProvider delayDuration={300}>
+        <Container className="flex min-h-10 flex-wrap items-center md:flex-nowrap">
+          <LogoLink />
 
-      {/* Left: repo identity + section tabs (when in repo context) */}
-      {repoContext && <RepoSection owner={repoContext.owner} repo={repoContext.repo} />}
+          {/* Left: repo identity + section tabs (when in repo context) */}
+          {repoContext && <RepoSection owner={repoContext.owner} repo={repoContext.repo} />}
 
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Right: search + profile */}
-      <div className="flex items-center gap-2">
-        <SearchTrigger onClick={openPalette} />
-        {me && (
-          <UserMenu
-            login={me.login}
-            avatarUrl={me.avatar_url}
-            onSignOut={logout}
-            onReAuth={manageGitHubAccess}
-            variant="compact"
-          />
-        )}
-      </div>
+          {/* Right: search + profile */}
+          <div className="order-2 ml-auto flex h-10 shrink-0 items-center gap-2 pl-2 md:order-3">
+            <SearchTrigger onClick={openPalette} />
+            {me && (
+              <UserMenu
+                login={me.login}
+                avatarUrl={me.avatar_url}
+                onSignOut={logout}
+                onReAuth={manageGitHubAccess}
+                variant="compact"
+              />
+            )}
+          </div>
+        </Container>
+      </TooltipProvider>
     </header>
   );
 }
@@ -141,12 +148,13 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
   }
 
   return (
-    <div className="flex h-full min-w-0 items-stretch gap-1">
+    <>
       {/* Avatar + owner/repo */}
-      <div className="flex min-w-0 items-center gap-1.5 rounded-md px-1">
+      <div className="order-1 flex h-10 min-w-0 flex-1 items-center gap-1.5 md:max-w-72 md:flex-initial">
         <Link
           to="/$username"
           params={{ username: owner }}
+          aria-label={`${owner}'s profile`}
           className="shrink-0 rounded-full outline-none transition-opacity hover:opacity-80 focus-visible:ring-1 focus-visible:ring-(--color-focus)"
         >
           <Avatar
@@ -156,28 +164,58 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
             className="opacity-85"
           />
         </Link>
-        <div className="flex min-w-0 items-baseline gap-1 font-mono text-ui">
-          <Link
-            to="/$username"
-            params={{ username: owner }}
-            className="min-w-0 max-w-28 truncate text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none"
-          >
-            {owner}
-          </Link>
-          <span className="text-[var(--color-fg-faint)]">/</span>
-          <Link
-            to="/$owner/$repo/code"
-            params={{ owner, repo }}
-            className="min-w-0 max-w-40 truncate font-medium text-foreground underline-offset-2 hover:underline focus-visible:outline-none"
-          >
-            {repo}
-          </Link>
+        <div className="flex min-w-0 flex-1 items-baseline gap-1 font-mono text-ui">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                to="/$username"
+                params={{ username: owner }}
+                className="min-w-0 max-w-[45%] shrink truncate rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-(--color-focus)"
+              >
+                {owner}
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              align="start"
+              sideOffset={8}
+              className="break-all font-mono"
+            >
+              {owner}
+            </TooltipContent>
+          </Tooltip>
+          <span className="shrink-0 text-[var(--color-fg-faint)]">/</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                to="/$owner/$repo/code"
+                params={{ owner, repo }}
+                className="min-w-0 truncate rounded-sm font-medium text-foreground underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-(--color-focus)"
+              >
+                {repo}
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              align="start"
+              sideOffset={8}
+              className="break-all font-mono"
+            >
+              {repo}
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
-      <span aria-hidden className="mx-2 my-auto h-4 w-px shrink-0 bg-border" />
+      <span
+        aria-hidden
+        className="order-1 mx-2 my-auto hidden h-4 w-px shrink-0 bg-border md:block"
+      />
 
-      <nav className="flex items-stretch gap-0" aria-label="Repository sections">
+      <nav
+        className="order-3 flex h-10 w-full min-w-0 items-stretch overflow-x-auto md:order-2 md:w-auto md:shrink-0"
+        aria-label="Repository sections"
+      >
         {tabs.map((tab) => {
           const isActive = tab.href === activeHref;
           const Icon = tab.icon;
@@ -187,14 +225,14 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
               type="button"
               onClick={() => handleTabClick(tab.href)}
               className={cn(
-                "group relative flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-ui",
+                "group relative flex flex-1 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 text-ui md:flex-none md:px-2.5",
                 "text-muted-foreground outline-none transition-colors",
                 "hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground",
                 isActive && "text-foreground",
               )}
               aria-current={isActive ? "page" : undefined}
             >
-              <Icon aria-hidden className="size-4 shrink-0" />
+              <Icon aria-hidden className="hidden size-4 shrink-0 sm:block" />
               <span>{tab.label}</span>
               {isActive && (
                 <span
@@ -206,7 +244,7 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
           );
         })}
       </nav>
-    </div>
+    </>
   );
 }
 
@@ -228,7 +266,7 @@ function SearchTrigger({ onClick }: { onClick: () => void }) {
       )}
     >
       <Search className="size-3 shrink-0" />
-      <span className="hidden text-micro sm:inline">Search</span>
+      <span className="hidden text-micro lg:inline">Search</span>
       <kbd className="rounded border border-border bg-background px-1 py-px font-mono text-[10px] leading-none text-muted-foreground">
         {mac ? "⌘K" : "^K"}
       </kbd>

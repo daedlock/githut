@@ -115,7 +115,7 @@ function IndexPage() {
 
   return (
     <AppShell header={<UnifiedNav />}>
-      <Container size="xl" className="max-w-5xl py-6">
+      <Container className="py-6">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
           <DashboardSidebar
             category={category}
@@ -127,7 +127,7 @@ function IndexPage() {
             counts={counts}
             repoCounts={repoCounts}
           />
-          <div className="min-w-0 flex-1 lg:max-w-3xl">
+          <div className="min-w-0 flex-1">
             <MainHeader
               title={CATEGORY_TITLES[category]}
               shown={filtered.length}

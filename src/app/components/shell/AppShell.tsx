@@ -16,7 +16,7 @@ export type AppShellProps = {
 
 export function AppShell({ header, children, className, stickyHeader = true }: AppShellProps) {
   return (
-    <div className={cn("flex min-h-full flex-col", className)}>
+    <div className={cn("flex min-h-full min-w-0 flex-col [--app-header-height:40px]", className)}>
       <a
         href="#main-content"
         className={cn(

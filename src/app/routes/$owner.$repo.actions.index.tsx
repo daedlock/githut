@@ -102,7 +102,7 @@ function ActionsPage() {
       : `${runs.length}${hasNext ? "+" : ""}`;
 
   return (
-    <Container size="xl" className="py-6">
+    <Container className="py-6">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
         {/* Sidebar — unframed, sticky, RepoAbout-style vocabulary */}
         <div className="hidden w-56 shrink-0 self-start lg:block lg:sticky lg:top-28 lg:mt-12">

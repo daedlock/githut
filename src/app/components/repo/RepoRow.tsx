@@ -41,6 +41,7 @@ export function RepoRow({ repo, showOwner = false, onClick }: RepoRowProps) {
     <Link
       to="/$owner/$repo"
       params={{ owner: repo.owner.login, repo: repo.name }}
+      title={`${repo.owner.login}/${repo.name}`}
       onClick={(event) => {
         if (!onClick) return;
         event.preventDefault();
@@ -53,8 +54,15 @@ export function RepoRow({ repo, showOwner = false, onClick }: RepoRowProps) {
       <div className="flex w-full items-start gap-3 px-4 py-3 text-left">
         <div className="min-w-0 flex-1 flex flex-col gap-1">
           <div className="flex items-center gap-2 font-mono text-body">
-            {showOwner ? <span className="text-muted-foreground">{repo.owner.login}/</span> : null}
-            <span className="truncate font-[475] text-foreground group-hover:text-primary">
+            {showOwner ? (
+              <>
+                <span className="min-w-0 max-w-[40%] truncate text-muted-foreground">
+                  {repo.owner.login}
+                </span>
+                <span className="shrink-0 text-muted-foreground">/</span>
+              </>
+            ) : null}
+            <span className="min-w-0 truncate font-[475] text-foreground group-hover:text-primary">
               {repo.name}
             </span>
             {repo.visibility === "private" ? (
