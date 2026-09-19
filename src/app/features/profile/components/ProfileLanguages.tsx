@@ -1,7 +1,7 @@
 import { CodeIcon } from "@primer/octicons-react";
 import { useMemo } from "react";
 import { Card } from "@/app/components/ui/card";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import type { RepoSummary } from "@/shared/types";
 import { ProfileSectionHeader } from "./ProfileSectionHeader";
 
@@ -120,7 +120,7 @@ function Breakdown({ shares }: { shares: { name: string; count: number; pct: num
 
 function LanguagesSkeleton() {
   return (
-    <div className="flex flex-col gap-3">
+    <SkeletonGroup label="Loading languages" className="flex flex-col gap-3">
       <Skeleton className="h-2 w-full rounded-full" />
       <div className="flex flex-col gap-1.5">
         {[0, 1, 2, 3].map((i) => (
@@ -130,6 +130,6 @@ function LanguagesSkeleton() {
           </div>
         ))}
       </div>
-    </div>
+    </SkeletonGroup>
   );
 }

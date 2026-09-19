@@ -72,8 +72,8 @@ export function PrSubTabs({ owner, repo, number, counts, changeStats }: PrSubTab
   ];
 
   return (
-    <nav aria-label="Pull request sections" className="flex items-center py-3">
-      <div className="flex items-center gap-1">
+    <nav aria-label="Pull request sections" className="flex min-w-0 items-center overflow-x-auto py-3">
+      <div className="flex shrink-0 items-center gap-1">
         {tabs.map((t) => {
           const isActive = activeTab === t.key;
           const Icon = t.icon;

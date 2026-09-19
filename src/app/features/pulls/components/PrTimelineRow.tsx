@@ -600,7 +600,7 @@ export function PrTimelineRow({ event }: { event: TimelineEvent }) {
       {/* Content */}
       <div className="min-w-0 flex-1 pt-4 pl-10">
         <div className="py-1.5 text-caption text-muted-foreground">
-          <span className="min-w-0 truncate">
+          <span className="block min-w-0 [overflow-wrap:anywhere]">
             {resolved.label}
             {at && (
               <>

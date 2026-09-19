@@ -1,9 +1,9 @@
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 
 export function IssueListSkeleton() {
   const widths = [70, 56, 80, 46, 66, 74, 60];
   return (
-    <div className="skeleton-fade">
+    <SkeletonGroup label="Loading issues" className="skeleton-fade">
       {widths.map((w) => (
         <div key={w} className="flex items-start gap-3 px-4 py-3">
           <Skeleton className="size-4 shrink-0 rounded-full" />
@@ -13,6 +13,6 @@ export function IssueListSkeleton() {
           </div>
         </div>
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }

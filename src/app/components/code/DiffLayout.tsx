@@ -1,5 +1,6 @@
 import { Columns2, PanelLeftClose, PanelLeftOpen, Rows2 } from "lucide-react";
 import {
+  type CSSProperties,
   Fragment,
   memo,
   type ReactNode,
@@ -56,7 +57,7 @@ export type DiffLayoutProps = {
 // Once painted, the browser remembers the actual size.
 
 const TOPBAR_H = 44;
-const STICKY_TOP = `calc(var(--app-header-height, 40px) + ${TOPBAR_H}px)`;
+const STICKY_TOP = "calc(var(--app-header-height, 40px) + var(--diff-toolbar-height, 44px))";
 
 export function DiffLayout({
   files,
@@ -80,6 +81,19 @@ export function DiffLayout({
 
   const fileRefs = useRef<Map<string, HTMLElement>>(new Map());
   const layoutRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [toolbarHeight, setToolbarHeight] = useState(TOPBAR_H);
+
+  // The toolbar wraps at narrow container widths; all sticky offsets follow it.
+  useEffect(() => {
+    const toolbar = toolbarRef.current;
+    if (!toolbar) return;
+    const observer = new ResizeObserver(() => {
+      setToolbarHeight(toolbar.getBoundingClientRect().height);
+    });
+    observer.observe(toolbar);
+    return () => observer.disconnect();
+  }, []);
 
   const totals = useMemo(() => {
     let add = 0;
@@ -113,7 +127,7 @@ export function DiffLayout({
         },
         {
           root: null,
-          rootMargin: `-${TOPBAR_H + headerHeight}px 0px -55% 0px`,
+          rootMargin: `-${toolbarHeight + headerHeight}px 0px -55% 0px`,
           threshold: [0, 0.25],
         },
       );
@@ -129,7 +143,7 @@ export function DiffLayout({
       observer?.disconnect();
       breakpoint.removeEventListener("change", observeFiles);
     };
-  }, [files]);
+  }, [files, toolbarHeight]);
 
   const scrollToFile = useCallback((filename: string) => {
     const el = fileRefs.current.get(filename);
@@ -165,14 +179,14 @@ export function DiffLayout({
 
   return (
     <Container className={cn("bg-background", className)}>
-      <div ref={layoutRef}>
+      <div ref={layoutRef} style={{ "--diff-toolbar-height": `${toolbarHeight}px` } as CSSProperties}>
         <div
-          className="sticky top-(--app-header-height) z-30 flex items-center gap-3 overflow-x-auto border-b border-border bg-background"
-          style={{ height: TOPBAR_H }}
+          ref={toolbarRef}
+          className="sticky top-(--app-header-height) z-30 flex min-h-11 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-background py-2"
         >
           {/* Left: review bar or sidebar toggle + file stats */}
           {reviewBar ? (
-            <div className="min-w-48 flex-1">{reviewBar}</div>
+            <div className="min-w-0 basis-56 flex-1">{reviewBar}</div>
           ) : (
             <>
               <button
@@ -198,7 +212,7 @@ export function DiffLayout({
             </>
           )}
 
-          <div className="flex-1" />
+          {!reviewBar && <div className="flex-1" />}
 
           {reviewBar && (
             <div className="flex shrink-0 items-baseline gap-1 text-caption text-muted-foreground">

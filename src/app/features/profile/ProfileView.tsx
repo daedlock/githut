@@ -37,9 +37,9 @@ import {
  */
 export function ProfileView({ login }: { login: string }) {
   const profile = useProfile(login);
-  const isOrg = profile.data?.type === "Organization";
+  const isOrg = profile.data ? profile.data.type === "Organization" : undefined;
 
-  const repos = useProfileRepos(login, !!isOrg);
+  const repos = useProfileRepos(login, isOrg);
   const readme = useProfileReadme(login, isOrg);
   const events = useUserEvents(login, isOrg);
   const orgs = useUserOrgs(profile.data && !isOrg ? login : "");

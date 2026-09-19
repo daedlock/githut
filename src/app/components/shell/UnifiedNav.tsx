@@ -11,6 +11,7 @@ import { useMemo } from "react";
 import { UserMenu } from "@/app/components/shell/UserMenu";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Container } from "@/app/components/ui/Container";
+import { Skeleton } from "@/app/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
@@ -45,7 +46,7 @@ type RepoContext = {
 } | null;
 
 export function UnifiedNav({ repoContext }: { repoContext?: RepoContext }) {
-  const { data: me } = useMe();
+  const { data: me, isPending: mePending } = useMe();
   const { open: openPalette } = useCommandPalette();
 
   return (
@@ -60,6 +61,7 @@ export function UnifiedNav({ repoContext }: { repoContext?: RepoContext }) {
           {/* Right: search + profile */}
           <div className="order-2 ml-auto flex h-10 shrink-0 items-center gap-2 pl-2 md:order-3">
             <SearchTrigger onClick={openPalette} />
+            {mePending && <Skeleton className="size-7 shrink-0 rounded-full" />}
             {me && (
               <UserMenu
                 login={me.login}

@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { z } from "zod";
 import { Button } from "@/app/components/ui/button";
 import { Container } from "@/app/components/ui/Container";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { DispatchBar } from "@/app/features/actions/components/DispatchBar";
 import { RunFilters } from "@/app/features/actions/components/RunFilters";
 import { RunRow } from "@/app/features/actions/components/RunRow";
@@ -254,7 +254,7 @@ function MainHeader({ title, meta }: { title: string; meta: string | null }) {
 function RunListSkeleton() {
   const widths = [68, 54, 76, 48, 62, 70, 56, 64];
   return (
-    <div className="skeleton-fade">
+    <SkeletonGroup label="Loading workflow runs" className="skeleton-fade">
       {widths.map((w) => (
         <div key={w} className="flex items-start gap-3 rounded-lg px-3 py-2.5">
           <Skeleton className="size-4 shrink-0 rounded-full" />
@@ -265,7 +265,7 @@ function RunListSkeleton() {
           <Skeleton className="h-3 w-10" />
         </div>
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }
 

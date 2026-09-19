@@ -12,8 +12,9 @@ import {
   type FileStatus,
   parseUnifiedDiff,
 } from "@/app/components/code";
+import { DiffLayoutSkeleton } from "@/app/components/code/DiffLayoutSkeleton";
 import { Button } from "@/app/components/ui/button";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Container } from "@/app/components/ui/Container";
 import { InlineComposer } from "@/app/features/pulls/components/InlineComposer";
 import { InlineThread } from "@/app/features/pulls/components/InlineThread";
 import { PrReviewPopover } from "@/app/features/pulls/components/PrReviewDialog";
@@ -26,8 +27,8 @@ import {
   usePrFiles,
   usePrReviewComments,
 } from "@/app/features/pulls/hooks";
-import { toUiState } from "@/app/features/pulls/lib/prStatus";
 import type { PrUiState } from "@/app/features/pulls/lib/prStatus";
+import { toUiState } from "@/app/features/pulls/lib/prStatus";
 import type { PrFile, PullRequest, ReviewComment } from "@/app/features/pulls/schemas";
 import {
   type PendingComment,
@@ -38,9 +39,9 @@ import {
 import { useMe } from "@/app/hooks/useMe";
 import { detectLang } from "@/app/lib/detectLang";
 
-// ─── Full-width PR review route ────────────────────────────────────────────
+// ─── PR review route ──────────────────────────────────────────────────────
 //
-// Dedicated review workspace — takes over the full viewport. No PR header
+// Dedicated review workspace — follows the saved container width. No PR header
 // or sub-tabs; just a slim context bar + the diff layout. Mirrors DiffKit's
 // approach: clean, focused, zero wasted space.
 
@@ -148,16 +149,16 @@ function ReviewPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <div className="flex-1">
-        {prQuery.isPending || filesQuery.isPending ? (
-          <ReviewSkeleton />
-        ) : prQuery.isError || !pr ? (
-          <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+        {!Number.isSafeInteger(number) || number <= 0 || (prQuery.isError && !pr) ? (
+          <Container className="py-20 text-center text-sm text-muted-foreground" role="alert">
             Could not load this pull request.
-          </div>
-        ) : filesQuery.isError ? (
-          <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+          </Container>
+        ) : filesQuery.isError && !filesQuery.data ? (
+          <Container className="py-20 text-center text-sm text-muted-foreground" role="alert">
             Could not load files for this pull request.
-          </div>
+          </Container>
+        ) : prQuery.isPending || filesQuery.isPending || !pr ? (
+          <DiffLayoutSkeleton review sidebar={!filesQuery.data || filesQuery.data.length > 1} />
         ) : (
           <DiffLayout
             files={diffFiles}
@@ -382,16 +383,16 @@ function ReviewActions({
   if (!canReview) return null;
 
   return (
-    <div className="flex items-center gap-3 shrink-0">
+    <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-3">
       <CommentNav
         commentCount={
           (reviewCommentsQuery.data?.filter(c => !c.in_reply_to_id).length ?? 0) + pending.length
         }
       />
-      <div className="flex items-center gap-2 shrink-0">
-        <span className="text-xs tabular-nums text-muted-foreground">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <span className="text-xs tabular-nums text-muted-foreground" title={`${pending.length} pending ${pending.length === 1 ? "comment" : "comments"}`}>
           <span className="font-medium text-foreground">{pending.length}</span>{" "}
-          pending {pending.length === 1 ? "comment" : "comments"}
+          pending
         </span>
         {reviewMode && (
           <Button size="xs" variant="ghost" onClick={() => cancelReview(owner, repo, number)}>Cancel</Button>
@@ -404,22 +405,6 @@ function ReviewActions({
           pendingComments={pending}
           onReviewSubmitted={() => cancelReview(owner, repo, number)}
         />
-      </div>
-    </div>
-  );
-}
-
-function ReviewSkeleton() {
-  return (
-    <div className="p-6">
-      <div className="skeleton-fade flex flex-col gap-4">
-        <Skeleton className="h-8 w-64" />
-        {[80, 60, 72].map(w => (
-          <div key={w} className="rounded-lg bg-muted p-3">
-            <Skeleton className="h-4 mb-2" style={{ width: `${w}%` }} />
-            <Skeleton className="h-3 w-5/6" />
-          </div>
-        ))}
       </div>
     </div>
   );

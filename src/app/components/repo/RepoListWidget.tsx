@@ -2,7 +2,7 @@ import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { RepoRow } from "@/app/components/repo/RepoRow";
 import { Input } from "@/app/components/ui/input";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { Widget } from "@/app/components/ui/Widget";
 import { cn } from "@/app/lib/cn";
 import type { RepoSummary } from "@/shared/types";
@@ -113,7 +113,7 @@ function RepoRowsSkeleton({ rows }: { rows?: number } = {}) {
   const all = [72, 58, 80, 46, 64, 70, 52, 66];
   const widths = rows ? all.slice(0, rows) : all;
   return (
-    <div className="skeleton-fade flex flex-col">
+    <SkeletonGroup label="Loading repositories" className="skeleton-fade flex flex-col">
       {widths.map((titleW) => (
         <div
           key={titleW}
@@ -127,7 +127,7 @@ function RepoRowsSkeleton({ rows }: { rows?: number } = {}) {
           <Skeleton className="hidden h-3 w-16 md:block" />
         </div>
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }
 

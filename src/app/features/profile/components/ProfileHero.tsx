@@ -2,7 +2,7 @@ import { Buildings, CalendarBlank, GlobeHemisphereWest, MapPin } from "@phosphor
 import { LinkExternalIcon, MailIcon } from "@primer/octicons-react";
 import type { ReactNode } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import type { GitHubProfile } from "../schemas";
 
 export type ProfileHeroProps = {
@@ -136,7 +136,7 @@ function ProfileMetaLine({ profile }: { profile: GitHubProfile }) {
 
 function HeroSkeleton() {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+    <SkeletonGroup label="Loading profile" className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
       <Skeleton className="size-20 shrink-0 rounded-2xl sm:size-24" />
       <div className="flex min-w-0 flex-col gap-2">
         <Skeleton className="h-3 w-16" />
@@ -148,7 +148,7 @@ function HeroSkeleton() {
           <Skeleton className="h-3.5 w-28" />
         </div>
       </div>
-    </div>
+    </SkeletonGroup>
   );
 }
 

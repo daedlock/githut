@@ -6,11 +6,11 @@ import { BranchSelector } from "@/app/components/repo/BranchSelector";
 import { CommitRow } from "@/app/components/repo/CommitRow";
 import { Button } from "@/app/components/ui/button";
 import { Container } from "@/app/components/ui/Container";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
+import { useListNavigation } from "@/app/hooks/useListNavigation";
 import { repoQueryOptions, useRepo } from "@/app/hooks/useRepo";
 import { repoBranchesQueryOptions, useRepoBranches } from "@/app/hooks/useRepoBranches";
 import { useInfiniteRepoCommits } from "@/app/hooks/useRepoCommits";
-import { useListNavigation } from "@/app/hooks/useListNavigation";
 import { formatFullDate, groupByDay } from "@/app/lib/time";
 
 const commitsSearchSchema = z.object({
@@ -30,7 +30,8 @@ function CommitsPage() {
   const { owner, repo } = Route.useParams();
   const { branch: searchBranch } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { data: repoData } = useRepo(owner, repo);
+  const repoQuery = useRepo(owner, repo);
+  const repoData = repoQuery.data;
   const branchesQuery = useRepoBranches(owner, repo);
   const defaultBranch = repoData?.default_branch;
   const branch = searchBranch ?? defaultBranch;
@@ -46,7 +47,7 @@ function CommitsPage() {
       <div className="mb-2 flex items-center justify-between gap-3 rounded-lg bg-muted px-2 py-1">
         <div className="flex items-center gap-3">
           <h1 className="text-caption font-medium text-foreground">Commits</h1>
-          {commits && (
+          {commitsQuery.data && (
             <span className="tabular-nums text-caption text-muted-foreground">
               {commits.length}
             </span>
@@ -70,13 +71,13 @@ function CommitsPage() {
 
       {/* Commit list — flat rows, hover surface shift */}
       <div className="flex flex-col gap-1">
-        {commitsQuery.isPending ? (
-          <CommitListSkeleton />
-        ) : commitsQuery.isError ? (
+        {(commitsQuery.isError || (!branch && repoQuery.isError)) && !commitsQuery.data ? (
           <div className="px-5 py-10 text-center">
             <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
             <p className="text-body text-muted-foreground">Could not load commits.</p>
           </div>
+        ) : commitsQuery.isPending ? (
+          <CommitListSkeleton />
         ) : grouped.length === 0 ? (
           <div className="px-5 py-10 text-center">
             <p className="text-body text-muted-foreground">No commits yet.</p>
@@ -122,7 +123,7 @@ const COMMIT_SKELETON_WIDTHS = ["45%", "56%", "67%", "78%", "49%", "60%", "71%",
 
 function CommitListSkeleton() {
   return (
-    <div className="skeleton-fade flex flex-col gap-1 pt-4">
+    <SkeletonGroup label="Loading commits" className="skeleton-fade flex flex-col gap-1 pt-4">
       {COMMIT_SKELETON_WIDTHS.map((width) => (
         <div key={width} className="flex items-start gap-3 px-3 py-2.5">
           <div className="min-w-0 flex-1 flex flex-col gap-1.5">
@@ -132,6 +133,6 @@ function CommitListSkeleton() {
           <Skeleton className="h-5 w-16" />
         </div>
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }

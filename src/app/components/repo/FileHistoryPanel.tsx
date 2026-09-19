@@ -1,7 +1,7 @@
 import { AlertCircle } from "lucide-react";
 import { CommitRow } from "@/app/components/repo/CommitRow";
 import { Button } from "@/app/components/ui/button";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { useRepoFileHistory } from "@/app/hooks/useRepoFileHistory";
 
 export function FileHistoryPanel({
@@ -75,7 +75,7 @@ const HISTORY_SKELETON_WIDTHS = ["45%", "58%", "71%", "49%", "62%", "75%"] as co
 
 function HistorySkeleton() {
   return (
-    <div className="skeleton-fade flex flex-col gap-1 pt-2">
+    <SkeletonGroup label="Loading file history" className="skeleton-fade flex flex-col gap-1 pt-2">
       {HISTORY_SKELETON_WIDTHS.map((width) => (
         <div key={width} className="flex items-start gap-3 px-3 py-2.5">
           <div className="min-w-0 flex-1 flex flex-col gap-1.5">
@@ -85,6 +85,6 @@ function HistorySkeleton() {
           <Skeleton className="h-5 w-16" />
         </div>
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }

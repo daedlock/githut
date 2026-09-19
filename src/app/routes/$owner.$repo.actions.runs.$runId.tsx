@@ -8,6 +8,7 @@ import { StatusIcon, StatusPill } from "@/app/components/ui/StatusPill";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { ArtifactList } from "@/app/features/actions/components/ArtifactList";
 import { JobPanel } from "@/app/features/actions/components/JobPanel";
+import { JobListSkeleton, RunDetailSkeleton } from "@/app/features/actions/components/RunDetailSkeleton";
 import {
   RunHeader,
   RunOverview,
@@ -72,13 +73,8 @@ function RunDetailPage() {
     );
   if (!run)
     return (
-      <Container className="py-8">
-        <div className="skeleton-fade space-y-6">
-          <Skeleton className="h-5 w-48" />
-          <Skeleton className="h-8 w-2/3" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-72 w-full" />
-        </div>
+      <Container className="py-6">
+        <RunDetailSkeleton />
       </Container>
     );
 
@@ -219,7 +215,7 @@ function RunDetailPage() {
                   />
                 </section>
               ) : jobsQuery.isPending ? (
-                <Skeleton className="h-56" />
+                <JobListSkeleton />
               ) : (
                 <div className="rounded-lg bg-muted p-6 text-ui">
                   <p>This job is not available in attempt {run.run_attempt}.</p>
@@ -263,6 +259,7 @@ function RunDetailPage() {
                         : `${completed} of ${jobs.length} completed`}
                     </span>
                   </div>
+                  {jobsQuery.isPending && <JobListSkeleton />}
                   {!jobsQuery.isPending && !jobsQuery.isError && !jobs.length ? (
                     <p className="py-6 text-ui text-muted-foreground">
                       {live

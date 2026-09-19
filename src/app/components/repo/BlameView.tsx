@@ -4,7 +4,7 @@ import { AlertCircle } from "lucide-react";
 import { useMemo, useRef } from "react";
 import { useCodeTokens } from "@/app/components/code";
 import { FS_BOLD, FS_ITALIC, FS_STRIKETHROUGH, FS_UNDERLINE } from "@/app/components/code/types";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { type BlameRange, useRepoBlame } from "@/app/hooks/useRepoBlame";
 import type { RepoFile } from "@/app/hooks/useRepoFile";
 import { cn } from "@/app/lib/cn";
@@ -162,7 +162,7 @@ function BlameCell({
 
 function BlameSkeleton() {
   return (
-    <div className="skeleton-fade rounded-lg border border-border bg-muted p-4">
+    <SkeletonGroup label="Loading blame" className="skeleton-fade rounded-lg border border-border bg-muted p-4">
       <div className="flex flex-col gap-2">
         {BLAME_SKELETON_WIDTHS.map((width) => (
           <div key={width} className="flex items-center gap-3">
@@ -172,7 +172,7 @@ function BlameSkeleton() {
           </div>
         ))}
       </div>
-    </div>
+    </SkeletonGroup>
   );
 }
 

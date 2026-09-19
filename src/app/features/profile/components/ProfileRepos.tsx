@@ -3,7 +3,7 @@ import { RepoIcon } from "@primer/octicons-react";
 import { useMemo, useState } from "react";
 import { RepoRow } from "@/app/components/repo/RepoRow";
 import { Input } from "@/app/components/ui/input";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/app/components/ui/toggle-group";
 import { cn } from "@/app/lib/cn";
 import type { RepoSummary } from "@/shared/types";
@@ -166,7 +166,7 @@ export function ProfileRepos({ repos, isLoading }: ProfileReposProps) {
 function RepoListSkeleton() {
   const widths = [72, 58, 80, 46, 64];
   return (
-    <div className="skeleton-fade flex flex-col gap-1">
+    <SkeletonGroup label="Loading repositories" className="skeleton-fade flex flex-col gap-1">
       {widths.map((w) => (
         <div key={w} className="flex items-center gap-3 px-4 py-3">
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -176,6 +176,6 @@ function RepoListSkeleton() {
           <Skeleton className="hidden h-3 w-16 sm:block" />
         </div>
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }

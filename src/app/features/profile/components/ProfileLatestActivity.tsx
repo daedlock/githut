@@ -10,7 +10,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import { type ComponentType, useMemo } from "react";
 import { Card } from "@/app/components/ui/card";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { formatRelativeTime } from "@/app/lib/time";
 import type { GitHubEvent } from "../schemas";
 import { ProfileSectionHeader } from "./ProfileSectionHeader";
@@ -90,7 +90,7 @@ function ActivityRow({ item }: { item: Item }) {
 
 function ActivitySkeleton() {
   return (
-    <ul className="flex flex-col gap-2">
+    <SkeletonGroup label="Loading activity"><ul className="flex flex-col gap-2">
       {ACTIVITY_SKELETONS.map((i) => (
         <li key={i} className="flex items-center gap-2">
           <Skeleton className="size-3.5 shrink-0 rounded-full" />
@@ -99,7 +99,7 @@ function ActivitySkeleton() {
           <Skeleton className="ml-auto h-3 w-14" />
         </li>
       ))}
-    </ul>
+    </ul></SkeletonGroup>
   );
 }
 

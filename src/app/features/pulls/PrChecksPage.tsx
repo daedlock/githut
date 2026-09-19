@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -8,10 +9,9 @@ import {
   MinusCircle,
   XCircle,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { Skeleton } from "@/app/components/ui/skeleton";
-import { useFullPr, usePrChecks } from "@/app/features/pulls/hooks";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import type { CheckRun } from "@/app/features/pulls/hooks";
+import { useFullPr, usePrChecks } from "@/app/features/pulls/hooks";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 
@@ -25,13 +25,14 @@ export function PrChecksPage({ owner, repo, number }: PrChecksPageProps) {
   const prQuery = useFullPr(owner, repo, number);
   const checksQuery = usePrChecks(owner, repo, prQuery.data?.head.sha);
 
-  if (prQuery.isPending || checksQuery.isPending) return <ChecksSkeleton />;
-  if (prQuery.isError || !prQuery.data) {
+  if (prQuery.isError && !prQuery.data) {
     return <StateRow tone="danger" text="Could not load this pull request." />;
   }
   if (checksQuery.isError) {
     return <StateRow tone="danger" text="Could not load checks for this PR." />;
   }
+
+  if (prQuery.isPending || checksQuery.isPending) return <ChecksSkeleton />;
 
   const data = checksQuery.data;
   if (!data) return <StateRow tone="muted" text="No checks have reported yet." />;
@@ -283,7 +284,7 @@ function StateRow({
 
 function ChecksSkeleton() {
   return (
-    <div className="skeleton-fade flex flex-col gap-3">
+    <SkeletonGroup label="Loading checks" className="skeleton-fade flex flex-col gap-3">
       <Skeleton className="h-14 rounded-lg" />
       {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="flex items-start gap-3 px-3 py-2.5">
@@ -294,6 +295,6 @@ function ChecksSkeleton() {
           </div>
         </div>
       ))}
-    </div>
+    </SkeletonGroup>
   );
 }

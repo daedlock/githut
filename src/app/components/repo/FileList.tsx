@@ -113,8 +113,8 @@ export function FileList({
       {/* commit strip */}
       <div className="flex items-center gap-2 border-b border-border bg-muted px-4 py-2">
         <GitCommitHorizontal className="size-3.5 text-[var(--color-fg-faint)] flex-shrink-0" />
-        {commitPending || commit === undefined ? (
-          <span className="flex h-[1lh] items-center text-ui">
+        {commitPending ? (
+          <span className="flex min-w-0 flex-1 h-[1lh] items-center text-ui" role="status" aria-label="Loading latest commit">
             <Skeleton className="h-3.5 w-64" />
           </span>
         ) : commit ? (
@@ -137,6 +137,7 @@ export function FileList({
         )}
       </div>
 
+      {isPending && <span className="sr-only" role="status">Loading files</span>}
       <table className="w-full table-fixed border-collapse text-body">
         <tbody className={isPending ? "skeleton-fade" : undefined}>
           {isPending ? (
@@ -280,15 +281,15 @@ function SkeletonRow() {
   return (
     <tr className="border-b border-border last:border-0">
       <td className="py-2 pl-4 pr-4">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <Skeleton className="size-4" />
-          <span className="flex h-[1lh] items-center text-code">
+          <span className="flex min-w-0 h-[1lh] items-center text-code">
             <Skeleton className="h-3.5 w-32" />
           </span>
         </div>
       </td>
       <td className="hidden px-4 py-2 md:table-cell md:w-[52%]">
-        <span className="flex h-[1lh] items-center text-body">
+        <span className="flex min-w-0 h-[1lh] items-center text-body">
           <Skeleton className="h-3.5 w-80 max-w-full" />
         </span>
       </td>

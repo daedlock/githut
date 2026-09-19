@@ -2,7 +2,7 @@ import { PinIcon, StarIcon } from "@primer/octicons-react";
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { Card } from "@/app/components/ui/card";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 import type { RepoSummary } from "@/shared/types";
@@ -101,14 +101,14 @@ function PinnedCard({ repo }: { repo: RepoSummary }) {
 
 function PinnedSkeleton() {
   return (
-    <div className="flex flex-col gap-3">
+    <SkeletonGroup label="Loading pinned repositories" className="flex flex-col gap-3">
       <Skeleton className="h-3 w-32" />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {[0, 1, 2].map((i) => (
           <Skeleton key={i} className="h-[112px] rounded-xl" />
         ))}
       </div>
-    </div>
+    </SkeletonGroup>
   );
 }
 
