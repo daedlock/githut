@@ -114,11 +114,11 @@ app.get("/api/uploads/:key", async (c) => {
   return new Response(obj.body, { headers });
 });
 
-// ─── GitHub image proxy ───────────────────────────────────────────────────
+// ─── GitHub image/video proxy ─────────────────────────────────────────────
 //
 // GitHub's user-attachments URLs return 404 without a session cookie.
-// <img> tags can't send Authorization headers, so the token comes via
-// query param. The Worker fetches the image server-side and streams it back.
+// Media elements can't send Authorization headers, so the token comes via
+// query param. Keep the existing endpoint for images and video attachments.
 
 app.get("/api/github-image", async (c) => {
   const reqUrl = new URL(c.req.url);
@@ -166,45 +166,44 @@ app.get("/api/github-image", async (c) => {
 
   // Step 1: hit GitHub with token auth to get the 302 → signed S3 URL.
   // Must NOT auto-follow — S3 rejects the Authorization header.
+  const range = c.req.header("Range");
+  const rangeHeaders: Record<string, string> = range ? { Range: range } : {};
   const gh = await fetch(url, {
     redirect: "manual",
     headers: {
       Authorization: `token ${token}`,
       Accept: "application/octet-stream",
       "User-Agent": "githut/0.1",
+      ...rangeHeaders,
     },
   });
 
-  if (gh.status === 302 || gh.status === 301) {
+  if ([301, 302, 303, 307, 308].includes(gh.status)) {
     const location = gh.headers.get("location");
     if (!location) return new Response(null, { status: 502 });
 
     // Step 2: fetch the signed S3 URL WITHOUT auth headers.
-    const img = await fetch(location);
-    if (!img.ok) return new Response(null, { status: img.status as 400 });
-
-    return new Response(img.body, {
-      status: 200,
-      headers: {
-        "Content-Type": img.headers.get("Content-Type") ?? "image/png",
-        "Cache-Control": "public, max-age=300",
-      },
-    });
+    const asset = await fetch(location, { headers: rangeHeaders });
+    return githubAssetResponse(asset);
   }
 
   // Some assets return the body inline (small files, public repos).
-  if (gh.ok) {
-    return new Response(gh.body, {
-      status: 200,
-      headers: {
-        "Content-Type": gh.headers.get("Content-Type") ?? "image/png",
-        "Cache-Control": "public, max-age=300",
-      },
-    });
-  }
-
-  return new Response(null, { status: gh.status as 400 });
+  return githubAssetResponse(gh);
 });
+
+function githubAssetResponse(asset: Response): Response {
+  const headers = new Headers({
+    "Content-Type": asset.headers.get("Content-Type") ?? "application/octet-stream",
+    "Cache-Control": "private, max-age=300",
+  });
+  // Preserve 206/416 and range metadata so native players can seek without
+  // downloading the entire recording. Stream the body without buffering it.
+  for (const name of ["Accept-Ranges", "Content-Range", "Content-Length"]) {
+    const value = asset.headers.get(name);
+    if (value && (asset.ok || name === "Content-Range")) headers.set(name, value);
+  }
+  return new Response(asset.ok ? asset.body : null, { status: asset.status, headers });
+}
 
 // ─── Actions log proxy ─────────────────────────────────────────────────────
 //

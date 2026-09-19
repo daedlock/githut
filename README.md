@@ -35,6 +35,7 @@ GitHut:  Click → Render (instant)
 | Code browsing | ✅ |
 | Commit & branch browsing | ✅ |
 | Issues (CRUD + reactions) | ✅ |
+| Comment videos with playback, seeking, and fullscreen | ✅ |
 | Pull requests (CRUD + code review) | ✅ |
 | Collapsible issue and PR groups | ✅ |
 | GitHub Actions | 🚧 In progress |

@@ -11,6 +11,7 @@ import { FS_BOLD, FS_ITALIC, FS_STRIKETHROUGH, FS_UNDERLINE } from "@/app/compon
 import { detectEntity, EntityHoverLink } from "@/app/components/ui/EntityHoverCard";
 import { LightboxImage } from "@/app/components/ui/ImageLightbox";
 import { Skeleton } from "@/app/components/ui/skeleton";
+import { isVideoAttachment, VideoAttachment } from "@/app/components/ui/VideoAttachment";
 import { toInternalHref } from "@/app/lib/githubUrl";
 import { type RepoContext, remarkMentions } from "@/app/lib/remarkMentions";
 import { useAuthStore } from "@/app/stores/auth";
@@ -34,6 +35,7 @@ const sanitizeSchema = {
     "dfn",
     "samp",
     "var",
+    "video",
   ],
   attributes: {
     ...defaultSchema.attributes,
@@ -43,7 +45,12 @@ const sanitizeSchema = {
     img: [...(defaultSchema.attributes?.img ?? []), "width", "height", "align"],
     div: [...(defaultSchema.attributes?.div ?? []), "align"],
     p: [...(defaultSchema.attributes?.p ?? []), "align"],
+    video: ["src", "poster"],
     "*": [...(defaultSchema.attributes?.["*"] ?? []), "id"],
+  },
+  protocols: {
+    ...defaultSchema.protocols,
+    poster: ["http", "https"],
   },
 };
 
@@ -110,8 +117,24 @@ export function proxyGitHubImage(src: string): string {
 }
 
 function buildComponents(assetContext?: MarkdownAssetContext): Components {
+  function resolveMediaUrl(src: string): string {
+    return proxyGitHubImage(assetContext ? rewriteAssetUrl(src, assetContext) : src);
+  }
+
   return {
-    a: ({ href, children, ...rest }) => {
+    a: ({ href, children, node, ...rest }) => {
+      if (
+        href &&
+        isVideoAttachment(href) &&
+        !node?.children.some((child) => child.type === "element" && child.tagName === "img")
+      ) {
+        const resolved = assetContext ? rewriteAssetUrl(href, assetContext) : href;
+        return (
+          <VideoAttachment key={resolved} src={resolveMediaUrl(href)} href={resolved}>
+            {children}
+          </VideoAttachment>
+        );
+      }
       const text = typeof children === "string" ? children : "";
       const entity = href ? detectEntity(href, text) : null;
       if (entity && href) {
@@ -135,11 +158,21 @@ function buildComponents(assetContext?: MarkdownAssetContext): Components {
         </a>
       );
     },
-    img: ({ src, alt, ...rest }) => {
-      let resolved =
-        assetContext && typeof src === "string" ? rewriteAssetUrl(src, assetContext) : src;
-      if (typeof resolved === "string") resolved = proxyGitHubImage(resolved);
+    img: ({ src, alt, node: _node, ...rest }) => {
+      const resolved = typeof src === "string" ? resolveMediaUrl(src) : src;
       return <LightboxImage src={resolved as string | undefined} alt={alt} {...rest} />;
+    },
+    video: ({ src, poster }) => {
+      if (!src) return null;
+      const resolved = assetContext ? rewriteAssetUrl(src, assetContext) : src;
+      return (
+        <VideoAttachment
+          key={resolved}
+          src={resolveMediaUrl(src)}
+          href={resolved}
+          poster={poster ? resolveMediaUrl(poster) : undefined}
+        />
+      );
     },
     pre: ({ children }) => <Fragment>{children}</Fragment>,
     code: ({ className, children, ...rest }) => {
