@@ -9,8 +9,16 @@ import {
   X,
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FileStatus } from "@/app/components/code";
 import { FileIcon } from "@/app/components/repo/FileIcon";
+import {
+  buildFileTree,
+  type ChangedFile,
+  collectDirPaths,
+  countFiles,
+  type FileTreeDir,
+  type FileTreeNode,
+  filterFileTree,
+} from "@/app/components/repo/fileTree";
 import { Button } from "@/app/components/ui/button";
 import {
   InputGroup,
@@ -21,18 +29,13 @@ import {
 import { Kbd } from "@/app/components/ui/kbd";
 import { cn } from "@/app/lib/cn";
 
+export type { ChangedFile } from "@/app/components/repo/fileTree";
+
 /**
  * Reusable file-tree sidebar. Designed to drop into any surface that lists
  * paths with metadata — commit diff, PR diff, search results, etc. The shape
  * is minimal so callers don't have to pre-transform data.
  */
-export type ChangedFile = {
-  filename: string;
-  status: FileStatus;
-  additions: number;
-  deletions: number;
-};
-
 export type ChangedFileTreeProps = {
   files: ChangedFile[];
   /** Called with the filename when the user clicks a file row. */
@@ -60,10 +63,10 @@ export function ChangedFileTree({
   initialExpanded = "all",
   className,
 }: ChangedFileTreeProps) {
-  const tree = useMemo(() => buildTree(files), [files]);
+  const tree = useMemo(() => buildFileTree(files), [files]);
   const allDirPaths = useMemo(() => collectDirPaths(tree), [tree]);
   const topDirPaths = useMemo(
-    () => tree.filter((n): n is DirNode => n.type === "dir").map((n) => n.path),
+    () => tree.filter((n): n is FileTreeDir => n.type === "dir").map((n) => n.path),
     [tree],
   );
 
@@ -107,7 +110,7 @@ export function ChangedFileTree({
 
   const trimmedQuery = query.trim().toLowerCase();
   const filteredTree = useMemo(
-    () => (trimmedQuery ? filterTree(tree, trimmedQuery) : tree),
+    () => (trimmedQuery ? filterFileTree(tree, trimmedQuery) : tree),
     [tree, trimmedQuery],
   );
 
@@ -131,14 +134,10 @@ export function ChangedFileTree({
   const expandAll = useCallback(() => setExpanded(new Set(allDirPaths)), [allDirPaths]);
   const collapseAll = useCallback(() => setExpanded(new Set()), []);
 
-  const visibleFileCount = useMemo(() => {
-    if (!trimmedQuery) return files.length;
-    let n = 0;
-    walk(filteredTree, (node) => {
-      if (node.type === "file") n++;
-    });
-    return n;
-  }, [filteredTree, files.length, trimmedQuery]);
+  const visibleFileCount = useMemo(
+    () => (trimmedQuery ? countFiles(filteredTree) : files.length),
+    [filteredTree, files.length, trimmedQuery],
+  );
 
   return (
     <aside className={cn("bg-background", className)}>
@@ -240,7 +239,7 @@ function TreeNode({
   onFileClick,
   activeFile,
 }: {
-  node: Node;
+  node: FileTreeNode;
   depth: number;
   expanded: Set<string>;
   onToggle: (path: string) => void;
@@ -284,17 +283,21 @@ function DirRow({
   isOpen,
   onToggle,
 }: {
-  node: DirNode;
+  node: FileTreeDir;
   depth: number;
   isOpen: boolean;
   onToggle: () => void;
 }) {
   const DirIcon = isOpen ? FolderOpen : Folder;
+  const hasChanges = node.additions > 0 || node.deletions > 0;
+  const fileLabel = `${node.fileCount} ${node.fileCount === 1 ? "file" : "files"}`;
   return (
     <button
       type="button"
       onClick={onToggle}
-      className="flex w-full items-center gap-1.5 rounded-lg py-1 text-left outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-1 focus-visible:ring-foreground/15"
+      aria-expanded={isOpen}
+      title={`${node.path} · ${fileLabel} · +${node.additions} −${node.deletions}`}
+      className="group flex w-full items-center gap-1.5 rounded-lg py-1 text-left outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-1 focus-visible:ring-foreground/15"
       style={{ paddingLeft: `${depth * 16 + 8}px` }}
     >
       {isOpen ? (
@@ -303,7 +306,21 @@ function DirRow({
         <ChevronRight className="size-3 flex-shrink-0 text-muted-foreground" />
       )}
       <DirIcon className="size-3.5 flex-shrink-0 text-muted-foreground" />
-      <span className="truncate text-sm text-foreground">{node.name}</span>
+      <span className="min-w-0 flex-1 truncate text-sm text-foreground">{node.name}</span>
+      {hasChanges && (
+        <FileStats
+          additions={node.additions}
+          deletions={node.deletions}
+          // A collapsed folder is the only place its numbers live, so they stay
+          // put. An expanded folder already shows per-file counts beneath it, so
+          // the rollup would just be noise — it fades in on hover/focus instead
+          // (and stays visible on touch screens, which have no hover).
+          className={cn(
+            isOpen &&
+              "opacity-0 transition-opacity duration-[120ms] group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:none)]:opacity-100",
+          )}
+        />
+      )}
     </button>
   );
 }
@@ -365,124 +382,23 @@ function IconBtn({
   );
 }
 
-function FileStats({ additions, deletions }: { additions: number; deletions: number }) {
+function FileStats({
+  additions,
+  deletions,
+  className,
+}: {
+  additions: number;
+  deletions: number;
+  className?: string;
+}) {
   if (additions === 0 && deletions === 0) return null;
   return (
-    <span className="flex-shrink-0 text-xs tabular-nums">
+    <span className={cn("flex-shrink-0 text-caption tabular-nums", className)}>
       {additions > 0 && <span className="text-[var(--diff-add-marker)]">+{additions}</span>}
       {additions > 0 && deletions > 0 && " "}
       {deletions > 0 && <span className="text-[var(--diff-del-marker)]">−{deletions}</span>}
     </span>
   );
-}
-
-// ─── Tree building ──────────────────────────────────────────────────────────
-
-type FileNode = { type: "file"; path: string; name: string; file: ChangedFile };
-type DirNode = { type: "dir"; path: string; name: string; children: Node[] };
-type Node = FileNode | DirNode;
-
-function buildTree(files: ChangedFile[]): Node[] {
-  const root: DirNode = { type: "dir", path: "", name: "", children: [] };
-
-  for (const file of files) {
-    const parts = file.filename.split("/");
-    let cursor: DirNode = root;
-    for (let i = 0; i < parts.length - 1; i++) {
-      const part = parts[i]!;
-      let next = cursor.children.find((c): c is DirNode => c.type === "dir" && c.name === part);
-      if (!next) {
-        next = {
-          type: "dir",
-          path: [...parts.slice(0, i + 1)].join("/"),
-          name: part,
-          children: [],
-        };
-        cursor.children.push(next);
-      }
-      cursor = next;
-    }
-    const leaf: FileNode = {
-      type: "file",
-      path: file.filename,
-      name: parts[parts.length - 1] ?? file.filename,
-      file,
-    };
-    cursor.children.push(leaf);
-  }
-
-  collapseChains(root);
-  sortTree(root);
-  return root.children;
-}
-
-function collapseChains(dir: DirNode): void {
-  for (const child of dir.children) {
-    if (child.type === "dir") collapseChains(child);
-  }
-  let i = 0;
-  while (i < dir.children.length) {
-    const c = dir.children[i]!;
-    if (c.type === "dir" && c.children.length === 1 && c.children[0]!.type === "dir") {
-      const only = c.children[0] as DirNode;
-      const merged: DirNode = {
-        type: "dir",
-        path: only.path,
-        name: `${c.name}/${only.name}`,
-        children: only.children,
-      };
-      dir.children[i] = merged;
-      continue;
-    }
-    i++;
-  }
-}
-
-function sortTree(dir: DirNode): void {
-  dir.children.sort((a, b) => {
-    if (a.type !== b.type) return a.type === "dir" ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
-  for (const child of dir.children) {
-    if (child.type === "dir") sortTree(child);
-  }
-}
-
-function collectDirPaths(nodes: Node[]): string[] {
-  const out: string[] = [];
-  walk(nodes, (n) => {
-    if (n.type === "dir") out.push(n.path);
-  });
-  return out;
-}
-
-function walk(nodes: Node[], visit: (n: Node) => void): void {
-  for (const n of nodes) {
-    visit(n);
-    if (n.type === "dir") walk(n.children, visit);
-  }
-}
-
-/**
- * Prune the tree to nodes whose filename (full path) contains the query.
- * Directories survive iff at least one descendant file matches. Keeps the
- * containing hierarchy visible so users see where matches live.
- */
-function filterTree(nodes: Node[], q: string): Node[] {
-  const out: Node[] = [];
-  for (const n of nodes) {
-    if (n.type === "file") {
-      if (n.file.filename.toLowerCase().includes(q) || n.name.toLowerCase().includes(q)) {
-        out.push(n);
-      }
-    } else {
-      const kept = filterTree(n.children, q);
-      if (kept.length > 0) {
-        out.push({ ...n, children: kept });
-      }
-    }
-  }
-  return out;
 }
 
 function initialExpand(mode: "all" | "none" | "top", all: string[], top: string[]): Set<string> {

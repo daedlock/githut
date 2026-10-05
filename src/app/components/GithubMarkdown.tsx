@@ -12,9 +12,9 @@ import { detectEntity, EntityHoverLink } from "@/app/components/ui/EntityHoverCa
 import { LightboxImage } from "@/app/components/ui/ImageLightbox";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { isVideoAttachment, VideoAttachment } from "@/app/components/ui/VideoAttachment";
+import { proxyGitHubImage } from "@/app/lib/github/media";
 import { toInternalHref } from "@/app/lib/githubUrl";
 import { type RepoContext, remarkMentions } from "@/app/lib/remarkMentions";
-import { useAuthStore } from "@/app/stores/auth";
 
 // Extended sanitize schema — GitHub-compatible HTML subset.
 // Adds: details/summary, kbd, sup, sub, mark, del, ins, align/width/height attrs.
@@ -101,19 +101,6 @@ export function rewriteAssetUrl(src: string, ctx: MarkdownAssetContext): string 
   } catch {
     return src;
   }
-}
-
-export function proxyGitHubImage(src: string): string {
-  try {
-    const u = new URL(src);
-    const host = u.hostname;
-    if (host !== "github.com" && !host.endsWith(".githubusercontent.com")) return src;
-  } catch {
-    return src;
-  }
-  const token = useAuthStore.getState().token;
-  if (!token) return src;
-  return `/api/github-image?url=${encodeURIComponent(src)}&token=${encodeURIComponent(token)}`;
 }
 
 function buildComponents(assetContext?: MarkdownAssetContext): Components {

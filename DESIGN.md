@@ -231,6 +231,19 @@ Full viewport, no Container
 - Code area: slightly darker than surface-0 via `color-mix`.
 - Hunk headers: `bg-muted` (same as file header surface).
 - Single-hunk files skip the hunk header entirely.
+- Media files (images, video, audio) render a Before/After pane pair inside
+  the card instead of a text diff; added/removed files get a single pane.
+  Pane captions reuse the hunk-header surface; images sit on a subtle
+  palette-derived checkerboard so transparency reads as transparency.
+- Other binaries get a one-line notice plus an "Open on GitHub" link. Never
+  show "No changes" for a file GitHub reports as 0/0 without a patch.
+
+### Changed-file tree
+- File rows always show their `+N −N`.
+- Folder rows carry the rollup of every descendant. A collapsed folder shows
+  it permanently (it is the only place those numbers live); an expanded
+  folder hides it until the row is hovered or focused, since the per-file
+  numbers beneath already tell the story. Touch devices always show it.
 
 ### Buttons
 - Default (brand): `bg-primary text-primary-foreground`
