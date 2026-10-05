@@ -16,6 +16,9 @@ type LightboxState =
 export function LightboxImage({
   src,
   alt,
+  className,
+  onLoad,
+  onError,
   ...rest
 }: React.ImgHTMLAttributes<HTMLImageElement>) {
   const imgRef = useRef<HTMLImageElement>(null);
@@ -62,10 +65,14 @@ export function LightboxImage({
         src={src}
         alt={alt}
         onClick={handleClick}
-        onLoad={() => setCanLightbox(isLightboxable())}
+        onLoad={(event) => {
+          setCanLightbox(isLightboxable());
+          onLoad?.(event);
+        }}
+        onError={onError}
         data-lightbox
         className={cn(
-          rest.className,
+          className,
           canLightbox && "cursor-zoom-in",
           "transition-opacity duration-150",
           (state.phase === "opening" || state.phase === "open") && "invisible",

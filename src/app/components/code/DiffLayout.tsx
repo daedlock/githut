@@ -33,6 +33,10 @@ export type DiffLayoutProps = {
   repo?: string;
   headRef?: string;
   baseRef?: string;
+  /** Commit SHAs for the two sides when known. Media previews prefer them so
+   *  they cache forever and resolve for fork PRs; falls back to the refs. */
+  headSha?: string;
+  baseSha?: string;
   getReviewHooks?: (filename: string) => DiffReviewHooks | undefined;
   /** Left portion of review context (back + title). Replaces sidebar toggle + file stats. */
   reviewBar?: ReactNode;
@@ -67,6 +71,8 @@ export function DiffLayout({
   repo,
   headRef,
   baseRef,
+  headSha,
+  baseSha,
   getReviewHooks,
   reviewBar,
   beforeModeSlot,
@@ -284,6 +290,8 @@ export function DiffLayout({
                         repo={repo}
                         headRef={headRef}
                         baseRef={baseRef}
+                        headSha={headSha}
+                        baseSha={baseSha}
                       />
                     </div>
                   </Fragment>
@@ -304,6 +312,8 @@ const FileItem = memo(function FileItem({
   repo,
   headRef,
   baseRef,
+  headSha,
+  baseSha,
 }: {
   file: DiffLayoutFile;
   review: DiffReviewHooks | undefined;
@@ -311,6 +321,8 @@ const FileItem = memo(function FileItem({
   repo: string | undefined;
   headRef: string | undefined;
   baseRef: string | undefined;
+  headSha: string | undefined;
+  baseSha: string | undefined;
 }) {
   return (
     <FileDiff
@@ -326,6 +338,8 @@ const FileItem = memo(function FileItem({
       repo={repo}
       headRef={headRef}
       baseRef={baseRef}
+      headSha={headSha}
+      baseSha={baseSha}
     />
   );
 });

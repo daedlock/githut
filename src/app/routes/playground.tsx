@@ -185,7 +185,15 @@ function PlaygroundPage() {
           </span>
         </header>
         <div className="overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-border-strong)]">
-          <DiffLayout files={SAMPLE_DIFF_FILES} />
+          {/* A public repo with long-lived tags so the media previews below
+              resolve without a session; the text samples are synthetic. */}
+          <DiffLayout
+            files={SAMPLE_DIFF_FILES}
+            owner="microsoft"
+            repo="vscode"
+            headRef="1.90.0"
+            baseRef="1.80.0"
+          />
         </div>
       </section>
 
@@ -334,6 +342,12 @@ const DIFF_CONTRAST_SCOPE_STYLE = {
   "--diff-del-bg-word": "color-mix(in oklab, var(--color-danger) 24%, var(--color-bg))",
 } as React.CSSProperties;
 
+const SAMPLE_SVG_PATCH = `@@ -1,3 +1,3 @@
+ <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+-  <path fill="#0065A9" d="M0 0h32v32H0z"/>
++  <path fill="#007ACC" d="M0 0h32v32H0z"/>
+ </svg>`;
+
 const SAMPLE_DIFF_FILES: DiffLayoutFile[] = [
   {
     filename: "src/app/lib/auth.ts",
@@ -385,8 +399,30 @@ const SAMPLE_DIFF_FILES: DiffLayoutFile[] = [
     lang: "markdown",
   },
   {
-    filename: "public/logo.png",
+    filename: "resources/linux/code.png",
     status: "modified",
+    additions: 0,
+    deletions: 0,
+    patch: null,
+  },
+  {
+    filename: "resources/win32/code_150x150.png",
+    status: "added",
+    additions: 0,
+    deletions: 0,
+    patch: null,
+  },
+  {
+    filename: "src/vs/workbench/browser/media/code-icon.svg",
+    status: "modified",
+    additions: 1,
+    deletions: 1,
+    patch: SAMPLE_SVG_PATCH,
+    lang: "xml",
+  },
+  {
+    filename: "build/assets/bundle.zip",
+    status: "added",
     additions: 0,
     deletions: 0,
     patch: null,

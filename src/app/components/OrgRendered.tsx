@@ -5,11 +5,8 @@ import { type Plugin, unified } from "unified";
 import uniorgParse from "uniorg-parse";
 import uniorg2rehype from "uniorg-rehype";
 
-import {
-  type MarkdownAssetContext,
-  proxyGitHubImage,
-  rewriteAssetUrl,
-} from "@/app/components/GithubMarkdown";
+import { type MarkdownAssetContext, rewriteAssetUrl } from "@/app/components/GithubMarkdown";
+import { proxyGitHubImage } from "@/app/lib/github/media";
 import { toInternalHref } from "@/app/lib/githubUrl";
 
 // Rehype plugin: keep org output aligned with GithubMarkdown.

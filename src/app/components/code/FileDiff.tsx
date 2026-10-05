@@ -6,9 +6,17 @@ import { FileHistoryTrigger } from "@/app/components/code/FileHistoryTrigger";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { useRepoFile } from "@/app/hooks/useRepoFile";
 import { cn } from "@/app/lib/cn";
+import {
+  githubBlobUrl,
+  isBinaryPath,
+  mediaKindForPath,
+  proxyGitHubImage,
+  rawFileUrl,
+} from "@/app/lib/github/media";
 import { Button } from "../ui/button";
 import type { DiffReviewHooks } from "./DiffView";
 import { DiffView, useDiffMode } from "./DiffView";
+import { MediaDiff, type MediaSource } from "./MediaDiff";
 import { parseUnifiedDiff } from "./parseDiff";
 import type { LineKind } from "./types";
 import { useCodeTokens } from "./useCodeTokens";
@@ -30,6 +38,11 @@ export type FileDiffProps = {
   repo?: string;
   headRef?: string;
   baseRef?: string;
+  /** Commit SHAs for the two sides when known. Media previews prefer these
+   *  over `headRef`/`baseRef`: they cache forever and resolve for fork PRs,
+   *  whose head branch lives in another repository. */
+  headSha?: string;
+  baseSha?: string;
   /** When true, render flat without sticky header — used inside scroll containers
    *  that don't share the page's nav offset (e.g. the file-history sheet). */
   embedded?: boolean;
@@ -50,6 +63,8 @@ export const FileDiff = memo(function FileDiff({
   repo,
   headRef,
   baseRef,
+  headSha,
+  baseSha,
   embedded = false,
 }: FileDiffProps) {
   const mode = useDiffMode();
@@ -75,12 +90,39 @@ export const FileDiff = memo(function FileDiff({
     return () => io.disconnect();
   }, [collapsed, mounted]);
 
-  const isBinary = !patch && (additions > 0 || deletions > 0);
+  const mediaKind = mediaKindForPath(filename);
+  const binaryPath = isBinaryPath(filename);
   const hasPatch = !!patch;
+  // GitHub omits `patch` both for binaries (reported as 0/0) and for diffs over
+  // its size limit (counts still present). Tell the two apart for the notice.
+  const patchOmitted = !hasPatch && (additions > 0 || deletions > 0);
   const contextTarget = getContextTarget({ filename, previousFilename, status, headRef, baseRef });
-  const canLoadContext = !!owner && !!repo && !!contextTarget && !isBinary;
+  const canLoadContext = !!owner && !!repo && !!contextTarget && !binaryPath;
   const showContent = !collapsed && mounted;
-  const hasVisibleBody = showContent && (isBinary || hasPatch || contextOpen);
+
+  const mediaHead = headSha ?? headRef;
+  const mediaBase = baseSha ?? baseRef;
+  const media = useMemo(
+    () =>
+      mediaKind && owner && repo
+        ? buildMediaSources({
+            owner,
+            repo,
+            filename,
+            previousFilename,
+            status,
+            headRef: mediaHead,
+            baseRef: mediaBase,
+          })
+        : null,
+    [mediaKind, owner, repo, filename, previousFilename, status, mediaHead, mediaBase],
+  );
+  const binaryHref =
+    binaryPath && owner && repo
+      ? status === "removed"
+        ? mediaBase && githubBlobUrl(owner, repo, mediaBase, previousFilename ?? filename)
+        : mediaHead && githubBlobUrl(owner, repo, mediaHead, filename)
+      : undefined;
 
   return (
     <section
@@ -173,11 +215,16 @@ export const FileDiff = memo(function FileDiff({
               status={status}
             />
           )}
-          {isBinary ? (
-            <div className="px-4 py-6 text-center text-ui text-muted-foreground">
-              Binary file — preview unavailable
-            </div>
-          ) : hasPatch ? (
+          {mediaKind && media && (
+            <MediaDiff
+              kind={mediaKind}
+              status={status}
+              before={media.before}
+              after={media.after}
+              className={cn(hasPatch && "border-b border-border")}
+            />
+          )}
+          {hasPatch ? (
             <DiffView
               patch={patch}
               lang={lang}
@@ -188,9 +235,19 @@ export const FileDiff = memo(function FileDiff({
               path={filename}
               headRef={headRef}
             />
-          ) : (
-            <div className="px-4 py-6 text-center text-ui text-muted-foreground">
-              No changes
+          ) : media ? null : (
+            <div className="flex flex-col items-center gap-1 px-4 py-6 text-center text-ui text-muted-foreground">
+              <span>{describeEmptyDiff({ status, patchOmitted, binaryPath })}</span>
+              {binaryHref && (
+                <a
+                  href={binaryHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-caption text-primary hover:underline"
+                >
+                  Open on GitHub
+                </a>
+              )}
             </div>
           )}
         </div>
@@ -218,6 +275,62 @@ function getContextTarget({
     return baseRef ? { path: previousFilename ?? filename, ref: baseRef } : null;
   }
   return headRef ? { path: filename, ref: headRef } : null;
+}
+
+/**
+ * Which versions of a media file to show. Added files only have an "after",
+ * removed files only a "before"; everything else gets both sides, reading the
+ * old side from `previousFilename` for renames and copies.
+ */
+function buildMediaSources({
+  owner,
+  repo,
+  filename,
+  previousFilename,
+  status,
+  headRef,
+  baseRef,
+}: {
+  owner: string;
+  repo: string;
+  filename: string;
+  previousFilename?: string;
+  status: FileStatus;
+  headRef?: string;
+  baseRef?: string;
+}): { before?: MediaSource; after?: MediaSource } | null {
+  const before =
+    status !== "added" && baseRef
+      ? toMediaSource(owner, repo, baseRef, previousFilename ?? filename)
+      : undefined;
+  const after =
+    status !== "removed" && headRef ? toMediaSource(owner, repo, headRef, filename) : undefined;
+  return before || after ? { before, after } : null;
+}
+
+function toMediaSource(owner: string, repo: string, ref: string, path: string): MediaSource {
+  return {
+    src: proxyGitHubImage(rawFileUrl(owner, repo, ref, path)),
+    href: githubBlobUrl(owner, repo, ref, path),
+    ref,
+    path,
+  };
+}
+
+function describeEmptyDiff({
+  status,
+  patchOmitted,
+  binaryPath,
+}: {
+  status: FileStatus;
+  patchOmitted: boolean;
+  binaryPath: boolean;
+}): string {
+  if (patchOmitted) return "Diff too large to display inline";
+  if (binaryPath) return "Binary file — no inline preview";
+  if (status === "renamed") return "Renamed without content changes";
+  if (status === "copied") return "Copied without content changes";
+  return "No content changes";
 }
 
 export function FileContextPanel({
@@ -307,7 +420,7 @@ function StatusBadge({ status }: { status: FileStatus }) {
         ? "text-[var(--diff-del-marker)]"
         : "text-[var(--color-fg-faint)]";
   return (
-    <span className={cn("shrink-0 font-mono text-xs font-bold", tone)} aria-label={status}>
+    <span className={cn("shrink-0 font-mono text-caption font-bold", tone)} aria-label={status}>
       {label}
     </span>
   );
@@ -324,8 +437,8 @@ function ChangeStats({ additions, deletions }: { additions: number; deletions: n
   while (squares.length < 5) squares.push("empty");
   return (
     <div className="flex shrink-0 items-center gap-1.5">
-      <span className="font-mono text-xs tabular-nums text-[var(--diff-add-marker)]">+{additions}</span>
-      <span className="font-mono text-xs tabular-nums text-[var(--diff-del-marker)]">−{deletions}</span>
+      <span className="font-mono text-caption tabular-nums text-[var(--diff-add-marker)]">+{additions}</span>
+      <span className="font-mono text-caption tabular-nums text-[var(--diff-del-marker)]">−{deletions}</span>
       <span className="flex items-center gap-px">
         {squares.map((kind, i) => (
           <span

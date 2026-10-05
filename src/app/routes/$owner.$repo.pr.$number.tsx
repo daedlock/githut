@@ -167,6 +167,8 @@ function ReviewPage() {
             repo={repo}
             headRef={pr.head.ref}
             baseRef={pr.base.ref}
+            headSha={pr.head.sha}
+            baseSha={pr.base.sha}
             getReviewHooks={getReviewHooks}
             reviewBar={
               <ReviewBarLeft owner={owner} repo={repo} number={number} pr={pr} uiState={uiState} />
