@@ -31,6 +31,7 @@ import {
 } from "@/app/features/pulls/hooks";
 import { buildPrTree } from "@/app/features/pulls/lib/buildPrTree";
 import { useRepoCollaborators, useRepoLabels } from "@/app/features/pulls/pickers";
+import { BulkSelection, SelectableRow } from "@/app/features/repo/components/BulkSelection";
 import { GroupedList } from "@/app/features/repo/components/GroupedList";
 import { ListDisplayMenu } from "@/app/features/repo/components/ListDisplayMenu";
 import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
@@ -205,125 +206,140 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
   );
 
   return (
-    <Container className="py-6">
-      <h1 className="sr-only">Pull requests</h1>
-      <div className="mb-2 flex flex-col gap-2">
-        {/* Toolbar — raised surface */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted p-2">
-          <div className="flex items-center">
-            <PrStateTab
-              state="open"
-              count={counts.data?.open}
-              isActive={currentState === "open"}
-              onClick={() =>
-                navigate({
-                  to: "/$owner/$repo/pulls",
-                  params: { owner, repo },
-                  search: (prev) => ({ ...prev, state: undefined }),
-                })
-              }
-            />
-            <PrStateTab
-              state="closed"
-              count={counts.data?.closed}
-              isActive={currentState === "closed"}
-              onClick={() =>
-                navigate({
-                  to: "/$owner/$repo/pulls",
-                  params: { owner, repo },
-                  search: (prev) => ({ ...prev, state: "closed" }),
-                })
-              }
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                aria-label="Search pull requests"
-                name="pull-request-search"
-                autoComplete="off"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                placeholder="Search…"
-                className="h-7 w-44 pl-8 text-ui"
-              />
-            </div>
-
-            <FilterTrigger fields={fields} active={active} onChange={onActiveChange} />
-
-            <ListDisplayMenu
-              groupBy={grouping.groupBy}
-              onGroupByChange={grouping.setGroupBy}
-              groupKeys={groups.map((group) => group.key)}
-              collapsedGroups={grouping.collapsedGroups}
-              onGroupsCollapsed={grouping.setGroupsCollapsed}
-              ordering={{
-                value: filters.sort ?? "newest",
-                options: SORT_OPTIONS,
-                onChange: (next) =>
+    <BulkSelection
+      key={`${owner}/${repo}`}
+      scope={`${owner}/${repo}/${JSON.stringify(filters)}/${searchText}`}
+      owner={owner}
+      repo={repo}
+      kind="pulls"
+      items={filtered}
+      order={groups
+        .filter((group) => grouping.groupBy === "none" || !grouping.collapsedGroups.has(group.key))
+        .flatMap((group) =>
+          buildPrTree(group.items, branchRefs, defaultBranch).map((node) => node.pr.number),
+        )}
+    >
+      <Container className="py-6">
+        <h1 className="sr-only">Pull requests</h1>
+        <div className="mb-2 flex flex-col gap-2">
+          {/* Toolbar — raised surface */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted p-2">
+            <div className="flex items-center">
+              <PrStateTab
+                state="open"
+                count={counts.data?.open}
+                isActive={currentState === "open"}
+                onClick={() =>
                   navigate({
                     to: "/$owner/$repo/pulls",
                     params: { owner, repo },
-                    search: (prev) => ({
-                      ...prev,
-                      sort: next === "newest" ? undefined : next,
+                    search: (prev) => ({ ...prev, state: undefined }),
+                  })
+                }
+              />
+              <PrStateTab
+                state="closed"
+                count={counts.data?.closed}
+                isActive={currentState === "closed"}
+                onClick={() =>
+                  navigate({
+                    to: "/$owner/$repo/pulls",
+                    params: { owner, repo },
+                    search: (prev) => ({ ...prev, state: "closed" }),
+                  })
+                }
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  aria-label="Search pull requests"
+                  name="pull-request-search"
+                  autoComplete="off"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  placeholder="Search…"
+                  className="h-7 w-44 pl-8 text-ui"
+                />
+              </div>
+
+              <FilterTrigger fields={fields} active={active} onChange={onActiveChange} />
+
+              <ListDisplayMenu
+                groupBy={grouping.groupBy}
+                onGroupByChange={grouping.setGroupBy}
+                groupKeys={groups.map((group) => group.key)}
+                collapsedGroups={grouping.collapsedGroups}
+                onGroupsCollapsed={grouping.setGroupsCollapsed}
+                ordering={{
+                  value: filters.sort ?? "newest",
+                  options: SORT_OPTIONS,
+                  onChange: (next) =>
+                    navigate({
+                      to: "/$owner/$repo/pulls",
+                      params: { owner, repo },
+                      search: (prev) => ({
+                        ...prev,
+                        sort: next === "newest" ? undefined : next,
+                      }),
                     }),
-                  }),
-              }}
-            />
+                }}
+              />
+            </div>
           </div>
+
+          {/* Filter pills — only when active */}
+          <FilterBar fields={fields} active={active} onChange={onActiveChange} className="px-2" />
         </div>
 
-        {/* Filter pills — only when active */}
-        <FilterBar fields={fields} active={active} onChange={onActiveChange} className="px-2" />
-      </div>
-
-      {/* List */}
-      <div className="mt-4 flex flex-col gap-1">
-        {pulls.isPending ? (
-          <PrListSkeleton />
-        ) : pulls.isError ? (
-          <div className="px-5 py-10 text-center">
-            <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
-            <p className="text-body text-muted-foreground">Could not load pull requests.</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <EmptyState hasSearch={!!searchText} state={currentState} />
-        ) : (
-          <>
-            <GroupedList
-              groups={groups}
-              groupBy={grouping.groupBy}
-              kind="pulls"
-              collapsedGroups={grouping.collapsedGroups}
-              onGroupsCollapsed={grouping.setGroupsCollapsed}
-              renderItems={(items) =>
-                buildPrTree(items, branchRefs, defaultBranch).map((node) => (
-                  <PrRow
-                    key={node.pr.id}
-                    owner={owner}
-                    repo={repo}
-                    pr={node.pr}
-                    reviewDecision={reviewDecisions.get(node.pr.number) ?? null}
-                    checkRollup={checkRollups.get(node.pr.number)}
-                    depth={node.depth}
-                    treePosition={node.treePosition}
-                    ancestorContinuations={node.ancestorContinuations}
-                  />
-                ))
-              }
-            />
-            {pulls.hasNextPage && !searchText ? (
-              <LoadMoreButton
-                isFetching={pulls.isFetchingNextPage}
-                onClick={() => pulls.fetchNextPage()}
+        {/* List */}
+        <div className="mt-4 flex flex-col gap-1">
+          {pulls.isPending ? (
+            <PrListSkeleton />
+          ) : pulls.isError ? (
+            <div className="px-5 py-10 text-center">
+              <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
+              <p className="text-body text-muted-foreground">Could not load pull requests.</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <EmptyState hasSearch={!!searchText} state={currentState} />
+          ) : (
+            <>
+              <GroupedList
+                groups={groups}
+                groupBy={grouping.groupBy}
+                kind="pulls"
+                collapsedGroups={grouping.collapsedGroups}
+                onGroupsCollapsed={grouping.setGroupsCollapsed}
+                renderItems={(items) =>
+                  buildPrTree(items, branchRefs, defaultBranch).map((node) => (
+                    <SelectableRow key={node.pr.id} number={node.pr.number}>
+                      <PrRow
+                        owner={owner}
+                        repo={repo}
+                        pr={node.pr}
+                        reviewDecision={reviewDecisions.get(node.pr.number) ?? null}
+                        checkRollup={checkRollups.get(node.pr.number)}
+                        depth={node.depth}
+                        treePosition={node.treePosition}
+                        ancestorContinuations={node.ancestorContinuations}
+                      />
+                    </SelectableRow>
+                  ))
+                }
               />
-            ) : null}
-          </>
-        )}
-      </div>
-    </Container>
+              {pulls.hasNextPage && !searchText ? (
+                <LoadMoreButton
+                  isFetching={pulls.isFetchingNextPage}
+                  onClick={() => pulls.fetchNextPage()}
+                />
+              ) : null}
+            </>
+          )}
+        </div>
+      </Container>
+    </BulkSelection>
   );
 }
 

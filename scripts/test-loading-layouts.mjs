@@ -1,8 +1,9 @@
-import { chromium } from "playwright";
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import { mkdir, writeFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
+import { chromium } from "playwright";
+
 const out = "test-results/loading-layouts";
 await mkdir(out, { recursive: true });
 const app = process.env.UI_BASE_URL || "http://127.0.0.1:5176";
@@ -189,7 +190,11 @@ const routes = [
 ];
 const report = [];
 let activePage;
-async function fixture(width, preset, { fail, hold = true, secondary, height = 900 } = {}) {
+async function fixture(
+  width,
+  preset,
+  { fail, hold = true, secondary, height = 900, bulk = false } = {},
+) {
   const context = await browser.newContext({
     viewport: { width, height },
     reducedMotion: "reduce",
@@ -220,6 +225,35 @@ async function fixture(width, preset, { fail, hold = true, secondary, height = 9
       route
         .fulfill({ status, contentType: "application/json", body: JSON.stringify(body) })
         .catch(() => {});
+    if (bulk) {
+      const rows = [1, 2, 3, 4].map((number) => ({
+        ...issue,
+        id: number,
+        number,
+        title: `Bulk item ${number}`,
+        ...(bulk === "pulls" ? { pull_request: item.pull_request } : {}),
+      }));
+      if (path.endsWith("/labels") && route.request().method() === "GET")
+        return json([{ id: 1, name: "bug", color: "ff0000" }]);
+      if (path.endsWith("/collaborators")) return json([actor]);
+      if (path === "/search/issues")
+        return json({ total_count: 4, incomplete_results: false, items: rows });
+      if (path.endsWith("/issues")) return json(rows);
+      if (["POST", "PATCH", "DELETE"].includes(route.request().method()) && path !== "/graphql") {
+        const payload = route.request().postDataJSON();
+        submissions.push({ path, method: route.request().method(), payload });
+        if (
+          path.endsWith("/issues/2/labels") &&
+          submissions.filter((s) => s.path === path).length === 1
+        )
+          return json({ message: "Permission denied" }, 403);
+        return json({
+          ...issue,
+          ...payload,
+          assignees: payload?.assignees?.map((login) => ({ ...actor, login })) ?? [],
+        });
+      }
+    }
     if (path === "/user") return json(actor);
     if (route.request().method() === "POST" && path.endsWith("/reviews")) {
       const payload = route.request().postDataJSON();
@@ -618,6 +652,96 @@ try {
       console.log("PASS error", name);
     } finally {
       await f.close();
+    }
+  }
+  for (const kind of ["issues", "pulls"]) {
+    for (const width of [1280, 390]) {
+      const f = await fixture(width, "sm", { hold: false, bulk: kind });
+      try {
+        const p = f.page;
+        await p.goto(app + `/demo/project/${kind}`);
+        const first = p.getByRole("checkbox", { name: "Select #1", exact: true });
+        await first.waitFor({ state: "attached" });
+        const link = p.locator("a[data-keyboard-list-item]").filter({ hasText: "Bulk item 1" });
+        const before = await link.boundingBox();
+        await link.hover();
+        await first.check();
+        assert.equal(await first.isChecked(), true);
+        assert.deepEqual(await link.boundingBox(), before, "Selection must not shift rows");
+        await p
+          .getByRole("checkbox", { name: "Select #3", exact: true })
+          .click({ modifiers: ["Shift"] });
+        assert.equal(await p.locator("input[type=checkbox]:checked").count(), 3);
+        await p.getByRole("checkbox", { name: "Select #3", exact: true }).press("Control+a");
+        assert.equal(await p.locator("input[type=checkbox]:checked").count(), 4);
+        await p.screenshot({ path: `${out}/bulk-${kind}-${width}.png`, fullPage: true });
+        assert.ok(
+          await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+          "Bulk bar must fit viewport",
+        );
+        await p.getByRole("checkbox", { name: "Select #3", exact: true }).press("Escape");
+        assert.equal(await p.locator("input[type=checkbox]:checked").count(), 0);
+        await link.focus();
+        await link.press("Space");
+        const fourthLink = p
+          .locator("a[data-keyboard-list-item]")
+          .filter({ hasText: "Bulk item 4" });
+        await fourthLink.click();
+        assert.equal(await p.locator("input[type=checkbox]:checked").count(), 2);
+        assert.equal(new URL(p.url()).pathname, `/demo/project/${kind}`);
+        await fourthLink.click();
+        await p.getByRole("checkbox", { name: "Select #2", exact: true }).check();
+        await p.getByRole("button", { name: "Labels", exact: true }).click();
+        await p.getByRole("option", { name: "Add bug", exact: true }).click();
+        await p.getByText("1 of 2 updated · 1 failed", { exact: true }).waitFor();
+        assert.equal(await p.locator("input[type=checkbox]:checked").count(), 1);
+        await p.getByRole("button", { name: "Retry failed", exact: true }).click();
+        await p.getByText("1 of 1 updated", { exact: true }).waitFor();
+        assert.equal(f.submissions.filter((s) => s.path.endsWith("/issues/1/labels")).length, 1);
+        assert.equal(f.submissions.filter((s) => s.path.endsWith("/issues/2/labels")).length, 2);
+        assert.deepEqual(f.submissions[0].payload, { labels: ["bug"] });
+        await link.hover();
+        await first.check();
+        await p.getByRole("button", { name: "Status", exact: true }).click();
+        await p.getByRole("option", { name: "Close selected", exact: true }).click();
+        await p.getByText("1 of 1 updated", { exact: true }).waitFor();
+        assert.equal(f.submissions.at(-1).path, `/repos/demo/project/${kind}/1`);
+        assert.deepEqual(f.submissions.at(-1).payload, { state: "closed" });
+        await link.hover();
+        await first.check();
+        await p.getByRole("button", { name: "Assignees", exact: true }).click();
+        await p.getByRole("option", { name: "Assign demo", exact: true }).click();
+        await p.getByText("1 of 1 updated", { exact: true }).waitFor();
+        assert.deepEqual(f.submissions.at(-1).payload, { assignees: ["demo"] });
+        await link.hover();
+        await first.check();
+        await p
+          .getByRole("textbox", { name: "Search pull requests" })
+          .or(p.getByRole("searchbox", { name: "Search issues" }))
+          .fill("Bulk item 4");
+        assert.equal(await p.locator("input[type=checkbox]:checked").count(), 0);
+        const search = p
+          .getByRole("textbox", { name: "Search pull requests" })
+          .or(p.getByRole("searchbox", { name: "Search issues" }));
+        assert.equal(
+          await search.evaluate((el) => el === document.activeElement),
+          true,
+          "Filtering preserves focus",
+        );
+        await search.fill("");
+        await link.hover();
+        await first.check();
+        await p.getByRole("button", { name: "Open 4", exact: true }).click();
+        assert.equal(
+          await p.locator("input[type=checkbox]:checked").count(),
+          0,
+          "Collapsed groups leave selection",
+        );
+        assert.deepEqual(f.errors, []);
+        console.log("PASS bulk selection", kind, width);
+      } finally {
+        await f.close();
+      }
     }
   }
   await writeFile(out + "/results.json", JSON.stringify(report, null, 2));
