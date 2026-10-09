@@ -18,6 +18,7 @@ import type { CheckContextStatus, PrCheckRollup, PrListItem } from "@/app/featur
 import type { TreePosition } from "@/app/features/pulls/lib/buildPrTree";
 import { toUiState } from "@/app/features/pulls/lib/prStatus";
 import type { ReviewDecision } from "@/app/features/pulls/lib/reviewDecision";
+import { BulkRowCheckbox, useBulkRow } from "@/app/features/repo/components/BulkSelection";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 
@@ -46,6 +47,9 @@ export type PrRowProps = {
 
 // Indent step per depth level (px). Connector line sits at the midpoint.
 const DEPTH_INDENT = 24;
+// Leading padding; selectable rows reserve a gutter for their checkbox.
+const INSET = 16;
+const SELECTABLE_INSET = 40;
 
 export function PrRow({
   owner,
@@ -66,15 +70,22 @@ export function PrRow({
   const timeAt = isClosedLike ? (pr.closed_at ?? pr.updated_at) : pr.created_at;
   const timeVerb = state === "merged" ? "merged" : state === "closed" ? "closed" : "opened";
   const isChild = depth > 0;
+  const bulk = useBulkRow(pr.number);
+  const inset = bulk ? SELECTABLE_INSET : INSET;
 
   return (
-    <div className="group relative rounded-lg transition-colors hover:bg-muted">
+    <div
+      {...bulk?.rowProps}
+      className={bulk?.className ?? "group relative rounded-lg transition-colors hover:bg-muted"}
+    >
+      {bulk && <BulkRowCheckbox number={pr.number} label={`Select pull request #${pr.number}`} />}
       <div
         className="relative flex w-full items-start gap-3 py-2.5 text-left"
-        style={{ paddingLeft: 16 + depth * DEPTH_INDENT + (isChild ? 6 : 0), paddingRight: 16 }}
+        style={{ paddingLeft: inset + depth * DEPTH_INDENT + (isChild ? 6 : 0), paddingRight: 16 }}
       >
         {isChild && (
           <TreeConnector
+            inset={inset}
             depth={depth}
             treePosition={treePosition}
             ancestorContinuations={ancestorContinuations}
@@ -260,8 +271,8 @@ function ChecksList({ rollup }: { rollup: PrCheckRollup }) {
 // ─── Tree connector lines ──────────────────────────────────────────────────
 //
 // Geometry:
-//   paddingLeft per row = 16 + depth * DEPTH_INDENT (+ 6 for children)
-//   connector X for depth d = 4 + d * DEPTH_INDENT  (midpoint of indent gap)
+//   paddingLeft per row = inset + depth * DEPTH_INDENT (+ 6 for children)
+//   connector X for depth d = inset - 12 + d * DEPTH_INDENT  (midpoint of indent gap)
 //   arm width = DEPTH_INDENT / 2  (horizontal branch to content)
 //
 // When siblings follow (first/middle child), the vertical line runs the full
@@ -269,16 +280,19 @@ function ChecksList({ rollup }: { rollup: PrCheckRollup }) {
 // Only the last (or only) child draws a rounded L-bend that terminates.
 
 function TreeConnector({
+  inset,
   depth,
   treePosition,
   ancestorContinuations,
 }: {
+  inset: number;
   depth: number;
   treePosition: TreePosition;
   ancestorContinuations: number[];
 }) {
   const hasMore = treePosition === "first-child" || treePosition === "middle-child";
-  const connX = 4 + depth * DEPTH_INDENT;
+  const origin = inset - 12;
+  const connX = origin + depth * DEPTH_INDENT;
   const armWidth = DEPTH_INDENT / 2;
 
   return (
@@ -288,7 +302,7 @@ function TreeConnector({
         <div
           key={ancDepth}
           className="absolute top-0 h-full border-l border-(--color-border)"
-          style={{ left: 4 + (ancDepth + 1) * DEPTH_INDENT }}
+          style={{ left: origin + (ancDepth + 1) * DEPTH_INDENT }}
         />
       ))}
 

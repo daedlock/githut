@@ -100,6 +100,7 @@ export const IssueListItemSchema = z.object({
   number: z.number(),
   title: z.string(),
   state: z.enum(["open", "closed"]),
+  state_reason: z.string().nullish(),
   comments: z.number(),
   created_at: z.string(),
   updated_at: z.string(),

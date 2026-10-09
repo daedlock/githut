@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { CheckCircle2, CircleDot, MessageSquare } from "lucide-react";
+import { CheckCircle2, CircleDot, CircleSlash, MessageSquare } from "lucide-react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
@@ -8,6 +8,7 @@ import { issueKeys } from "@/app/features/issues/hooks";
 import type { RepoIssue } from "@/app/features/issues/schemas";
 import { IssueCommentsSchema, IssueDetailSchema } from "@/app/features/issues/schemas";
 import { REACTION_CONTENTS, REACTION_EMOJIS, reactionsHaveAny } from "@/app/features/issues/utils";
+import { BulkRowCheckbox, useBulkRow } from "@/app/features/repo/components/BulkSelection";
 import { cn } from "@/app/lib/cn";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { formatRelativeTime } from "@/app/lib/time";
@@ -22,6 +23,7 @@ export function IssueRow({
   repo: string;
 }) {
   const qc = useQueryClient();
+  const bulk = useBulkRow(issue.number);
   const prefetch = () => {
     qc.prefetchQuery({
       queryKey: issueKeys.detail(owner, repo, issue.number),
@@ -53,11 +55,22 @@ export function IssueRow({
   const timeVerb = isOpen ? "opened" : "closed";
 
   return (
-    <div className="group relative rounded-lg transition-colors hover:bg-muted">
-      <div className="flex w-full items-start gap-3 px-4 py-2.5 text-left">
+    <div
+      {...bulk?.rowProps}
+      className={bulk?.className ?? "group relative rounded-lg transition-colors hover:bg-muted"}
+    >
+      {bulk && <BulkRowCheckbox number={issue.number} label={`Select issue #${issue.number}`} />}
+      <div
+        className={cn(
+          "flex w-full items-start gap-3 py-2.5 text-left",
+          bulk ? "pr-4 pl-10" : "px-4",
+        )}
+      >
         <div className="mt-0.5 flex-shrink-0">
           {isOpen ? (
             <CircleDot className="size-4 text-[var(--color-success)]" />
+          ) : issue.state_reason === "not_planned" ? (
+            <CircleSlash className="size-4 text-[var(--color-fg-faint)]" />
           ) : (
             <CheckCircle2 className="size-4 text-[var(--color-fg-faint)]" />
           )}

@@ -1,4 +1,4 @@
-import { Check, Settings2 } from "lucide-react";
+import { Check, Minus, Settings2 } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 import {
   Command,
@@ -18,12 +18,15 @@ export type PickerItem = {
   description?: string | null;
   color?: string;
   avatarUrl?: string;
+  icon?: ReactNode;
 };
 
 export type SidebarPickerProps = {
   title: string;
   items: PickerItem[];
-  selectedIds: Set<string>;
+  selectedIds: ReadonlySet<string>;
+  /** Items only some of the targets have (bulk edits); shown with a dash. */
+  mixedIds?: ReadonlySet<string>;
   onToggle: (id: string, next: boolean) => void;
   placeholder?: string;
   emptyText?: string;
@@ -32,12 +35,18 @@ export type SidebarPickerProps = {
   trigger?: ReactNode;
   ariaLabel: string;
   onQueryChange?: (query: string) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  closeOnSelect?: boolean;
+  side?: "top" | "bottom";
+  align?: "start" | "center" | "end";
 };
 
 export function SidebarPicker({
   title,
   items,
   selectedIds,
+  mixedIds,
   onToggle,
   placeholder = "Filter…",
   emptyText = "No matches",
@@ -46,8 +55,14 @@ export function SidebarPicker({
   trigger,
   ariaLabel,
   onQueryChange,
+  open: controlledOpen,
+  onOpenChange,
+  closeOnSelect,
+  side = "bottom",
+  align = "end",
 }: SidebarPickerProps) {
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
   const [query, setQuery] = useState("");
 
   function updateQuery(next: string) {
@@ -56,7 +71,8 @@ export function SidebarPicker({
   }
 
   function updateOpen(next: boolean) {
-    setOpen(next);
+    setUncontrolledOpen(next);
+    onOpenChange?.(next);
     if (!next) updateQuery("");
   }
 
@@ -89,7 +105,12 @@ export function SidebarPicker({
           </button>
         )}
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={4} className="w-56 p-0">
+      <PopoverContent
+        side={side}
+        align={align}
+        sideOffset={side === "top" ? 8 : 4}
+        className="w-56 p-0"
+      >
         <Command shouldFilter={false}>
           <div className="p-1.5">
             <input
@@ -99,7 +120,7 @@ export function SidebarPicker({
               aria-label={title}
               className={cn(
                 "w-full rounded-md bg-[var(--color-popover-active)] px-2.5 py-1.5",
-                "text-xs text-foreground placeholder:text-muted-foreground",
+                "text-caption text-foreground placeholder:text-muted-foreground",
                 "outline-none",
               )}
             />
@@ -120,14 +141,26 @@ export function SidebarPicker({
               <CommandGroup>
                 {filtered.map((item) => {
                   const isSelected = selectedIds.has(item.id);
+                  const isMixed = !isSelected && !!mixedIds?.has(item.id);
                   return (
                     <CommandItem
                       key={item.id}
                       value={item.id}
-                      onSelect={() => onToggle(item.id, !isSelected)}
+                      data-checked={isSelected ? "true" : isMixed ? "mixed" : "false"}
+                      onSelect={() => {
+                        onToggle(item.id, !isSelected);
+                        if (closeOnSelect) updateOpen(false);
+                      }}
                       className="gap-2.5 px-2 py-1.5"
                     >
-                      {item.color ? (
+                      {item.icon ? (
+                        <span
+                          aria-hidden
+                          className="flex size-5 shrink-0 items-center justify-center"
+                        >
+                          {item.icon}
+                        </span>
+                      ) : item.color ? (
                         <span
                           aria-hidden
                           className="size-3 shrink-0 rounded-full ring-1 ring-inset ring-black/10 dark:ring-white/10"
@@ -136,15 +169,19 @@ export function SidebarPicker({
                       ) : item.avatarUrl ? (
                         <img src={item.avatarUrl} alt="" className="size-5 shrink-0 rounded-full" />
                       ) : null}
-                      <span className="min-w-0 flex-1 truncate text-xs">{item.label}</span>
+                      <span className="min-w-0 flex-1 truncate text-caption">{item.label}</span>
                       {item.description && <span className="hidden" />}
-                      <Check
-                        className={cn(
-                          "size-3 shrink-0 transition-opacity duration-75",
-                          isSelected ? "opacity-100 text-[var(--color-success)]" : "opacity-0",
-                        )}
-                        aria-hidden
-                      />
+                      {isMixed ? (
+                        <Minus className="size-3 shrink-0 text-muted-foreground" aria-hidden />
+                      ) : (
+                        <Check
+                          className={cn(
+                            "size-3 shrink-0 transition-opacity duration-75",
+                            isSelected ? "opacity-100 text-[var(--color-success)]" : "opacity-0",
+                          )}
+                          aria-hidden
+                        />
+                      )}
                     </CommandItem>
                   );
                 })}

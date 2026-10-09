@@ -31,7 +31,8 @@ import {
 } from "@/app/features/pulls/hooks";
 import { buildPrTree } from "@/app/features/pulls/lib/buildPrTree";
 import { useRepoCollaborators, useRepoLabels } from "@/app/features/pulls/pickers";
-import { BulkSelection, SelectableRow } from "@/app/features/repo/components/BulkSelection";
+import { toBulkItem } from "@/app/features/repo/bulkSelection";
+import { BulkSelectionProvider } from "@/app/features/repo/components/BulkSelection";
 import { GroupedList } from "@/app/features/repo/components/GroupedList";
 import { ListDisplayMenu } from "@/app/features/repo/components/ListDisplayMenu";
 import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
@@ -147,18 +148,20 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
 
   const items = useMemo(() => pulls.data?.pages.flat() ?? [], [pulls.data]);
 
+  const currentState = (filters.state ?? "open") as PullsState;
   const filtered = useMemo(() => {
     const q = searchText.trim().toLowerCase();
-    if (!q) return items;
     return items.filter(
       (pr) =>
-        pr.title.toLowerCase().includes(q) ||
-        pr.user?.login.toLowerCase().includes(q) ||
-        pr.labels.some((l) => l.name.toLowerCase().includes(q)),
+        // Rows closed or reopened from this page leave it before search catches up.
+        (currentState === "all" || pr.state === currentState) &&
+        (!q ||
+          pr.title.toLowerCase().includes(q) ||
+          pr.user?.login.toLowerCase().includes(q) ||
+          pr.labels.some((l) => l.name.toLowerCase().includes(q))),
     );
-  }, [items, searchText]);
+  }, [items, searchText, currentState]);
 
-  const currentState = (filters.state ?? "open") as PullsState;
   const prNumbers = useMemo(() => filtered.map((pr) => pr.number), [filtered]);
   const reviewDecisions = usePrReviewDecisions(owner, repo, prNumbers);
   const checkRollups = usePrCheckRollups(owner, repo, prNumbers);
@@ -169,6 +172,14 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
   const groups = useMemo(
     () => groupListItems(filtered, grouping.groupBy),
     [filtered, grouping.groupBy],
+  );
+  const bulkItems = useMemo(() => filtered.map(toBulkItem), [filtered]);
+  const visibleNumbers = useMemo(
+    () =>
+      groups
+        .filter((group) => grouping.groupBy === "none" || !grouping.collapsedGroups.has(group.key))
+        .flatMap((group) => group.items.map((pr) => pr.number)),
+    [groups, grouping.groupBy, grouping.collapsedGroups],
   );
 
   const labels = labelsQuery.data ?? [];
@@ -206,93 +217,87 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
   );
 
   return (
-    <BulkSelection
-      key={`${owner}/${repo}`}
-      scope={`${owner}/${repo}/${JSON.stringify(filters)}/${searchText}`}
-      owner={owner}
-      repo={repo}
-      kind="pulls"
-      items={filtered}
-      order={groups
-        .filter((group) => grouping.groupBy === "none" || !grouping.collapsedGroups.has(group.key))
-        .flatMap((group) =>
-          buildPrTree(group.items, branchRefs, defaultBranch).map((node) => node.pr.number),
-        )}
-    >
-      <Container className="py-6">
-        <h1 className="sr-only">Pull requests</h1>
-        <div className="mb-2 flex flex-col gap-2">
-          {/* Toolbar — raised surface */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted p-2">
-            <div className="flex items-center">
-              <PrStateTab
-                state="open"
-                count={counts.data?.open}
-                isActive={currentState === "open"}
-                onClick={() =>
-                  navigate({
-                    to: "/$owner/$repo/pulls",
-                    params: { owner, repo },
-                    search: (prev) => ({ ...prev, state: undefined }),
-                  })
-                }
-              />
-              <PrStateTab
-                state="closed"
-                count={counts.data?.closed}
-                isActive={currentState === "closed"}
-                onClick={() =>
-                  navigate({
-                    to: "/$owner/$repo/pulls",
-                    params: { owner, repo },
-                    search: (prev) => ({ ...prev, state: "closed" }),
-                  })
-                }
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  aria-label="Search pull requests"
-                  name="pull-request-search"
-                  autoComplete="off"
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  placeholder="Search…"
-                  className="h-7 w-44 pl-8 text-ui"
-                />
-              </div>
-
-              <FilterTrigger fields={fields} active={active} onChange={onActiveChange} />
-
-              <ListDisplayMenu
-                groupBy={grouping.groupBy}
-                onGroupByChange={grouping.setGroupBy}
-                groupKeys={groups.map((group) => group.key)}
-                collapsedGroups={grouping.collapsedGroups}
-                onGroupsCollapsed={grouping.setGroupsCollapsed}
-                ordering={{
-                  value: filters.sort ?? "newest",
-                  options: SORT_OPTIONS,
-                  onChange: (next) =>
-                    navigate({
-                      to: "/$owner/$repo/pulls",
-                      params: { owner, repo },
-                      search: (prev) => ({
-                        ...prev,
-                        sort: next === "newest" ? undefined : next,
-                      }),
-                    }),
-                }}
-              />
-            </div>
+    <Container className="py-6">
+      <h1 className="sr-only">Pull requests</h1>
+      <div className="mb-2 flex flex-col gap-2">
+        {/* Toolbar — raised surface */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted p-2">
+          <div className="flex items-center">
+            <PrStateTab
+              state="open"
+              count={counts.data?.open}
+              isActive={currentState === "open"}
+              onClick={() =>
+                navigate({
+                  to: "/$owner/$repo/pulls",
+                  params: { owner, repo },
+                  search: (prev) => ({ ...prev, state: undefined }),
+                })
+              }
+            />
+            <PrStateTab
+              state="closed"
+              count={counts.data?.closed}
+              isActive={currentState === "closed"}
+              onClick={() =>
+                navigate({
+                  to: "/$owner/$repo/pulls",
+                  params: { owner, repo },
+                  search: (prev) => ({ ...prev, state: "closed" }),
+                })
+              }
+            />
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                aria-label="Search pull requests"
+                name="pull-request-search"
+                autoComplete="off"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                placeholder="Search…"
+                className="h-7 w-44 pl-8 text-ui"
+              />
+            </div>
 
-          {/* Filter pills — only when active */}
-          <FilterBar fields={fields} active={active} onChange={onActiveChange} className="px-2" />
+            <FilterTrigger fields={fields} active={active} onChange={onActiveChange} />
+
+            <ListDisplayMenu
+              groupBy={grouping.groupBy}
+              onGroupByChange={grouping.setGroupBy}
+              groupKeys={groups.map((group) => group.key)}
+              collapsedGroups={grouping.collapsedGroups}
+              onGroupsCollapsed={grouping.setGroupsCollapsed}
+              ordering={{
+                value: filters.sort ?? "newest",
+                options: SORT_OPTIONS,
+                onChange: (next) =>
+                  navigate({
+                    to: "/$owner/$repo/pulls",
+                    params: { owner, repo },
+                    search: (prev) => ({
+                      ...prev,
+                      sort: next === "newest" ? undefined : next,
+                    }),
+                  }),
+              }}
+            />
+          </div>
         </div>
 
+        {/* Filter pills — only when active */}
+        <FilterBar fields={fields} active={active} onChange={onActiveChange} className="px-2" />
+      </div>
+
+      <BulkSelectionProvider
+        owner={owner}
+        repo={repo}
+        kind="pulls"
+        items={bulkItems}
+        visible={visibleNumbers}
+      >
         {/* List */}
         <div className="mt-4 flex flex-col gap-1">
           {pulls.isPending ? (
@@ -314,18 +319,17 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
                 onGroupsCollapsed={grouping.setGroupsCollapsed}
                 renderItems={(items) =>
                   buildPrTree(items, branchRefs, defaultBranch).map((node) => (
-                    <SelectableRow key={node.pr.id} number={node.pr.number}>
-                      <PrRow
-                        owner={owner}
-                        repo={repo}
-                        pr={node.pr}
-                        reviewDecision={reviewDecisions.get(node.pr.number) ?? null}
-                        checkRollup={checkRollups.get(node.pr.number)}
-                        depth={node.depth}
-                        treePosition={node.treePosition}
-                        ancestorContinuations={node.ancestorContinuations}
-                      />
-                    </SelectableRow>
+                    <PrRow
+                      key={node.pr.id}
+                      owner={owner}
+                      repo={repo}
+                      pr={node.pr}
+                      reviewDecision={reviewDecisions.get(node.pr.number) ?? null}
+                      checkRollup={checkRollups.get(node.pr.number)}
+                      depth={node.depth}
+                      treePosition={node.treePosition}
+                      ancestorContinuations={node.ancestorContinuations}
+                    />
                   ))
                 }
               />
@@ -338,8 +342,8 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
             </>
           )}
         </div>
-      </Container>
-    </BulkSelection>
+      </BulkSelectionProvider>
+    </Container>
   );
 }
 
@@ -379,7 +383,7 @@ function PrListSkeleton() {
   return (
     <SkeletonGroup label="Loading pull requests" className="skeleton-fade">
       {widths.map((w) => (
-        <div key={w} className="flex items-start gap-3 px-4 py-3">
+        <div key={w} className="flex items-start gap-3 py-3 pr-4 pl-10">
           <Skeleton className="size-4 shrink-0 rounded-full" />
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <Skeleton className="h-3.5" style={{ width: `${w}%` }} />
