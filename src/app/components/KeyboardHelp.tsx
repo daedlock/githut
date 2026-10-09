@@ -1,9 +1,10 @@
 import { useRouterState } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { SearchField } from "@/app/components/SearchField";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/app/components/ui/dialog";
 import { Kbd } from "@/app/components/ui/kbd";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
-import { cn } from "@/app/lib/cn";
+import { platformKey } from "@/app/lib/platform";
 import { useKeyboardHelpStore } from "@/app/stores/keyboardHelp";
 
 type Scope = "global" | "repo" | "diff" | "list";
@@ -18,7 +19,7 @@ const SHORTCUTS: readonly Shortcut[] = [
   // Global
   { chord: "⌘ K", label: "Open command palette", scope: "global" },
   { chord: "?", label: "Open keyboard help", scope: "global" },
-  { chord: "g h", label: "Go to inbox", scope: "global" },
+  { chord: "g h", label: "Go home", scope: "global" },
   { chord: "g i", label: "Go to issues", scope: "global" },
   { chord: "g p", label: "Go to pull requests", scope: "global" },
   { chord: "g c", label: "Go to code", scope: "global" },
@@ -72,9 +73,9 @@ function scopeForPath(pathname: string): Scope {
 function renderChord(chord: string): React.ReactNode {
   const tokens = chord.split(/\s+/).filter(Boolean);
   return (
-    <span className="inline-flex items-center gap-[3px]">
+    <span className="inline-flex shrink-0 items-center gap-1">
       {tokens.map((token) => (
-        <Kbd key={token}>{token}</Kbd>
+        <Kbd key={token}>{platformKey(token)}</Kbd>
       ))}
     </span>
   );
@@ -104,52 +105,82 @@ export function KeyboardHelp() {
       .filter((g) => g.items.length > 0);
   }, [order]);
 
+  const [query, setQuery] = useState("");
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return grouped;
+    return grouped
+      .map(({ scope, items }) => ({
+        scope,
+        items: items.filter(
+          (s) => s.label.toLowerCase().includes(q) || s.chord.toLowerCase().includes(q),
+        ),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [grouped, query]);
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setQuery("");
+      }}
+    >
       <DialogContent
         showCloseButton={false}
-        className="top-[22%] translate-y-0 w-[min(560px,calc(100vw-2rem))] gap-0 overflow-hidden p-0 sm:max-w-[560px]"
+        className="top-[18%] w-[min(560px,calc(100vw-2rem))] translate-y-0 gap-0 overflow-hidden p-0 sm:max-w-[560px]"
       >
         <DialogTitle className="sr-only">Keyboard shortcuts</DialogTitle>
         <DialogDescription className="sr-only">
           List of keyboard shortcuts available in this app.
         </DialogDescription>
 
-        <div className="flex items-center justify-between border-b border-border bg-muted px-4 py-2.5">
-          <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
-            Keyboard shortcuts
-          </span>
+        <div className="flex flex-col gap-2 p-3">
+          <span className="px-1 text-ui font-medium text-foreground">Keyboard shortcuts</span>
+          <SearchField
+            autoFocus
+            pageSearch={false}
+            aria-label="Filter shortcuts"
+            placeholder="Filter shortcuts…"
+            value={query}
+            onValueChange={setQuery}
+          />
         </div>
 
-        <div className="max-h-[min(520px,calc(100vh-12rem))] overflow-y-auto px-4 py-4">
-          {grouped.map(({ scope, items }, idx) => (
-            <section key={scope} className={idx === 0 ? "" : "mt-5"}>
-              <h3
-                className={cn(
-                  "pb-2 mb-3 border-b border-border",
-                  "font-mono text-micro uppercase tracking-widest text-muted-foreground",
-                )}
-              >
-                {SCOPE_TITLES[scope]}
-              </h3>
-              <ul className="grid grid-cols-[auto_1fr] items-center gap-x-5 gap-y-2">
-                {items.map((s) => (
-                  <li key={`${scope}-${s.chord}-${s.label}`} className="contents">
-                    <div className="justify-self-start">{renderChord(s.chord)}</div>
-                    <div className="text-ui text-muted-foreground">{s.label}</div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
+        <div className="flex max-h-[min(480px,calc(100vh-14rem))] flex-col gap-4 overflow-y-auto px-3 pb-3">
+          {visible.length === 0 ? (
+            <p className="px-2 py-6 text-center text-ui text-muted-foreground">
+              No shortcuts match “{query}”.
+            </p>
+          ) : (
+            visible.map(({ scope, items }) => (
+              <section key={scope} className="flex flex-col">
+                <h3 className="flex h-7 items-center px-2 text-micro font-medium uppercase tracking-widest text-muted-foreground">
+                  {SCOPE_TITLES[scope]}
+                </h3>
+                <ul className="flex flex-col">
+                  {items.map((s) => (
+                    <li
+                      key={`${scope}-${s.chord}-${s.label}`}
+                      className="flex h-8 items-center justify-between gap-4 rounded-md px-2 hover:bg-(--color-popover-active)"
+                    >
+                      <span className="truncate text-ui text-foreground">{s.label}</span>
+                      {renderChord(s.chord)}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))
+          )}
         </div>
 
-        <div className="flex items-center justify-between border-t border-border bg-muted px-3 py-2">
-          <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
-            ? to close
+        <div className="flex h-10 items-center justify-between border-t border-border px-4 text-caption text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Kbd>Esc</Kbd> to close
           </span>
-          <span className="font-mono text-micro uppercase tracking-widest text-muted-foreground">
-            ⌘K for commands
+          <span className="flex items-center gap-1.5">
+            <Kbd>{platformKey("⌘")}K</Kbd> for commands
           </span>
         </div>
       </DialogContent>
