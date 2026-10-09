@@ -2,16 +2,17 @@
 ## UI work — read DESIGN.md first
 
 Before building or editing **any** component, shell element, page layout, or list:
-**read `DESIGN.md`** at the repo root. It defines chrome heights, spacing rhythm,
-typographic scale, color usage rules, and component patterns. Violating it produces
-UIs that look wrong even if they technically work.
+**read `DESIGN.md`** at the repo root. It is the single source of truth for color,
+type, spacing, radius, elevation, z-index, motion, and component patterns. If this
+file disagrees with it, DESIGN.md wins. Fix this file.
 
 Key rules that catch most mistakes:
-- Top bar: `h-9` with `flex items-center`. **Never `py-*`** on a chrome bar.
-- Hover/selected rows: `bg-(--color-bg-sunken)`. **Never ember/primary as a fill**.
-- All text sizes: use `text-micro/caption/ui/code/body/title/heading/display`. **Never `text-sm`, `text-xs`, etc.**
-- Mono (`font-mono`) for identifiers. Sans (`font-sans`) for labels and descriptions.
-- Shadows on overlays only. **No shadows on headers, toolbars, or sidebars**.
+- Chrome bars: fixed height (`h-10`; the app header is `--app-header-height`) with `flex items-center`. **Never `py-*`** on a chrome bar.
+- Rows: hover `bg-muted`, selected `bg-accent`. **Never `primary` as a surface fill.**
+- Text sizes: only `text-micro/caption/ui/code/body/body-lg/title/heading/display`. **Never `text-xs`, `text-sm`, etc.**
+- `font-mono` for identifiers and code (numbers, SHAs, branches, paths). Sans for labels and prose.
+- Shadows on overlays only. **No shadows on headers, toolbars, sidebars, or rows.**
+- `rounded-lg` is 6px in this project (radius tokens are overridden).
 
 ---
 
@@ -54,8 +55,8 @@ test("hello world", () => {
 ## Rules
 
 1. **Before writing any modal, popover, dropdown, command palette, tooltip, toast, or form input — check `src/app/components/ui/` first.** If the component exists, use it. If it doesn't, add it with `bunx shadcn@latest add <name>` before writing something custom.
-2. **Load the shadcn skill** (`Skill` → `shadcn`) at the start of any UI task. It has the critical rules for component usage (FieldGroup/Field for forms, data-icon for icons in buttons, `cn()` for class merging, etc.).
-3. **Use semantic theme tokens**, not raw colors or our direct palette vars in shadcn consumers. shadcn's tokens (`bg-background`, `text-muted-foreground`, `border-border`, `text-primary`, `bg-destructive`, etc.) are bridged to our warm-stone/ember palette in `src/app/styles/index.css`. If you find yourself writing `bg-[var(--color-bg)]`, use `bg-background` instead.
+2. **Load the shadcn skill** (`Skill` → `shadcn`), when your environment has it, at the start of any UI task. It has the critical rules for component usage (FieldGroup/Field for forms, data-icon for icons in buttons, `cn()` for class merging, etc.).
+3. **Use semantic theme tokens**, not raw colors or our direct palette vars in shadcn consumers. shadcn's tokens (`bg-background`, `text-muted-foreground`, `border-border`, `text-primary`, `bg-destructive`, etc.) are bridged to our palette in `src/app/styles/tokens.css`. If you find yourself writing `bg-[var(--color-bg)]`, use `bg-background` instead.
 4. **Never re-invent primitives.** No hand-rolled `<Sheet>`, `<Popover>`, `<Dialog>` wrappers on top of Radix — use shadcn's `<Dialog>` / `<Popover>` / `<Sheet>` directly.
 5. **Button variants:** `default · secondary · ghost · destructive · outline · link`. Button sizes: `default · sm · lg · xs · icon · icon-sm · icon-xs · icon-lg`. Do not invent custom variants — compose via `className` if something specific is needed.
 6. **Animation is baked in.** shadcn modals/popovers animate via Radix `data-[state=open/closed]` + `tw-animate-css` utilities (`animate-in fade-in-0 zoom-in-95` etc.). Don't add your own keyframes.
@@ -66,19 +67,20 @@ test("hello world", () => {
 
 ## Theme bridge
 
-We own the palette (`--color-bg`, `--color-fg`, `--color-accent`, etc. — warm stone + ember). shadcn's semantic tokens resolve to our palette via the bridge block at the end of `@theme` in `src/app/styles/index.css`:
+We own the palette (`--color-bg`, `--color-fg`, `--color-brand`, status colors, and so on). shadcn's semantic tokens resolve to it via the bridge block at the end of `@theme` in `src/app/styles/tokens.css`:
 
 - `--color-background` → `var(--color-bg)`
 - `--color-foreground` → `var(--color-fg)`
-- `--color-primary` → `var(--color-accent)` (our ember)
-- `--color-secondary` → `var(--color-bg-subtle)`
+- `--color-popover` → a lift of `--color-bg` (light) or `--color-bg-subtle` (dark)
+- `--color-primary` → `var(--color-brand)` (the brand color)
+- `--color-secondary`, `--color-muted` → `var(--color-bg-subtle)`
 - `--color-muted-foreground` → `var(--color-fg-muted)`
-- `--color-accent` (shadcn) → `var(--color-bg-sunken)` (hover tint — *not* our brand accent; shadcn reuses the `accent` name for subtle surface)
+- `--color-accent` → `var(--color-bg-sunken)` (the selected/active surface, *not* the brand color; shadcn reuses the `accent` name for it)
 - `--color-destructive` → `var(--color-danger)`
-- `--color-border` → `var(--color-border)`
-- `--color-ring` → `var(--color-focus)`
+- `--color-input` → `var(--color-control-border)`
+- `--color-ring` → `var(--color-focus)` (= brand)
 
-When a shadcn component says `bg-background` / `text-muted-foreground`, it inherits our theme automatically. Theme swaps (ember / stone / dark mode) cascade without touching components.
+When a shadcn component says `bg-background` or `text-muted-foreground`, it inherits our theme automatically. Theme presets (`src/app/styles/themes/`) and dark mode cascade without touching components.
 
 ## When adding a new shadcn component
 
@@ -87,10 +89,11 @@ bunx shadcn@latest add <component-name> --yes
 ```
 
 After adding:
-1. Read the generated file. Verify `cn` is imported from `@/app/lib/cn` (not `@/app/lib/utils`). If wrong, fix it.
+1. Read the generated file. Verify `cn` is imported from `@/app/lib/cn` (not `@/app/lib/utils` or a bare `cn`). If wrong, fix it. If the CLI added a `cn` package to `package.json`, revert `package.json` and `bun.lock`.
 2. If the registry file uses icons from a library we don't use, swap to `lucide-react`.
-3. Cross-check against the shadcn skill's critical rules.
-4. Run `bun tsc --noEmit` — must be clean.
+3. Check state selectors. Our registry style emits `data-checked:` / `data-vertical:` variants, but Radix sets `data-state="checked"` and `data-orientation="vertical"`. Use `data-[state=checked]:` and `data-[orientation=vertical]:`.
+4. Cross-check against the shadcn skill's critical rules.
+5. Run `bun tsc --noEmit` — must be clean.
 
 ## Agent skills
 
