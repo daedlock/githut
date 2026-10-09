@@ -35,8 +35,8 @@ const SHORTCUTS: readonly Shortcut[] = [
   { chord: "[", label: "Toggle file tree", scope: "diff" },
 
   // List navigation
-  { chord: "j", label: "Move down", scope: "list" },
-  { chord: "k", label: "Move up", scope: "list" },
+  { chord: "j", label: "Move down (or ↓ on a row)", scope: "list" },
+  { chord: "k", label: "Move up (or ↑ on a row)", scope: "list" },
   { chord: "Enter", label: "Open", scope: "list" },
   { chord: "x", label: "Select item", scope: "list" },
   { chord: "⇧ x", label: "Extend selection", scope: "list" },
