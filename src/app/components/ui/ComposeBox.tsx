@@ -1,13 +1,29 @@
-import { CheckCircle2, CircleDot, Eye, GitPullRequest, ImagePlus, Pencil, Send } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleDot,
+  Eye,
+  GitPullRequest,
+  ImagePlus,
+  Loader2,
+  Pencil,
+  Send,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { Avatar } from "@/app/components/ui/avatar";
+import { Button } from "@/app/components/ui/button";
+import { Kbd } from "@/app/components/ui/kbd";
 import { Popover, PopoverAnchor, PopoverContent } from "@/app/components/ui/popover";
 import { Skeleton } from "@/app/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@/app/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { useDebouncedValue } from "@/app/hooks/useDebouncedValue";
 import { type MentionItem, type MentionUser, useMentionSearch } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
 import { useAuthStore } from "@/app/stores/auth";
+
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
+const MENTION_SKELETON_WIDTHS = ["55%", "40%", "65%", "48%"] as const;
 
 // ─── Trigger detection ───────────────────────────────────────────────────────
 
@@ -112,39 +128,43 @@ function Row({
   return (
     <button
       type="button"
+      role="option"
+      aria-selected={selected}
+      tabIndex={-1}
       onMouseDown={(e) => {
         e.preventDefault();
         onSelect(item);
       }}
       className={cn(
-        "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left outline-hidden select-none",
-        "transition-colors duration-75",
-        selected ? "bg-[var(--color-popover-active)] text-foreground" : "hover:bg-[var(--color-popover-active)]",
+        "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-ui outline-hidden select-none",
+        "transition-colors duration-75 hover:bg-(--color-popover-active)",
+        selected && "bg-(--color-popover-active) text-foreground",
       )}
     >
       {item.kind === "@" ? (
         <>
           <Avatar login={item.login} avatarUrl={item.avatar} size="sm" />
-          <span className="min-w-0 flex-1 truncate text-xs text-foreground">{item.login}</span>
+          <span className="min-w-0 flex-1 truncate text-foreground">{item.login}</span>
         </>
       ) : (
         <>
           {item.isPR ? (
             <GitPullRequest
+              aria-hidden
               className={cn(
                 "size-3.5 shrink-0",
-                item.state === "open" ? "text-[var(--color-success)]" : "text-muted-foreground",
+                item.state === "open" ? "text-(--color-success)" : "text-destructive",
               )}
             />
           ) : item.state === "open" ? (
-            <CircleDot className="size-3.5 shrink-0 text-[var(--color-success)]" />
+            <CircleDot aria-hidden className="size-3.5 shrink-0 text-(--color-success)" />
           ) : (
-            <CheckCircle2 className="size-3.5 shrink-0 text-muted-foreground" />
+            <CheckCircle2 aria-hidden className="size-3.5 shrink-0 text-(--color-fg-faint)" />
           )}
-          <span className="font-mono text-xs text-muted-foreground tabular-nums">
+          <span className="font-mono text-caption text-muted-foreground tabular-nums">
             #{item.number}
           </span>
-          <span className="min-w-0 flex-1 truncate text-xs text-foreground">{item.title}</span>
+          <span className="min-w-0 flex-1 truncate text-foreground">{item.title}</span>
         </>
       )}
     </button>
@@ -162,6 +182,8 @@ export interface ComposeBoxProps {
   onCancel?: () => void;
   submitLabel?: string;
   cancelLabel?: string;
+  /** Show the footer Cancel button when `onCancel` is set (Esc cancels either way). */
+  showCancel?: boolean;
   submitDisabled?: boolean;
   submitPending?: boolean;
   placeholder?: string;
@@ -181,6 +203,7 @@ export function ComposeBox({
   onCancel,
   submitLabel = "Comment",
   cancelLabel = "Cancel",
+  showCancel = true,
   submitDisabled,
   submitPending,
   placeholder = "Leave a comment",
@@ -223,13 +246,16 @@ export function ComposeBox({
     const api = items ?? [];
     if (!participants?.length || trigger?.type !== "@") return api;
     const q = debouncedQuery.toLowerCase();
-    const apiLogins = new Set(api.filter((i): i is MentionUser => i.kind === "@").map((i) => i.login));
+    const apiLogins = new Set(
+      api.filter((i): i is MentionUser => i.kind === "@").map((i) => i.login),
+    );
     const seed = participants.filter(
       (p) => !apiLogins.has(p.login) && (!q || p.login.toLowerCase().includes(q)),
     );
     return [...seed, ...api];
   }, [items, participants, trigger?.type, debouncedQuery]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset the highlight whenever the suggestions change
   useEffect(() => setSelectedIdx(0), [dropdownItems]);
 
   const insertCompletion = useCallback(
@@ -345,10 +371,12 @@ export function ComposeBox({
       return;
     }
     if (dropdownItems.length === 0) return;
-    if (e.key === "ArrowDown") {
+    const ctrlOnly = e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey;
+    const key = e.key.toLowerCase();
+    if (e.key === "ArrowDown" || (ctrlOnly && (key === "n" || key === "j"))) {
       e.preventDefault();
       setSelectedIdx((i) => (i + 1) % dropdownItems.length);
-    } else if (e.key === "ArrowUp") {
+    } else if (e.key === "ArrowUp" || (ctrlOnly && (key === "p" || key === "k"))) {
       e.preventDefault();
       setSelectedIdx((i) => (i - 1 + dropdownItems.length) % dropdownItems.length);
     } else if (e.key === "Enter" || e.key === "Tab") {
@@ -378,55 +406,64 @@ export function ComposeBox({
   const showSkeleton = !!trigger && isFetching && dropdownItems.length === 0;
   const showEmpty = !!trigger && !isFetching && dropdownItems.length === 0;
   const hasContent = value.trim().length > 0;
-  const canSubmit = hasContent && !submitDisabled && !submitPending;
+  const canSubmit = hasContent && !submitDisabled;
+  const mod = IS_MAC ? "⌘" : "Ctrl";
 
   return (
     <div
       ref={containerRef}
       onFocusCapture={handleFocusCapture}
       className={cn(
-        "group/compose @container/compose flex min-w-0 flex-col rounded-lg border transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
-        focused
-          ? "border-[var(--color-border-strong)] ring-1 ring-[var(--color-focus)]/20"
-          : "border-[var(--color-border)] hover:border-[var(--color-border-strong)]",
+        "group/compose @container/compose flex min-w-0 flex-col rounded-lg border border-input bg-(--color-control-bg) transition-colors",
+        focused &&
+          "border-(--color-control-border-active) bg-(--color-control-bg-active) ring-1 ring-(--color-control-ring)",
         className,
       )}
     >
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center px-1 py-0.5">
-        <div className="relative flex">
-          <TabPill active={mode === "write"} onClick={() => setMode("write")}>
-            <Pencil className="size-3" />
+      <div className="flex flex-wrap items-center gap-2 px-1.5 pt-1.5">
+        <ToggleGroup
+          type="single"
+          size="sm"
+          spacing={1}
+          value={mode}
+          onValueChange={(next) => {
+            if (next === "write" || next === "preview") setMode(next);
+          }}
+          aria-label="Editor mode"
+        >
+          <ToggleGroupItem value="write">
+            <Pencil data-icon="inline-start" aria-hidden />
             Write
-          </TabPill>
-          <TabPill
-            active={mode === "preview"}
-            onClick={() => setMode("preview")}
-            disabled={!hasContent}
-          >
-            <Eye className="size-3" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="preview" disabled={!hasContent}>
+            <Eye data-icon="inline-start" aria-hidden />
             Preview
-          </TabPill>
-        </div>
-        <div className="flex-1" />
-        <div className={cn(
-          "flex items-center gap-2 pr-1 transition-opacity duration-200",
-          focused ? "opacity-100" : "opacity-0",
-        )}>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className={cn(
-              "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[var(--color-fg-faint)]",
-              "outline-none transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-foreground",
-              uploading && "animate-pulse",
-            )}
-            title="Attach an image"
-          >
-            <ImagePlus className="size-3" />
-            <span className="font-mono text-micro">{uploading ? "Uploading…" : "Attach"}</span>
-          </button>
+          </ToggleGroupItem>
+        </ToggleGroup>
+        <div className="ml-auto flex items-center gap-2 opacity-0 transition-opacity group-focus-within/compose:opacity-100 group-hover/compose:opacity-100 motion-reduce:transition-none [@media(hover:none)]:opacity-100">
+          <span className="hidden select-none text-caption text-muted-foreground @min-[28rem]/compose:inline">
+            @ to mention · # to reference
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <Loader2 data-icon="inline-start" className="motion-safe:animate-spin" />
+                ) : (
+                  <ImagePlus data-icon="inline-start" />
+                )}
+                Attach
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Attach an image, or paste or drop one</TooltipContent>
+          </Tooltip>
           <input
             ref={fileInputRef}
             type="file"
@@ -434,14 +471,8 @@ export function ComposeBox({
             className="hidden"
             onChange={handleFileSelect}
           />
-          <span className="hidden select-none font-mono text-micro text-[var(--color-fg-faint)] @min-[24rem]/compose:inline">
-            @ mention &middot; # reference
-          </span>
         </div>
       </div>
-
-      {/* ── Divider ──────────────────────────────────────────────────── */}
-      <div className="mx-3 border-t border-[var(--color-border)]" />
 
       {/* ── Write / Preview area ─────────────────────────────────────── */}
       <div className="relative min-h-0">
@@ -451,6 +482,7 @@ export function ComposeBox({
             <textarea
               ref={textareaRef}
               aria-label={placeholder}
+              aria-keyshortcuts={onSubmit ? `${IS_MAC ? "Meta" : "Control"}+Enter` : undefined}
               name="comment-body"
               autoComplete="off"
               value={value}
@@ -463,12 +495,11 @@ export function ComposeBox({
               placeholder={placeholder}
               rows={rows}
               disabled={disabled}
+              // biome-ignore lint/a11y/noAutofocus: callers opt in when the composer opens on demand
               autoFocus={autoFocus}
               className={cn(
-                "w-full resize-y rounded-b-lg bg-transparent px-3 py-2.5 text-body text-foreground",
-                "placeholder:text-[var(--color-fg-faint)] placeholder:transition-opacity placeholder:duration-200",
-                "focus:outline-none disabled:opacity-50",
-                focused ? "placeholder:opacity-100" : "placeholder:opacity-60",
+                "block w-full resize-y rounded-b-lg bg-transparent px-3 py-2 text-body text-foreground",
+                "placeholder:text-muted-foreground focus:outline-none disabled:opacity-50",
               )}
             />
             <PopoverContent
@@ -476,20 +507,20 @@ export function ComposeBox({
               sideOffset={4}
               onOpenAutoFocus={(e) => e.preventDefault()}
               onInteractOutside={(e) => e.preventDefault()}
-              className="w-[280px] gap-0 p-1.5 overflow-hidden data-[state=closed]:[animation-duration:0s]"
+              className="w-72 gap-0 overflow-hidden p-1 data-[state=closed]:[animation-duration:0s]"
             >
-              <div className="max-h-[260px] overflow-auto">
+              <div role="listbox" aria-label="Suggestions" className="max-h-64 overflow-auto">
                 {showSkeleton ? (
-                  <div className="flex flex-col gap-0.5">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="flex items-center gap-2.5 px-2 py-1.5">
-                        <Skeleton className="size-5 rounded-full" />
-                        <Skeleton className="h-2.5 flex-1 max-w-[60%]" />
+                  <div className="flex flex-col">
+                    {MENTION_SKELETON_WIDTHS.map((width) => (
+                      <div key={width} className="flex h-8 items-center gap-2.5 px-2">
+                        <Skeleton className="size-5 shrink-0 rounded-full" />
+                        <Skeleton className="h-3" style={{ width }} />
                       </div>
                     ))}
                   </div>
                 ) : showEmpty ? (
-                  <div className="px-2 py-4 text-center text-xs text-muted-foreground">
+                  <div className="px-2 py-4 text-center text-ui text-muted-foreground">
                     No matches
                   </div>
                 ) : (
@@ -508,13 +539,13 @@ export function ComposeBox({
         )}
 
         {mode === "preview" && (
-          <div className="animate-in fade-in-0 duration-150 min-h-[80px] px-3 py-2.5">
+          <div className="min-h-20 px-3 py-2">
             {hasContent ? (
               <div className="readme-prose max-w-none text-body">
                 <GithubMarkdown repoContext={{ owner, repo }}>{value}</GithubMarkdown>
               </div>
             ) : (
-              <p className="text-body italic text-muted-foreground">Nothing to preview.</p>
+              <p className="text-body text-muted-foreground">Nothing to preview.</p>
             )}
           </div>
         )}
@@ -522,88 +553,42 @@ export function ComposeBox({
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
       {onSubmit && (
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--color-border)] px-3 py-2">
-
-          <span className="mr-auto hidden font-mono text-micro text-[var(--color-fg-faint)] select-none @min-[24rem]/compose:inline">
-            {navigator.platform?.includes("Mac") ? "⌘" : "Ctrl"}+Enter to submit
+        <div className="flex flex-wrap items-center justify-end gap-2 px-2 pb-2">
+          <span className="mr-auto hidden select-none items-center gap-1 pl-1 text-caption text-muted-foreground @min-[24rem]/compose:inline-flex">
+            <Kbd>{mod}</Kbd>
+            <Kbd>Enter</Kbd>
+            to submit
           </span>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            {onCancel && (
-              <button
-                type="button"
-                onClick={onCancel}
-                disabled={submitPending}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-caption font-medium",
-                  "outline-none transition-colors duration-150",
-                  "focus-visible:ring-2 focus-visible:ring-ring/40",
-                  "text-muted-foreground hover:bg-[var(--color-bg-sunken)] hover:text-foreground",
-                  "disabled:pointer-events-none disabled:opacity-50",
-                )}
-              >
-                {cancelLabel}
-              </button>
-            )}
-            <button
+          {onCancel && showCancel && (
+            <Button
               type="button"
-              disabled={!canSubmit}
-              onClick={onSubmit}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-caption font-medium",
-                "outline-none transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
-                "focus-visible:ring-2 focus-visible:ring-ring/40",
-                "disabled:pointer-events-none",
-                canSubmit
-                  ? "bg-primary text-primary-foreground hover:bg-primary/85 active:translate-y-px"
-                  : "bg-muted text-muted-foreground",
-              )}
+              variant="ghost"
+              size="sm"
+              onClick={onCancel}
+              disabled={submitPending}
+              aria-keyshortcuts="Escape"
             >
-              {submitPending ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Submitting
-                </span>
-              ) : (
-                <>
-                  <Send className="size-3" />
-                  {submitLabel}
-                </>
-              )}
-            </button>
-          </div>
+              {cancelLabel}
+            </Button>
+          )}
+          <Button
+            type="button"
+            size="sm"
+            disabled={!canSubmit}
+            aria-busy={submitPending || undefined}
+            onClick={() => {
+              if (!submitPending) onSubmit();
+            }}
+          >
+            {submitPending ? (
+              <Loader2 data-icon="inline-start" className="motion-safe:animate-spin" />
+            ) : (
+              <Send data-icon="inline-start" />
+            )}
+            {submitLabel}
+          </Button>
         </div>
       )}
     </div>
-  );
-}
-
-// ─── Tab pill ─────────────────────────────────────────────────────────────
-
-function TabPill({
-  active,
-  onClick,
-  disabled,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "relative inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-caption font-medium",
-        "outline-none transition-all duration-150 ease-[cubic-bezier(0.16,1,0.3,1)]",
-        active
-          ? "bg-[var(--color-popover-active)] text-foreground"
-          : "text-muted-foreground hover:text-foreground hover:bg-[var(--color-bg-subtle)] disabled:cursor-not-allowed disabled:opacity-40",
-      )}
-    >
-      {children}
-    </button>
   );
 }

@@ -1,17 +1,24 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
-import { Card } from "@/app/components/ui/card";
 import { ComposeBox } from "@/app/components/ui/ComposeBox";
+import { Card } from "@/app/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
+import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { ReactionsBar } from "@/app/features/issues/components/ReactionsBar";
-import { EMPTY_MY_REACTIONS, type MyReactionsMap, type ReactionContent, type ReactionsMap } from "@/app/features/issues/schemas";
+import {
+  EMPTY_MY_REACTIONS,
+  type MyReactionsMap,
+  type ReactionContent,
+  type ReactionsMap,
+} from "@/app/features/issues/schemas";
 import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
@@ -110,55 +117,53 @@ export function CommentCardDisplay({
     <CommentMenu onEdit={startEdit} onDelete={onDelete} disabled={isSaving} />
   ) : null;
 
+  const editor = editingAvailable && (
+    <ComposeBox
+      owner={repoOwner!}
+      repo={repoName!}
+      value={draft}
+      onChange={setDraft}
+      onSubmit={commit}
+      onCancel={cancelEdit}
+      submitLabel="Save"
+      submitPending={isSaving}
+      submitDisabled={!draft.trim() || draft.trim() === (rawBody ?? "").trim()}
+      rows={inline ? 4 : 5}
+      autoFocus
+      participants={participants}
+    />
+  );
+
   // ── Inline variant (review threads, compact contexts) ──────────────────
   if (inline) {
     return (
       <div className={cn("flex gap-2.5", className)}>
-        <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="flex-shrink-0 mt-0.5" />
+        <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="mt-0.5 shrink-0" />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-            <span className="text-xs font-medium text-foreground">{login}</span>
-            {isAuthor && (
-              <span className="rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground">
-                Author
-              </span>
-            )}
+          <div className="flex min-h-6 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            <ProfileLink login={login} className="text-ui font-medium text-foreground">
+              {login}
+            </ProfileLink>
+            {isAuthor && <AuthorBadge />}
             {date && (
-              <span className="text-xs text-muted-foreground/60">{formatRelativeTime(date)}</span>
+              <span className="text-caption tabular-nums text-muted-foreground">
+                {formatRelativeTime(date)}
+              </span>
             )}
             {actions}
             {menuButton && <div className="ml-auto">{menuButton}</div>}
           </div>
           <BodySwap
             editing={editing}
-            display={<div className="mt-1 text-sm">{children}</div>}
-            editor={
-              editingAvailable && (
-                <div className="mt-1.5">
-                  <ComposeBox
-                    owner={repoOwner!}
-                    repo={repoName!}
-                    value={draft}
-                    onChange={setDraft}
-                    onSubmit={commit}
-                    onCancel={cancelEdit}
-                    submitLabel="Save"
-                    submitPending={isSaving}
-                    submitDisabled={!draft.trim() || draft.trim() === (rawBody ?? "").trim()}
-                    rows={4}
-                    autoFocus
-                    participants={participants}
-                  />
-                </div>
-              )
-            }
+            display={<div className="mt-1 text-body">{children}</div>}
+            editor={editor && <div className="mt-1.5">{editor}</div>}
           />
           {!editing && showReactions && (
             <ReactionsBar
               reactions={reactions}
               myReactions={myReactions ?? EMPTY_MY_REACTIONS}
               onToggle={onToggleReaction}
-              className="mt-1.5 border-t-0 pt-0"
+              className="mt-1.5"
             />
           )}
         </div>
@@ -166,25 +171,22 @@ export function CommentCardDisplay({
     );
   }
 
-  // ── Carded variant (default — issues, PR conversation, reviews) ─────────
+  // ── Comment block (default — issues, PR conversation, reviews) ─────────
   return (
-    <Card variant="muted" className={cn("overflow-hidden", className)}>
-      <div className="flex items-center gap-2 border-b border-border/50 bg-muted/50 px-4 py-2">
-        <Avatar login={login} avatarUrl={avatarUrl} size="sm" />
-        <span className="text-xs font-medium text-foreground">{login}</span>
-        {isAuthor && (
-          <span className="rounded bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-            Author
+    <Card variant="muted" className={className}>
+      <div className="flex h-10 items-center gap-2 px-4">
+        <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="shrink-0" />
+        <ProfileLink login={login} className="min-w-0 truncate text-ui font-medium text-foreground">
+          {login}
+        </ProfileLink>
+        {isAuthor && <AuthorBadge />}
+        {date && (
+          <span className="shrink-0 text-ui text-muted-foreground">
+            commented <span className="tabular-nums">{formatRelativeTime(date)}</span>
           </span>
         )}
-        {date && (
-          <>
-            <span className="text-xs text-muted-foreground">commented</span>
-            <span className="text-xs text-muted-foreground/60">{formatRelativeTime(date)}</span>
-          </>
-        )}
         {(actions || menuButton) && (
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex shrink-0 items-center gap-1">
             {actions}
             {menuButton}
           </div>
@@ -193,35 +195,28 @@ export function CommentCardDisplay({
       <BodySwap
         editing={editing}
         display={
-          <div className="p-4">
+          <div className="px-4 pb-4">
             {children}
             {showReactions && (
-              <ReactionsBar reactions={reactions} myReactions={myReactions ?? EMPTY_MY_REACTIONS} onToggle={onToggleReaction} />
+              <ReactionsBar
+                reactions={reactions}
+                myReactions={myReactions ?? EMPTY_MY_REACTIONS}
+                onToggle={onToggleReaction}
+              />
             )}
           </div>
         }
-        editor={
-          editingAvailable && (
-            <div className="p-3">
-              <ComposeBox
-                owner={repoOwner!}
-                repo={repoName!}
-                value={draft}
-                onChange={setDraft}
-                onSubmit={commit}
-                onCancel={cancelEdit}
-                submitLabel="Save"
-                submitPending={isSaving}
-                submitDisabled={!draft.trim() || draft.trim() === (rawBody ?? "").trim()}
-                rows={5}
-                autoFocus
-                participants={participants}
-              />
-            </div>
-          )
-        }
+        editor={editor && <div className="px-4 pb-4">{editor}</div>}
       />
     </Card>
+  );
+}
+
+function AuthorBadge() {
+  return (
+    <span className="inline-flex h-4 shrink-0 items-center rounded-sm bg-accent px-1.5 text-micro font-medium text-muted-foreground">
+      Author
+    </span>
   );
 }
 
@@ -257,9 +252,12 @@ function CommentMenu({
   const confirmTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  useEffect(() => () => {
-    if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
+    },
+    [],
+  );
 
   function handleDelete(e: Event) {
     if (!onDelete) return;
@@ -276,26 +274,25 @@ function CommentMenu({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          disabled={disabled}
-          aria-label="Comment actions"
-          className={cn(
-            "inline-flex size-6 items-center justify-center rounded-md outline-none",
-            "text-muted-foreground/50 transition-all duration-150",
-            "hover:bg-[var(--color-bg-sunken)] hover:text-foreground",
-            "focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:text-foreground",
-            "data-[state=open]:bg-[var(--color-bg-sunken)] data-[state=open]:text-foreground",
-            "disabled:pointer-events-none disabled:opacity-40",
-          )}
-        >
-          <MoreHorizontal className="size-3.5" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={4} className="min-w-[140px]">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              disabled={disabled}
+              aria-label="Comment actions"
+            >
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Comment actions</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent align="end" sideOffset={4} className="min-w-36">
         <DropdownMenuItem onSelect={onEdit}>
-          <Pencil className="size-3.5" />
+          <Pencil />
           Edit
         </DropdownMenuItem>
         {onDelete && (
@@ -308,81 +305,11 @@ function CommentMenu({
               if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
             }}
           >
-            <Trash2 className="size-3.5" />
+            <Trash2 />
             {confirmingDelete ? "Click again to confirm" : "Delete"}
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-/**
- * CommentCard.Reply — Compact inline reply composer.
- */
-export function CommentCardReply({
-  login,
-  avatarUrl,
-  placeholder = "Reply…",
-  submitLabel = "Reply",
-  value,
-  onChange,
-  onSubmit,
-  onCancel,
-  isPending,
-  className,
-}: CommentCardProps & {
-  placeholder?: string;
-  submitLabel?: string;
-  value: string;
-  onChange: (value: string) => void;
-  onSubmit: () => void;
-  onCancel: () => void;
-  isPending?: boolean;
-}) {
-  return (
-    <div className={cn("flex gap-2.5", className)}>
-      <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="flex-shrink-0 mt-1" />
-      <div className="min-w-0 flex-1">
-        <textarea
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          rows={2}
-          className={cn(
-            "w-full resize-none rounded-lg border border-input bg-background p-2.5",
-            "text-sm text-foreground placeholder:text-muted-foreground",
-            "focus:outline-none focus:ring-2 focus:ring-ring/40",
-          )}
-          disabled={isPending}
-          autoFocus
-        />
-        <div className="mt-2 flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={onCancel} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button size="sm" disabled={!value.trim() || isPending} onClick={onSubmit}>
-            {isPending ? "Submitting…" : submitLabel}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * CommentThread — Container for a thread of comments.
- */
-export function CommentThread({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex flex-col divide-y divide-border", className)}>
-      {children}
-    </div>
   );
 }
