@@ -1,19 +1,23 @@
-import { useMemo } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Tag, User } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Settings2, Tag, User } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { PropertyEmpty, PropertySection } from "@/app/components/PropertySection";
 import { Avatar } from "@/app/components/ui/avatar";
-import { Card } from "@/app/components/ui/card";
+import { Button } from "@/app/components/ui/button";
+import { Kbd } from "@/app/components/ui/kbd";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
-import { SidebarPicker, type PickerItem } from "@/app/features/pulls/components/SidebarPicker";
-import { useRepoCollaborators, useRepoLabels } from "@/app/features/pulls/pickers";
 import { useSetIssueAssignees, useSetIssueLabels } from "@/app/features/issues/hooks";
 import type { RepoIssue } from "@/app/features/issues/schemas";
+import { type PickerItem, SidebarPicker } from "@/app/features/pulls/components/SidebarPicker";
+import { useRepoCollaborators, useRepoLabels } from "@/app/features/pulls/pickers";
+import { useKeybindings } from "@/app/hooks/useKeybindings";
 
-const ITEM_SPRING = { type: "spring" as const, stiffness: 540, damping: 30, mass: 0.5 };
-const ITEM_INIT = { opacity: 0, scale: 0.85, y: -2 };
-const ITEM_IN = { opacity: 1, scale: 1, y: 0 };
-const ITEM_OUT = { opacity: 0, scale: 0.85, y: -2 };
+// DESIGN.md micro-interaction curve.
+const EASE = [0.16, 1, 0.3, 1] as const;
+
+type PickerId = "labels" | "assignees";
 
 export function IssueSidebar({
   owner,
@@ -29,6 +33,24 @@ export function IssueSidebar({
 
   const setAssignees = useSetIssueAssignees(owner, repo, issue.number);
   const setLabels = useSetIssueLabels(owner, repo, issue.number);
+
+  const [picker, setPicker] = useState<PickerId | null>(null);
+  useKeybindings(
+    useMemo(() => ({ l: () => setPicker("labels"), a: () => setPicker("assignees") }), []),
+  );
+  const pickerProps = (id: PickerId) => ({
+    open: picker === id,
+    onOpenChange: (open: boolean) => setPicker(open ? id : null),
+  });
+
+  const reduced = useReducedMotion();
+  const presence = {
+    layout: !reduced,
+    initial: { opacity: 0, y: reduced ? 0 : -4 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: reduced ? 0 : -4 },
+    transition: { duration: 0.16, ease: EASE },
+  };
 
   const assigneeItems: PickerItem[] = useMemo(
     () =>
@@ -58,10 +80,7 @@ export function IssueSidebar({
       })),
     [labelsQuery.data],
   );
-  const selectedLabels = useMemo(
-    () => new Set(issue.labels.map((l) => l.name)),
-    [issue.labels],
-  );
+  const selectedLabels = useMemo(() => new Set(issue.labels.map((l) => l.name)), [issue.labels]);
   const onToggleLabel = (name: string, next: boolean) => {
     const current = issue.labels.map((l) => l.name);
     const nextNames = next ? [...current, name] : current.filter((n) => n !== name);
@@ -69,112 +88,122 @@ export function IssueSidebar({
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card variant="muted" className="p-3">
-        <SectionHeader
-          icon={<Tag className="size-3" />}
-          title="Labels"
-          picker={
+    <div className="flex flex-col gap-6">
+      <PropertySection
+        icon={<Tag />}
+        title="Labels"
+        action={
+          <PickerHint label="Edit labels" shortcut="L" suppressed={picker === "labels"}>
             <SidebarPicker
+              {...pickerProps("labels")}
               title="Apply labels"
               ariaLabel="Edit labels"
+              placeholder="Apply labels…"
               items={labelItems}
               selectedIds={selectedLabels}
               onToggle={onToggleLabel}
               loading={labelsQuery.isPending}
               emptyText="No labels"
+              trigger={<PickerTrigger label="Edit labels" shortcut="l" />}
             />
-          }
-        />
-        <div className="mt-2">
-          {issue.labels.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              <AnimatePresence mode="popLayout" initial={false}>
-                {issue.labels.map((l) => (
-                  <motion.div
-                    key={l.id}
-                    layout
-                    initial={ITEM_INIT}
-                    animate={ITEM_IN}
-                    exit={ITEM_OUT}
-                    transition={ITEM_SPRING}
-                  >
-                    <LabelPill label={l} size="sm" />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          ) : (
-            <EmptyState>None yet</EmptyState>
-          )}
-        </div>
-      </Card>
+          </PickerHint>
+        }
+      >
+        {issue.labels.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            <AnimatePresence mode="popLayout" initial={false}>
+              {issue.labels.map((l) => (
+                <motion.div key={l.id} {...presence}>
+                  <LabelPill label={l} size="sm" />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <PropertyEmpty>No labels</PropertyEmpty>
+        )}
+      </PropertySection>
 
-      <Card variant="muted" className="p-3">
-        <SectionHeader
-          icon={<User className="size-3" />}
-          title="Assignees"
-          picker={
+      <PropertySection
+        icon={<User />}
+        title="Assignees"
+        action={
+          <PickerHint label="Edit assignees" shortcut="A" suppressed={picker === "assignees"}>
             <SidebarPicker
+              {...pickerProps("assignees")}
               title="Assign people"
               ariaLabel="Edit assignees"
+              placeholder="Assign to…"
               items={assigneeItems}
               selectedIds={selectedAssignees}
               onToggle={onToggleAssignee}
               loading={collabQuery.isPending}
               emptyText="No collaborators"
+              trigger={<PickerTrigger label="Edit assignees" shortcut="a" />}
             />
-          }
-        />
-        <div className="mt-2">
-          {issue.assignees.length > 0 ? (
-            <div className="flex flex-col gap-1.5">
-              <AnimatePresence mode="popLayout" initial={false}>
-                {issue.assignees.map((a) => (
-                  <motion.div
-                    key={a.login}
-                    layout
-                    initial={ITEM_INIT}
-                    animate={ITEM_IN}
-                    exit={ITEM_OUT}
-                    transition={ITEM_SPRING}
-                    className="flex items-center gap-2"
-                  >
-                    <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
-                    <ProfileLink login={a.login} className="text-xs text-muted-foreground">
-                      {a.login}
-                    </ProfileLink>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          ) : (
-            <EmptyState>No one assigned</EmptyState>
-          )}
-        </div>
-      </Card>
+          </PickerHint>
+        }
+      >
+        {issue.assignees.length > 0 ? (
+          <div className="flex flex-col gap-1.5">
+            <AnimatePresence mode="popLayout" initial={false}>
+              {issue.assignees.map((a) => (
+                <motion.div key={a.login} {...presence} className="flex items-center gap-2">
+                  <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
+                  <ProfileLink login={a.login} className="truncate text-ui text-foreground">
+                    {a.login}
+                  </ProfileLink>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <PropertyEmpty>No one assigned</PropertyEmpty>
+        )}
+      </PropertySection>
     </div>
   );
 }
 
-function SectionHeader({
-  icon,
-  title,
-  picker,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  picker?: React.ReactNode;
-}) {
+function PickerTrigger({ label, shortcut }: { label: string; shortcut: string }) {
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-muted-foreground">{icon}</span>
-      <span className="flex-1 text-xs font-medium text-muted-foreground">{title}</span>
-      {picker}
-    </div>
+    <TooltipTrigger asChild>
+      <Button variant="ghost" size="icon-xs" aria-label={label} aria-keyshortcuts={shortcut}>
+        <Settings2 />
+      </Button>
+    </TooltipTrigger>
   );
 }
 
-function EmptyState({ children }: { children: React.ReactNode }) {
-  return <span className="text-xs text-muted-foreground">{children}</span>;
+/**
+ * Tooltip for a picker trigger. Hidden while the picker is open, and quiet
+ * for a moment after it closes so returning focus doesn't pop the tooltip.
+ */
+function PickerHint({
+  label,
+  shortcut,
+  suppressed,
+  children,
+}: {
+  label: string;
+  shortcut: string;
+  suppressed: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const quietUntil = useRef(0);
+  useEffect(() => {
+    if (!suppressed) quietUntil.current = Date.now() + 300;
+  }, [suppressed]);
+  return (
+    <Tooltip
+      open={open && !suppressed}
+      onOpenChange={(next) => setOpen(next && Date.now() > quietUntil.current)}
+    >
+      {children}
+      <TooltipContent>
+        {label} <Kbd>{shortcut}</Kbd>
+      </TooltipContent>
+    </Tooltip>
+  );
 }

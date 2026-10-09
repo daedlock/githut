@@ -1,14 +1,17 @@
-import { CheckCircle2, CircleDot, X } from "lucide-react";
-import { useMemo } from "react";
+import { CheckCircle2, CircleDot, Loader2 } from "lucide-react";
+import { useMemo, useRef } from "react";
+import { BackLink } from "@/app/components/BackLink";
+import { EmptyState } from "@/app/components/EmptyState";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
-import { StatusMessage } from "@/app/components/StatusMessage";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
 import { CommentSkeleton } from "@/app/components/ui/CommentSkeleton";
 import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import { Container } from "@/app/components/ui/Container";
+import { Kbd } from "@/app/components/ui/kbd";
 import { MetadataSkeleton } from "@/app/components/ui/MetadataSkeleton";
 import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { IssueCommentCard } from "@/app/features/issues/components/CommentCard";
 import { IssueSidebar } from "@/app/features/issues/components/IssueSidebar";
@@ -26,8 +29,8 @@ import {
   type RepoIssue,
   type RepoIssueComment,
 } from "@/app/features/issues/schemas";
+import { useKeybindings } from "@/app/hooks/useKeybindings";
 import type { MentionUser } from "@/app/hooks/useMentionSearch";
-import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
 
 export type IssueDetailProps = {
@@ -52,7 +55,6 @@ export type IssueDetailProps = {
     existingReactionId?: number,
   ) => void;
   me: { id: number; login: string; avatar_url: string } | undefined;
-  onBack: () => void;
 };
 
 export function IssueDetail({
@@ -73,7 +75,6 @@ export function IssueDetail({
   onToggleIssueReaction,
   onToggleCommentReaction,
   me,
-  onBack,
 }: IssueDetailProps) {
   // My reactions for the issue body itself. Per-comment fetches live inside
   // CommentCardWithReactions so each comment has an independently-keyed cache.
@@ -95,77 +96,83 @@ export function IssueDetail({
     return users;
   }, [issue, comments]);
 
+  const isOpen = issue?.state === "open";
+  const toggleState = () => {
+    if (issue && !isTogglingState) onToggleState();
+  };
+  const toggleStateRef = useRef(toggleState);
+  toggleStateRef.current = toggleState;
+  useKeybindings(useMemo(() => ({ "shift+c": () => toggleStateRef.current() }), []));
+
   return (
-    <Container className="py-5 sm:py-6">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-sm px-1 py-0.5 -ml-1",
-            "text-body text-muted-foreground outline-none transition-colors",
-            "hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15",
-          )}
-        >
-          <X className="size-3.5" />
-          Back to issues
-        </button>
-        {issue && (
-          <Button
-            variant={issue.state === "open" ? "secondary" : "default"}
-            size="sm"
-            disabled={isTogglingState}
-            onClick={onToggleState}
-          >
-            {issue.state === "open" ? (
-              <>
-                <CheckCircle2 data-icon="inline-start" />
-                Close issue
-              </>
-            ) : (
-              <>
-                <CircleDot data-icon="inline-start" />
-                Reopen issue
-              </>
-            )}
-          </Button>
-        )}
-      </div>
+    <Container className="py-6">
+      <BackLink to={`/${owner}/${repo}/issues`} className="mb-3">
+        Issues
+      </BackLink>
 
       {isLoading ? (
         <IssueDetailSkeleton />
       ) : isError ? (
-        <StatusMessage tone="danger">Could not load this issue.</StatusMessage>
+        <EmptyState tone="error">Could not load this issue.</EmptyState>
       ) : !issue ? (
-        <StatusMessage tone="danger">This issue no longer exists.</StatusMessage>
+        <EmptyState tone="error">This issue no longer exists.</EmptyState>
       ) : (
         <>
-          <div className="mb-5">
-            <h1 className="text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">
-              {issue.title}{" "}
-              <span className="font-mono text-title font-normal text-[var(--color-fg-faint)]">
-                #{issue.number}
+          <header className="mb-6">
+            <div className="flex items-start gap-3">
+              <h1 className="min-w-0 flex-1 text-heading font-[475] text-foreground [overflow-wrap:anywhere]">
+                {issue.title}
+              </h1>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant={isOpen ? "secondary" : "default"}
+                    size="sm"
+                    className="mt-px"
+                    aria-busy={isTogglingState || undefined}
+                    aria-keyshortcuts="Shift+C"
+                    onClick={toggleState}
+                  >
+                    {isTogglingState ? (
+                      <Loader2 data-icon="inline-start" className="motion-safe:animate-spin" />
+                    ) : isOpen ? (
+                      <CheckCircle2 data-icon="inline-start" />
+                    ) : (
+                      <CircleDot data-icon="inline-start" />
+                    )}
+                    {isOpen ? "Close issue" : "Reopen issue"}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {isOpen ? "Close issue" : "Reopen issue"} <Kbd>⇧C</Kbd>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-caption text-muted-foreground">
+              <IssueStatePill state={issue.state} stateReason={issue.state_reason} />
+              <span aria-hidden className="opacity-50">
+                ·
               </span>
-            </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-body text-muted-foreground">
-              <IssueStatePill state={issue.state} />
-              <span>
-                <ProfileLink login={issue.user.login} className="font-medium text-foreground">
-                  {issue.user.login}
-                </ProfileLink>
-                {" opened this issue "}
-                {formatRelativeTime(issue.created_at)}
+              <span className="font-mono">#{issue.number}</span>
+              <span aria-hidden className="opacity-50">
+                ·
               </span>
-              <span className="text-[var(--color-fg-faint)]">·</span>
-              <span>
+              <ProfileLink login={issue.user.login} className="font-medium text-foreground">
+                {issue.user.login}
+              </ProfileLink>
+              <span>opened {formatRelativeTime(issue.created_at)}</span>
+              <span aria-hidden className="opacity-50">
+                ·
+              </span>
+              <span className="tabular-nums">
                 {issue.comments} {issue.comments === 1 ? "comment" : "comments"}
               </span>
             </div>
-          </div>
+          </header>
 
-          <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
+          <div className="flex flex-col gap-6 lg:flex-row">
             {/* Main column */}
-            <div className="min-w-0 flex-1 flex flex-col gap-3">
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
               <IssueCommentCard
                 login={issue.user.login}
                 avatarUrl={issue.user.avatar_url}
@@ -189,16 +196,16 @@ export function IssueDetail({
                     <GithubMarkdown repoContext={{ owner, repo }}>{issue.body}</GithubMarkdown>
                   </div>
                 ) : (
-                  <p className="text-body italic text-[var(--color-fg-faint)]">
-                    No description provided.
-                  </p>
+                  <p className="text-body text-muted-foreground">No description provided.</p>
                 )}
               </IssueCommentCard>
 
               {commentsLoading ? (
                 <CommentSkeleton label="Loading comments" />
               ) : commentsError ? (
-                <StatusMessage tone="danger">Could not load comments.</StatusMessage>
+                <EmptyState tone="error" className="py-8">
+                  Could not load comments.
+                </EmptyState>
               ) : (
                 comments.map((c) => (
                   <CommentCardWithReactions
@@ -217,7 +224,12 @@ export function IssueDetail({
 
               <div className="flex gap-3">
                 {me?.avatar_url && (
-                  <Avatar login={me.login} avatarUrl={me.avatar_url} size="sm" className="mt-2 shrink-0" />
+                  <Avatar
+                    login={me.login}
+                    avatarUrl={me.avatar_url}
+                    size="sm"
+                    className="mt-2.5 shrink-0"
+                  />
                 )}
                 <div className="min-w-0 flex-1">
                   <ComposeBox
@@ -238,8 +250,8 @@ export function IssueDetail({
             </div>
 
             {/* Sidebar */}
-            <aside className="w-full lg:w-[328px] lg:flex-shrink-0 self-stretch">
-              <div className="sticky top-[calc(var(--app-header-height)+16px)]">
+            <aside className="w-full self-stretch lg:w-72 lg:shrink-0">
+              <div className="sticky top-[calc(var(--app-header-height)+--spacing(6))]">
                 <IssueSidebar owner={owner} repo={repo} issue={issue} />
               </div>
             </aside>
@@ -250,23 +262,26 @@ export function IssueDetail({
   );
 }
 
+/** Mirrors the loaded header, comment column and sidebar geometry. */
 function IssueDetailSkeleton() {
   return (
     <div>
-      <SkeletonGroup label="Loading issue" className="mb-5 space-y-3">
-        <Skeleton className="h-7 w-3/4" />
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
-          <Skeleton className="h-4 w-64" />
+      <SkeletonGroup label="Loading issue" className="mb-6">
+        <div className="flex h-7.5 items-center">
+          <Skeleton className="h-5 w-3/4" />
+        </div>
+        <div className="mt-2 flex h-5 items-center gap-1.5">
+          <Skeleton className="h-5 w-14 shrink-0 rounded-full" />
+          <Skeleton className="h-3 w-64" />
         </div>
       </SkeletonGroup>
-      <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
-        <div className="min-w-0 flex-1 space-y-3">
+      <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
           <CommentSkeleton label="Loading issue description" />
           <CommentSkeleton label="Loading comments" />
         </div>
-        <div className="w-full lg:w-[328px] lg:shrink-0">
-          <MetadataSkeleton />
+        <div className="w-full lg:w-72 lg:shrink-0">
+          <MetadataSkeleton sections={2} />
         </div>
       </div>
     </div>

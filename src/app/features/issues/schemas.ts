@@ -114,7 +114,7 @@ export const IssueListItemSchema = z.object({
   assignees: z.array(NullableIssueUserSchema).default([]),
   milestone: z.object({ id: z.number(), title: z.string() }).nullish(),
   reactions: ReactionsSchema,
-  pull_request: z.object({}).optional(),
+  pull_request: z.object({ merged_at: z.string().nullish() }).optional(),
 });
 
 export const IssueDetailSchema = IssueListItemSchema;

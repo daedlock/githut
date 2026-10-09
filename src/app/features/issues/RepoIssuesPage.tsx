@@ -19,7 +19,8 @@ export type RepoIssuesPageProps = {
   owner: string;
   repo: string;
   selectedIssueNumber?: number;
-  onBackToList: () => void;
+  /** Unused: the detail page's BackLink navigates to the list itself. */
+  onBackToList?: () => void;
   onIssueCreated: (issueNumber: number) => void;
   onIssueIsPullRequest: (issueNumber: number) => void;
 };
@@ -45,7 +46,6 @@ export function RepoIssuesPage({
   owner,
   repo,
   selectedIssueNumber,
-  onBackToList,
   onIssueCreated,
   onIssueIsPullRequest,
 }: RepoIssuesPageProps) {
@@ -151,7 +151,6 @@ export function RepoIssuesPage({
           toggleCommentReactionMutation.mutate({ commentId, content, existingReactionId })
         }
         me={me}
-        onBack={onBackToList}
       />
     );
   }
