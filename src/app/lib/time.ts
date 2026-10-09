@@ -69,3 +69,19 @@ export function groupByDay<T>(
   }
   return [...groups.values()];
 }
+
+/**
+ * formatDuration — precise elapsed time ("42s", "1m 15s", "2h 5m") for run,
+ * job and step durations.
+ */
+export function formatDuration(ms: number): string {
+  if (ms < 0 || !Number.isFinite(ms)) return "—";
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rs = s % 60;
+  if (m < 60) return rs > 0 ? `${m}m ${rs}s` : `${m}m`;
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
+}

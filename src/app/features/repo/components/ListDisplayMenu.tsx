@@ -13,7 +13,7 @@ import {
   UserRound,
   UserRoundPen,
 } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import {
   DropdownMenu,
@@ -24,6 +24,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
+import { Kbd } from "@/app/components/ui/kbd";
 import {
   Popover,
   PopoverContent,
@@ -32,10 +33,31 @@ import {
   PopoverTrigger,
 } from "@/app/components/ui/popover";
 import { Separator } from "@/app/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import type { ListGrouping } from "@/app/features/repo/listGrouping";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 
 type DisplayOption<T extends string> = { value: T; label: string; icon?: LucideIcon };
+
+// Actions inside the popover highlight like menu items, not like page buttons.
+const MENU_ACTION =
+  "w-full justify-start text-ui hover:bg-(--color-popover-active) focus-visible:bg-(--color-popover-active)";
+
+/**
+ * Tooltip state for a popover trigger: hidden while the popover is open and
+ * quiet for a moment after it closes, so returning focus doesn't pop it.
+ */
+function useTriggerTooltip(popoverOpen: boolean) {
+  const [open, setOpen] = useState(false);
+  const quietUntil = useRef(0);
+  useEffect(() => {
+    if (!popoverOpen) quietUntil.current = Date.now() + 300;
+  }, [popoverOpen]);
+  return {
+    open: open && !popoverOpen,
+    onOpenChange: (next: boolean) => setOpen(next && Date.now() > quietUntil.current),
+  };
+}
 
 const GROUPING_OPTIONS: DisplayOption<ListGrouping>[] = [
   { value: "none", label: "No grouping", icon: List },
@@ -68,6 +90,7 @@ export function ListDisplayMenu<Sort extends string>({
   ordering,
 }: ListDisplayMenuProps<Sort>) {
   const [open, setOpen] = useState(false);
+  const tooltip = useTriggerTooltip(open);
   const titleId = useId();
   useKeybindings(useMemo(() => ({ "shift+v": () => setOpen((value) => !value) }), []));
   const currentGrouping = GROUPING_OPTIONS.find((option) => option.value === groupBy)!;
@@ -75,22 +98,28 @@ export function ListDisplayMenu<Sort extends string>({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label={
-            groupBy === "none"
-              ? "Display options, no grouping"
-              : `Display options, grouped by ${currentGrouping.label.toLowerCase()}`
-          }
-          aria-keyshortcuts="Shift+V"
-          title="Display options (Shift V)"
-        >
-          <SlidersHorizontal data-icon="inline-start" aria-hidden />
-          Display
-        </Button>
-      </PopoverTrigger>
+      <Tooltip {...tooltip}>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={
+                groupBy === "none"
+                  ? "Display options, no grouping"
+                  : `Display options, grouped by ${currentGrouping.label.toLowerCase()}`
+              }
+              aria-keyshortcuts="Shift+V"
+            >
+              <SlidersHorizontal data-icon="inline-start" aria-hidden />
+              Display
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent>
+          Display options <Kbd>⇧V</Kbd>
+        </TooltipContent>
+      </Tooltip>
       <PopoverContent
         align="end"
         sideOffset={6}
@@ -109,12 +138,12 @@ export function ListDisplayMenu<Sort extends string>({
           onChange={onGroupByChange}
         />
         {ordering && <DisplaySelect label="Ordering" icon={ArrowDownUp} {...ordering} />}
-        <Separator className="h-px" />
+        <Separator />
         <div className="flex flex-col gap-0.5">
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start"
+            className={MENU_ACTION}
             disabled={!grouped || !groupKeys.some((key) => collapsedGroups.has(key))}
             onClick={() => {
               onGroupsCollapsed(groupKeys, false);
@@ -127,7 +156,7 @@ export function ListDisplayMenu<Sort extends string>({
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start"
+            className={MENU_ACTION}
             disabled={!grouped || groupKeys.every((key) => collapsedGroups.has(key))}
             onClick={() => {
               onGroupsCollapsed(groupKeys, true);

@@ -1,6 +1,9 @@
+import { X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { Button } from "@/app/components/ui/button";
+import { Kbd } from "@/app/components/ui/kbd";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { cn } from "@/app/lib/cn";
 
 const THRESHOLD = 400;
@@ -28,8 +31,10 @@ export function LightboxImage({
   const isLightboxable = useCallback(() => {
     const el = imgRef.current;
     if (!el) return false;
-    return (el.naturalWidth >= THRESHOLD || el.naturalHeight >= THRESHOLD) &&
-           (el.offsetWidth >= THRESHOLD || el.offsetHeight >= THRESHOLD);
+    return (
+      (el.naturalWidth >= THRESHOLD || el.naturalHeight >= THRESHOLD) &&
+      (el.offsetWidth >= THRESHOLD || el.offsetHeight >= THRESHOLD)
+    );
   }, []);
 
   const handleClick = useCallback(() => {
@@ -55,6 +60,8 @@ export function LightboxImage({
   const onClosed = useCallback(() => {
     if (state.phase === "closing") {
       setState({ phase: "closed" });
+      // Return focus to the image the viewer opened.
+      imgRef.current?.focus({ preventScroll: true });
     }
   }, [state.phase]);
 
@@ -65,6 +72,13 @@ export function LightboxImage({
         src={src}
         alt={alt}
         onClick={handleClick}
+        onKeyDown={(event) => {
+          if (!canLightbox || (event.key !== "Enter" && event.key !== " ")) return;
+          event.preventDefault();
+          handleClick();
+        }}
+        tabIndex={canLightbox ? 0 : undefined}
+        aria-haspopup={canLightbox ? "dialog" : undefined}
         onLoad={(event) => {
           setCanLightbox(isLightboxable());
           onLoad?.(event);
@@ -73,7 +87,8 @@ export function LightboxImage({
         data-lightbox
         className={cn(
           className,
-          canLightbox && "cursor-zoom-in",
+          canLightbox &&
+            "cursor-zoom-in outline-none focus-visible:ring-1 focus-visible:ring-foreground/15",
           "transition-opacity duration-150",
           (state.phase === "opening" || state.phase === "open") && "invisible",
         )}
@@ -81,12 +96,7 @@ export function LightboxImage({
       />
       {state.phase !== "closed" &&
         createPortal(
-          <Overlay
-            state={state}
-            onOpened={onOpened}
-            onClosed={onClosed}
-            onClose={handleClose}
-          />,
+          <Overlay state={state} onOpened={onOpened} onClosed={onClosed} onClose={handleClose} />,
           document.body,
         )}
     </>
@@ -106,9 +116,12 @@ function Overlay({
 }) {
   const imgRef = useRef<HTMLImageElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const zoomRef = useRef(1);
   const panRef = useRef({ x: 0, y: 0 });
-  const dragRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(
+    null,
+  );
 
   // Lock body scroll without layout shift
   useEffect(() => {
@@ -125,12 +138,12 @@ function Overlay({
     };
   }, []);
 
-  function applyTransform() {
+  const applyTransform = useCallback(() => {
     const img = imgRef.current;
     if (!img) return;
     img.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${zoomRef.current})`;
     img.style.transformOrigin = "center center";
-  }
+  }, []);
 
   // Wheel zoom toward cursor
   useEffect(() => {
@@ -166,7 +179,7 @@ function Overlay({
     }
     window.addEventListener("wheel", onWheel, { passive: false });
     return () => window.removeEventListener("wheel", onWheel);
-  }, [state.phase]);
+  }, [state.phase, applyTransform]);
 
   // Click-drag pan
   useEffect(() => {
@@ -175,7 +188,12 @@ function Overlay({
     function onDown(e: PointerEvent) {
       if (e.button !== 0) return;
       e.preventDefault();
-      dragRef.current = { startX: e.clientX, startY: e.clientY, panX: panRef.current.x, panY: panRef.current.y };
+      dragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        panX: panRef.current.x,
+        panY: panRef.current.y,
+      };
       imgRef.current?.setPointerCapture(e.pointerId);
     }
     function onMove(e: PointerEvent) {
@@ -216,12 +234,16 @@ function Overlay({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [state.phase]);
+  }, [state.phase, applyTransform]);
 
   useEffect(() => {
     const img = imgRef.current;
     const backdrop = backdropRef.current;
     if (!img || !backdrop) return;
+
+    // Under reduced motion the image appears in place without the morph.
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const duration = reduced ? 0 : DURATION;
 
     if (state.phase === "opening") {
       const { rect, src } = state;
@@ -243,7 +265,7 @@ function Overlay({
       const finalY = (vh - finalH) / 2;
 
       img.style.cssText = `
-        position: fixed; z-index: 51;
+        position: fixed; z-index: 50;
         left: ${rect.left}px; top: ${rect.top}px;
         width: ${rect.width}px; height: ${rect.height}px;
         border-radius: var(--radius-sm);
@@ -254,7 +276,7 @@ function Overlay({
 
       requestAnimationFrame(() => {
         backdrop.animate([{ opacity: 0 }, { opacity: 1 }], {
-          duration: DURATION,
+          duration,
           easing: EASING,
           fill: "forwards",
         });
@@ -273,10 +295,10 @@ function Overlay({
               top: `${finalY}px`,
               width: `${finalW}px`,
               height: `${finalH}px`,
-              borderRadius: "8px",
+              borderRadius: "var(--radius-lg)",
             },
           ],
-          { duration: DURATION, easing: EASING, fill: "forwards" },
+          { duration, easing: EASING, fill: "forwards" },
         );
         anim.onfinish = onOpened;
       });
@@ -291,7 +313,7 @@ function Overlay({
       panRef.current = { x: 0, y: 0 };
 
       backdrop.animate([{ opacity: 1 }, { opacity: 0 }], {
-        duration: DURATION * 0.8,
+        duration: duration * 0.8,
         easing: EASING,
         fill: "forwards",
       });
@@ -304,7 +326,7 @@ function Overlay({
             top: `${currentRect.top}px`,
             width: `${currentRect.width}px`,
             height: `${currentRect.height}px`,
-            borderRadius: "8px",
+            borderRadius: "var(--radius-lg)",
           },
           {
             left: `${rect.left}px`,
@@ -314,45 +336,43 @@ function Overlay({
             borderRadius: "var(--radius-sm)",
           },
         ],
-        { duration: DURATION * 0.8, easing: EASING, fill: "forwards" },
+        { duration: duration * 0.8, easing: EASING, fill: "forwards" },
       );
       anim.onfinish = onClosed;
     }
   }, [state, onOpened, onClosed]);
 
+  // The lightbox owns the keyboard while it's up: Escape closes it (before
+  // any page-level Escape such as BackLink), and Tab stays on the close button.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        closeRef.current?.focus();
+      }
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
 
+  useEffect(() => {
+    if (state.phase === "open") closeRef.current?.focus({ preventScroll: true });
+  }, [state.phase]);
+
   return (
-    <>
-      {/* Backdrop */}
+    <div role="dialog" aria-modal="true" aria-label={state.alt || "Image"} data-state="open">
+      {/* Backdrop — a pointer convenience; Escape and the close button cover the keyboard */}
+      {/* biome-ignore lint/a11y: the backdrop is not a control */}
       <div
         ref={backdropRef}
         onClick={onClose}
-        className="fixed inset-0 z-50 bg-[var(--color-bg)]/90 backdrop-blur-sm"
+        className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm"
         style={{ opacity: state.phase === "open" ? 1 : undefined }}
       />
-
-      {/* Close button */}
-      {state.phase === "open" && (
-        <button
-          type="button"
-          onClick={onClose}
-          className={cn(
-            "fixed top-4 right-4 z-[52] rounded-full p-2",
-            "bg-[var(--color-bg-sunken)] text-[var(--color-fg-muted)]",
-            "transition-all duration-150 hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]",
-            "animate-in fade-in-0 duration-200",
-          )}
-        >
-          <X className="size-5" />
-        </button>
-      )}
 
       {/* Morphing image */}
       <img
@@ -360,9 +380,31 @@ function Overlay({
         src={state.src}
         alt={state.alt}
         draggable={false}
-        className="pointer-events-auto cursor-grab active:cursor-grabbing object-contain select-none"
-        style={{ position: "fixed", zIndex: 51 }}
+        className="pointer-events-auto cursor-grab select-none object-contain active:cursor-grabbing"
+        style={{ position: "fixed", zIndex: 50 }}
       />
-    </>
+
+      {/* Close button — after the image so it stacks above it at the same z */}
+      {state.phase === "open" && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              ref={closeRef}
+              variant="secondary"
+              size="icon"
+              aria-label="Close"
+              aria-keyshortcuts="Escape"
+              onClick={onClose}
+              className="fixed top-4 right-4 z-50"
+            >
+              <X />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            Close <Kbd>Esc</Kbd>
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
   );
 }

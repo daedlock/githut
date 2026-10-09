@@ -1,5 +1,6 @@
-import { Tag, User, UserCheck, Users } from "lucide-react";
+import { Check, Tag, User, UserCheck, Users } from "lucide-react";
 import { useState } from "react";
+import { Avatar } from "@/app/components/ui/avatar";
 import {
   Command,
   CommandEmpty,
@@ -9,7 +10,6 @@ import {
   CommandList,
 } from "@/app/components/ui/command";
 import type { FilterFieldDef } from "@/app/components/ui/filter-bar";
-import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import { labelStyle } from "@/app/features/issues/utils";
 import type { Collaborator, RepoLabel } from "@/app/features/pulls/pickers";
 import { cn } from "@/app/lib/cn";
@@ -34,9 +34,7 @@ export function buildRepoFilterFields({
   const labelByName = new Map(labels.map((l) => [l.name, l]));
   const userByLogin = new Map(collaborators.map((c) => [c.login, c]));
 
-  const renderLabelValue = (value: string) => (
-    <span className="font-sans">{value}</span>
-  );
+  const renderLabelValue = (value: string) => <span>{value}</span>;
 
   const labelValueStyle = (value: string) => {
     const label = labelByName.get(value);
@@ -49,46 +47,31 @@ export function buildRepoFilterFields({
     const user = userByLogin.get(value);
     return (
       <span className="flex items-center gap-1">
-        {user ? (
-          <img src={user.avatar_url} alt="" className="size-3.5 rounded-full" />
-        ) : null}
-        <span className="font-mono">{value}</span>
+        {user ? <Avatar login={user.login} avatarUrl={user.avatar_url} size="xs" /> : null}
+        <span>{value}</span>
       </span>
     );
   };
 
+  // Option rows mirror SidebarPicker: swatch or avatar, label, ✓ at the end.
   function LabelPicker({ value, onSelect }: { value?: string; onSelect: (v: string) => void }) {
     const [query, setQuery] = useState("");
     const filteredList = filterByQuery(labels, query, (l) => l.name);
     return (
       <Command shouldFilter={false}>
-        <CommandInput
-          value={query}
-          onValueChange={setQuery}
-          placeholder="Filter labels…"
-          className="text-ui"
-        />
+        <CommandInput value={query} onValueChange={setQuery} placeholder="Filter labels…" />
         <CommandList>
           <CommandEmpty>No labels.</CommandEmpty>
           <CommandGroup>
             {filteredList.map((label) => (
-              <CommandItem
-                key={label.id}
-                value={label.name}
-                onSelect={() => onSelect(label.name)}
-              >
+              <CommandItem key={label.id} value={label.name} onSelect={() => onSelect(label.name)}>
                 <span
-                  className={cn(
-                    "inline-block w-3",
-                    value === label.name ? "text-foreground" : "opacity-0",
-                  )}
-                >
-                  ✓
-                </span>
-                <LabelPill
-                  label={{ ...label, description: label.description ?? null }}
-                  size="xs"
+                  aria-hidden
+                  className="size-3 shrink-0 rounded-full ring-1 ring-inset ring-foreground/10"
+                  style={{ backgroundColor: `#${label.color}` }}
                 />
+                <span className="min-w-0 flex-1 truncate">{label.name}</span>
+                <SelectedCheck selected={value === label.name} />
               </CommandItem>
             ))}
           </CommandGroup>
@@ -103,34 +86,23 @@ export function buildRepoFilterFields({
     const typedLogin = isLikelyLogin(query) ? query.trim() : null;
     return (
       <Command shouldFilter={false}>
-        <CommandInput
-          value={query}
-          onValueChange={setQuery}
-          placeholder="Filter user…"
-          className="text-ui"
-        />
+        <CommandInput value={query} onValueChange={setQuery} placeholder="Filter users…" />
         <CommandList>
           <CommandEmpty>Type a GitHub login.</CommandEmpty>
           <CommandGroup>
             {typedLogin && !filteredList.some((c) => c.login === typedLogin) ? (
               <CommandItem value={typedLogin} onSelect={() => onSelect(typedLogin)}>
-                <User className="size-3.5 text-muted-foreground" aria-hidden />
-                <span className="font-sans">Use</span>
-                <span className="font-mono">{typedLogin}</span>
+                <User className="size-4 text-muted-foreground" aria-hidden />
+                <span className="min-w-0 flex-1 truncate">
+                  Use <span className="font-medium">{typedLogin}</span>
+                </span>
               </CommandItem>
             ) : null}
             {filteredList.map((c) => (
               <CommandItem key={c.id} value={c.login} onSelect={() => onSelect(c.login)}>
-                <span
-                  className={cn(
-                    "inline-block w-3",
-                    value === c.login ? "text-foreground" : "opacity-0",
-                  )}
-                >
-                  ✓
-                </span>
-                <img src={c.avatar_url} alt="" className="size-4 rounded-full" />
-                <span className="font-mono text-caption">{c.login}</span>
+                <Avatar login={c.login} avatarUrl={c.avatar_url} size="sm" />
+                <span className="min-w-0 flex-1 truncate">{c.login}</span>
+                <SelectedCheck selected={value === c.login} />
               </CommandItem>
             ))}
           </CommandGroup>
@@ -182,4 +154,13 @@ function filterByQuery<T>(items: T[], query: string, getText: (item: T) => strin
 
 function isLikelyLogin(value: string): boolean {
   return /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/.test(value.trim());
+}
+
+function SelectedCheck({ selected }: { selected: boolean }) {
+  return (
+    <Check
+      aria-hidden
+      className={cn("size-3.5 shrink-0 text-foreground", !selected && "invisible")}
+    />
+  );
 }

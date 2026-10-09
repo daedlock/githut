@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import type { MentionUser } from "@/app/hooks/useMentionSearch";
@@ -48,7 +48,9 @@ export function CommentComposeCard({
 
   return (
     <div className={cn(hideAvatar ? "" : "flex gap-3", className)}>
-      {!hideAvatar && <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="mt-2 shrink-0" />}
+      {!hideAvatar && (
+        <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="mt-2.5 shrink-0" />
+      )}
       <div className="min-w-0 flex-1">
         <ComposeBox
           owner={owner}

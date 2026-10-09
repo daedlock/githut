@@ -44,54 +44,49 @@ type VariantStyle = {
   tone: string;
   /** Background fill. Uses color-mix so it stays in-theme as palette shifts. */
   bg: string;
-  /** Extra classes — e.g. spin/pulse animation for live states. */
+  /** Icon color when it differs from the text (faint glyphs for skipped states). */
+  iconTone?: string;
+  /** Extra classes — e.g. spin animation for live states. */
   extra?: string;
 };
 
+// Status-colored states tint their fill from the status color; neutral states
+// share one neutral fill (`bg-accent`, visible on the page and on panels).
+const WARNING_BG = "bg-[color-mix(in_oklab,var(--color-warning)_14%,var(--color-bg-subtle))]";
+const DANGER_BG = "bg-[color-mix(in_oklab,var(--color-danger)_14%,var(--color-bg-subtle))]";
+const SUCCESS_BG = "bg-[color-mix(in_oklab,var(--color-success)_12%,var(--color-bg-subtle))]";
+const NEUTRAL_BG = "bg-accent";
+
 const STYLES: Record<StatusPillVariant, VariantStyle> = {
-  waiting: { icon: Clock3, tone: "text-(--color-warning)", bg: "bg-muted" },
-  pending: { icon: CircleDashed, tone: "text-(--color-fg-muted)", bg: "bg-muted" },
-  action_required: { icon: AlertCircle, tone: "text-(--color-warning)", bg: "bg-muted" },
-  timed_out: { icon: Clock3, tone: "text-(--color-danger)", bg: "bg-muted" },
-  startup_failure: { icon: XCircle, tone: "text-(--color-danger)", bg: "bg-muted" },
-  stale: { icon: CircleSlash, tone: "text-(--color-fg-faint)", bg: "bg-muted" },
-  unknown: { icon: CircleDashed, tone: "text-(--color-fg-muted)", bg: "bg-muted" },
+  waiting: { icon: Clock3, tone: "text-(--color-warning)", bg: WARNING_BG },
+  pending: { icon: CircleDashed, tone: "text-muted-foreground", bg: NEUTRAL_BG },
+  action_required: { icon: AlertCircle, tone: "text-(--color-warning)", bg: WARNING_BG },
+  timed_out: { icon: Clock3, tone: "text-destructive", bg: DANGER_BG },
+  startup_failure: { icon: XCircle, tone: "text-destructive", bg: DANGER_BG },
+  stale: {
+    icon: CircleSlash,
+    tone: "text-muted-foreground",
+    iconTone: "text-(--color-fg-faint)",
+    bg: NEUTRAL_BG,
+  },
+  unknown: { icon: CircleDashed, tone: "text-muted-foreground", bg: NEUTRAL_BG },
   running: {
     icon: Loader2,
     tone: "text-(--color-warning)",
-    bg: "bg-[color-mix(in_oklab,var(--color-warning)_14%,var(--color-bg-subtle))]",
+    bg: WARNING_BG,
     extra: "[&_[data-pill-icon]]:motion-safe:animate-spin",
   },
-  queued: {
-    icon: CircleDashed,
-    tone: "text-(--color-fg-muted)",
-    bg: "bg-(--color-bg-sunken)",
-  },
-  success: {
-    icon: CheckCircle2,
-    tone: "text-(--color-success)",
-    bg: "bg-[color-mix(in_oklab,var(--color-success)_12%,var(--color-bg-subtle))]",
-  },
-  failure: {
-    icon: XCircle,
-    tone: "text-(--color-danger)",
-    bg: "bg-[color-mix(in_oklab,var(--color-danger)_14%,var(--color-bg-subtle))]",
-  },
-  cancelled: {
-    icon: Ban,
-    tone: "text-(--color-fg-muted)",
-    bg: "bg-(--color-bg-sunken)",
-  },
+  queued: { icon: CircleDashed, tone: "text-muted-foreground", bg: NEUTRAL_BG },
+  success: { icon: CheckCircle2, tone: "text-(--color-success)", bg: SUCCESS_BG },
+  failure: { icon: XCircle, tone: "text-destructive", bg: DANGER_BG },
+  cancelled: { icon: Ban, tone: "text-muted-foreground", bg: NEUTRAL_BG },
   skipped: {
     icon: CircleSlash,
-    tone: "text-(--color-fg-faint)",
-    bg: "bg-(--color-bg-sunken)",
+    tone: "text-muted-foreground",
+    iconTone: "text-(--color-fg-faint)",
+    bg: NEUTRAL_BG,
   },
-  neutral: {
-    icon: MinusCircle,
-    tone: "text-(--color-fg-muted)",
-    bg: "bg-(--color-bg-sunken)",
-  },
+  neutral: { icon: MinusCircle, tone: "text-muted-foreground", bg: NEUTRAL_BG },
 };
 
 // ─── Size variants ─────────────────────────────────────────────────────────
@@ -146,10 +141,9 @@ export function StatusPill({
   return (
     <span
       {...rest}
-      role="img"
-      aria-label={text}
+      {...(iconOnly ? { role: "img", "aria-label": text } : {})}
       className={cn(
-        "inline-flex items-center rounded-full font-medium leading-none select-none",
+        "inline-flex items-center rounded-full font-medium select-none",
         sizing.wrapper,
         style.tone,
         !ghost && style.bg,
@@ -157,7 +151,7 @@ export function StatusPill({
         className,
       )}
     >
-      <Icon data-pill-icon className={cn(sizing.icon, "shrink-0")} aria-hidden />
+      <Icon data-pill-icon className={cn(sizing.icon, "shrink-0", style.iconTone)} aria-hidden />
       {!iconOnly && <span className={cn(sizing.text, "whitespace-nowrap")}>{text}</span>}
     </span>
   );
@@ -177,7 +171,7 @@ export function StatusDot({
 }: { variant: StatusPillVariant } & ComponentPropsWithoutRef<"span">) {
   const tone =
     variant === "running" || variant === "waiting" || variant === "action_required"
-      ? "bg-(--color-warning) motion-safe:animate-pulse"
+      ? "bg-(--color-warning)"
       : variant === "success"
         ? "bg-(--color-success)"
         : variant === "failure" || variant === "timed_out" || variant === "startup_failure"
@@ -223,7 +217,7 @@ export function StatusIcon({
       aria-label={defaultLabel(variant)}
       className={cn(
         size === 3 ? "size-3" : size === 5 ? "size-5" : "size-4",
-        style.tone,
+        style.iconTone ?? style.tone,
         variant === "running" && "motion-safe:animate-spin",
         className,
       )}
