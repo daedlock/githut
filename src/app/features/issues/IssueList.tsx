@@ -1,11 +1,15 @@
-import { AlertCircle, CheckCircle2, CircleDot, Plus, X } from "lucide-react";
-import { useMemo } from "react";
+import { CheckCircle2, CircleDot, Plus, X } from "lucide-react";
+import { useMemo, useRef } from "react";
+import { EmptyState } from "@/app/components/EmptyState";
+import { ListToolbar } from "@/app/components/ListToolbar";
 import { SearchField } from "@/app/components/SearchField";
 import { Button } from "@/app/components/ui/button";
 import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import { Container } from "@/app/components/ui/Container";
 import { type ActiveFilter, FilterBar, FilterTrigger } from "@/app/components/ui/filter-bar";
 import { Input } from "@/app/components/ui/input";
+import { Kbd } from "@/app/components/ui/kbd";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { IssueListSkeleton } from "@/app/features/issues/components/IssueListSkeleton";
 import { IssueRow } from "@/app/features/issues/components/IssueRow";
 import { type StateFilter, StateTab } from "@/app/features/issues/components/StateTab";
@@ -17,8 +21,9 @@ import { GroupedList } from "@/app/features/repo/components/GroupedList";
 import { ListDisplayMenu } from "@/app/features/repo/components/ListDisplayMenu";
 import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
 import { groupListItems } from "@/app/features/repo/listGrouping";
+import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { useListNavigation } from "@/app/hooks/useListNavigation";
-import { cn } from "@/app/lib/cn";
+import type { ShortcutMap } from "@/app/lib/shortcuts";
 import { useListGrouping } from "@/app/stores/listGrouping";
 
 export type IssueListProps = {
@@ -95,32 +100,53 @@ export function IssueList({
     [labelsQuery.data, collaboratorsQuery.data],
   );
 
+  // `c` opens the composer from anywhere on the list (never while typing).
+  const toggleCompose = useRef(onToggleCompose);
+  toggleCompose.current = onToggleCompose;
+  useKeybindings(
+    useMemo<ShortcutMap>(
+      (): ShortcutMap => (isComposing ? {} : { c: () => toggleCompose.current() }),
+      [isComposing],
+    ),
+  );
+  const formRef = useRef<HTMLFormElement>(null);
+
   return (
     <Container className="py-6">
       <h1 className="sr-only">Issues</h1>
       {isComposing ? (
-        <form onSubmit={onSubmitIssue} className="mb-4 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-micro font-medium uppercase tracking-widest text-muted-foreground">
+        <form ref={formRef} onSubmit={onSubmitIssue} className="mb-4 flex flex-col gap-3">
+          <div className="flex h-7 items-center justify-between">
+            <h2 className="text-micro font-medium uppercase tracking-widest text-muted-foreground">
               New issue
-            </span>
-            <button
-              type="button"
-              onClick={onToggleCompose}
-              aria-label="Cancel"
-              className={cn(
-                "rounded-sm p-1 text-[var(--color-fg-faint)]",
-                "outline-none transition-colors",
-                "hover:bg-muted hover:text-foreground",
-                "focus-visible:ring-1 focus-visible:ring-foreground/15",
-              )}
-            >
-              <X className="size-3.5" />
-            </button>
+            </h2>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Cancel"
+                  aria-keyshortcuts="Escape"
+                  onClick={onToggleCompose}
+                >
+                  <X />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Cancel <Kbd>Esc</Kbd>
+              </TooltipContent>
+            </Tooltip>
           </div>
           <Input
             value={newIssueTitle}
             onChange={(e) => onNewIssueTitleChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Escape") return;
+              e.preventDefault();
+              onToggleCompose();
+            }}
+            aria-label="Issue title"
             placeholder="Issue title"
             className="h-9 text-body font-medium"
             autoFocus
@@ -130,10 +156,9 @@ export function IssueList({
             repo={repo}
             value={newIssueBody}
             onChange={onNewIssueBodyChange}
-            onSubmit={() => {
-              const form = document.querySelector<HTMLFormElement>("form");
-              form?.requestSubmit();
-            }}
+            onSubmit={() => formRef.current?.requestSubmit()}
+            onCancel={onToggleCompose}
+            showCancel={false}
             submitLabel="Open issue"
             submitDisabled={!newIssueTitle.trim()}
             submitPending={isSubmittingIssue}
@@ -143,54 +168,61 @@ export function IssueList({
         </form>
       ) : (
         <>
-          {/* Toolbar — sits on subtle surface */}
           <div className="mb-2 flex flex-col gap-2">
-            <div
-              data-surface="raised"
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted p-2"
-            >
-              <div className="flex items-center gap-1">
-                <StateTab
-                  state="open"
-                  count={openCount}
-                  isActive={stateFilter === "open"}
-                  onClick={() => onStateFilter("open")}
-                />
-                <StateTab
-                  state="closed"
-                  count={closedCount}
-                  isActive={stateFilter === "closed"}
-                  onClick={() => onStateFilter("closed")}
-                />
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <SearchField
-                  size="sm"
-                  name="issue-search"
-                  aria-label="Search issues"
-                  value={searchText}
-                  onValueChange={onSearch}
-                  placeholder="Search…"
-                  className="w-48"
-                />
-                <FilterTrigger
-                  fields={fields}
-                  active={activeFilters}
-                  onChange={onActiveFiltersChange}
-                />
-                <ListDisplayMenu
-                  groupBy={grouping.groupBy}
-                  onGroupByChange={grouping.setGroupBy}
-                  groupKeys={groups.map((group) => group.key)}
-                  collapsedGroups={grouping.collapsedGroups}
-                  onGroupsCollapsed={grouping.setGroupsCollapsed}
-                />
-                <Button size="sm" variant="default" onClick={onToggleCompose}>
-                  <Plus data-icon="inline-start" />
-                  New issue
-                </Button>
-              </div>
-            </div>
+            <ListToolbar
+              start={
+                <>
+                  <StateTab
+                    state="open"
+                    count={openCount}
+                    isActive={stateFilter === "open"}
+                    onClick={() => onStateFilter("open")}
+                  />
+                  <StateTab
+                    state="closed"
+                    count={closedCount}
+                    isActive={stateFilter === "closed"}
+                    onClick={() => onStateFilter("closed")}
+                  />
+                </>
+              }
+              end={
+                <>
+                  <SearchField
+                    size="sm"
+                    name="issue-search"
+                    aria-label="Search issues"
+                    value={searchText}
+                    onValueChange={onSearch}
+                    placeholder="Search…"
+                    className="w-48"
+                  />
+                  <FilterTrigger
+                    fields={fields}
+                    active={activeFilters}
+                    onChange={onActiveFiltersChange}
+                  />
+                  <ListDisplayMenu
+                    groupBy={grouping.groupBy}
+                    onGroupByChange={grouping.setGroupBy}
+                    groupKeys={groups.map((group) => group.key)}
+                    collapsedGroups={grouping.collapsedGroups}
+                    onGroupsCollapsed={grouping.setGroupsCollapsed}
+                  />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button size="sm" aria-keyshortcuts="c" onClick={onToggleCompose}>
+                        <Plus data-icon="inline-start" />
+                        New issue
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      New issue <Kbd>C</Kbd>
+                    </TooltipContent>
+                  </Tooltip>
+                </>
+              }
+            />
 
             <FilterBar
               fields={fields}
@@ -207,17 +239,21 @@ export function IssueList({
             items={bulkItems}
             visible={visibleNumbers}
           >
-            {/* List — flat rows, hover surface shift */}
             <div className="mt-4 flex flex-col gap-1">
               {isLoading ? (
                 <IssueListSkeleton />
               ) : isError ? (
-                <div className="px-5 py-10 text-center">
-                  <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
-                  <p className="text-body text-muted-foreground">Could not load issues.</p>
-                </div>
+                <EmptyState tone="error">Could not load issues.</EmptyState>
               ) : issues.length === 0 ? (
-                <EmptyState hasSearch={!!searchText} state={stateFilter} />
+                <EmptyState icon={stateFilter === "open" ? CircleDot : CheckCircle2}>
+                  {searchText
+                    ? "No issues match your search."
+                    : activeFilters.length > 0
+                      ? "No issues match these filters."
+                      : stateFilter === "open"
+                        ? "No open issues."
+                        : "No closed issues."}
+                </EmptyState>
               ) : (
                 <GroupedList
                   groups={groups}
@@ -237,21 +273,5 @@ export function IssueList({
         </>
       )}
     </Container>
-  );
-}
-
-function EmptyState({ hasSearch, state }: { hasSearch: boolean; state: StateFilter }) {
-  const Icon = state === "open" ? CircleDot : CheckCircle2;
-  return (
-    <div className="px-5 py-16 text-center">
-      <Icon className="mx-auto mb-3 size-5 text-[var(--color-fg-faint)]" />
-      <p className="text-body text-muted-foreground">
-        {hasSearch
-          ? "No issues match your search."
-          : state === "open"
-            ? "No open issues."
-            : "No closed issues."}
-      </p>
-    </div>
   );
 }

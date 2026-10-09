@@ -1,9 +1,13 @@
 import { CheckCircle2, ChevronRight, CircleDot, Flag, Tag, UserRound } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
+import { Kbd } from "@/app/components/ui/kbd";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { PrStateIcon } from "@/app/features/pulls/components/PrStatePill";
 import type { ListGroup, ListGrouping, ListKind } from "@/app/features/repo/listGrouping";
 import { cn } from "@/app/lib/cn";
+
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
 
 type GroupedListProps<T> = {
   groups: ListGroup<T>[];
@@ -94,48 +98,56 @@ export function GroupedList<T>({
               id={`${contentId}-heading`}
               className="sticky top-(--app-header-height) z-30 bg-background"
             >
-              <button
-                type="button"
-                aria-expanded={expanded}
-                aria-controls={contentId}
-                aria-keyshortcuts="T Alt+T ArrowLeft ArrowRight"
-                data-keyboard-list-item
-                title="Toggle group · T · Alt-click to toggle all groups"
-                className={cn(
-                  "flex min-h-10 w-full items-center gap-2 rounded-md bg-muted/60 px-3 text-left",
-                  "text-ui font-medium text-foreground outline-none transition-colors",
-                  "hover:bg-muted focus-visible:ring-1 focus-visible:ring-foreground/15",
-                )}
-                onClick={(event) => {
-                  // A double-click should toggle once, just like a click on the chevron.
-                  if (event.detail > 1) return;
-                  onGroupsCollapsed(
-                    event.altKey ? groups.map((item) => item.key) : [group.key],
-                    expanded,
-                  );
-                }}
-                onKeyDown={(event) => {
-                  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-                  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-                  event.preventDefault();
-                  onGroupsCollapsed([group.key], event.key === "ArrowLeft");
-                }}
-              >
-                <ChevronRight
-                  aria-hidden
-                  className={cn(
-                    "size-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none",
-                    expanded && "rotate-90",
-                  )}
-                />
-                <span aria-hidden className="flex shrink-0">
-                  <GroupIcon group={group} groupBy={groupBy} kind={kind} />
-                </span>
-                <span className="truncate">{group.label}</span>
-                <span className="text-caption font-normal tabular-nums text-muted-foreground">
-                  {group.items.length}
-                </span>
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-expanded={expanded}
+                    aria-controls={contentId}
+                    aria-keyshortcuts="T Alt+T ArrowLeft ArrowRight"
+                    data-keyboard-list-item
+                    className={cn(
+                      "flex min-h-10 w-full items-center gap-2 rounded-md bg-muted/60 px-3 text-left",
+                      "text-ui font-medium text-foreground outline-none transition-colors",
+                      "hover:bg-muted focus-visible:ring-1 focus-visible:ring-foreground/15",
+                    )}
+                    onClick={(event) => {
+                      // A double-click should toggle once, just like a click on the chevron.
+                      if (event.detail > 1) return;
+                      onGroupsCollapsed(
+                        event.altKey ? groups.map((item) => item.key) : [group.key],
+                        expanded,
+                      );
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+                      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                      event.preventDefault();
+                      onGroupsCollapsed([group.key], event.key === "ArrowLeft");
+                    }}
+                  >
+                    <ChevronRight
+                      aria-hidden
+                      className={cn(
+                        "size-3.5 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none",
+                        expanded && "rotate-90",
+                      )}
+                    />
+                    <span aria-hidden className="flex shrink-0">
+                      <GroupIcon group={group} groupBy={groupBy} kind={kind} />
+                    </span>
+                    <span className="truncate">{group.label}</span>
+                    <span className="text-caption font-normal tabular-nums text-muted-foreground">
+                      {group.items.length}
+                    </span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="start" alignOffset={12}>
+                  Toggle group <Kbd>T</Kbd>
+                  <span className="opacity-60">·</span>
+                  All groups <Kbd>{IS_MAC ? "⌥T" : "Alt T"}</Kbd>
+                </TooltipContent>
+              </Tooltip>
             </h2>
             <div id={contentId} hidden={!expanded}>
               {expanded && (
@@ -198,7 +210,7 @@ function GroupIcon<T>({
         aria-hidden
         className={cn(
           "size-4 shrink-0",
-          group.status === "open" ? "text-(--color-success)" : "text-muted-foreground",
+          group.status === "open" ? "text-(--color-success)" : "text-(--color-fg-faint)",
         )}
       />
     );

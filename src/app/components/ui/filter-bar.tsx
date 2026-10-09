@@ -1,10 +1,12 @@
-import { ListFilter, Plus, X } from "lucide-react";
+import { Check, ListFilter, Plus, X } from "lucide-react";
 import {
   type ComponentType,
   type CSSProperties,
   type ReactNode,
   type SVGProps,
   useEffect,
+  useMemo,
+  useRef,
   useState,
 } from "react";
 import { Button } from "@/app/components/ui/button";
@@ -16,12 +18,12 @@ import {
   CommandItem,
   CommandList,
 } from "@/app/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/app/components/ui/popover";
+import { Kbd } from "@/app/components/ui/kbd";
+import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
+import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { cn } from "@/app/lib/cn";
+import type { ShortcutMap } from "@/app/lib/shortcuts";
 
 // ─── Generic, reusable filter bar ──────────────────────────────────────────
 //
@@ -31,8 +33,8 @@ import { cn } from "@/app/lib/cn";
 // mapping stays at the call site.
 //
 // Two surfaces:
-//  • `<FilterTrigger />` — toolbar icon button. Always visible. Opens the
-//    "add filter" menu. Shows an ember dot when filters are active.
+//  • `<FilterTrigger />` — toolbar icon button. Always visible; `f` opens it.
+//    Opens the "add filter" menu. Shows a brand dot when filters are active.
 //  • `<FilterBar />` — the pill row. Renders nothing when `active` is
 //    empty. Otherwise: pill per active filter, trailing `+`, "Clear" right.
 //
@@ -96,7 +98,7 @@ export function FilterBar({ fields, active, onChange, className }: FilterBarProp
         if (!field) return null;
         return (
           <FilterPill
-            key={`${a.fieldId}-${a.op}-${i}`}
+            key={`${a.fieldId}-${a.op}-${a.value}`}
             field={field}
             filter={a}
             onUpdate={(next) => replace(i, next)}
@@ -105,22 +107,16 @@ export function FilterBar({ fields, active, onChange, className }: FilterBarProp
         );
       })}
       <AddFilterMenu fields={fields} onAdd={add} variant="inline" />
-      <button
-        type="button"
-        onClick={() => onChange([])}
-        className={cn(
-          "ml-auto h-6 rounded-md px-2 font-sans text-caption text-muted-foreground",
-          "hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        )}
-      >
+      <Button variant="ghost" size="xs" className="ml-auto" onClick={() => onChange([])}>
         Clear
-      </button>
+      </Button>
     </div>
   );
 }
 
 // ─── Toolbar trigger (icon button) ─────────────────────────────────────────
 
+/** The toolbar's filter button. `f` opens it from anywhere on the page. */
 export function FilterTrigger({ fields, active, onChange, className }: FilterBarProps) {
   const add = (next: ActiveFilter) => onChange([...active, next]);
   return (
@@ -144,9 +140,31 @@ type AddFilterMenuProps = {
   className?: string;
 };
 
+/**
+ * Tooltip state for a popover trigger: hidden while the popover is open and
+ * quiet for a moment after it closes, so returning focus doesn't pop it.
+ */
+function useTriggerTooltip(popoverOpen: boolean) {
+  const [open, setOpen] = useState(false);
+  const quietUntil = useRef(0);
+  useEffect(() => {
+    if (!popoverOpen) quietUntil.current = Date.now() + 300;
+  }, [popoverOpen]);
+  return {
+    open: open && !popoverOpen,
+    onOpenChange: (next: boolean) => setOpen(next && Date.now() > quietUntil.current),
+  };
+}
+
 function AddFilterMenu({ fields, onAdd, variant, hasActive, className }: AddFilterMenuProps) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<{ field: FilterFieldDef } | null>(null);
+  const tooltip = useTriggerTooltip(open);
+  const isTrigger = variant === "trigger";
+
+  useKeybindings(
+    useMemo((): ShortcutMap => (isTrigger ? { f: () => setOpen(true) } : {}), [isTrigger]),
+  );
 
   // Reset step after the close animation settles.
   useEffect(() => {
@@ -157,45 +175,48 @@ function AddFilterMenu({ fields, onAdd, variant, hasActive, className }: AddFilt
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        {variant === "trigger" ? (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Filter"
-            className={cn("relative", className)}
-          >
-            <ListFilter />
-            {hasActive ? (
-              <span
-                aria-hidden
-                className="absolute right-1 top-1 size-1.5 rounded-full bg-primary"
-              />
-            ) : null}
-          </Button>
-        ) : (
-          <button
-            type="button"
-            aria-label="Add filter"
-            className={cn(
-              "inline-flex size-6 items-center justify-center rounded-full",
-              "border border-dashed border-border text-muted-foreground",
-              "outline-none transition-colors",
-              "hover:border-(--color-border-strong) hover:bg-accent hover:text-foreground",
-              "aria-expanded:border-(--color-border-strong) aria-expanded:bg-accent aria-expanded:text-foreground",
-              "focus-visible:ring-2 focus-visible:ring-ring",
-              className,
+      <Tooltip {...tooltip}>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            {isTrigger ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Filter"
+                aria-keyshortcuts="f"
+                className={cn("relative", className)}
+              >
+                <ListFilter />
+                {hasActive ? (
+                  <span
+                    aria-hidden
+                    className="absolute top-1 right-1 size-1.5 rounded-full bg-primary"
+                  />
+                ) : null}
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Add filter"
+                className={cn("rounded-full", className)}
+              >
+                <Plus />
+              </Button>
             )}
-          >
-            <Plus className="size-3" />
-          </button>
-        )}
-      </PopoverTrigger>
-      <PopoverContent
-        align={variant === "trigger" ? "end" : "start"}
-        sideOffset={6}
-        className="w-60 p-1"
-      >
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent>
+          {isTrigger ? (
+            <>
+              Filter <Kbd>F</Kbd>
+            </>
+          ) : (
+            "Add filter"
+          )}
+        </TooltipContent>
+      </Tooltip>
+      <PopoverContent align={isTrigger ? "end" : "start"} sideOffset={6} className="w-60 p-1">
         {step ? (
           <step.field.ValuePicker
             onSelect={(value) => {
@@ -205,20 +226,16 @@ function AddFilterMenu({ fields, onAdd, variant, hasActive, className }: AddFilt
           />
         ) : (
           <Command>
-            <CommandInput placeholder="Filter…" className="text-ui" />
+            <CommandInput placeholder="Filter…" />
             <CommandList>
               <CommandEmpty>No filters.</CommandEmpty>
               <CommandGroup>
                 {fields.map((f) => {
                   const Icon = f.icon;
                   return (
-                    <CommandItem
-                      key={f.id}
-                      value={f.label}
-                      onSelect={() => setStep({ field: f })}
-                    >
+                    <CommandItem key={f.id} value={f.label} onSelect={() => setStep({ field: f })}>
                       <Icon className="size-3.5 text-muted-foreground" aria-hidden />
-                      <span className="font-sans">{f.label}</span>
+                      {f.label}
                     </CommandItem>
                   );
                 })}
@@ -244,20 +261,20 @@ function FilterPill({ field, filter, onUpdate, onRemove }: FilterPillProps) {
   const Icon = field.icon;
   const negatable = field.negatable !== false;
 
-  const segment =
-    "flex h-full items-center px-1.5 font-sans text-caption leading-none text-muted-foreground " +
-    "outline-none hover:bg-accent hover:text-foreground " +
-    "aria-expanded:bg-accent aria-expanded:text-foreground " +
-    "focus-visible:bg-accent focus-visible:text-foreground";
+  // The pill is a small raised surface: segments hover to the active surface.
+  const segment = cn(
+    "flex h-full items-center px-1.5 text-caption text-muted-foreground",
+    "outline-none transition-colors hover:bg-accent/60 hover:text-foreground",
+    "aria-expanded:bg-accent aria-expanded:text-foreground",
+    "focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-foreground/15",
+  );
 
   const isColored = !!field.valueStyle?.(filter.value);
 
   return (
     <div
-      className={cn(
-        "flex h-6 items-center divide-x divide-border overflow-hidden rounded-full",
-        "border border-border bg-secondary",
-      )}
+      data-surface="raised"
+      className="flex h-6 items-center divide-x divide-border overflow-hidden rounded-full border border-border bg-muted"
     >
       {/* Field name — opens value picker */}
       <ValuePopover
@@ -265,7 +282,7 @@ function FilterPill({ field, filter, onUpdate, onRemove }: FilterPillProps) {
         currentValue={filter.value}
         onSelect={(value) => onUpdate({ ...filter, value })}
       >
-        <button type="button" className={cn(segment, "gap-1 rounded-l-full pl-2")}>
+        <button type="button" className={cn(segment, "gap-1 pl-2")}>
           <Icon className="size-3" aria-hidden />
           <span>{field.label}</span>
         </button>
@@ -273,16 +290,15 @@ function FilterPill({ field, filter, onUpdate, onRemove }: FilterPillProps) {
 
       {/* Op */}
       {negatable ? (
-        <OpPopover
-          op={filter.op}
-          onSelect={(op) => onUpdate({ ...filter, op })}
-        >
+        <OpPopover op={filter.op} onSelect={(op) => onUpdate({ ...filter, op })}>
           <button type="button" className={segment}>
             {filter.op === "is" ? "is" : "is not"}
           </button>
         </OpPopover>
       ) : (
-        <span className={cn(segment, "pointer-events-none")}>is</span>
+        <span className="flex h-full items-center px-1.5 text-caption text-muted-foreground">
+          is
+        </span>
       )}
 
       {/* Value chip — opens value picker */}
@@ -296,10 +312,8 @@ function FilterPill({ field, filter, onUpdate, onRemove }: FilterPillProps) {
           style={field.valueStyle?.(filter.value)}
           className={cn(
             segment,
-            "gap-1 px-2 text-foreground aria-expanded:text-foreground",
-            isColored
-              ? "hover:brightness-95 dark:hover:brightness-110"
-              : "hover:bg-accent hover:text-foreground",
+            "gap-1 px-2 text-foreground",
+            isColored && "hover:brightness-95 dark:hover:brightness-110",
           )}
         >
           {field.renderValue(filter.value)}
@@ -307,14 +321,19 @@ function FilterPill({ field, filter, onUpdate, onRemove }: FilterPillProps) {
       </ValuePopover>
 
       {/* Remove */}
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={`Remove ${field.label} filter`}
-        className={cn(segment, "rounded-r-full pr-2 hover:text-foreground")}
-      >
-        <X className="size-3" aria-hidden />
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Remove ${field.label} filter`}
+            className={cn(segment, "pr-2")}
+          >
+            <X className="size-3" aria-hidden />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Remove filter</TooltipContent>
+      </Tooltip>
     </div>
   );
 }
@@ -372,12 +391,12 @@ function OpPopover({
                     onSelect(value);
                     setOpen(false);
                   }}
-                  className="font-sans text-ui"
                 >
-                  <span className={cn("inline-block w-3", op === value ? "text-foreground" : "opacity-0")}>
-                    ✓
-                  </span>
-                  {value === "is" ? "is" : "is not"}
+                  <span className="flex-1">{value === "is" ? "is" : "is not"}</span>
+                  <Check
+                    aria-hidden
+                    className={cn("size-3.5 text-foreground", op !== value && "invisible")}
+                  />
                 </CommandItem>
               ))}
             </CommandGroup>
