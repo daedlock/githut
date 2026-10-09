@@ -22,6 +22,11 @@ const SHORTCUTS: readonly Shortcut[] = [
   { chord: "g i", label: "Go to issues", scope: "global" },
   { chord: "g p", label: "Go to pull requests", scope: "global" },
   { chord: "g c", label: "Go to code", scope: "global" },
+  { chord: "g a", label: "Go to actions", scope: "global" },
+  { chord: "/", label: "Search this page", scope: "global" },
+  { chord: "Esc", label: "Back from a detail page", scope: "global" },
+  { chord: "Ctrl N", label: "Next item in a menu or picker (also Ctrl J)", scope: "global" },
+  { chord: "Ctrl P", label: "Previous item in a menu or picker (also Ctrl K)", scope: "global" },
 
   // Diff viewer (already wired in DiffLayout)
   { chord: "j", label: "Next file", scope: "diff" },

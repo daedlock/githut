@@ -19,6 +19,9 @@ colors and every theme works for free.
    final layout, and pending states keep their footprint.
 5. **Feedback is instant.** Apply changes optimistically, confirm quietly,
    and make mistakes undoable.
+6. **A desktop tool, not a web page.** Everything is reachable from the
+   keyboard, controls behave like native controls, and nothing wobbles,
+   glows or bounces for decoration.
 
 ## Color
 
@@ -26,7 +29,7 @@ colors and every theme works for free.
 
 | Token | Class | Use |
 |---|---|---|
-| `--color-bg` | `bg-background` | Page canvas. Rows at rest, sidebars, cards. |
+| `--color-bg` | `bg-background` | Page canvas. Rows at rest, detail sidebars. |
 | `--color-bg-subtle` | `bg-muted` | Raised: toolbars, row hover, file and hunk headers, group headers (`/60`). |
 | `--color-bg-sunken` | `bg-accent` | Active: selected rows, pressed or open controls. |
 | `--color-popover` | `bg-popover` | Every overlay: popovers, menus, dialogs, floating bars, notices. |
@@ -54,6 +57,10 @@ color is shadcn's `primary`.
 | `--color-warning` | `text-(--color-warning)` | Pending, draft. |
 | `--color-pr-merged` | `text-(--color-pr-merged)` | Merged. |
 
+State colors by entity: open = success; merged = merged (purple); closed PR =
+danger; closed issue = neutral (`--color-fg-faint` icon, `bg-accent` pill);
+draft = neutral (`text-muted-foreground`), not warning.
+
 Status colors share one lightness and chroma, so they sit at matched
 perceptual weight in every palette. Diff tints derive from them via
 `color-mix`. **Never use `primary` as a surface fill** for rows, sections
@@ -66,7 +73,7 @@ Use them only for structure:
 | Use | Class |
 |---|---|
 | Form controls | `border-input` (primitives already apply it) |
-| Separators between unrelated regions (app header bottom, diff file cards) | `border-border` |
+| Separators between unrelated regions (app header bottom, the bottom of a sticky bar content scrolls under, diff file cards) | `border-border` |
 | Code and diff containment | `border-border` |
 
 Never use borders to separate list rows, wrap cards, underline toolbars, or
@@ -90,11 +97,16 @@ Only these sizes exist. **Never use `text-xs`, `text-sm`, `text-base`,
 | `text-display` | 32 / 1.15 | Login and empty-state centerpieces |
 
 - Tokens set size, line-height and tracking; **callers set weight.** Row
-  titles use `font-[475]`, emphasis and labels use `font-medium`, and
-  everything else stays regular. Avoid bold in chrome.
+  and page titles use `font-[475]`, emphasis and labels use `font-medium`,
+  and everything else stays regular. Never change weight to show state (it
+  shifts layout); use a surface instead. Avoid bold in chrome.
 - `font-mono` is for identifiers and code: issue and PR numbers, SHAs,
-  branches, paths, code. Labels and prose use sans.
-- Use `tabular-nums` for counts that change in place.
+  branches, paths, code. Labels, prose, logins, counts, times, durations
+  and diff stats are sans.
+- Use `tabular-nums` for every number: counts, times, durations, diff stats.
+- **Eyebrow labels** (section labels in caps): `text-micro font-medium
+  uppercase tracking-widest text-muted-foreground`, sans, no rule beside them.
+- `--color-fg-faint` is for icons and glyphs only, never for text.
 - Keep prose under 72ch.
 
 ## Spacing
@@ -151,10 +163,16 @@ Use only this z-index scale:
 |---|---|
 | Rest | No background. |
 | Hover | `hover:bg-muted` |
-| Selected / active | `bg-accent` (hover keeps it) |
+| Selected / active / pressed | `bg-accent` (hover keeps it) |
 | Open (trigger with a popover) | `aria-expanded:bg-muted` (built into `Button`) |
 | Disabled | `opacity-50`, no pointer events |
 | Pending | A spinner in place of the control, so the footprint doesn't change |
+
+**Raised surfaces.** On a `bg-muted` surface (toolbars, panels, comment
+blocks) `hover:bg-muted` is invisible. Mark the surface `data-surface="raised"`
+(`ListToolbar` and `Card variant="muted"` do it for you): ghost buttons and
+toggles inside then hover to `bg-accent/60`, and selected or open stays
+`bg-accent`. Custom controls on raised surfaces use the same pair.
 
 **Focus.** Never remove focus without a replacement.
 - Primitives (`Button`, `Input`, `Checkbox`) own their focus ring. Don't override it.
@@ -198,17 +216,57 @@ Container
 
 ### Review page
 ```
-Full viewport, no Container
+Container (the user's width preference applies here too)
   ├── Sticky bar (back, PR context, Unified/Split, Submit)
   ├── File tree (same surface as the page)
   └── Diff cards (gap-3)
 ```
+
+### Detail page header (issue, PR, run, commit)
+```
+BackLink ("← Issues"; Esc follows it)
+Title       text-heading font-[475]
+Meta line   state pill · #number (mono) · author (ProfileLink) · time,
+            text-caption text-muted-foreground, mt-2
+```
+Actions (Close, ⋯) sit at the right of the title row. Sub-tabs, when a page
+has them, are a sticky `h-10` bar with the brand underline for the current
+tab, like the repo navigation.
 
 ## Components
 
 Use the shadcn primitives in `src/app/components/ui/` for every popover,
 menu, dialog, command palette, tooltip, checkbox and input. Never wrap Radix
 yourself.
+
+### Shared building blocks
+
+Reach for these before writing markup. They live in `src/app/components/`.
+
+| Component | Use |
+|---|---|
+| `ListToolbar`, `ListToolbarTitle` | The bar every list page starts with |
+| `ViewTab` | Open/Closed-style view switches in a toolbar |
+| `SearchField` | Every search box; `/` focuses the page's search |
+| `StaticListGroupHeader` | Group headers that don't collapse (`GroupedList` has the collapsible one) |
+| `EmptyState` | Every empty and error state |
+| `LoadMoreButton` | The row at the end of a paginated list |
+| `NavLabel`, `NavItem`, `NavCount` | Left-hand view lists (dashboard, workflows, jobs) |
+| `BackLink` | The back link above a detail page title |
+| `PropertySection`, `PropertyEmpty` | Groups in a detail sidebar |
+
+Primitives in `ui/` cover the rest: `Select` (never a native `<select>`),
+`Switch`, `RadioGroup`, `Checkbox`, `ToggleGroup` (segmented controls),
+`Tooltip`, `Popover`, `DropdownMenu`, `Command`, `Dialog`.
+
+### Panels, sections and documents
+- **Section** (default): content flat on the page with a small header. Detail
+  sidebars are sections (`PropertySection`), stacked `gap-6`.
+- **Panel**: when a busy page needs grouping (profile tiles, run summary,
+  workflow graph, comment blocks): `Card variant="muted"` = `rounded-lg
+  bg-muted`, no border, no shadow.
+- **Document**: rendered markdown and code need containment: `rounded-lg
+  border border-border`, header `h-10 px-4`.
 
 ### Rows
 - Flat on the page: no background at rest, `hover:bg-muted`, `rounded-lg`,
@@ -231,6 +289,23 @@ Sticky at `top-(--app-header-height)` with `z-30 bg-background`. The header
 button is `min-h-10 rounded-md bg-muted/60 px-3 text-ui font-medium`:
 chevron, icon, label, then the count in `text-caption tabular-nums
 text-muted-foreground`.
+
+### Segmented controls
+`ToggleGroup type="single" size="sm"`: items are `h-7`, the selected item
+takes `bg-accent`. In a toolbar use it bare; on the page surface wrap it in
+`rounded-lg bg-muted p-0.5`. Inside an overlay the selected item uses
+`--color-popover-active`. Never hand-roll one.
+
+### Side navigation
+`NavLabel` eyebrows over `NavItem`s: `h-7 rounded-lg px-2 text-ui`, hover
+`bg-muted`, current `bg-accent` via `aria-current="page"`. Counts sit at the
+end with `NavCount`.
+
+### Comment blocks
+One `Card variant="muted"` per comment: header `flex h-10 items-center
+gap-2 px-4` (author `ProfileLink`, verb and time muted), body `px-4 pb-4`.
+No header divider, no border. Reactions are `rounded-full` chips; the
+viewer's own reaction uses `bg-accent`, never the brand color.
 
 ### Selection (multi-select)
 Reference: `features/repo/components/BulkSelection.tsx` and `BulkActionBar.tsx`.
@@ -270,10 +345,15 @@ h-8, `lg` h-9, plus `icon-*` squares. Icons take
 variants.
 
 ### Tooltips and shortcuts
-Every icon-only control gets a tooltip. Put shortcuts in the tooltip as
-`<Kbd>`, set `aria-keyshortcuts`, register them with `useKeybindings`, and
-list them in `KeyboardHelp.tsx`. `Esc` belongs to the innermost layer
-(input, picker) before any page-level action.
+Every icon-only control gets a `Tooltip` (never `title=` alone). Put
+shortcuts in the tooltip as `<Kbd>`, set `aria-keyshortcuts`, register them
+with `useKeybindings`, and list them in `KeyboardHelp.tsx`. `Esc` belongs to
+the innermost layer (input, picker, dialog) before any page-level action.
+
+### Durations and stats
+Durations are `text-caption tabular-nums text-muted-foreground`, never
+status-colored (the status icon carries state). Diff stats keep their
+success/danger colors but are sans `tabular-nums`.
 
 ### Active surfaces
 A card that communicates state (ready, conflict, merged) tints from one
@@ -309,6 +389,39 @@ always shown on touch.
 - Empty states: a centered `size-5` icon in `--color-fg-faint` above one
   `text-body text-muted-foreground` line.
 
+## Desktop feel
+
+- Controls use the arrow cursor, like a native app; only inline text links
+  get the hand. `base.css` sets this, so don't add `cursor-pointer`.
+- Chrome isn't selectable text (buttons, tabs, menu items, kbd). Content is.
+- No rubber-band overscroll; selection uses a brand tint.
+- Pending actions keep their label and swap the icon for a spinner.
+
+## Keyboard
+
+The app is fully usable from the keyboard. `?` lists everything.
+
+| Keys | Where | Action |
+|---|---|---|
+| `⌘K` | Everywhere | Command palette |
+| `g h` / `g i` / `g p` / `g c` / `g a` | Everywhere | Go to home / issues / PRs / code / actions |
+| `/` | Pages with a search | Focus the page's search; `Esc` clears, then leaves |
+| `Esc` | Detail pages | Back to the list |
+| `Ctrl N` / `Ctrl P` (also `Ctrl J` / `Ctrl K`) | Menus, pickers, palette | Next / previous item |
+| `j` / `k`, `Enter` | Lists | Move, open |
+| `x`, `⇧x`, `⌘A`, `Esc` | Lists | Select, extend, select all, clear |
+| `s` / `l` / `a` | Lists with a selection | Status / labels / assignees for the selection |
+| `l` / `a` | Issue and PR detail | Labels / assignees picker |
+| `⇧V`, `t` | Lists | Display options, toggle the hovered group |
+| `⌘Enter` | Composers | Submit |
+
+New shortcuts follow these rules: single letters only where no input has
+focus (`useKeybindings` enforces it), the mnemonic is the action's first
+letter, and every shortcut shows in its control's tooltip and in `?`.
+
+Chrome on Windows and Linux reserves `Ctrl N`, so pages can't receive it
+there; `Ctrl J` always works.
+
 ## Motion
 
 - Micro-interactions take 120–160ms on `cubic-bezier(0.16, 1, 0.3, 1)`;
@@ -319,7 +432,8 @@ always shown on touch.
   framer-motion `AnimatePresence`: opacity plus at most 8px of translation.
   Under `useReducedMotion`, drop translation and scale; for CSS transitions
   use `motion-reduce:`.
-- No scroll-linked motion.
+- No scroll-linked motion, no infinite pulses on content, no glow. One
+  sanctioned delight: the star button's pop.
 
 ## Anti-patterns
 
@@ -329,5 +443,7 @@ always shown on touch.
 - A sidebar on a different surface from the page.
 - `text-xs` / `text-sm`, arbitrary pixel sizes, or z-index values off the scale.
 - Hover reveals that shift layout, or skeletons that don't match the loaded rows.
-- Hand-rolled popovers, menus, checkboxes or tooltips.
+- Hand-rolled popovers, menus, checkboxes, selects, switches, segmented
+  controls or tooltips.
+- `title=` as the only tooltip; weight changes to show state.
 - Decorative color. Color is state.

@@ -13,24 +13,53 @@ body,
   scrollbar-color: var(--color-fg-faint) transparent;
 }
 
+/*
+ * Desktop-app cursors: controls use the arrow, like a native app. Only inline
+ * text links get the hand. List rows are whole-row links but behave like
+ * native list items, so they keep the arrow too.
+ */
 button,
 [role="button"],
 [role="menuitem"],
 [role="option"],
+[role="tab"],
 [role="menuitemcheckbox"],
 [role="menuitemradio"],
-a,
+[role="checkbox"],
 summary,
+label,
 [type="submit"],
 [type="reset"],
-[type="button"] {
+[type="button"],
+a[data-keyboard-list-item] {
+  cursor: default;
+}
+
+a {
   cursor: pointer;
+}
+
+/* Interactive chrome is not selectable text; content (prose, code, inputs) is. */
+button,
+[role="button"],
+[role="tab"],
+[role="menuitem"],
+[role="option"],
+kbd {
+  user-select: none;
+}
+
+::selection {
+  background-color: color-mix(in oklab, var(--color-brand) 28%, transparent);
 }
 
 html {
   background-color: var(--color-bg);
   color: var(--color-fg);
   color-scheme: light;
+  /* No rubber-band overscroll past the app's edges, no mobile tap flashes. */
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
 
   /*
    * Palette interaction surfaces — accent-tinted bg for hover/selected.

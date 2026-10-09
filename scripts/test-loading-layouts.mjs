@@ -769,7 +769,7 @@ try {
 
         // Filtering away selected rows deselects them without stealing focus.
         const search = p
-          .getByRole("textbox", { name: "Search pull requests" })
+          .getByRole("searchbox", { name: "Search pull requests" })
           .or(p.getByRole("searchbox", { name: "Search issues" }));
         await search.fill("Bulk item 4");
         assert.equal(await selected(), 0);

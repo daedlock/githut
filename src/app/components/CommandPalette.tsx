@@ -3,6 +3,7 @@ import {
   BookMarked,
   CheckCircle2,
   CircleDot,
+  CirclePlay,
   Code2,
   Command as CommandIcon,
   FilePlus,
@@ -160,6 +161,14 @@ function buildCommands(
             run: goTo(`${base}/code`),
           },
           {
+            id: "nav:actions",
+            label: "Actions",
+            icon: CirclePlay,
+            keywords: ["workflows", "runs", "ci", "checks", ...repoKw],
+            shortcut: "g a",
+            run: goTo(`${base}/actions`),
+          },
+          {
             id: "action:new-issue",
             label: `New issue in ${r.owner}/${r.repo}`,
             icon: FilePlus,
@@ -246,6 +255,10 @@ export function CommandPalette() {
       "g c": () => {
         if (repoContext)
           openTabOrNavigate(`/${repoContext.owner}/${repoContext.repo}/code`, navigate);
+      },
+      "g a": () => {
+        if (repoContext)
+          openTabOrNavigate(`/${repoContext.owner}/${repoContext.repo}/actions`, navigate);
       },
     }),
     [toggle, repoContext, navigate],

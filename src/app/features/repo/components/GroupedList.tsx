@@ -90,7 +90,10 @@ export function GroupedList<T>({
             data-list-group={group.key}
             aria-labelledby={`${contentId}-heading`}
           >
-            <h2 id={`${contentId}-heading`} className="sticky top-(--app-header-height) z-30 bg-background">
+            <h2
+              id={`${contentId}-heading`}
+              className="sticky top-(--app-header-height) z-30 bg-background"
+            >
               <button
                 type="button"
                 aria-expanded={expanded}
@@ -101,7 +104,7 @@ export function GroupedList<T>({
                 className={cn(
                   "flex min-h-10 w-full items-center gap-2 rounded-md bg-muted/60 px-3 text-left",
                   "text-ui font-medium text-foreground outline-none transition-colors",
-                  "hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
+                  "hover:bg-muted focus-visible:ring-1 focus-visible:ring-foreground/15",
                 )}
                 onClick={(event) => {
                   // A double-click should toggle once, just like a click on the chevron.
@@ -143,6 +146,38 @@ export function GroupedList<T>({
         );
       })}
     </div>
+  );
+}
+
+/**
+ * A group header for lists that don't collapse (commits by day, dashboard
+ * buckets). Same geometry and surface as GroupedList's collapsible header.
+ */
+export function StaticListGroupHeader({
+  icon,
+  label,
+  count,
+}: {
+  icon?: ReactNode;
+  label: ReactNode;
+  count?: number;
+}) {
+  return (
+    <h2 className="sticky top-(--app-header-height) z-30 bg-background">
+      <div className="flex min-h-10 items-center gap-2 rounded-md bg-muted/60 px-3 text-ui font-medium text-foreground">
+        {icon && (
+          <span aria-hidden className="flex shrink-0">
+            {icon}
+          </span>
+        )}
+        <span className="truncate">{label}</span>
+        {count !== undefined && (
+          <span className="text-caption font-normal tabular-nums text-muted-foreground">
+            {count}
+          </span>
+        )}
+      </div>
+    </h2>
   );
 }
 

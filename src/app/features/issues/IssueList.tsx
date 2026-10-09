@@ -1,5 +1,6 @@
-import { AlertCircle, CheckCircle2, CircleDot, Plus, Search, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, CircleDot, Plus, X } from "lucide-react";
 import { useMemo } from "react";
+import { SearchField } from "@/app/components/SearchField";
 import { Button } from "@/app/components/ui/button";
 import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import { Container } from "@/app/components/ui/Container";
@@ -144,8 +145,11 @@ export function IssueList({
         <>
           {/* Toolbar — sits on subtle surface */}
           <div className="mb-2 flex flex-col gap-2">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted p-2">
-              <div className="flex items-center">
+            <div
+              data-surface="raised"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted p-2"
+            >
+              <div className="flex items-center gap-1">
                 <StateTab
                   state="open"
                   count={openCount}
@@ -160,19 +164,15 @@ export function IssueList({
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    name="issue-search"
-                    aria-label="Search issues"
-                    autoComplete="off"
-                    value={searchText}
-                    onChange={(e) => onSearch(e.target.value)}
-                    placeholder="Search…"
-                    className="h-7 w-44 pl-8 text-ui"
-                  />
-                </div>
+                <SearchField
+                  size="sm"
+                  name="issue-search"
+                  aria-label="Search issues"
+                  value={searchText}
+                  onValueChange={onSearch}
+                  placeholder="Search…"
+                  className="w-48"
+                />
                 <FilterTrigger
                   fields={fields}
                   active={activeFilters}

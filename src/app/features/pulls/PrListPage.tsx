@@ -1,12 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
-import {
-  AlertCircle,
-  CircleDashed,
-  GitPullRequest,
-  GitPullRequestClosed,
-  Search,
-} from "lucide-react";
+import { AlertCircle, CircleDashed, GitPullRequest, GitPullRequestClosed } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { SearchField } from "@/app/components/SearchField";
 import { Container } from "@/app/components/ui/Container";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/app/components/ui/command";
 import {
@@ -15,7 +10,6 @@ import {
   type FilterFieldDef,
   FilterTrigger,
 } from "@/app/components/ui/filter-bar";
-import { Input } from "@/app/components/ui/input";
 import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { PrRow } from "@/app/features/pulls/components/PrRow";
 import { PrStateTab } from "@/app/features/pulls/components/PrStateTab";
@@ -221,8 +215,11 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
       <h1 className="sr-only">Pull requests</h1>
       <div className="mb-2 flex flex-col gap-2">
         {/* Toolbar — raised surface */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted p-2">
-          <div className="flex items-center">
+        <div
+          data-surface="raised"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted p-2"
+        >
+          <div className="flex items-center gap-1">
             <PrStateTab
               state="open"
               count={counts.data?.open}
@@ -249,18 +246,15 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                aria-label="Search pull requests"
-                name="pull-request-search"
-                autoComplete="off"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                placeholder="Search…"
-                className="h-7 w-44 pl-8 text-ui"
-              />
-            </div>
+            <SearchField
+              size="sm"
+              name="pull-request-search"
+              aria-label="Search pull requests"
+              value={searchText}
+              onValueChange={setSearchText}
+              placeholder="Search…"
+              className="w-48"
+            />
 
             <FilterTrigger fields={fields} active={active} onChange={onActiveChange} />
 
