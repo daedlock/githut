@@ -7,7 +7,7 @@ import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { platformKey } from "@/app/lib/platform";
 import { useKeyboardHelpStore } from "@/app/stores/keyboardHelp";
 
-type Scope = "global" | "repo" | "diff" | "list";
+type Scope = "global" | "repo" | "diff" | "list" | "detail";
 
 type Shortcut = {
   chord: string;
@@ -25,7 +25,6 @@ const SHORTCUTS: readonly Shortcut[] = [
   { chord: "g c", label: "Go to code", scope: "global" },
   { chord: "g a", label: "Go to actions", scope: "global" },
   { chord: "/", label: "Search this page", scope: "global" },
-  { chord: "Esc", label: "Back from a detail page", scope: "global" },
   { chord: "Ctrl N", label: "Next item in a menu or picker (also Ctrl J)", scope: "global" },
   { chord: "Ctrl P", label: "Previous item in a menu or picker (also Ctrl K)", scope: "global" },
 
@@ -47,6 +46,15 @@ const SHORTCUTS: readonly Shortcut[] = [
   { chord: "s", label: "Change status of selection", scope: "list" },
   { chord: "l", label: "Label selection", scope: "list" },
   { chord: "a", label: "Assign selection", scope: "list" },
+  { chord: "f", label: "Filter", scope: "list" },
+  { chord: "c", label: "New issue", scope: "list" },
+
+  // Issue and PR detail
+  { chord: "Esc", label: "Back to the list", scope: "detail" },
+  { chord: "l", label: "Labels", scope: "detail" },
+  { chord: "a", label: "Assignees", scope: "detail" },
+  { chord: "⇧ c", label: "Close or reopen the issue", scope: "detail" },
+  { chord: "⌘ Enter", label: "Submit comment", scope: "detail" },
 ];
 
 const SCOPE_TITLES: Record<Scope, string> = {
@@ -54,9 +62,10 @@ const SCOPE_TITLES: Record<Scope, string> = {
   repo: "Repo",
   diff: "Diff viewer",
   list: "List",
+  detail: "Issue and PR",
 };
 
-const DEFAULT_ORDER: readonly Scope[] = ["global", "repo", "diff", "list"];
+const DEFAULT_ORDER: readonly Scope[] = ["global", "repo", "detail", "diff", "list"];
 
 function promoteScope(scope: Scope): readonly Scope[] {
   if (scope === "global") return DEFAULT_ORDER;
@@ -66,6 +75,7 @@ function promoteScope(scope: Scope): readonly Scope[] {
 function scopeForPath(pathname: string): Scope {
   if (/\/[^/]+\/[^/]+\/commit\/[^/]+/.test(pathname)) return "diff";
   if (/\/[^/]+\/[^/]+\/pr\/[^/]+/.test(pathname)) return "diff";
+  if (/^\/[^/]+\/[^/]+\/(issues|pull)\/\d+/.test(pathname)) return "detail";
   if (pathname === "/" || /^\/[^/]+\/[^/]+\/(pulls|issues|commits|actions)\/?$/.test(pathname))
     return "list";
   if (/^\/[^/]+\/[^/]+(\/|$)/.test(pathname) && !pathname.startsWith("/w/")) return "repo";
@@ -100,7 +110,13 @@ export function KeyboardHelp() {
   const order = useMemo(() => promoteScope(scopeForPath(pathname)), [pathname]);
 
   const grouped = useMemo(() => {
-    const byScope: Record<Scope, Shortcut[]> = { global: [], repo: [], diff: [], list: [] };
+    const byScope: Record<Scope, Shortcut[]> = {
+      global: [],
+      repo: [],
+      diff: [],
+      list: [],
+      detail: [],
+    };
     for (const s of SHORTCUTS) byScope[s.scope].push(s);
     return order
       .map((scope) => ({ scope, items: byScope[scope] }))

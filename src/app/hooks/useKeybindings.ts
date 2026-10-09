@@ -14,8 +14,7 @@ type Registration = {
   map: ShortcutMap;
 };
 
-const IS_MAC =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
 
 // Keys we must never intercept — the browser owns these. Mirrored against
 // common shortcuts; dispatching would break reload/close/new-tab/etc.
@@ -112,16 +111,22 @@ function findHandler(
   prefix: string | null,
   e: KeyboardEvent,
 ): (() => void) | null {
+  // A pending prefix ("g" in "g c") means the user is mid-sequence: a matching
+  // sequence anywhere beats a single-key binding, however recently registered.
+  if (prefix) {
+    for (let i = registrations.length - 1; i >= 0; i--) {
+      const reg = registrations[i]!;
+      for (const p of reg.parsed) {
+        if (p.sequence.length !== 2 || p.mods.size > 0) continue;
+        if (p.sequence[0] === prefix && p.sequence[1] === tailKey) return reg.map[p.chord]!;
+      }
+    }
+  }
   // Later registrations shadow earlier ones, so iterate LIFO.
   for (let i = registrations.length - 1; i >= 0; i--) {
     const reg = registrations[i]!;
     for (const p of reg.parsed) {
-      if (p.sequence.length === 2) {
-        if (!prefix) continue;
-        if (p.sequence[0] !== prefix || p.sequence[1] !== tailKey) continue;
-        if (p.mods.size > 0) continue; // sequences don't carry modifiers
-        return reg.map[p.chord]!;
-      }
+      if (p.sequence.length === 2) continue;
       if (p.sequence[0] !== tailKey) continue;
       if (!eventMatchesMods(e, p.mods)) continue;
       return reg.map[p.chord]!;
