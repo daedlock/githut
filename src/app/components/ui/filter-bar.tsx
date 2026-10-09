@@ -6,9 +6,9 @@ import {
   type SVGProps,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
+import { useTriggerTooltip } from "@/app/components/ShortcutHint";
 import { Button } from "@/app/components/ui/button";
 import {
   Command,
@@ -139,22 +139,6 @@ type AddFilterMenuProps = {
   hasActive?: boolean;
   className?: string;
 };
-
-/**
- * Tooltip state for a popover trigger: hidden while the popover is open and
- * quiet for a moment after it closes, so returning focus doesn't pop it.
- */
-function useTriggerTooltip(popoverOpen: boolean) {
-  const [open, setOpen] = useState(false);
-  const quietUntil = useRef(0);
-  useEffect(() => {
-    if (!popoverOpen) quietUntil.current = Date.now() + 300;
-  }, [popoverOpen]);
-  return {
-    open: open && !popoverOpen,
-    onOpenChange: (next: boolean) => setOpen(next && Date.now() > quietUntil.current),
-  };
-}
 
 function AddFilterMenu({ fields, onAdd, variant, hasActive, className }: AddFilterMenuProps) {
   const [open, setOpen] = useState(false);

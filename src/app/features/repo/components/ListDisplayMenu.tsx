@@ -13,7 +13,8 @@ import {
   UserRound,
   UserRoundPen,
 } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useId, useMemo, useState } from "react";
+import { useTriggerTooltip } from "@/app/components/ShortcutHint";
 import { Button } from "@/app/components/ui/button";
 import {
   DropdownMenu,
@@ -42,22 +43,6 @@ type DisplayOption<T extends string> = { value: T; label: string; icon?: LucideI
 // Actions inside the popover highlight like menu items, not like page buttons.
 const MENU_ACTION =
   "w-full justify-start text-ui hover:bg-(--color-popover-active) focus-visible:bg-(--color-popover-active)";
-
-/**
- * Tooltip state for a popover trigger: hidden while the popover is open and
- * quiet for a moment after it closes, so returning focus doesn't pop it.
- */
-function useTriggerTooltip(popoverOpen: boolean) {
-  const [open, setOpen] = useState(false);
-  const quietUntil = useRef(0);
-  useEffect(() => {
-    if (!popoverOpen) quietUntil.current = Date.now() + 300;
-  }, [popoverOpen]);
-  return {
-    open: open && !popoverOpen,
-    onOpenChange: (next: boolean) => setOpen(next && Date.now() > quietUntil.current),
-  };
-}
 
 const GROUPING_OPTIONS: DisplayOption<ListGrouping>[] = [
   { value: "none", label: "No grouping", icon: List },

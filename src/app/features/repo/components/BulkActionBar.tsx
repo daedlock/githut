@@ -12,17 +12,12 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { ShortcutHint } from "@/app/components/ShortcutHint";
 import { Button } from "@/app/components/ui/button";
 import { Checkbox } from "@/app/components/ui/checkbox";
-import { Kbd } from "@/app/components/ui/kbd";
 import { Separator } from "@/app/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/app/components/ui/tooltip";
+import { TooltipProvider, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { PrStateIcon } from "@/app/features/pulls/components/PrStatePill";
 import { type PickerItem, SidebarPicker } from "@/app/features/pulls/components/SidebarPicker";
 import type { BulkNotice } from "@/app/features/repo/bulkActions";
@@ -161,11 +156,11 @@ function Toolbar({ count }: { count: number }) {
       <LabelsPicker {...pickerProps("labels")} />
       <AssigneesPicker {...pickerProps("assignees")} />
       <Separator orientation="vertical" className="mx-1 h-4 w-px" />
-      <Hint label="Clear selection" shortcut="Esc">
+      <ShortcutHint side="top" sideOffset={10} label="Clear selection" shortcut="Esc">
         <Button variant="ghost" size="icon-sm" aria-label="Clear selection" onClick={clear}>
           <X />
         </Button>
-      </Hint>
+      </ShortcutHint>
     </div>
   );
 }
@@ -315,7 +310,9 @@ function ActionPicker({
   onToggle: (id: string) => void;
 }) {
   return (
-    <Hint
+    <ShortcutHint
+      side="top"
+      sideOffset={10}
       label={disabled && disabledHint ? disabledHint : hint}
       shortcut={disabled ? undefined : shortcut}
       suppressed={open}
@@ -355,40 +352,7 @@ function ActionPicker({
           </TooltipTrigger>
         }
       />
-    </Hint>
-  );
-}
-
-// ─── Tooltip with shortcut ─────────────────────────────────────────────────
-
-function Hint({
-  label,
-  shortcut,
-  suppressed = false,
-  children,
-}: {
-  label: string;
-  shortcut?: string;
-  suppressed?: boolean;
-  children: ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  // Closing a picker returns focus to its trigger; don't greet that with a tooltip.
-  const quietUntil = useRef(0);
-  useEffect(() => {
-    if (!suppressed) quietUntil.current = Date.now() + 300;
-  }, [suppressed]);
-  return (
-    <Tooltip
-      open={open && !suppressed}
-      onOpenChange={(next) => setOpen(next && Date.now() > quietUntil.current)}
-    >
-      {children}
-      <TooltipContent side="top" sideOffset={10}>
-        {label}
-        {shortcut && <Kbd>{shortcut}</Kbd>}
-      </TooltipContent>
-    </Tooltip>
+    </ShortcutHint>
   );
 }
 

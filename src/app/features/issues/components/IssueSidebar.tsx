@@ -1,11 +1,11 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Settings2, Tag, User } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { PropertyEmpty, PropertySection } from "@/app/components/PropertySection";
+import { ShortcutHint } from "@/app/components/ShortcutHint";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
-import { Kbd } from "@/app/components/ui/kbd";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
+import { TooltipTrigger } from "@/app/components/ui/tooltip";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import { useSetIssueAssignees, useSetIssueLabels } from "@/app/features/issues/hooks";
@@ -93,7 +93,7 @@ export function IssueSidebar({
         icon={<Tag />}
         title="Labels"
         action={
-          <PickerHint label="Edit labels" shortcut="L" suppressed={picker === "labels"}>
+          <ShortcutHint label="Edit labels" shortcut="L" suppressed={picker === "labels"}>
             <SidebarPicker
               {...pickerProps("labels")}
               title="Apply labels"
@@ -106,7 +106,7 @@ export function IssueSidebar({
               emptyText="No labels"
               trigger={<PickerTrigger label="Edit labels" shortcut="l" />}
             />
-          </PickerHint>
+          </ShortcutHint>
         }
       >
         {issue.labels.length > 0 ? (
@@ -128,7 +128,7 @@ export function IssueSidebar({
         icon={<User />}
         title="Assignees"
         action={
-          <PickerHint label="Edit assignees" shortcut="A" suppressed={picker === "assignees"}>
+          <ShortcutHint label="Edit assignees" shortcut="A" suppressed={picker === "assignees"}>
             <SidebarPicker
               {...pickerProps("assignees")}
               title="Assign people"
@@ -141,7 +141,7 @@ export function IssueSidebar({
               emptyText="No collaborators"
               trigger={<PickerTrigger label="Edit assignees" shortcut="a" />}
             />
-          </PickerHint>
+          </ShortcutHint>
         }
       >
         {issue.assignees.length > 0 ? (
@@ -172,38 +172,5 @@ function PickerTrigger({ label, shortcut }: { label: string; shortcut: string })
         <Settings2 />
       </Button>
     </TooltipTrigger>
-  );
-}
-
-/**
- * Tooltip for a picker trigger. Hidden while the picker is open, and quiet
- * for a moment after it closes so returning focus doesn't pop the tooltip.
- */
-function PickerHint({
-  label,
-  shortcut,
-  suppressed,
-  children,
-}: {
-  label: string;
-  shortcut: string;
-  suppressed: boolean;
-  children: ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const quietUntil = useRef(0);
-  useEffect(() => {
-    if (!suppressed) quietUntil.current = Date.now() + 300;
-  }, [suppressed]);
-  return (
-    <Tooltip
-      open={open && !suppressed}
-      onOpenChange={(next) => setOpen(next && Date.now() > quietUntil.current)}
-    >
-      {children}
-      <TooltipContent>
-        {label} <Kbd>{shortcut}</Kbd>
-      </TooltipContent>
-    </Tooltip>
   );
 }
