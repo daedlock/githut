@@ -99,9 +99,11 @@ function eventMatchesMods(e: KeyboardEvent, mods: Set<Mod>): boolean {
   if (strayMeta) return false;
   if (wantMeta !== haveMeta) return false;
   if (wantAlt !== e.altKey) return false;
-  // Shift on printable keys (like "?") is implicit; only enforce when caller
-  // explicitly asked for shift+<letter>.
+  // Shift on printable symbols (like "?") is implicit; only enforce when the
+  // caller explicitly asked for shift+<key>. A bare letter binding ("j") must
+  // not swallow its shifted chord ("shift+j"), which can mean something else.
   if (wantShift && !e.shiftKey) return false;
+  if (!wantShift && e.shiftKey && /^[a-z]$/i.test(e.key)) return false;
   return true;
 }
 

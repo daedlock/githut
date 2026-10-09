@@ -33,6 +33,7 @@ import type { ShortcutMap } from "@/app/lib/shortcuts";
 // into a toggle and raises the floating action bar.
 //
 //   x / Shift-x   toggle the focused (or hovered) row / extend a range to it
+//   Shift-j/k     grow the selection while moving (also Shift-↓/↑ on a row)
 //   Shift-click   extend a range from the last toggled row
 //   ⌘A            select every visible row
 //   Esc           clear
@@ -134,6 +135,26 @@ export function BulkSelectionProvider({
     [run, selectedItems],
   );
 
+  // Shift-j / Shift-k (and Shift-arrows on a row) grow the selection while
+  // moving, keeping the row you leave selected, like a native list.
+  const extend = useCallback((direction: 1 | -1) => {
+    const rows = Array.from(root.current?.querySelectorAll<HTMLElement>(ROW) ?? []);
+    const from = document.activeElement?.closest<HTMLElement>(ROW);
+    const index = from ? rows.indexOf(from) : -1;
+    const next = rows[index < 0 ? (direction === 1 ? 0 : rows.length - 1) : index + direction];
+    if (!next) return;
+    setSelected((previous) => {
+      const updated = new Set(previous);
+      if (from) updated.add(Number(from.dataset.bulkRow));
+      updated.add(Number(next.dataset.bulkRow));
+      return updated;
+    });
+    anchor.current = next;
+    const link = next.querySelector<HTMLElement>("[data-keyboard-list-item]");
+    link?.focus({ preventScroll: true });
+    link?.scrollIntoView({ block: "nearest" });
+  }, []);
+
   const hasRows = visible.length > 0;
   useKeybindings(
     useMemo((): ShortcutMap => {
@@ -143,7 +164,6 @@ export function BulkSelectionProvider({
         if (focused && root.current?.contains(focused)) return focused;
         return root.current?.querySelector<HTMLElement>(`${ROW}:hover`) ?? null;
       };
-      // Shift-x is listed first: a bare "x" binding also matches shifted presses.
       return {
         "shift+x": () => {
           const row = current();
@@ -153,10 +173,26 @@ export function BulkSelectionProvider({
           const row = current();
           if (row) toggle(row, false);
         },
+        "shift+j": () => extend(1),
+        "shift+k": () => extend(-1),
         "⌘a": selectAll,
       };
-    }, [hasRows, toggle, selectAll]),
+    }, [hasRows, toggle, extend, selectAll]),
   );
+
+  useEffect(() => {
+    if (!hasRows) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.shiftKey || event.defaultPrevented || event.metaKey || event.ctrlKey) return;
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.closest(ROW)) return;
+      event.preventDefault();
+      extend(event.key === "ArrowDown" ? 1 : -1);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [hasRows, extend]);
 
   const count = selected.size;
   useEffect(() => {

@@ -40,6 +40,8 @@ const SHORTCUTS: readonly Shortcut[] = [
   { chord: "Enter", label: "Open", scope: "list" },
   { chord: "x", label: "Select item", scope: "list" },
   { chord: "⇧ x", label: "Extend selection", scope: "list" },
+  { chord: "⇧ j", label: "Grow selection down (or ⇧↓)", scope: "list" },
+  { chord: "⇧ k", label: "Grow selection up (or ⇧↑)", scope: "list" },
   { chord: "⌘ A", label: "Select all", scope: "list" },
   { chord: "Esc", label: "Clear selection", scope: "list" },
   { chord: "s", label: "Change status of selection", scope: "list" },
