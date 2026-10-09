@@ -1,0 +1,266 @@
+{
+  "src/app/components/code/CodeView.tsx": {
+    "raw-semantic-token": 3
+  },
+  "src/app/components/code/DiffLayout.tsx": {
+    "title-tooltip": 1,
+    "type-scale": 1,
+    "in-flow-shadow": 1
+  },
+  "src/app/components/code/DiffLayoutSkeleton.tsx": {
+    "space-utility": 3
+  },
+  "src/app/components/code/DiffView.tsx": {
+    "raw-semantic-token": 1,
+    "title-tooltip": 1,
+    "pixel-font-size": 2
+  },
+  "src/app/components/code/FileDiff.tsx": {
+    "in-flow-shadow": 1,
+    "arbitrary-radius": 1
+  },
+  "src/app/components/code/FileHistorySheet.tsx": {
+    "title-tooltip": 5,
+    "raw-semantic-token": 2,
+    "type-scale": 2,
+    "brand-fill": 1
+  },
+  "src/app/components/code/MediaDiff.tsx": {
+    "raw-semantic-token": 1
+  },
+  "src/app/components/CommandPalette.tsx": {
+    "unguarded-animation": 3
+  },
+  "src/app/components/GithubMarkdown.tsx": {
+    "raw-semantic-token": 1
+  },
+  "src/app/components/OpenInGithubLink.tsx": {
+    "brand-focus-ring": 1
+  },
+  "src/app/components/PageScrollControls.tsx": {
+    "in-flow-shadow": 1
+  },
+  "src/app/components/repo/ChangedFileTree.tsx": {
+    "title-tooltip": 4,
+    "type-scale": 3
+  },
+  "src/app/components/repo/CloneDropdown.tsx": {
+    "raw-semantic-token": 1,
+    "arbitrary-radius": 2,
+    "brand-focus-ring": 1
+  },
+  "src/app/components/repo/FileList.tsx": {
+    "cursor-utility": 2
+  },
+  "src/app/components/repo/RepoAbout.tsx": {
+    "space-utility": 2,
+    "raw-semantic-token": 7,
+    "pixel-font-size": 1,
+    "brand-focus-ring": 3
+  },
+  "src/app/components/repo/RepoListWidget.tsx": {
+    "raw-semantic-token": 3,
+    "brand-focus-ring": 1
+  },
+  "src/app/components/repo/RepoSubTabs.tsx": {
+    "brand-focus-ring": 1,
+    "raw-semantic-token": 4
+  },
+  "src/app/components/settings/CodeFontPicker.tsx": {
+    "raw-semantic-token": 3,
+    "arbitrary-radius": 1,
+    "brand-focus-ring": 3,
+    "in-flow-shadow": 1
+  },
+  "src/app/components/settings/ContainerWidthPicker.tsx": {
+    "cursor-utility": 1,
+    "brand-focus-ring": 1
+  },
+  "src/app/components/settings/ThemePicker.tsx": {
+    "raw-semantic-token": 1
+  },
+  "src/app/components/shell/AppShell.tsx": {
+    "in-flow-shadow": 1,
+    "brand-focus-ring": 1
+  },
+  "src/app/components/shell/InboxPill.tsx": {
+    "title-tooltip": 1
+  },
+  "src/app/components/shell/ThemePalettePicker.tsx": {
+    "title-tooltip": 1,
+    "raw-semantic-token": 5
+  },
+  "src/app/components/shell/UnifiedNav.tsx": {
+    "brand-focus-ring": 3,
+    "raw-semantic-token": 1,
+    "pixel-font-size": 1
+  },
+  "src/app/components/shell/UserMenu.tsx": {
+    "title-tooltip": 5,
+    "brand-focus-ring": 1
+  },
+  "src/app/components/shell/WorkspaceBar.tsx": {
+    "cursor-utility": 2,
+    "raw-semantic-token": 1
+  },
+  "src/app/components/shell/WorkspaceSwitcher.tsx": {
+    "raw-semantic-token": 1
+  },
+  "src/app/components/ThemeToggle.tsx": {
+    "title-tooltip": 1
+  },
+  "src/app/components/ui/avatar.tsx": {
+    "space-utility": 1,
+    "pixel-font-size": 4,
+    "raw-semantic-token": 1
+  },
+  "src/app/components/ui/badge.tsx": {
+    "raw-semantic-token": 1
+  },
+  "src/app/components/ui/checkbox.tsx": {
+    "arbitrary-radius": 1
+  },
+  "src/app/components/ui/skeleton.tsx": {
+    "raw-semantic-token": 1
+  },
+  "src/app/components/ui/StatusPill.tsx": {
+    "raw-semantic-token": 2
+  },
+  "src/app/components/ui/tooltip.tsx": {
+    "arbitrary-radius": 1
+  },
+  "src/app/features/actions/components/ArtifactList.tsx": {
+    "raw-semantic-token": 1
+  },
+  "src/app/features/actions/components/DispatchDialog.tsx": {
+    "native-select": 2,
+    "brand-focus-ring": 1,
+    "native-checkbox": 1
+  },
+  "src/app/features/actions/components/JobPanel.tsx": {
+    "unguarded-animation": 1,
+    "raw-semantic-token": 3,
+    "brand-focus-ring": 1,
+    "cursor-utility": 1
+  },
+  "src/app/features/actions/components/LogViewer.tsx": {
+    "raw-semantic-token": 5
+  },
+  "src/app/features/actions/components/RunDetailSkeleton.tsx": {
+    "space-utility": 9
+  },
+  "src/app/features/actions/components/RunFilters.tsx": {
+    "space-utility": 1,
+    "native-select": 1,
+    "brand-focus-ring": 1
+  },
+  "src/app/features/actions/components/RunHeader.tsx": {
+    "brand-focus-ring": 1
+  },
+  "src/app/features/actions/components/RunRow.tsx": {
+    "raw-semantic-token": 1
+  },
+  "src/app/features/actions/components/WorkflowFlow.tsx": {
+    "brand-focus-ring": 1
+  },
+  "src/app/features/dashboard/components/DashboardSidebar.tsx": {
+    "brand-focus-ring": 1
+  },
+  "src/app/features/profile/components/ProfileActivity.tsx": {
+    "arbitrary-radius": 1
+  },
+  "src/app/features/profile/components/ProfileHero.tsx": {
+    "brand-focus-ring": 1
+  },
+  "src/app/features/pulls/components/CheckRunPeek.tsx": {
+    "type-scale": 7,
+    "raw-semantic-token": 4,
+    "pixel-font-size": 1
+  },
+  "src/app/features/pulls/components/InlineThread.tsx": {
+    "unguarded-animation": 1
+  },
+  "src/app/features/pulls/components/PrMergeBox.tsx": {
+    "raw-semantic-token": 8
+  },
+  "src/app/features/pulls/components/PrMergeDialog.tsx": {
+    "raw-semantic-token": 3,
+    "cursor-utility": 1
+  },
+  "src/app/features/pulls/components/PrReviewDialog.tsx": {
+    "raw-semantic-token": 3,
+    "cursor-utility": 1
+  },
+  "src/app/features/pulls/components/PrRow.tsx": {
+    "raw-semantic-token": 8
+  },
+  "src/app/features/pulls/components/PrSidebar.tsx": {
+    "type-scale": 6,
+    "raw-semantic-token": 1
+  },
+  "src/app/features/pulls/components/PrStatePill.tsx": {
+    "raw-semantic-token": 3
+  },
+  "src/app/features/pulls/components/PrTimelineRow.tsx": {
+    "raw-semantic-token": 1
+  },
+  "src/app/features/pulls/components/ReviewCard.tsx": {
+    "raw-semantic-token": 5,
+    "space-utility": 5
+  },
+  "src/app/features/pulls/components/SidebarPicker.tsx": {
+    "raw-semantic-token": 2,
+    "unguarded-animation": 2
+  },
+  "src/app/features/pulls/PrChecksPage.tsx": {
+    "raw-semantic-token": 3
+  },
+  "src/app/features/pulls/PrConversationPage.tsx": {
+    "type-scale": 3,
+    "raw-semantic-token": 1,
+    "space-utility": 1
+  },
+  "src/app/features/repo/components/BulkActionBar.tsx": {
+    "in-flow-shadow": 1
+  },
+  "src/app/routes/$owner.$repo.actions.index.tsx": {
+    "native-select": 1
+  },
+  "src/app/routes/$owner.$repo.actions.runs.$runId.tsx": {
+    "space-utility": 4,
+    "native-select": 1,
+    "brand-focus-ring": 3
+  },
+  "src/app/routes/$owner.$repo.code.tsx": {
+    "space-utility": 1
+  },
+  "src/app/routes/$owner.$repo.commit.$sha.tsx": {
+    "raw-semantic-token": 12,
+    "space-utility": 1,
+    "brand-focus-ring": 2
+  },
+  "src/app/routes/$owner.$repo.pr.$number.tsx": {
+    "type-scale": 4
+  },
+  "src/app/routes/$owner.$repo.pull.$number.tsx": {
+    "type-scale": 1
+  },
+  "src/app/routes/index.tsx": {
+    "brand-focus-ring": 1,
+    "raw-semantic-token": 1
+  },
+  "src/app/routes/login.tsx": {
+    "z-index": 1,
+    "in-flow-shadow": 1
+  },
+  "src/app/routes/playground.tsx": {
+    "space-utility": 4,
+    "raw-semantic-token": 9,
+    "pixel-font-size": 1
+  },
+  "src/app/routes/settings.tsx": {
+    "cursor-utility": 1,
+    "brand-focus-ring": 1,
+    "raw-semantic-token": 1
+  }
+}

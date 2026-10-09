@@ -159,7 +159,7 @@ function Row({
           ) : item.state === "open" ? (
             <CircleDot aria-hidden className="size-3.5 shrink-0 text-(--color-success)" />
           ) : (
-            <CheckCircle2 aria-hidden className="size-3.5 shrink-0 text-(--color-fg-faint)" />
+            <CheckCircle2 aria-hidden className="size-3.5 shrink-0 text-(--color-pr-merged)" />
           )}
           <span className="font-mono text-caption text-muted-foreground tabular-nums">
             #{item.number}

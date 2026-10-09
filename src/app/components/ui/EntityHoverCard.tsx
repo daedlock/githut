@@ -260,7 +260,9 @@ function IssueCard({ owner, repo, number }: { owner: string; repo: string; numbe
   const stateTone = isOpen
     ? "text-(--color-success)"
     : !isPR
-      ? "text-(--color-fg-faint)"
+      ? issue.state_reason === "not_planned"
+        ? "text-(--color-fg-faint)"
+        : "text-(--color-pr-merged)"
       : merged
         ? "text-(--color-pr-merged)"
         : "text-destructive";

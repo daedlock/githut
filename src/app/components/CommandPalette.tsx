@@ -629,7 +629,11 @@ export function CommandPalette() {
                   >
                     <Icon
                       className={cn(
-                        hit.state === "open" ? "text-success" : "text-muted-foreground",
+                        hit.state === "open"
+                          ? "text-(--color-success)"
+                          : hit.kind === "pr"
+                            ? "text-muted-foreground"
+                            : "text-(--color-pr-merged)",
                       )}
                     />
                     <span className="font-mono text-caption tabular-nums text-muted-foreground">

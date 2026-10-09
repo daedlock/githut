@@ -17,7 +17,7 @@ export function StateTab({
   return (
     <ViewTab
       icon={state === "open" ? CircleDot : CheckCircle2}
-      activeIconClassName={state === "open" ? "text-(--color-success)" : "text-muted-foreground"}
+      activeIconClassName={state === "open" ? "text-(--color-success)" : "text-(--color-pr-merged)"}
       label={state === "open" ? "Open" : "Closed"}
       count={count}
       active={isActive}

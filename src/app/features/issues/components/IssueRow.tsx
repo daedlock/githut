@@ -1,10 +1,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { CheckCircle2, CircleDot, CircleSlash, MessageSquare } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
 import { issueKeys } from "@/app/features/issues/hooks";
+import { IssueStateIcon } from "@/app/features/issues/issueState";
 import type { RepoIssue } from "@/app/features/issues/schemas";
 import { IssueCommentsSchema, IssueDetailSchema } from "@/app/features/issues/schemas";
 import { REACTION_CONTENTS, REACTION_EMOJIS, reactionsHaveAny } from "@/app/features/issues/utils";
@@ -67,13 +68,7 @@ export function IssueRow({
         )}
       >
         <div className="mt-0.5 flex-shrink-0">
-          {isOpen ? (
-            <CircleDot className="size-4 text-[var(--color-success)]" />
-          ) : issue.state_reason === "not_planned" ? (
-            <CircleSlash className="size-4 text-[var(--color-fg-faint)]" />
-          ) : (
-            <CheckCircle2 className="size-4 text-[var(--color-fg-faint)]" />
-          )}
+          <IssueStateIcon state={issue.state} reason={issue.state_reason} />
         </div>
         <div className="min-w-0 flex-1">
           <Link

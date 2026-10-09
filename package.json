@@ -12,7 +12,8 @@
     "check": "bunx biome check .",
     "format": "bunx biome format --write .",
     "test": "bun test",
-    "test:browser": "node scripts/test-loading-layouts.mjs"
+    "test:browser": "node scripts/test-loading-layouts.mjs",
+    "lint:design": "bun scripts/design-lint.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",

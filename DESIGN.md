@@ -57,9 +57,16 @@ color is shadcn's `primary`.
 | `--color-warning` | `text-(--color-warning)` | Pending, draft. |
 | `--color-pr-merged` | `text-(--color-pr-merged)` | Merged. |
 
-State colors by entity: open = success; merged = merged (purple); closed PR =
-danger; closed issue = neutral (`--color-fg-faint` icon, `bg-accent` pill);
-draft = neutral (`text-muted-foreground`), not warning.
+State colors by entity. Purple means finished:
+- open (issue or PR) = success
+- merged PR and completed issue = purple (`--color-pr-merged`; issue pills
+  use `--color-issue-closed-*`)
+- closed PR = danger
+- issue closed as not planned = neutral (`--color-fg-faint` icon, `bg-accent` pill)
+- draft PR = neutral (`text-muted-foreground`), not warning
+
+Issue state visuals come from `features/issues/issueState.tsx` (`ISSUE_STATE`,
+`IssueStateIcon`); never restyle them locally.
 
 Status colors share one lightness and chroma, so they sit at matched
 perceptual weight in every palette. Diff tints derive from them via

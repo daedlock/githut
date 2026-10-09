@@ -1,8 +1,9 @@
-import { CheckCircle2, ChevronRight, CircleDot, Flag, Tag, UserRound } from "lucide-react";
+import { ChevronRight, Flag, Tag, UserRound } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Kbd } from "@/app/components/ui/kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
+import { IssueStateIcon } from "@/app/features/issues/issueState";
 import { PrStateIcon } from "@/app/features/pulls/components/PrStatePill";
 import type { ListGroup, ListGrouping, ListKind } from "@/app/features/repo/listGrouping";
 import { cn } from "@/app/lib/cn";
@@ -204,16 +205,7 @@ function GroupIcon<T>({
 }) {
   if (group.status) {
     if (kind === "pulls") return <PrStateIcon state={group.status} />;
-    const Icon = group.status === "open" ? CircleDot : CheckCircle2;
-    return (
-      <Icon
-        aria-hidden
-        className={cn(
-          "size-4 shrink-0",
-          group.status === "open" ? "text-(--color-success)" : "text-(--color-fg-faint)",
-        )}
-      />
-    );
+    return <IssueStateIcon state={group.status === "open" ? "open" : "closed"} />;
   }
   if ((groupBy === "assignee" || groupBy === "author") && !group.missing) {
     return <Avatar login={group.label} avatarUrl={group.avatarUrl} size="xs" />;

@@ -48,7 +48,7 @@ const ISSUE_STATUSES: { value: BulkStatus; label: string; icon: ReactNode }[] = 
   {
     value: "closed",
     label: "Closed",
-    icon: <CheckCircle2 className="size-4 text-(--color-fg-faint)" />,
+    icon: <CheckCircle2 className="size-4 text-(--color-pr-merged)" />,
   },
   {
     value: "not_planned",
@@ -102,6 +102,7 @@ export function BulkActionBar() {
   );
 }
 
+// design-lint-ignore: the bar and its notices are overlays, so they carry the overlay shadow.
 const surface =
   "pointer-events-auto max-w-full rounded-xl bg-popover text-popover-foreground shadow-lg ring-1 ring-foreground/10";
 
