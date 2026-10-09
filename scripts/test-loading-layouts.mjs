@@ -782,7 +782,7 @@ try {
         await search.fill("");
         await row(1).hover();
         await box(1).click();
-        await p.getByRole("button", { name: "Open 4", exact: true }).click();
+        await p.getByRole("button", { name: "Open 4", exact: true, expanded: true }).click();
         await bar.waitFor({ state: "detached" }); // Collapsed groups leave selection
         assert.deepEqual(f.errors, []);
         console.log("PASS bulk selection", kind, width);
