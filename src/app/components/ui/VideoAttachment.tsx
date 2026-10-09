@@ -49,11 +49,11 @@ export function VideoAttachment({
         preload="metadata"
         aria-label="Video attachment"
         onError={() => setFailed(true)}
-        className="block max-h-[480px] w-full rounded-md bg-black object-contain [&:fullscreen]:h-full [&:fullscreen]:max-h-none"
+        className="block max-h-[480px] w-full rounded-lg bg-black object-contain [&:fullscreen]:h-full [&:fullscreen]:max-h-none"
       >
         {link}
       </video>
-      <span className="mt-1 block break-all text-xs text-muted-foreground">{link}</span>
+      <span className="mt-1 block break-all text-caption text-muted-foreground">{link}</span>
     </span>
   );
 }
