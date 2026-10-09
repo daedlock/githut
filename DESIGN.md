@@ -1,284 +1,333 @@
 # Design System
 
-## Core Principle
+The single source of truth for how GitHut looks and behaves. If `CLAUDE.md`,
+a comment, or existing code disagrees with this file, this file wins. Fix
+the other place.
 
-**Surfaces, not borders.** Hierarchy comes from luminance stepping between
-background surfaces. Borders are used only where structurally necessary:
-form inputs, hard separators between unrelated sections, focus rings.
-Everything else separates through spacing and surface contrast.
+Tokens live in `src/app/styles/tokens.css`. Palettes in
+`src/app/styles/themes/*.css` override them, so components never use raw
+colors and every theme works for free.
 
-This is the Linear approach: the interface is built from layers of
-luminance, not from boxes drawn with lines.
+## Principles
 
-## Surfaces
+1. **Surfaces, not borders.** Hierarchy comes from luminance steps between
+   surfaces. Borders appear only where structure demands them (see below).
+2. **Color means something.** Achromatic structure plus one brand color
+   (under 10% of the surface) and status colors. Gray is structure; color is state.
+3. **Dense but calm.** A tight type scale, generous rhythm, and no decoration.
+4. **Nothing jumps.** Hover reveals never move content, skeletons match the
+   final layout, and pending states keep their footprint.
+5. **Feedback is instant.** Apply changes optimistically, confirm quietly,
+   and make mistakes undoable.
 
-Three levels. Each is a subtle luminance step from the previous.
-In dark mode, higher = lighter. In light mode, higher = slightly tinted.
+## Color
 
-| Token | Role | Example |
+### Surfaces
+
+| Token | Class | Use |
 |---|---|---|
-| `--color-bg` / `bg-background` | Page canvas | The base everything sits on |
-| `--color-bg-subtle` / `bg-muted` | Raised surface | Toolbars, file headers, card-like areas, hover states |
-| `--color-bg-sunken` / `bg-accent` | Inset / active | Active controls, pressed states, selected items |
+| `--color-bg` | `bg-background` | Page canvas. Rows at rest, sidebars, cards. |
+| `--color-bg-subtle` | `bg-muted` | Raised: toolbars, row hover, file and hunk headers, group headers (`/60`). |
+| `--color-bg-sunken` | `bg-accent` | Active: selected rows, pressed or open controls. |
+| `--color-popover` | `bg-popover` | Every overlay: popovers, menus, dialogs, floating bars, notices. |
+| `--color-popover-active` | `bg-(--color-popover-active)` | The highlighted item inside an overlay. |
+| `--color-code-bg` | `bg-(--color-code-bg)` | Code and diff areas. |
 
-**Rules:**
-- Sidebars use the SAME surface as the page. Not a different color. Separation via spacing or a single hairline if absolutely needed.
-- Toolbars sit on `bg-muted` to float above the list content.
-- Hover states shift to `bg-muted`. No background change on the default state.
-- Rows in lists have NO background on default. Hover reveals the surface.
-- Cards are just content on the page surface with spacing around them. No border, no shadow, no card wrapper unless the content truly needs containment (e.g. a form, a code block).
+shadcn's `accent` is our **sunken surface**, not the brand color. The brand
+color is shadcn's `primary`.
 
-## When Borders ARE Used
+### Text
 
-Borders are not banned. They serve specific structural roles:
-
-| Use case | Token | Why |
+| Token | Class | Use |
 |---|---|---|
-| Form inputs | `border-input` / `--color-border-strong` | Inputs need a visible boundary to indicate "type here" |
-| Hard section separators | `border-border` / `--color-border` | Between truly unrelated content (nav bar bottom, diff file separators) |
-| Focus rings | `ring-[--color-focus]` | Keyboard accessibility requires visible focus |
-| Code blocks / diff area | `border-border` | Code needs containment to distinguish from prose |
+| `--color-fg` | `text-foreground` | Primary text. |
+| `--color-fg-muted` | `text-muted-foreground` | Meta text and secondary labels (AA for body). |
+| `--color-fg-faint` | `text-(--color-fg-faint)` | Icons, glyphs and large text only (3.3:1). Never body copy. |
 
-**Never use borders for:**
-- Separating list rows (use spacing or hover surface)
-- Card wrappers (use spacing and surface stepping)
-- Toolbar bottoms (toolbar bg-muted already separates visually)
-- Between sidebar and content (spacing is enough; or one hairline max)
+### Brand and status
 
-## Color Strategy
+| Token | Class | Use |
+|---|---|---|
+| `--color-brand` | `bg-primary`, `text-primary` | Primary button, checked controls, links, active tab indicator, focus. |
+| `--color-success` | `text-(--color-success)` | Open, additions, passing checks. |
+| `--color-danger` | `text-destructive`, `bg-destructive` | Closed (PRs), deletions, failures, errors. |
+| `--color-warning` | `text-(--color-warning)` | Pending, draft. |
+| `--color-pr-merged` | `text-(--color-pr-merged)` | Merged. |
 
-**Restrained.** Achromatic surfaces + one brand accent (< 10% surface area).
-Color only for meaning: status, diff tints, brand actions.
+Status colors share one lightness and chroma, so they sit at matched
+perceptual weight in every palette. Diff tints derive from them via
+`color-mix`. **Never use `primary` as a surface fill** for rows, sections
+or selection.
 
-| Token | Role |
+### Borders
+
+Use them only for structure:
+
+| Use | Class |
 |---|---|
-| `--color-brand` / `bg-primary` | Primary buttons, links, focus, active tab indicator |
-| `--color-success` | Open PRs, additions, passing checks |
-| `--color-danger` | Closed, deletions, failing checks |
-| `--color-warning` | Pending, draft |
-| `--color-pr-merged` | Merged PRs (purple) |
+| Form controls | `border-input` (primitives already apply it) |
+| Separators between unrelated regions (app header bottom, diff file cards) | `border-border` |
+| Code and diff containment | `border-border` |
 
-All status colors at matched perceptual lightness per palette.
-Diff tints derived via `color-mix(status N%, surface-0)`.
-
-## Active Surfaces
-
-When a card or region needs to communicate **state** (ready, error, merged,
-pending), it becomes an "active surface" — a tinted container whose border,
-background, and glow all derive from a single semantic color variable via
-`color-mix`. This keeps every palette consistent: the tint blends into the
-theme rather than painting over it.
-
-Pick the semantic color variable for the state:
-
-| State | Variable |
-|---|---|
-| Ready / success | `--color-success` |
-| Error / conflict | `--color-danger` |
-| Pending / draft | `--color-warning` |
-| Merged | `--color-pr-merged` |
-| Neutral / disabled | `--color-fg-faint` |
-
-Then apply the three layers — all use `color-mix(in oklab, var(--var) N%, base)`:
-
-| Layer | Formula | Base token | Purpose |
-|---|---|---|---|
-| **Border** | `40%` into `--color-border` | `var(--color-border)` | Visible tinted edge that reads as "this region has meaning" |
-| **Background** | `8%` into `--color-bg-subtle` | `var(--color-bg-subtle)` | Subtle fill — just enough to tint the surface |
-| **Glow** | `12%` into `transparent` | `transparent` | Outer `box-shadow 0 0 20px` — soft ambient halo |
-| **Hover** (buttons) | `20%` into `--color-bg-subtle` | `var(--color-bg-subtle)` | Stronger tint on interactive hover |
-
-### Active Surface Button (CTA inside an active card)
-
-For the primary action inside an active surface (e.g. "Merge"), use
-stronger mix ratios so the button stands out from the tinted card:
-
-```
-border:     color-mix(in oklab, var(--color) 50%, var(--color-border))
-background: color-mix(in oklab, var(--color) 12%, var(--color-bg-subtle))
-hover:      color-mix(in oklab, var(--color) 20%, var(--color-bg-subtle))
-text:       text-foreground (inherits from theme)
-```
-
-### Why `color-mix` with theme tokens, not `transparent`
-
-Mixing into `transparent` produces washed-out tints on warm palettes
-(ember, dune) because the accent hue floats over nothing. Mixing into
-`--color-border` or `--color-bg-subtle` anchors the tint to the palette's
-warmth, so green reads as green even on a brown surface.
-
-### Example (inline style)
-
-```tsx
-<div
-  className="rounded-lg border"
-  style={{
-    borderColor: `color-mix(in oklab, var(--color-success) 40%, var(--color-border))`,
-    backgroundColor: `color-mix(in oklab, var(--color-success) 8%, var(--color-bg-subtle))`,
-    boxShadow: `0 0 20px color-mix(in oklab, var(--color-success) 12%, transparent)`,
-  }}
->
-```
+Never use borders to separate list rows, wrap cards, underline toolbars, or
+divide a sidebar from the content.
 
 ## Typography
 
-| Token | Size | Weight | Use |
-|---|---|---|---|
-| `text-micro` | 11px | 500 | Badges, eyebrow labels |
-| `text-caption` | 12px | 450 | Timestamps, toolbar controls, counts |
-| `text-ui` | 13px | 475 | Buttons, tabs, row meta |
-| `text-code` | 13px | 400 | Monospace: diffs, code, file names |
-| `text-body` | 14px | 400 | Comments, paragraphs, PR titles in lists |
-| `text-title` | 18px | 550 | Section headers |
-| `text-heading` | 24px | 550 | Page headings, PR detail title |
+Only these sizes exist. **Never use `text-xs`, `text-sm`, `text-base`,
+`text-lg` or pixel values.**
 
-**Rules:**
-- Titles use `font-[475]` (between regular and medium, Linear's trick)
-- Tracking tightens above 16px (negative letter-spacing)
-- Monospace only for code content. Never for UI labels.
-- Body line length max 72ch.
-- Weight contrast between hierarchy levels >= 50 units.
+| Class | Size / line-height | Use |
+|---|---|---|
+| `text-micro` | 11 / 1.2 | Badges, eyebrow labels (`uppercase tracking-widest`) |
+| `text-caption` | 12 / 1.4 | Counts, timestamps, keyboard hints, toolbar controls |
+| `text-ui` | 13 / 1.35 | Buttons, tabs, menu items, row meta |
+| `text-code` | 13 / 20px fixed | Code, diffs, file names (the fixed height keeps the virtualized code view's row math intact) |
+| `text-body` | 14 / 1.55 | Comments, paragraphs, row titles |
+| `text-body-lg` | 16 / 1.5 | Rare lead copy |
+| `text-title` | 18 / 1.35 | Section titles |
+| `text-heading` | 24 / 1.25 | Page headings, issue and PR titles |
+| `text-display` | 32 / 1.15 | Login and empty-state centerpieces |
+
+- Tokens set size, line-height and tracking; **callers set weight.** Row
+  titles use `font-[475]`, emphasis and labels use `font-medium`, and
+  everything else stays regular. Avoid bold in chrome.
+- `font-mono` is for identifiers and code: issue and PR numbers, SHAs,
+  branches, paths, code. Labels and prose use sans.
+- Use `tabular-nums` for counts that change in place.
+- Keep prose under 72ch.
 
 ## Spacing
 
-Base unit: 4px.
+Base unit 4px. Prefer these steps:
 
-| Token | Value | Use |
-|---|---|---|
-| `--space-1` | 4px | Icon gaps, tight inline |
-| `--space-2` | 8px | Within components |
-| `--space-3` | 12px | Between related items |
-| `--space-4` | 16px | Between groups |
-| `--space-6` | 24px | Between sections |
-| `--space-8` | 32px | Page-level separation |
+| Step | Use |
+|---|---|
+| `1` (4px) | Icon gaps, between list rows |
+| `2` (8px) | Inside components |
+| `3` (12px) | Between related items, row content columns |
+| `4` (16px) | Between groups, row side padding |
+| `6` (24px) | Between sections, page padding |
+| `8` (32px) | Page-level separation |
 
-No 20px. The gap keeps rhythm syncopated.
+Use `gap-*` for stacks (`flex flex-col gap-*`), never `space-y-*`.
 
 ## Radius
 
-| Context | Value | Why |
+The tokens override Tailwind's defaults; **`rounded-lg` is 6px here.**
+
+| Class | Value | Use |
 |---|---|---|
-| Hover/interactive rows | `rounded-lg` (8px) | Soft, approachable hover surface |
-| Toolbar surfaces | `rounded-lg` (8px) | Matches hover rows |
-| Inputs, buttons | `rounded-md` (6px) | Slightly tighter, functional |
-| Code blocks, diff cards | `rounded-lg` (8px) | Consistent with other cards |
-| Avatars, pills | `rounded-full` | Circular |
+| `rounded-sm` | 3px | Kbd, tiny chips |
+| `rounded-md` | 4px | Items inside overlays, small icon buttons, group headers |
+| `rounded-lg` | 6px | Rows, toolbars, buttons, inputs, popovers, menus, code blocks |
+| `rounded-xl` | 12px | Dialogs, floating bars, notices |
+| `rounded-full` | — | Avatars, label pills, status dots |
 
-Surfaces get generous radius. Code gets sharp radius. The contrast
-between the two creates visual distinction between "UI" and "content".
+## Elevation and layering
 
-## Depth
+In-flow surfaces never cast shadows: headers, toolbars, sidebars, rows,
+cards. Overlays use their primitive's recipe and nothing else:
 
-**No shadows in dark mode.** Hierarchy via surface luminance only.
-In light mode, optional subtle shadow for truly floating elements
-(dropdowns, popovers): `0 1px 3px oklch(0 0 0 / 0.08)`.
-
-| Level | Treatment |
+| Overlay | Recipe |
 |---|---|
-| Page | `bg-background` (base) |
-| Raised | `bg-muted` (toolbar, hover, file headers) |
-| Active | `bg-accent` (selected, pressed) |
-| Focus | `2px ring var(--color-focus)` |
+| Popover, menu, hover card | `bg-popover rounded-lg shadow-md ring-1 ring-foreground/10` (from the primitive) |
+| Floating bar, notice | `bg-popover rounded-xl shadow-lg ring-1 ring-foreground/10` |
+| Tooltip | The primitive (`bg-foreground text-background`) |
 
-## Layout Patterns
+Use only this z-index scale:
 
-### List Page (PRs, Issues)
+| Layer | Use |
+|---|---|
+| `z-10` | Stretched row link (`after:` overlay) |
+| `z-20` | Interactive controls inside a row (label pills, author links, checkboxes) |
+| `z-30` | Sticky in-page bars (group headers, diff toolbar), fixed page affordances |
+| `z-40` | Sticky app header, floating action bar |
+| `z-50` | Radix overlays: popovers, menus, dialogs, tooltips |
+
+## Interaction states
+
+| State | Treatment |
+|---|---|
+| Rest | No background. |
+| Hover | `hover:bg-muted` |
+| Selected / active | `bg-accent` (hover keeps it) |
+| Open (trigger with a popover) | `aria-expanded:bg-muted` (built into `Button`) |
+| Disabled | `opacity-50`, no pointer events |
+| Pending | A spinner in place of the control, so the footprint doesn't change |
+
+**Focus.** Never remove focus without a replacement.
+- Primitives (`Button`, `Input`, `Checkbox`) own their focus ring. Don't override it.
+- Custom controls: `outline-none focus-visible:ring-1 focus-visible:ring-foreground/15`.
+- Whole-row links put the ring on the stretched overlay:
+  `focus-visible:after:ring-1 focus-visible:after:ring-foreground/20`.
+
+## Layout
+
+### Chrome
+- The app header is sticky; its height is `--app-header-height` (40px, or
+  80px where repo navigation wraps on narrow screens). Rows inside chrome
+  are `h-10 flex items-center`. **Never use `py-*` on a chrome bar.**
+- Secondary sticky bars stick at `top-(--app-header-height)`.
+
+### Containers
+Wrap every page in `<Container>`. It owns horizontal padding
+(`px-4 sm:px-6`) and the user's width preference: Small 896, **Medium 1280
+(default)**, Large 1536, Full. Never hand-roll `max-w-*` on a page.
+
+### List page (issues, PRs)
 ```
-Container (narrow, centered)
-  ├── Toolbar surface (bg-muted, rounded-lg, compact)
-  │   ├── State tabs (Open/Closed with counts)
-  │   └── Search + Sort
-  └── Rows (no wrapper, no borders)
-      ├── Row (flat on bg, hover → bg-muted, rounded-lg)
-      ├── Row
+Container
+  ├── Toolbar (bg-muted, rounded-lg, p-2)
+  │   ├── State tabs (Open / Closed with counts)
+  │   └── Search · Filter · Display · primary action
+  ├── Filter pills (only when filters are active)
+  └── List (gap-1)
+      ├── Group header (sticky, when grouped)
+      ├── Row … Row
       └── Load more
 ```
 
-### Detail Page (PR, Issue)
+### Detail page (issue, PR)
 ```
-Container (wide, 1280px)
+Container
   ├── Header (title, state, meta, actions)
   ├── Sub-tabs (Conversation / Commits / Checks / Review)
-  └── Two-column layout
-      ├── Main (comments, timeline, merge box)
-      └── Sidebar (reviewers, assignees, labels)
+  └── Main (comments, timeline, merge box) + Sidebar (reviewers, assignees, labels)
 ```
 
-### Review Page (full-width)
+### Review page
 ```
 Full viewport, no Container
-  ├── Sticky bar (back + PR context + Unified/Split + Submit)
-  ├── File tree sidebar (same bg as page)
-  └── Diff content (file cards with spacing between)
+  ├── Sticky bar (back, PR context, Unified/Split, Submit)
+  ├── File tree (same surface as the page)
+  └── Diff cards (gap-3)
 ```
 
-## Component Patterns
+## Components
+
+Use the shadcn primitives in `src/app/components/ui/` for every popover,
+menu, dialog, command palette, tooltip, checkbox and input. Never wrap Radix
+yourself.
 
 ### Rows
-- No default background. Transparent on page surface.
-- Hover: `bg-muted rounded-lg` transition.
-- No divider between rows. Spacing (gap or padding) separates.
-- Entire row is a link (prefetch on hover via router).
+- Flat on the page: no background at rest, `hover:bg-muted`, `rounded-lg`,
+  no dividers, `gap-1` between rows.
+- The whole row is a link: the title link stretches over the row
+  (`after:absolute after:inset-0 after:z-10`). Secondary links and controls
+  sit above it at `relative z-20`.
+- Anatomy: `px-4 py-2.5`, a 16px state icon (`mt-0.5`), a `text-body
+  font-[475]` title with label pills inline, then a meta line in `text-ui
+  text-muted-foreground` with `#number` in mono.
+- Selectable rows reserve a checkbox gutter (`pl-10`). See Selection.
 
 ### Toolbars
-- `bg-muted rounded-lg` with compact padding.
-- Contains controls (tabs, search, sort) at `text-caption` size.
-- Sits above the list with a small gap (mb-2).
+`bg-muted rounded-lg p-2`. Controls are `h-7` (`Button size="sm"`, inputs
+`h-7 text-ui`): state tabs on the left, search, filter and display on the
+right. Toolbars recede; they never dominate.
 
-### File Diff Cards
-- In the review view, files are separated by `gap-3`.
-- File header: `bg-muted` surface, sticky below the top bar.
-- Code area: slightly darker than surface-0 via `color-mix`.
-- Hunk headers: `bg-muted` (same as file header surface).
-- Single-hunk files skip the hunk header entirely.
-- Media files (images, video, audio) render a Before/After pane pair inside
-  the card instead of a text diff; added/removed files get a single pane.
-  Pane captions reuse the hunk-header surface; images sit on a subtle
-  palette-derived checkerboard so transparency reads as transparency.
-- Other binaries get a one-line notice plus an "Open on GitHub" link. Never
-  show "No changes" for a file GitHub reports as 0/0 without a patch.
+### Group headers
+Sticky at `top-(--app-header-height)` with `z-30 bg-background`. The header
+button is `min-h-10 rounded-md bg-muted/60 px-3 text-ui font-medium`:
+chevron, icon, label, then the count in `text-caption tabular-nums
+text-muted-foreground`.
 
-### Changed-file tree
-- File rows always show their `+N −N`.
-- Folder rows carry the rollup of every descendant. A collapsed folder shows
-  it permanently (it is the only place those numbers live); an expanded
-  folder hides it until the row is hovered or focused, since the per-file
-  numbers beneath already tell the story. Touch devices always show it.
+### Selection (multi-select)
+Reference: `features/repo/components/BulkSelection.tsx` and `BulkActionBar.tsx`.
+- **Checkbox:** `ui/checkbox` (supports `"indeterminate"`), at `left-3 top-3`
+  in the row's reserved gutter. Hidden until the row is hovered or focused;
+  shown on every row once anything is selected; always shown on touch.
+- **Selected row:** `bg-accent`. Adjacent selected rows merge into one block
+  (shared corners squared, the gap filled). No ring, border, or brand tint.
+- **Behavior:** in selection mode a row click toggles the row. Modifier-clicks
+  keep native link behavior. Rows that leave the view leave the selection.
+- **Keys:** `x` toggles, `Shift-x` / Shift-click extend a range, `⌘A` selects
+  all, `Esc` clears.
+
+### Floating action bar
+- Centered at the bottom (`fixed bottom-6`), `h-11 p-1.5`, overlay recipe
+  above. Contents: master checkbox and count, a vertical `Separator`, ghost
+  `size="sm"` actions (icon-only below `sm`), another `Separator`, then clear
+  (`size="icon-sm"`).
+- Results appear in a notice stacked above the bar (`h-10`, same surface)
+  with **Undo** or **Retry**. Successes auto-dismiss after 6s; errors stay
+  until dismissed.
+- On narrow screens it owns the bottom of the viewport, and page scroll
+  controls hide.
+
+### Pickers
+Label, assignee, reviewer and status pickers use `SidebarPicker`. It's the
+same component in detail sidebars and the bulk bar: ✓ when every target has
+the value, – when only some do (`mixedIds`), and `closeOnSelect` for
+single-choice pickers. List filters use `ui/filter-bar`.
 
 ### Buttons
-- Default (brand): `bg-primary text-primary-foreground`
-- Ghost: transparent, `hover:bg-muted`
-- Outline: `border-input bg-background` (one of the few bordered elements)
-- All sizes same weight/color. Only height + padding scale.
+`Button` variants: `default` (brand, at most one primary action per view),
+`ghost` (toolbars, bars, icon actions), `outline`, `secondary`,
+`destructive` (soft tint), `link`. Sizes: `xs` h-6, `sm` h-7, `default`
+h-8, `lg` h-9, plus `icon-*` squares. Icons take
+`data-icon="inline-start|inline-end"` and no manual size. Don't invent
+variants.
 
-### Navigation
-- Single 40px row, full-width.
-- Section tabs inline with repo identity.
-- No bottom border needed if the content below starts with a different surface.
+### Tooltips and shortcuts
+Every icon-only control gets a tooltip. Put shortcuts in the tooltip as
+`<Kbd>`, set `aria-keyshortcuts`, register them with `useKeybindings`, and
+list them in `KeyboardHelp.tsx`. `Esc` belongs to the innermost layer
+(input, picker) before any page-level action.
 
-## Palette System
+### Active surfaces
+A card that communicates state (ready, conflict, merged) tints from one
+status variable. Reference: `PrMergeBox.tsx`.
 
-Themes define all tokens. Components never use raw values.
-See `theme-presets.css` for palette definitions.
+| Layer | Formula |
+|---|---|
+| Border | `color-mix(in oklab, var(--status) 40%, var(--color-border))` |
+| Background | `color-mix(in oklab, var(--status) 6%, var(--color-bg))` |
+| CTA border | `color-mix(in oklab, var(--status) 50%, var(--color-border))` |
+| CTA background / hover | `12%` / `20%` into `var(--color-bg-subtle)`, text `text-foreground` |
 
-Each palette provides: surfaces (3), text (4), borders (2),
-brand (3), status (4), syntax (8+), icons, charts.
+Mix into theme tokens, never into `transparent`, so tints keep the
+palette's warmth. No glow.
 
-Diff tokens auto-derive from status + surface via `color-mix`.
+### Diffs
+- Review files are separated by `gap-3`. The file header is `bg-muted` and
+  sticky below the toolbar; hunk headers use the same surface. Single-hunk
+  files skip the hunk header.
+- Media files render a Before/After pane pair (a single pane when added or
+  removed) on a palette-derived checkerboard. Other binaries get a one-line
+  notice and an "Open on GitHub" link. Never show "No changes" for a 0/0
+  file without a patch.
 
-## Animation
+### Changed-file tree
+File rows always show `+N −N`. Folder rows carry their descendants' rollup:
+always shown when collapsed, shown on hover or focus when expanded, and
+always shown on touch.
 
-- Micro-interactions: 120ms `cubic-bezier(0.16, 1, 0.3, 1)`
-- Hover transitions: `transition-colors` (Tailwind default, ~150ms)
-- No motion on scroll.
-- Respect `prefers-reduced-motion`.
+### Loading and empty states
+- Skeletons (`SkeletonGroup` + `Skeleton`, `skeleton-fade`) mirror the final
+  geometry exactly: same padding, gutters and icon positions.
+- Empty states: a centered `size-5` icon in `--color-fg-faint` above one
+  `text-body text-muted-foreground` line.
+
+## Motion
+
+- Micro-interactions take 120–160ms on `cubic-bezier(0.16, 1, 0.3, 1)`;
+  hovers use `transition-colors`.
+- Radix primitives animate through `tw-animate-css` `data-[state]` classes.
+  Never add keyframes.
+- App-owned enter and exit (floating bars, notices, sidebar lists) uses
+  framer-motion `AnimatePresence`: opacity plus at most 8px of translation.
+  Under `useReducedMotion`, drop translation and scale; for CSS transitions
+  use `motion-reduce:`.
+- No scroll-linked motion.
 
 ## Anti-patterns
 
-- **Card wrapper on list items.** Lists are flat rows, not cards.
-- **Border between every row.** Use spacing.
-- **Different sidebar background.** Same as page.
-- **Shadows in dark mode.** Invisible and wasteful.
-- **Decorative color.** Color = meaning. Gray = structure.
-- **Heavy toolbar chrome.** Toolbar should recede, not dominate.
-- **Nested containers.** Content flows on the page surface.
+- Card wrappers or borders around list rows.
+- `primary` as a fill for rows, selections or sections.
+- Shadows on in-flow surfaces.
+- A sidebar on a different surface from the page.
+- `text-xs` / `text-sm`, arbitrary pixel sizes, or z-index values off the scale.
+- Hover reveals that shift layout, or skeletons that don't match the loaded rows.
+- Hand-rolled popovers, menus, checkboxes or tooltips.
+- Decorative color. Color is state.
