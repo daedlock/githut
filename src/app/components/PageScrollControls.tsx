@@ -50,7 +50,8 @@ export function PageScrollControls() {
     <>
       <div ref={bottomRef} aria-hidden="true" className="pointer-events-none -mt-px h-px w-px" />
       <TooltipProvider delayDuration={400}>
-        <div className="pointer-events-none fixed right-[max(1rem,env(safe-area-inset-right))] bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 flex flex-col gap-2">
+        {/* On narrow screens, a list's bulk action bar needs this corner. */}
+        <div className="pointer-events-none fixed right-[max(1rem,env(safe-area-inset-right))] bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 flex flex-col gap-2 max-sm:[body:has([data-bulk-bar])_&]:hidden">
           {[
             { direction: "top" as const, visible: canScrollToTop, Icon: ArrowUpToLine },
             { direction: "bottom" as const, visible: canScrollToBottom, Icon: ArrowDownToLine },

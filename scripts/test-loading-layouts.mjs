@@ -217,6 +217,15 @@ async function fixture(
   const errors = [],
     requests = [],
     submissions = [];
+  const bulkRows = [1, 2, 3, 4].map((number) => ({
+    ...issue,
+    id: number,
+    number,
+    title: `Bulk item ${number}`,
+    labels: [],
+    assignees: [],
+    ...(bulk === "pulls" ? { pull_request: item.pull_request } : {}),
+  }));
   await context.route("https://api.github.com/**", async (route) => {
     const url = new URL(route.request().url()),
       path = url.pathname;
@@ -226,32 +235,47 @@ async function fixture(
         .fulfill({ status, contentType: "application/json", body: JSON.stringify(body) })
         .catch(() => {});
     if (bulk) {
-      const rows = [1, 2, 3, 4].map((number) => ({
-        ...issue,
-        id: number,
-        number,
-        title: `Bulk item ${number}`,
-        ...(bulk === "pulls" ? { pull_request: item.pull_request } : {}),
-      }));
-      if (path.endsWith("/labels") && route.request().method() === "GET")
+      const method = route.request().method();
+      if (path.endsWith("/labels") && method === "GET")
         return json([{ id: 1, name: "bug", color: "ff0000" }]);
       if (path.endsWith("/collaborators")) return json([actor]);
-      if (path === "/search/issues")
-        return json({ total_count: 4, incomplete_results: false, items: rows });
-      if (path.endsWith("/issues")) return json(rows);
-      if (["POST", "PATCH", "DELETE"].includes(route.request().method()) && path !== "/graphql") {
+      if (path === "/search/issues") {
+        const q = url.searchParams.get("q") ?? "";
+        const items = bulkRows.filter((row) =>
+          q.includes("is:closed")
+            ? row.state === "closed"
+            : !q.includes("is:open") || row.state === "open",
+        );
+        return json({ total_count: items.length, incomplete_results: false, items });
+      }
+      if (path.endsWith("/issues")) return json(bulkRows);
+      if (method !== "GET" && path !== "/graphql") {
         const payload = route.request().postDataJSON();
-        submissions.push({ path, method: route.request().method(), payload });
+        submissions.push({ path, method, payload });
         if (
           path.endsWith("/issues/2/labels") &&
           submissions.filter((s) => s.path === path).length === 1
         )
           return json({ message: "Permission denied" }, 403);
-        return json({
-          ...issue,
-          ...payload,
-          assignees: payload?.assignees?.map((login) => ({ ...actor, login })) ?? [],
-        });
+        // Writes persist, so refetches after a bulk update see its result.
+        const row = bulkRows.find(
+          (r) => r.number === Number(path.match(/\/(?:issues|pulls)\/(\d+)/)?.[1]),
+        );
+        if (row && payload?.state) {
+          row.state = payload.state;
+          row.state_reason = payload.state_reason ?? null;
+          row.closed_at = payload.state === "closed" ? now : null;
+        }
+        if (row && path.endsWith("/labels"))
+          row.labels.push(...payload.labels.map((name) => ({ id: 1, name, color: "ff0000" })));
+        if (row && /\/labels\/[^/]+$/.test(path))
+          row.labels = row.labels.filter((l) => !path.endsWith(`/labels/${l.name}`));
+        if (row && path.endsWith("/assignees"))
+          row.assignees =
+            method === "POST"
+              ? [...row.assignees, ...payload.assignees.map((login) => ({ ...actor, login }))]
+              : row.assignees.filter((a) => !payload.assignees.includes(a.login));
+        return json(path.endsWith("/labels") ? (row?.labels ?? []) : (row ?? issue));
       }
     }
     if (path === "/user") return json(actor);
@@ -659,86 +683,112 @@ try {
       const f = await fixture(width, "sm", { hold: false, bulk: kind });
       try {
         const p = f.page;
-        await p.goto(app + `/demo/project/${kind}`);
-        const first = p.getByRole("checkbox", { name: "Select #1", exact: true });
-        await first.waitFor({ state: "attached" });
-        const link = p.locator("a[data-keyboard-list-item]").filter({ hasText: "Bulk item 1" });
-        const before = await link.boundingBox();
-        await link.hover();
-        await first.check();
-        assert.equal(await first.isChecked(), true);
-        assert.deepEqual(await link.boundingBox(), before, "Selection must not shift rows");
-        await p
-          .getByRole("checkbox", { name: "Select #3", exact: true })
-          .click({ modifiers: ["Shift"] });
-        assert.equal(await p.locator("input[type=checkbox]:checked").count(), 3);
-        await p.getByRole("checkbox", { name: "Select #3", exact: true }).press("Control+a");
-        assert.equal(await p.locator("input[type=checkbox]:checked").count(), 4);
-        await p.screenshot({ path: `${out}/bulk-${kind}-${width}.png`, fullPage: true });
+        const noun = kind === "issues" ? "issue" : "pull request";
+        await p.goto(`${app}/demo/project/${kind}`);
+        const box = (n) => p.getByRole("checkbox", { name: `Select ${noun} #${n}`, exact: true });
+        const selected = () => p.locator("[data-bulk-row][data-selected]").count();
+        const row = (n) =>
+          p.locator("a[data-keyboard-list-item]").filter({ hasText: `Bulk item ${n}` });
+        const bar = p.getByRole("toolbar", { name: "Bulk actions" });
+        const notice = (text) => p.getByText(text, { exact: true }).waitFor();
+        const writes = (suffix) => f.submissions.filter((s) => s.path.endsWith(suffix));
+        await box(1).waitFor({ state: "attached" });
+
+        // Revealing and checking a box never moves the row.
+        const before = await row(1).boundingBox();
+        await row(1).hover();
+        await box(1).click();
+        assert.equal(await selected(), 1);
+        assert.deepEqual(await row(1).boundingBox(), before, "Selection must not shift rows");
+        await box(3).click({ modifiers: ["Shift"] });
+        assert.equal(await selected(), 3, "Shift-click selects a range");
+        await p.keyboard.press("Control+a");
+        assert.equal(await selected(), 4, "Ctrl/⌘ A selects every visible row");
+        await bar.waitFor();
         assert.ok(
           await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
           "Bulk bar must fit viewport",
         );
-        await p.getByRole("checkbox", { name: "Select #3", exact: true }).press("Escape");
-        assert.equal(await p.locator("input[type=checkbox]:checked").count(), 0);
-        await link.focus();
-        await link.press("Space");
-        const fourthLink = p
-          .locator("a[data-keyboard-list-item]")
-          .filter({ hasText: "Bulk item 4" });
-        await fourthLink.click();
-        assert.equal(await p.locator("input[type=checkbox]:checked").count(), 2);
+        await p.screenshot({ path: `${out}/bulk-${kind}-${width}.png` });
+        await p.keyboard.press("Escape");
+        assert.equal(await selected(), 0, "Escape clears");
+
+        // Keyboard and row clicks: x toggles the focused row; in selection mode rows toggle
+        // instead of navigating.
+        await row(1).focus();
+        await p.keyboard.press("x");
+        assert.equal(await selected(), 1);
+        await row(4).click();
+        assert.equal(await selected(), 2);
         assert.equal(new URL(p.url()).pathname, `/demo/project/${kind}`);
-        await fourthLink.click();
-        await p.getByRole("checkbox", { name: "Select #2", exact: true }).check();
+        await row(4).click();
+        await box(2).click();
+        assert.equal(await selected(), 2);
+
+        // Labels apply to every selected row; a failed row is retried on its own.
         await p.getByRole("button", { name: "Labels", exact: true }).click();
-        await p.getByRole("option", { name: "Add bug", exact: true }).click();
-        await p.getByText("1 of 2 updated · 1 failed", { exact: true }).waitFor();
-        assert.equal(await p.locator("input[type=checkbox]:checked").count(), 1);
-        await p.getByRole("button", { name: "Retry failed", exact: true }).click();
-        await p.getByText("1 of 1 updated", { exact: true }).waitFor();
-        assert.equal(f.submissions.filter((s) => s.path.endsWith("/issues/1/labels")).length, 1);
-        assert.equal(f.submissions.filter((s) => s.path.endsWith("/issues/2/labels")).length, 2);
-        assert.deepEqual(f.submissions[0].payload, { labels: ["bug"] });
-        await link.hover();
-        await first.check();
-        await p.getByRole("button", { name: "Status", exact: true }).click();
-        await p.getByRole("option", { name: "Close selected", exact: true }).click();
-        await p.getByText("1 of 1 updated", { exact: true }).waitFor();
-        assert.equal(f.submissions.at(-1).path, `/repos/demo/project/${kind}/1`);
-        assert.deepEqual(f.submissions.at(-1).payload, { state: "closed" });
-        await link.hover();
-        await first.check();
-        await p.getByRole("button", { name: "Assignees", exact: true }).click();
-        await p.getByRole("option", { name: "Assign demo", exact: true }).click();
-        await p.getByText("1 of 1 updated", { exact: true }).waitFor();
+        await p.getByRole("option", { name: "bug" }).click();
+        await notice(`Couldn't update 1 of 2 ${noun}s`);
+        await p.keyboard.press("Escape");
+        await p.getByRole("button", { name: "Retry", exact: true }).click();
+        await notice("Added bug to #2");
+        assert.equal(writes("/issues/1/labels").length, 1);
+        assert.equal(writes("/issues/2/labels").length, 2);
+        assert.deepEqual(writes("/issues/1/labels")[0].payload, { labels: ["bug"] });
+
+        // Undo reverses exactly what the last batch changed.
+        await p.getByRole("button", { name: "Undo", exact: true }).click();
+        await notice("Removed bug from #2");
+        assert.equal(f.submissions.at(-1).method, "DELETE");
+        assert.equal(f.submissions.at(-1).path, "/repos/demo/project/issues/2/labels/bug");
+
+        // Closing removes rows from the open view at once; undo brings them back.
+        assert.equal(await selected(), 2);
+        await p.keyboard.press("s");
+        await p.getByRole("option", { name: "Closed", exact: true }).click();
+        await notice(`Closed 2 ${noun}s`);
+        assert.equal(await row(1).count(), 0, "Closed rows leave the open view");
+        // The bar animates out; wait for it rather than sampling mid-exit.
+        await bar.waitFor({ state: "detached" });
+        assert.deepEqual(
+          f.submissions.at(-1).payload,
+          kind === "issues" ? { state: "closed", state_reason: "completed" } : { state: "closed" },
+        );
+        assert.equal(f.submissions.at(-1).path, `/repos/demo/project/${kind}/2`);
+        await p.getByRole("button", { name: "Undo", exact: true }).click();
+        await notice(`Reopened 2 ${noun}s`);
+        await row(1).waitFor();
+
+        await row(1).hover();
+        await box(1).click();
+        await p.keyboard.press("a");
+        await p.getByRole("option", { name: "demo" }).click();
+        await notice("Assigned demo to #1");
         assert.deepEqual(f.submissions.at(-1).payload, { assignees: ["demo"] });
-        await link.hover();
-        await first.check();
-        await p
-          .getByRole("textbox", { name: "Search pull requests" })
-          .or(p.getByRole("searchbox", { name: "Search issues" }))
-          .fill("Bulk item 4");
-        assert.equal(await p.locator("input[type=checkbox]:checked").count(), 0);
+        await p.keyboard.press("Escape");
+
+        // Filtering away selected rows deselects them without stealing focus.
         const search = p
           .getByRole("textbox", { name: "Search pull requests" })
           .or(p.getByRole("searchbox", { name: "Search issues" }));
+        await search.fill("Bulk item 4");
+        assert.equal(await selected(), 0);
+        await bar.waitFor({ state: "detached" });
         assert.equal(
           await search.evaluate((el) => el === document.activeElement),
           true,
           "Filtering preserves focus",
         );
         await search.fill("");
-        await link.hover();
-        await first.check();
+        await row(1).hover();
+        await box(1).click();
         await p.getByRole("button", { name: "Open 4", exact: true }).click();
-        assert.equal(
-          await p.locator("input[type=checkbox]:checked").count(),
-          0,
-          "Collapsed groups leave selection",
-        );
+        await bar.waitFor({ state: "detached" }); // Collapsed groups leave selection
         assert.deepEqual(f.errors, []);
         console.log("PASS bulk selection", kind, width);
+      } catch (error) {
+        await f.page.screenshot({ path: `${out}/bulk-${kind}-${width}-failure.png` });
+        throw error;
       } finally {
         await f.close();
       }

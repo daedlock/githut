@@ -32,6 +32,13 @@ const SHORTCUTS: readonly Shortcut[] = [
   { chord: "j", label: "Move down", scope: "list" },
   { chord: "k", label: "Move up", scope: "list" },
   { chord: "Enter", label: "Open", scope: "list" },
+  { chord: "x", label: "Select item", scope: "list" },
+  { chord: "⇧ x", label: "Extend selection", scope: "list" },
+  { chord: "⌘ A", label: "Select all", scope: "list" },
+  { chord: "Esc", label: "Clear selection", scope: "list" },
+  { chord: "s", label: "Change status of selection", scope: "list" },
+  { chord: "l", label: "Label selection", scope: "list" },
+  { chord: "a", label: "Assign selection", scope: "list" },
 ];
 
 const SCOPE_TITLES: Record<Scope, string> = {
