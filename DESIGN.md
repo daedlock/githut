@@ -451,7 +451,7 @@ there; `Ctrl J` always works.
 - Card wrappers or borders around list rows.
 - `primary` as a fill for rows, selections or sections.
 - Shadows on in-flow surfaces.
-- A sidebar on a different surface from the page.
+- A navigation sidebar on a different surface from the page.
 - `text-xs` / `text-sm`, arbitrary pixel sizes, or z-index values off the scale.
 - Hover reveals that shift layout, or skeletons that don't match the loaded rows.
 - Hand-rolled popovers, menus, checkboxes, selects, switches, segmented
