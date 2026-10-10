@@ -1,8 +1,8 @@
 import * as React from "react";
 import { cn } from "@/app/lib/cn";
 
-// Surfaces, not borders: `muted` is the standard panel. `outline` is for
-// document-like content that needs containment (rendered markdown, tables).
+// `muted` is the standard card: a raised surface with a hairline edge and a
+// soft shadow. `outline` is for documents (rendered markdown, tables).
 const cardVariants = {
   default: "rounded-lg bg-card text-card-foreground",
   muted: "rounded-lg bg-muted text-card-foreground",
@@ -19,7 +19,11 @@ function Card({
       data-slot="card"
       // Controls inside a raised panel step their hover to stay visible.
       data-surface={variant === "muted" ? "raised" : undefined}
-      className={cn(cardVariants[variant], className)}
+      className={cn(
+        "border border-border/60 shadow-sm dark:border-[rgba(255,255,255,.03)]",
+        cardVariants[variant],
+        className,
+      )}
       {...props}
     />
   );

@@ -29,7 +29,7 @@ colors and every theme works for free.
 
 | Token | Class | Use |
 |---|---|---|
-| `--color-bg` | `bg-background` | Page canvas. Rows at rest, detail sidebars. |
+| `--color-bg` | `bg-background` | Page canvas. Rows at rest. |
 | `--color-bg-subtle` | `bg-muted` | Raised: toolbars, row hover, file and hunk headers, group headers (`/60`). |
 | `--color-bg-sunken` | `bg-accent` | Active: selected rows, pressed or open controls. |
 | `--color-popover` | `bg-popover` | Every overlay: popovers, menus, dialogs, floating bars, notices. |
@@ -145,8 +145,10 @@ The tokens override Tailwind's defaults; **`rounded-lg` is 6px here.**
 
 ## Elevation and layering
 
-In-flow surfaces never cast shadows: headers, toolbars, sidebars, rows,
-cards. Overlays use their primitive's recipe and nothing else:
+In-flow surfaces never cast shadows (headers, toolbars, rows), with one
+exception: **cards**. `Card variant="muted"` carries a hairline border and a
+soft `shadow-sm`, owned by the primitive; never recreate it by hand. Overlays
+use their primitive's recipe and nothing else:
 
 | Overlay | Recipe |
 |---|---|
@@ -267,11 +269,12 @@ Primitives in `ui/` cover the rest: `Select` (never a native `<select>`),
 `Tooltip`, `Popover`, `DropdownMenu`, `Command`, `Dialog`.
 
 ### Panels, sections and documents
-- **Section** (default): content flat on the page with a small header. Detail
-  sidebars are sections (`PropertySection`), stacked `gap-6`.
-- **Panel**: when a busy page needs grouping (profile tiles, run summary,
-  workflow graph, comment blocks): `Card variant="muted"` = `rounded-lg
-  bg-muted`, no border, no shadow.
+- **Card** (the default grouping): `Card variant="muted"` = `rounded-lg
+  bg-muted`, hairline border, soft shadow. Comments, detail sidebar groups
+  (one `PropertySection` per card, `p-3`, cards `gap-4`), profile tiles, run
+  summary, workflow graph.
+- **Section**: content flat on the page with a small header, for simple
+  groupings inside a card or a page that doesn't need containment.
 - **Document**: rendered markdown and code need containment: `rounded-lg
   border border-border`, header `h-10 px-4`.
 
@@ -310,9 +313,10 @@ end with `NavCount`.
 
 ### Comment blocks
 One `Card variant="muted"` per comment: header `flex h-10 items-center
-gap-2 px-4` (author `ProfileLink`, verb and time muted), body `px-4 pb-4`.
-No header divider, no border. Reactions are `rounded-full` chips; the
-viewer's own reaction uses `bg-accent`, never the brand color.
+gap-2 border-b border-border/50 px-4` (author `ProfileLink`, verb and time
+muted), body `p-4`, reactions below a `border-t` divider. Reactions are
+bordered `rounded-full` chips; the viewer's own reaction gets the brand edge
+and tint (the one place brand marks "yours").
 
 ### Selection (multi-select)
 Reference: `features/repo/components/BulkSelection.tsx` and `BulkActionBar.tsx`.

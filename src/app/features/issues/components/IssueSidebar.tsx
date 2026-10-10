@@ -5,6 +5,7 @@ import { PropertyEmpty, PropertySection } from "@/app/components/PropertySection
 import { ShortcutHint } from "@/app/components/ShortcutHint";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
+import { Card } from "@/app/components/ui/card";
 import { TooltipTrigger } from "@/app/components/ui/tooltip";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { LabelPill } from "@/app/features/issues/components/LabelPill";
@@ -88,79 +89,83 @@ export function IssueSidebar({
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <PropertySection
-        icon={<Tag />}
-        title="Labels"
-        action={
-          <ShortcutHint label="Edit labels" shortcut="L" suppressed={picker === "labels"}>
-            <SidebarPicker
-              {...pickerProps("labels")}
-              title="Apply labels"
-              ariaLabel="Edit labels"
-              placeholder="Apply labels…"
-              items={labelItems}
-              selectedIds={selectedLabels}
-              onToggle={onToggleLabel}
-              loading={labelsQuery.isPending}
-              emptyText="No labels"
-              trigger={<PickerTrigger label="Edit labels" shortcut="l" />}
-            />
-          </ShortcutHint>
-        }
-      >
-        {issue.labels.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            <AnimatePresence mode="popLayout" initial={false}>
-              {issue.labels.map((l) => (
-                <motion.div key={l.id} {...presence}>
-                  <LabelPill label={l} size="sm" />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        ) : (
-          <PropertyEmpty>No labels</PropertyEmpty>
-        )}
-      </PropertySection>
+    <div className="flex flex-col gap-4">
+      <Card variant="muted" className="p-3">
+        <PropertySection
+          icon={<Tag />}
+          title="Labels"
+          action={
+            <ShortcutHint label="Edit labels" shortcut="L" suppressed={picker === "labels"}>
+              <SidebarPicker
+                {...pickerProps("labels")}
+                title="Apply labels"
+                ariaLabel="Edit labels"
+                placeholder="Apply labels…"
+                items={labelItems}
+                selectedIds={selectedLabels}
+                onToggle={onToggleLabel}
+                loading={labelsQuery.isPending}
+                emptyText="No labels"
+                trigger={<PickerTrigger label="Edit labels" shortcut="l" />}
+              />
+            </ShortcutHint>
+          }
+        >
+          {issue.labels.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              <AnimatePresence mode="popLayout" initial={false}>
+                {issue.labels.map((l) => (
+                  <motion.div key={l.id} {...presence}>
+                    <LabelPill label={l} size="sm" />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <PropertyEmpty>No labels</PropertyEmpty>
+          )}
+        </PropertySection>
+      </Card>
 
-      <PropertySection
-        icon={<User />}
-        title="Assignees"
-        action={
-          <ShortcutHint label="Edit assignees" shortcut="A" suppressed={picker === "assignees"}>
-            <SidebarPicker
-              {...pickerProps("assignees")}
-              title="Assign people"
-              ariaLabel="Edit assignees"
-              placeholder="Assign to…"
-              items={assigneeItems}
-              selectedIds={selectedAssignees}
-              onToggle={onToggleAssignee}
-              loading={collabQuery.isPending}
-              emptyText="No collaborators"
-              trigger={<PickerTrigger label="Edit assignees" shortcut="a" />}
-            />
-          </ShortcutHint>
-        }
-      >
-        {issue.assignees.length > 0 ? (
-          <div className="flex flex-col gap-1.5">
-            <AnimatePresence mode="popLayout" initial={false}>
-              {issue.assignees.map((a) => (
-                <motion.div key={a.login} {...presence} className="flex items-center gap-2">
-                  <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
-                  <ProfileLink login={a.login} className="truncate text-ui text-foreground">
-                    {a.login}
-                  </ProfileLink>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-        ) : (
-          <PropertyEmpty>No one assigned</PropertyEmpty>
-        )}
-      </PropertySection>
+      <Card variant="muted" className="p-3">
+        <PropertySection
+          icon={<User />}
+          title="Assignees"
+          action={
+            <ShortcutHint label="Edit assignees" shortcut="A" suppressed={picker === "assignees"}>
+              <SidebarPicker
+                {...pickerProps("assignees")}
+                title="Assign people"
+                ariaLabel="Edit assignees"
+                placeholder="Assign to…"
+                items={assigneeItems}
+                selectedIds={selectedAssignees}
+                onToggle={onToggleAssignee}
+                loading={collabQuery.isPending}
+                emptyText="No collaborators"
+                trigger={<PickerTrigger label="Edit assignees" shortcut="a" />}
+              />
+            </ShortcutHint>
+          }
+        >
+          {issue.assignees.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              <AnimatePresence mode="popLayout" initial={false}>
+                {issue.assignees.map((a) => (
+                  <motion.div key={a.login} {...presence} className="flex items-center gap-2">
+                    <Avatar login={a.login} avatarUrl={a.avatar_url} size="sm" />
+                    <ProfileLink login={a.login} className="truncate text-ui text-foreground">
+                      {a.login}
+                    </ProfileLink>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          ) : (
+            <PropertyEmpty>No one assigned</PropertyEmpty>
+          )}
+        </PropertySection>
+      </Card>
     </div>
   );
 }

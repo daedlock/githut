@@ -421,7 +421,7 @@ export function ComposeBox({
       )}
     >
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2 px-1.5 pt-1.5">
+      <div className="flex flex-wrap items-center gap-2 px-1.5 py-1.5">
         <ToggleGroup
           type="single"
           size="sm"
@@ -473,6 +473,7 @@ export function ComposeBox({
           />
         </div>
       </div>
+      <div className="mx-3 border-t border-border" />
 
       {/* ── Write / Preview area ─────────────────────────────────────── */}
       <div className="relative min-h-0">
@@ -553,7 +554,7 @@ export function ComposeBox({
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
       {onSubmit && (
-        <div className="flex flex-wrap items-center justify-end gap-2 px-2 pb-2">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border px-3 py-2">
           <span className="mr-auto hidden select-none items-center gap-1 pl-1 text-caption text-muted-foreground @min-[24rem]/compose:inline-flex">
             <Kbd>{mod}</Kbd>
             <Kbd>Enter</Kbd>

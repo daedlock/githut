@@ -174,7 +174,7 @@ export function CommentCardDisplay({
   // ── Comment block (default — issues, PR conversation, reviews) ─────────
   return (
     <Card variant="muted" className={className}>
-      <div className="flex h-10 items-center gap-2 px-4">
+      <div className="flex h-10 items-center gap-2 border-b border-border/50 px-4">
         <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="shrink-0" />
         <ProfileLink login={login} className="min-w-0 truncate text-ui font-medium text-foreground">
           {login}
@@ -195,7 +195,7 @@ export function CommentCardDisplay({
       <BodySwap
         editing={editing}
         display={
-          <div className="px-4 pb-4">
+          <div className="p-4">
             {children}
             {showReactions && (
               <ReactionsBar
@@ -206,7 +206,7 @@ export function CommentCardDisplay({
             )}
           </div>
         }
-        editor={editor && <div className="px-4 pb-4">{editor}</div>}
+        editor={editor && <div className="p-3">{editor}</div>}
       />
     </Card>
   );

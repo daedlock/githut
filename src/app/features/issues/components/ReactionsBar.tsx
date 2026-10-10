@@ -42,7 +42,12 @@ export function ReactionsBar({
   const present = REACTION_CONTENTS.filter((k) => (reactions[k] ?? 0) > 0);
 
   return (
-    <div className={cn("mt-3 flex flex-wrap items-center gap-1", className)}>
+    <div
+      className={cn(
+        "mt-3 flex flex-wrap items-center gap-1 border-t border-border pt-2.5",
+        className,
+      )}
+    >
       <AnimatePresence initial={false} mode="popLayout">
         {present.map((k) => {
           const mineId = myReactions.get(k);
@@ -65,11 +70,11 @@ export function ReactionsBar({
                     aria-pressed={mine}
                     aria-label={`${REACTION_NAMES[k]}, ${count}`}
                     className={cn(
-                      "inline-flex h-6 items-center gap-1 rounded-full px-2 text-caption tabular-nums",
+                      "inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 text-caption tabular-nums",
                       "outline-none transition-colors focus-visible:ring-1 focus-visible:ring-foreground/15",
                       mine
-                        ? "bg-accent text-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-accent/60 hover:text-foreground in-data-[surface=raised]:bg-background in-data-[surface=raised]:hover:bg-accent/60",
+                        ? "border-primary bg-[color-mix(in_oklab,var(--color-primary)_12%,var(--color-bg))] text-primary"
+                        : "border-border bg-muted text-muted-foreground hover:border-input hover:bg-accent hover:text-foreground",
                     )}
                   >
                     <span aria-hidden>{REACTION_EMOJIS[k]}</span>
