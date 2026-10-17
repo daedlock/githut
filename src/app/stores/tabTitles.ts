@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { accountStorage, followDraftAccount } from "./accountStorage";
 
 // ─── Remembered tab titles ───────────────────────────────────────────────────
 //
@@ -9,6 +10,11 @@ import { persist } from "zustand/middleware";
 // tabs would fall back to a bare "PR #12" until visited. The last title and
 // state seen for each PR/issue are kept here so tabs keep their labels across
 // reloads. The live cache always wins; this is only a fallback.
+//
+// Titles of private PRs and issues belong to one account, so they are stored
+// per verified account and swapped out when the account changes.
+
+const LEGACY_KEY = "githut.tab-titles.v1";
 
 const MAX_ENTRIES = 200;
 
@@ -34,6 +40,23 @@ export const useTabTitlesStore = create<TabTitlesState>()(
         set({ entries: { ...rest, [key]: value } });
       },
     }),
-    { name: "githut.tab-titles.v1", partialize: (s) => ({ entries: s.entries }) },
+    {
+      name: LEGACY_KEY,
+      storage: accountStorage<Pick<TabTitlesState, "entries">>(),
+      partialize: (s) => ({ entries: s.entries }),
+      // An account with nothing saved must not inherit the previous one's titles.
+      merge: (persisted, current) => ({
+        ...current,
+        entries: (persisted as Partial<TabTitlesState> | undefined)?.entries ?? {},
+      }),
+    },
   ),
 );
+followDraftAccount(() => useTabTitlesStore.persist.rehydrate());
+
+try {
+  // Before per-account keys; unowned, so it is deleted rather than migrated.
+  localStorage.removeItem(LEGACY_KEY);
+} catch {
+  /* Storage may be disabled. */
+}
