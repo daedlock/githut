@@ -9,8 +9,10 @@ import {
   useState,
 } from "react";
 
+import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { SectionMenu } from "@/app/components/shell/SectionMenu";
 import { TabStrip } from "@/app/components/shell/TabStrip";
+import { useDocking } from "@/app/components/shell/useDocking";
 import { Button } from "@/app/components/ui/button";
 import {
   DropdownMenu,
@@ -35,7 +37,7 @@ import {
   resizedGapSizes,
   selectedTab,
 } from "@/app/workspace/model";
-import { dispatch, getWorkspace } from "@/app/workspace/store";
+import { dispatch, getWorkspace, useWorkspaceStore } from "@/app/workspace/store";
 
 // ─── IslandLayout ──────────────────────────────────────────────────────────
 //
@@ -71,6 +73,7 @@ export function IslandLayout({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  const docking = useDocking(ref);
   const [preview, setPreview] = useState<Preview>(null);
 
   useLayoutEffect(() => {
@@ -89,7 +92,12 @@ export function IslandLayout({
   const maximized = maximizedIslandId && pathTo(layout, maximizedIslandId).length > 0;
 
   return (
-    <div ref={ref} data-workspace-layout className="relative min-h-0 flex-1">
+    <div
+      ref={ref}
+      onPointerDownCapture={docking.onPointerDown}
+      data-workspace-layout
+      className="relative min-h-0 flex-1"
+    >
       {geometry &&
         all.map((island) => {
           const shown = !maximized || island.id === maximizedIslandId;
@@ -120,6 +128,7 @@ export function IslandLayout({
             onPreview={setPreview}
           />
         ))}
+      {docking.overlay}
     </div>
   );
 }
@@ -144,8 +153,40 @@ function IslandFrame({
   panes: ReactNode;
 }) {
   const href = selectedTab(island).href;
+  const frame = useRef<HTMLElement>(null);
+  const revision = useWorkspaceStore((s) => s.dockingRevision);
+  const previous = useRef({ rect, revision });
+  useLayoutEffect(() => {
+    const before = previous.current;
+    previous.current = { rect, revision };
+    if (
+      before.revision === revision ||
+      !shown ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
+    const animation = frame.current?.animate(
+      [
+        {
+          left: `${before.rect.left}px`,
+          top: `${before.rect.top}px`,
+          width: `${before.rect.width}px`,
+          height: `${before.rect.height}px`,
+        },
+        {
+          left: `${rect.left}px`,
+          top: `${rect.top}px`,
+          width: `${rect.width}px`,
+          height: `${rect.height}px`,
+        },
+      ],
+      { duration: 150, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+    );
+    return () => animation?.cancel();
+  }, [rect, revision, shown]);
   return (
     <section
+      ref={frame}
       aria-label={islandName(href)}
       data-island={island.id}
       data-focused={focused || undefined}
@@ -193,7 +234,7 @@ const IslandHeader = memo(function IslandHeader({
         if ((e.target as Element).closest("button, a, nav, input, [role=menu]")) return;
         toggleMaximize(island.id);
       }}
-      className="flex h-10 shrink-0 items-center gap-1 pr-1.5 pl-1"
+      className="flex h-10 shrink-0 touch-none items-center gap-1 pr-1.5 pl-1"
     >
       <TabStrip island={island} focused={focused} />
       <SectionMenu href={href} />
@@ -228,7 +269,8 @@ function IslandMenu({
         </TooltipTrigger>
         <TooltipContent side="bottom">Island actions</TooltipContent>
       </Tooltip>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align="end" className="w-56">
+        <DockingMenu source={{ type: "island", islandId }} dropdown />
         <DropdownMenuItem onSelect={() => splitIsland("right", islandId)}>
           <Columns2 />
           Split right
@@ -242,6 +284,13 @@ function IslandMenu({
         <DropdownMenuItem disabled={!canMaximize} onSelect={() => toggleMaximize(islandId)}>
           {maximized ? <Minimize2 /> : <Maximize2 />}
           {maximized ? "Restore" : "Maximize"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={!canMaximize}
+          onSelect={() => dispatch({ type: "closeIsland", islandId })}
+        >
+          Close island
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

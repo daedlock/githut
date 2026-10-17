@@ -112,6 +112,11 @@ export function startBrowserSync(): () => void {
     if (focused.id !== focusedTab(prev).id) writeUrl(focused.href, "replace");
     if (ws.layout !== prev.layout) {
       const open = new Set(islands(ws.layout).flatMap((i) => i.tabs.map((t) => t.id)));
+      for (const entry of useWorkspaceStore.getState().undo) {
+        for (const island of islands(entry.workspace.layout)) {
+          for (const tab of island.tabs) open.add(tab.id);
+        }
+      }
       for (const id of routers.keys()) {
         if (!open.has(id)) disposeTabRouter(id);
       }

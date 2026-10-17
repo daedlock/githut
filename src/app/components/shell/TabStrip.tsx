@@ -1,17 +1,8 @@
-import {
-  closestCenter,
-  DndContext,
-  type DragEndEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import { horizontalListSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { type KeyboardEvent, memo, useEffect, useRef, useSyncExternalStore } from "react";
 
+import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { RepoMark } from "@/app/components/shell/RepoMark";
 import {
   ContextMenu,
@@ -31,7 +22,6 @@ import {
   closeTab,
   closeTabsToRight,
   duplicateTab,
-  moveTab,
   reopenClosedTab,
   selectTab,
 } from "@/app/lib/tabActions";
@@ -55,7 +45,6 @@ import { useWorkspaceStore } from "@/app/workspace/store";
 export function TabStrip({ island, focused }: { island: Island; focused: boolean }) {
   const { tabs, selectedTabId } = island;
   const scroller = useRef<HTMLDivElement>(null);
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   // Vertical wheel scrolls the strip sideways when it overflows.
   useEffect(() => {
@@ -92,15 +81,6 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
     return () => ro.disconnect();
   }, [selectedTabId]);
 
-  function onDragEnd({ active, over }: DragEndEvent) {
-    if (!over || active.id === over.id) return;
-    moveTab(
-      String(active.id),
-      island.id,
-      tabs.findIndex((t) => t.id === over.id),
-    );
-  }
-
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     const items = [...e.currentTarget.querySelectorAll<HTMLElement>("[role=tab]")];
@@ -111,32 +91,28 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-      <SortableContext items={tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
-        <div
-          ref={scroller}
-          data-tab-strip
-          role="tablist"
-          aria-label="Open tabs"
-          onKeyDown={onKeyDown}
-          className={cn(
-            "relative flex h-full min-w-0 flex-1 select-none items-center gap-0.5 overflow-x-auto",
-            // Room for the selected tab's outline, which the scroller would clip.
-            "px-0.5 [scroll-padding-inline:2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-          )}
-        >
-          {tabs.map((tab, i) => (
-            <TabItem
-              key={tab.id}
-              tab={tab}
-              selected={tab.id === selectedTabId}
-              focused={focused}
-              isLast={i === tabs.length - 1}
-            />
-          ))}
-        </div>
-      </SortableContext>
-    </DndContext>
+    <div
+      ref={scroller}
+      data-tab-strip
+      role="tablist"
+      aria-label="Open tabs"
+      onKeyDown={onKeyDown}
+      className={cn(
+        "relative flex h-full min-w-0 flex-1 select-none items-center gap-0.5 overflow-x-auto",
+        // Room for the selected tab's outline, which the scroller would clip.
+        "px-0.5 [scroll-padding-inline:2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+      )}
+    >
+      {tabs.map((tab, i) => (
+        <TabItem
+          key={tab.id}
+          tab={tab}
+          selected={tab.id === selectedTabId}
+          focused={focused}
+          isLast={i === tabs.length - 1}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -165,9 +141,6 @@ const TabItem = memo(function TabItem({
   const display = useTabDisplay(tab.href);
   const draft = usePageHasDraft(tab.href);
   const hasClosed = useWorkspaceStore((s) => s.workspace.closed.length > 0);
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: tab.id,
-  });
   const Icon = display.icon;
 
   return (
@@ -176,16 +149,12 @@ const TabItem = memo(function TabItem({
         <ContextMenuTrigger asChild>
           <TooltipTrigger asChild>
             <div
-              ref={setNodeRef}
-              {...attributes}
-              {...listeners}
               role="tab"
               aria-selected={selected}
               tabIndex={selected ? 0 : -1}
               data-tab-id={tab.id}
               onPointerDown={(e) => {
                 if (e.button === 0) selectTab(tab.id);
-                listeners?.onPointerDown?.(e);
               }}
               onMouseDown={(e) => e.button === 1 && e.preventDefault()}
               onAuxClick={(e) => e.button === 1 && closeTab(tab.id)}
@@ -196,10 +165,6 @@ const TabItem = memo(function TabItem({
                 } else if (e.key === "Delete") {
                   closeTab(tab.id);
                 }
-              }}
-              style={{
-                transform: CSS.Translate.toString(transform && { ...transform, y: 0 }),
-                transition: isDragging ? undefined : transition,
               }}
               className={cn(
                 "group relative flex h-7 min-w-16 max-w-[220px] shrink-0 cursor-default items-center gap-1.5 rounded-lg pl-2 pr-1",
@@ -214,7 +179,6 @@ const TabItem = memo(function TabItem({
                     "bg-[color-mix(in_oklab,var(--color-brand)_9%,var(--color-bg-subtle))] text-foreground",
                     "shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-brand)_45%,var(--color-border)),0_1px_2px_rgb(0_0_0/0.14)]",
                   ],
-                isDragging && "z-20",
               )}
             >
               {display.repo && <RepoMark repo={display.repo} size="sm" />}
@@ -252,21 +216,20 @@ const TabItem = memo(function TabItem({
             </div>
           </TooltipTrigger>
         </ContextMenuTrigger>
-        {!isDragging && (
-          <TooltipContent side="bottom" align="start">
-            {display.repo && (
-              <span className="font-mono">
-                {display.repo}
-                {display.prefix && ` ${display.prefix}`}
-              </span>
-            )}
-            {display.repo && " · "}
-            {display.title}
-            {draft && " · Unsent draft"}
-          </TooltipContent>
-        )}
+        <TooltipContent side="bottom" align="start">
+          {display.repo && (
+            <span className="font-mono">
+              {display.repo}
+              {display.prefix && ` ${display.prefix}`}
+            </span>
+          )}
+          {display.repo && " · "}
+          {display.title}
+          {draft && " · Unsent draft"}
+        </TooltipContent>
       </Tooltip>
       <ContextMenuContent className="w-56">
+        <DockingMenu source={{ type: "tab", tabId: tab.id }} />
         <ContextMenuItem onSelect={() => closeTab(tab.id)}>
           Close tab
           {selected && focused && <ContextMenuShortcut>Alt W</ContextMenuShortcut>}

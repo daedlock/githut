@@ -19,6 +19,8 @@
 
 // ─── Shape ───────────────────────────────────────────────────────────────────
 
+import { applyDock, type DockingCommand } from "@/app/workspace/docking";
+
 export type Tab = {
   id: string;
   /** pathname + search + hash */
@@ -79,6 +81,8 @@ const MAX_CLOSED = 10;
 // ─── Commands ────────────────────────────────────────────────────────────────
 
 export type WorkspaceCommand =
+  | DockingCommand
+  | { type: "closeIsland"; islandId: string }
   /** A tab's own router moved (in-page link, back/forward). */
   | { type: "navigate"; tabId: string; href: string }
   /** Open `href` as a new tab after the selected tab of an island (default: the focused one). */
@@ -138,6 +142,19 @@ export function runCommand(ws: Workspace, cmd: WorkspaceCommand): Workspace {
 
 function apply(ws: Workspace, cmd: WorkspaceCommand): Workspace {
   switch (cmd.type) {
+    case "dock":
+      return applyDock(ws, cmd.source, cmd.target);
+
+    case "closeIsland": {
+      const island = findIsland(ws.layout, cmd.islandId);
+      return island
+        ? closeTabs(
+            ws,
+            island.tabs.map((t) => t.id),
+          )
+        : ws;
+    }
+
     case "navigate": {
       const href = normalizeHref(cmd.href);
       return updateTab(ws, cmd.tabId, (t) => (t.href === href ? t : { ...t, href }));
@@ -514,7 +531,7 @@ export function hrefPathname(href: string): string {
 
 // ─── Transitions ─────────────────────────────────────────────────────────────
 
-function replaceNode(node: LayoutNode, id: string, next: LayoutNode): LayoutNode {
+export function replaceNode(node: LayoutNode, id: string, next: LayoutNode): LayoutNode {
   if (node.id === id) return next;
   if (node.kind === "island") return node;
   let changed = false;
@@ -627,7 +644,7 @@ function moveTab(ws: Workspace, tabId: string, toIslandId: string, index: number
  * The tab an island should select once `gone` tabs leave it: the selected
  * tab if it stays, else its right neighbour, else its left.
  */
-function reselect(island: Island, gone: string[]): string {
+export function reselect(island: Island, gone: string[]): string {
   if (!gone.includes(island.selectedTabId)) return island.selectedTabId;
   const idx = island.tabs.findIndex((t) => t.id === island.selectedTabId);
   const right = island.tabs.slice(idx + 1).find((t) => !gone.includes(t.id));
@@ -692,7 +709,7 @@ function heirOf(layout: LayoutNode, id: string, gone: Set<string>): string | und
 }
 
 /** Place `node` beside `targetId`, taking half of the target's space. */
-function insertBeside(
+export function insertBeside(
   layout: LayoutNode,
   targetId: string,
   side: Side,

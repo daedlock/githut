@@ -26,6 +26,7 @@ const SHORTCUTS: readonly Shortcut[] = [
   // Tabs
   { chord: "⇧ Click", label: "Open link in new tab", scope: "tabs" },
   { chord: "Alt W", label: "Close tab", scope: "tabs" },
+  { chord: "⌘ Z", label: "Undo layout change", scope: "tabs" },
   { chord: "Alt ⇧ T", label: "Reopen closed tab", scope: "tabs" },
   { chord: "Alt [", label: "Previous tab", scope: "tabs" },
   { chord: "Alt ]", label: "Next tab", scope: "tabs" },
