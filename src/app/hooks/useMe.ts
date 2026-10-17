@@ -23,7 +23,9 @@ export function useMe() {
     queryFn: async () => {
       const client = getGitHubClient();
       const res = await client.request("GET /user");
-      return MeSchema.parse(res.data);
+      const me = MeSchema.parse(res.data);
+      if (token) useAuthStore.getState().verifyAccount(token, me.id);
+      return me;
     },
   });
 }
