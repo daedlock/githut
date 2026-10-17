@@ -116,7 +116,7 @@ svg { flex-shrink: 0; }
    icon column and the context starts exactly at the islands' left edge. */
 .titlebar {
   height: 44px; flex-shrink: 0;
-  display: grid; grid-template-columns: var(--sbw) minmax(0, 1fr) minmax(0, 420px) minmax(0, 1fr);
+  display: grid; grid-template-columns: var(--sbw) minmax(0, 1fr) minmax(120px, 300px) auto;
   align-items: center; column-gap: var(--gap);
   transition: grid-template-columns 240ms var(--ease);
 }
@@ -149,7 +149,8 @@ kbd {
 .text-btn { height: 28px; padding: 0 10px; border-radius: 7px; color: var(--fg-muted); font-size: 12px; white-space: nowrap; }
 .text-btn:hover { background: var(--bg-sunken); color: var(--fg); }
 .seg { display: flex; align-items: center; gap: 2px; padding: 2px; border-radius: 8px; background: var(--bg-subtle); box-shadow: var(--lift); font-size: 12px; }
-.seg .seg-label { color: var(--fg-muted); padding: 0 6px 0 6px; white-space: nowrap; }
+.seg .seg-label { color: var(--fg-muted); padding: 0 4px 0 6px; white-space: nowrap; }
+.tb-right { gap: 6px; }
 .seg button { height: 22px; padding: 0 8px; border-radius: 6px; color: var(--fg-muted); }
 .seg button[aria-pressed="true"] { background: var(--bg); color: var(--fg); box-shadow: 0 0 0 1px var(--border); }
 .avatar {
@@ -260,6 +261,41 @@ kbd {
 }
 .island.focused { box-shadow: 0 0 0 1px var(--ring-focus), var(--elev); }
 .island.moving { opacity: 0.45; }
+
+/* Island body holds the breadcrumb row and the page. */
+.island-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* Tabs inside: a hairline separates the tab row from the breadcrumb row. */
+:root[data-tabs="inside"] .island-body { box-shadow: inset 0 1px 0 var(--ring-idle); }
+
+/* Tabs outside: the tab strip sits on the frame; the selected tab is island
+   surface and joins the island, so the island starts with "where am I". */
+:root[data-tabs="outside"] .island { background: transparent; box-shadow: none; overflow: visible; border-radius: 0; }
+:root[data-tabs="outside"] .island-body {
+  background: var(--bg); border-radius: var(--radius);
+  box-shadow: 0 0 0 1px var(--ring-idle), var(--elev); transition: box-shadow 160ms; overflow: hidden;
+}
+:root[data-tabs="outside"] .island.focused .island-body { box-shadow: 0 0 0 1px var(--ring-focus), var(--elev); }
+:root[data-tabs="outside"] .tabbar { height: 36px; padding: 0 0 0 2px; align-items: flex-end; margin-bottom: -1px; position: relative; z-index: 3; }
+:root[data-tabs="outside"] .tabs { align-items: flex-end; padding-inline: 0; }
+:root[data-tabs="outside"] .island-actions { align-self: center; }
+:root[data-tabs="outside"] .tab { height: 31px; border-radius: 8px 8px 0 0; padding: 0 6px 0 10px; }
+:root[data-tabs="outside"] .tab:hover { background: color-mix(in oklab, var(--fg) 5%, transparent); }
+:root[data-tabs="outside"] .tab[aria-selected="true"],
+:root[data-tabs="outside"] .island.focused .tab[aria-selected="true"] {
+  /* Island surface growing out of the island; it covers the island's edge where they join. */
+  background: var(--bg); color: var(--fg); box-shadow: none; --tab-ring: var(--ring-idle);
+}
+:root[data-tabs="outside"] .island.focused .tab[aria-selected="true"] { --tab-ring: var(--ring-focus); }
+:root[data-tabs="outside"] .island:not(.focused) .tab[aria-selected="true"] { color: var(--fg-muted); }
+/* Same edge as the island, drawn outside the tab like the island's own ring,
+   open at the bottom so tab and island read as one outline. */
+:root[data-tabs="outside"] .tab[aria-selected="true"]::before {
+  content: ""; position: absolute; inset: -1px -1px 0 -1px; pointer-events: none;
+  border: 1px solid var(--tab-ring); border-bottom: 0; border-radius: 9px 9px 0 0;
+  transition: border-color 160ms;
+}
+:root[data-tabs="outside"] .tabs { padding-inline: 1px; padding-top: 1px; }
+:root[data-tabs="outside"] .crumbs-bar { height: 36px; padding-top: 2px; }
 
 .tabbar {
   height: 40px; flex-shrink: 0;
@@ -546,6 +582,11 @@ body.resizing-col, body.resizing-col * { cursor: row-resize !important; }
         <span class="seg-label">Repo color</span>
         <button id="rcOff" aria-pressed="false">Off</button>
         <button id="rcOn" aria-pressed="true">Subtle</button>
+      </div>
+      <div class="seg" role="group" aria-label="Tabs layout (prototype)">
+        <span class="seg-label">Tabs</span>
+        <button data-tabsmode="outside" aria-pressed="true">Outside</button>
+        <button data-tabsmode="inside" aria-pressed="false">Inside</button>
       </div>
       <div class="seg" role="group" aria-label="Network (prototype)">
         <span class="seg-label">Network</span>
@@ -1001,6 +1042,8 @@ body.resizing-col, body.resizing-col * { cursor: row-resize !important; }
     document.querySelector(".app").classList.toggle("sb-collapsed", collapsed);
     document.getElementById("logoBtn").setAttribute("aria-expanded", String(!collapsed));
     document.documentElement.dataset.repoColor = state.repoColor;
+    document.documentElement.dataset.tabs = state.tabsMode || "outside";
+    document.querySelectorAll("[data-tabsmode]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.tabsmode === (state.tabsMode || "outside"))));
     document.getElementById("rcOff").setAttribute("aria-pressed", String(state.repoColor === "off"));
     document.getElementById("rcOn").setAttribute("aria-pressed", String(state.repoColor !== "off"));
   }
@@ -1270,8 +1313,10 @@ body.resizing-col, body.resizing-col * { cursor: row-resize !important; }
           <button class="icon-btn" data-act="max" aria-label="${isMax ? "Restore" : "Maximize"}" title="${isMax ? "Restore" : "Maximize"}">${isMax ? I.restore : I.max}</button>
         </div>
       </div>
-      ${crumbsHtml(active.page)}
-      <div class="content">${contentFor(active.page)}</div>`;
+      <div class="island-body">
+        ${crumbsHtml(active.page)}
+        <div class="content">${contentFor(active.page)}</div>
+      </div>`;
     return el;
   }
 
@@ -1678,6 +1723,7 @@ body.resizing-col, body.resizing-col * { cursor: row-resize !important; }
   document.getElementById("logoBtn").addEventListener("click", toggleSidebar);
   document.getElementById("rcOff").addEventListener("click", () => { state.repoColor = "off"; commit(); });
   document.getElementById("rcOn").addEventListener("click", () => { state.repoColor = "subtle"; commit(); });
+  document.querySelectorAll("[data-tabsmode]").forEach((b) => b.addEventListener("click", () => { state.tabsMode = b.dataset.tabsmode; commit(true); }));
   document.querySelectorAll("[data-net]").forEach((b) => b.addEventListener("click", () => {
     network = b.dataset.net;
     document.querySelectorAll("[data-net]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
