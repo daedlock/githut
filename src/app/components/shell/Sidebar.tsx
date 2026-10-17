@@ -1,4 +1,4 @@
-import { Building2, ChevronRight, FolderGit2, Inbox, Search, Star } from "lucide-react";
+import { Building2, ChevronRight, FolderGit2, Funnel, Inbox, Star } from "lucide-react";
 import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { RepoMark } from "@/app/components/shell/RepoMark";
@@ -192,7 +192,10 @@ export function SidebarContent({
     <nav
       aria-label="Workspace navigation"
       data-link-menu="off"
-      className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden pr-2 pb-3"
+      className={cn(
+        "flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden pb-3",
+        collapsed ? "px-1" : "pr-2",
+      )}
     >
       <div className="flex flex-col gap-1">
         <div className="flex h-8 items-center">
@@ -208,7 +211,7 @@ export function SidebarContent({
                     requestAnimationFrame(() => input.current?.focus());
                   }}
                 >
-                  <Search />
+                  <Funnel data-icon="inline-start" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right">Filter sidebar</TooltipContent>
@@ -410,7 +413,7 @@ function OrganizationRow({
               variant="ghost"
               size={collapsed ? "icon" : "sm"}
               aria-label={`${org} repositories`}
-              className={cn("w-full justify-start", !collapsed && "gap-2")}
+              className={cn("w-full", collapsed ? "justify-center" : "justify-start gap-2")}
             >
               <Building2 data-icon="inline-start" />
               {!collapsed && (

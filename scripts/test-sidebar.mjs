@@ -319,10 +319,26 @@ try {
       .getByRole("button", { name: "project · demo/project", exact: true })
       .locator("[data-repo-mark]");
     await mark.waitFor();
-    const before = await mark.boundingBox();
+    await page.getByRole("button", { name: "Collapse sidebar", exact: true }).click();
+    const rail = await sidebar.boundingBox();
+    assert.equal(rail.width, 40);
+    const railCenter = rail.x + rail.width / 2;
+    for (const icon of [
+      mark,
+      sidebar.getByRole("button", { name: "Search or jump to", exact: true }).locator("svg"),
+      sidebar.getByRole("button", { name: "Filter sidebar", exact: true }).locator("svg"),
+      sidebar.getByRole("button", { name: "company repositories", exact: true }).locator("svg"),
+    ]) {
+      const box = await icon.boundingBox();
+      assert.equal(box.x + box.width / 2, railCenter);
+    }
+    await sidebar.getByRole("button", { name: "Filter sidebar", exact: true }).click();
+    await page.waitForFunction(() =>
+      document.activeElement?.matches('input[aria-label="Filter sidebar"]'),
+    );
+    assert.equal((await sidebar.boundingBox()).width, 240);
     await page.getByRole("button", { name: "Collapse sidebar", exact: true }).click();
     assert.equal((await sidebar.boundingBox()).width, 40);
-    assert.equal((await mark.boundingBox()).x, before.x);
     await page.keyboard.press("Control+b");
     assert.equal((await sidebar.boundingBox()).width, 240);
     const separator = page.getByRole("separator", { name: "Resize sidebar" });
@@ -342,7 +358,7 @@ try {
     assert.equal((await sidebar.boundingBox()).width, 240);
     assert.deepEqual(resize.errors, []);
     console.log(
-      "PASS logo and keyboard collapse keep icons fixed, resize snaps, persists and resets",
+      "PASS collapsed controls align and filter focuses, keyboard collapse, resize snaps, persists and resets",
     );
   } finally {
     await resize.close();
