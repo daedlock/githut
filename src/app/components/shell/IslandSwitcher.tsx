@@ -1,6 +1,6 @@
 import { Check, ChevronDown, PanelsTopLeft } from "lucide-react";
 import { useRef } from "react";
-import { useTabDisplay } from "@/app/components/shell/TabStrip";
+import { TONE_CLASS, UnreadDot, useTabDisplay } from "@/app/components/shell/TabStrip";
 import { Button } from "@/app/components/ui/button";
 import {
   DropdownMenu,
@@ -82,13 +82,15 @@ function TabChoice({
       data-switcher-tab={tab.id}
       onSelect={onSelect}
       aria-current={current ? "page" : undefined}
+      aria-label={`${display.prefix ?? ""} ${display.label}${display.status ? `, ${display.status}` : ""}${display.unread ? ", unread" : ""}`}
     >
-      <Icon />
+      <Icon className={TONE_CLASS[display.tone]} />
       <span className="min-w-0 flex-1 truncate">
         {display.repo ? `${display.repo} · ` : ""}
         {display.prefix ? `${display.prefix} ` : ""}
         {display.label}
       </span>
+      {display.unread && <UnreadDot />}
       {current && <Check />}
     </DropdownMenuItem>
   );
