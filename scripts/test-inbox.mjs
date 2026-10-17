@@ -285,8 +285,11 @@ try {
       ],
     );
     await page.keyboard.press("Alt+w");
-    await page.locator('[data-sidebar-href="/demo/project/issues/1"]').click({ button: "right" });
-    await page.getByRole("menuitem", { name: "Mark done", exact: true }).click({ timeout: 3000 });
+    await page
+      .locator('[data-notification-row="1"]')
+      .getByRole("button", { name: "Actions for Inbox thread 1" })
+      .click();
+    await page.getByRole("menuitem", { name: "Done", exact: true }).click({ timeout: 3000 });
     await page.waitForFunction(() => !document.querySelector('[data-notification-row="1"]'));
     assert.deepEqual(viewing.errors, []);
     console.log(

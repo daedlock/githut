@@ -242,8 +242,9 @@ try {
     await page.waitForFunction(
       () => document.querySelector('[role="dialog"]')?.getBoundingClientRect().x >= 0,
     );
+    await delay(250);
     if (process.env.DRAWER_SCREENSHOT)
-      await page.screenshot({ path: process.env.DRAWER_SCREENSHOT });
+      await page.screenshot({ path: process.env.DRAWER_SCREENSHOT, animations: "disabled" });
     assert.deepEqual(favorites.writes, []);
     assert.deepEqual(favorites.errors, []);
     console.log(

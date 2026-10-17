@@ -302,6 +302,20 @@ The workspace is a darker **frame** holding a slim **title bar** and rounded
   go; below 480px the group folds into one "⋯" menu. Pages without a
   repo show no sections.
 
+### Sidebar
+
+The sidebar holds Inbox, Favorites, Your repos, then Organizations. Repository
+lists start with six rows and reveal more on request; a text filter finds
+repository names and favorite pages. Organizations start collapsed and load
+accessible repos when expanded. Your repos includes owned and direct-collaborator
+repos, not every repo from organization membership.
+
+Favorites are explicit local navigation preferences for this verified account
+on this device. Repos and specific pages are independent entries; a page label
+uses `repo · section` with the full owner/repo in its accessible label and tooltip.
+Keep the favorite action visible and keyboard accessible. Do not populate the
+sidebar with GitHub stars, recent pages, or expanded pull request queues.
+
 ### Repo marks
 - `RepoMark` (`components/shell/RepoMark.tsx`): a 16px (`sm` 14px)
   rounded square with the repo's initial, two letters when two repos in

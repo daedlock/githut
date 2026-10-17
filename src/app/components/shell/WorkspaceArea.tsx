@@ -85,7 +85,7 @@ export function WorkspaceArea({ children }: { children: ReactNode }) {
             <SheetHeader className="pr-8 pb-4">
               <SheetTitle>Sidebar</SheetTitle>
               <SheetDescription className="sr-only">
-                Open your work, starred repositories and recent pages.
+                Open Inbox, favorite pages, your repositories and organizations.
               </SheetDescription>
             </SheetHeader>
             <SidebarContent beginDrag={docking.beginDrag} onLaunch={closeAfterLaunch} />
