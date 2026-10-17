@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { accountStorage, followDraftAccount } from "@/app/stores/accountStorage";
+import { useAuthStore } from "@/app/stores/auth";
 import { draftPage, useDraftsStore } from "@/app/stores/drafts";
 
 // ─── Pending review store ──────────────────────────────────────────────────
@@ -54,86 +56,100 @@ type ReviewState = {
 
 export const useReviewStore = create<ReviewState>()(
   persist(
-    (set, get) => ({
-      modeByPr: {},
-      pendingByPr: {},
-      composerByPr: {},
+    (setState, get) => {
+      const set = (next: Partial<ReviewState>) => {
+        if (useAuthStore.getState().accountId != null) setState(next);
+      };
+      return {
+        modeByPr: {},
+        pendingByPr: {},
+        composerByPr: {},
 
-      startReview: (o, r, n) => {
-        const k = prKey(o, r, n);
-        set({ modeByPr: { ...get().modeByPr, [k]: true } });
-      },
+        startReview: (o, r, n) => {
+          const k = prKey(o, r, n);
+          set({ modeByPr: { ...get().modeByPr, [k]: true } });
+        },
 
-      cancelReview: (o, r, n) => {
-        const k = prKey(o, r, n);
-        const { modeByPr, pendingByPr, composerByPr } = get();
-        const nextMode = { ...modeByPr };
-        const nextPending = { ...pendingByPr };
-        const nextComposer = { ...composerByPr };
-        delete nextMode[k];
-        delete nextPending[k];
-        delete nextComposer[k];
-        set({ modeByPr: nextMode, pendingByPr: nextPending, composerByPr: nextComposer });
-        const drafts = useDraftsStore.getState();
-        drafts.clearDrafts(k, "review");
-        drafts.clearDrafts(k, "inline:");
-      },
+        cancelReview: (o, r, n) => {
+          const k = prKey(o, r, n);
+          const { modeByPr, pendingByPr, composerByPr } = get();
+          const nextMode = { ...modeByPr };
+          const nextPending = { ...pendingByPr };
+          const nextComposer = { ...composerByPr };
+          delete nextMode[k];
+          delete nextPending[k];
+          delete nextComposer[k];
+          set({ modeByPr: nextMode, pendingByPr: nextPending, composerByPr: nextComposer });
+          const drafts = useDraftsStore.getState();
+          drafts.clearDrafts(k, "review");
+          drafts.clearDrafts(k, "inline:");
+        },
 
-      addPending: (o, r, n, c) => {
-        const k = prKey(o, r, n);
-        const id = -Date.now();
-        const list = get().pendingByPr[k] ?? [];
-        set({
-          pendingByPr: { ...get().pendingByPr, [k]: [...list, { ...c, id }] },
-        });
-        return id;
-      },
+        addPending: (o, r, n, c) => {
+          const k = prKey(o, r, n);
+          const id = -Date.now();
+          const list = get().pendingByPr[k] ?? [];
+          set({
+            pendingByPr: { ...get().pendingByPr, [k]: [...list, { ...c, id }] },
+          });
+          return id;
+        },
 
-      updatePending: (o, r, n, id, body) => {
-        const k = prKey(o, r, n);
-        const list = get().pendingByPr[k] ?? [];
-        set({
-          pendingByPr: {
-            ...get().pendingByPr,
-            [k]: list.map((c) => (c.id === id ? { ...c, body } : c)),
-          },
-        });
-      },
+        updatePending: (o, r, n, id, body) => {
+          const k = prKey(o, r, n);
+          const list = get().pendingByPr[k] ?? [];
+          set({
+            pendingByPr: {
+              ...get().pendingByPr,
+              [k]: list.map((c) => (c.id === id ? { ...c, body } : c)),
+            },
+          });
+        },
 
-      removePending: (o, r, n, id) => {
-        const k = prKey(o, r, n);
-        const list = get().pendingByPr[k] ?? [];
-        set({
-          pendingByPr: {
-            ...get().pendingByPr,
-            [k]: list.filter((c) => c.id !== id),
-          },
-        });
-      },
+        removePending: (o, r, n, id) => {
+          const k = prKey(o, r, n);
+          const list = get().pendingByPr[k] ?? [];
+          set({
+            pendingByPr: {
+              ...get().pendingByPr,
+              [k]: list.filter((c) => c.id !== id),
+            },
+          });
+        },
 
-      clearPending: (o, r, n) => {
-        const k = prKey(o, r, n);
-        const next = { ...get().pendingByPr };
-        delete next[k];
-        set({ pendingByPr: next });
-      },
+        clearPending: (o, r, n) => {
+          const k = prKey(o, r, n);
+          const next = { ...get().pendingByPr };
+          delete next[k];
+          set({ pendingByPr: next });
+        },
 
-      openComposer: (o, r, n, c) => {
-        const k = prKey(o, r, n);
-        set({ composerByPr: { ...get().composerByPr, [k]: c } });
-      },
+        openComposer: (o, r, n, c) => {
+          const k = prKey(o, r, n);
+          set({ composerByPr: { ...get().composerByPr, [k]: c } });
+        },
 
-      closeComposer: (o, r, n) => {
-        const k = prKey(o, r, n);
-        set({ composerByPr: { ...get().composerByPr, [k]: null } });
-      },
-    }),
+        closeComposer: (o, r, n) => {
+          const k = prKey(o, r, n);
+          set({ composerByPr: { ...get().composerByPr, [k]: null } });
+        },
+      };
+    },
     {
       name: "githut.review-drafts.v1",
+      storage: accountStorage<Pick<ReviewState, "pendingByPr" | "composerByPr">>(),
       partialize: (s) => ({ pendingByPr: s.pendingByPr, composerByPr: s.composerByPr }),
+      merge: (persisted, current) => ({
+        ...current,
+        modeByPr: {},
+        pendingByPr: (persisted as Partial<ReviewState> | undefined)?.pendingByPr ?? {},
+        composerByPr: (persisted as Partial<ReviewState> | undefined)?.composerByPr ?? {},
+      }),
     },
   ),
 );
+
+followDraftAccount(() => useReviewStore.persist.rehydrate());
 
 // ─── Selector helpers (keeps subscribers from re-rendering on unrelated PRs) ─
 

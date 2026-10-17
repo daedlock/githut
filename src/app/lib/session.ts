@@ -14,15 +14,20 @@ import { useAuthStore } from "@/app/stores/auth";
 // in that case the window reloads into a clean cache (tabs restore from
 // storage).
 
-async function fetchLogin(token: string): Promise<string | undefined> {
+async function fetchAccount(token: string): Promise<{ login: string; id: number } | undefined> {
   try {
     const res = await fetch("https://api.github.com/user", {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
       cache: "no-store",
     });
     if (!res.ok) return undefined;
-    const body = (await res.json()) as { login?: string };
-    return body.login;
+    const body = (await res.json()) as { login?: string; id?: number };
+    return typeof body.login === "string" &&
+      typeof body.id === "number" &&
+      Number.isSafeInteger(body.id) &&
+      body.id > 0
+      ? { login: body.login, id: body.id }
+      : undefined;
   } catch {
     return undefined;
   }
@@ -33,12 +38,11 @@ export async function resumeSession(token: string): Promise<void> {
   // Signed-out windows (the login page) sign in through their own redirect.
   if (!current.token) return;
   if (token === current.token && !current.expired) return;
-  const previous = queryClient.getQueryData<{ login?: string }>(["me"])?.login;
-  const login = await fetchLogin(token);
-  if (!login || useAuthStore.getState().token !== current.token) return;
-  const sameUser = login === previous;
+  const account = await fetchAccount(token);
+  if (!account || useAuthStore.getState().token !== current.token) return;
+  const sameUser = account.id === current.accountId;
   if (!sameUser) queryClient.clear();
-  adoptToken(token, { sameUser });
+  adoptToken(token, { sameUser, accountId: account.id });
   if (!sameUser) {
     window.location.reload();
     return;
