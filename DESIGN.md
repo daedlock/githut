@@ -123,7 +123,7 @@ The tokens override Tailwind's defaults; **`rounded-lg` is 6px here.**
 | `rounded-sm` | 3px | Kbd, tiny chips |
 | `rounded-md` | 4px | Items inside overlays, small icon buttons, group headers |
 | `rounded-lg` | 6px | Rows, toolbars, buttons, inputs, popovers, menus, code blocks |
-| `rounded-island` | 10px | Islands only |
+| `rounded-island` | 10px | Islands, and the top corners of island tabs (they are part of the sheet) |
 | `rounded-xl` | 12px | Dialogs, floating bars, notices |
 | `rounded-full` | — | Avatars, label pills, status dots |
 
@@ -282,7 +282,7 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
   remaining width, then the island menu (`Button ghost icon-sm`,
   `Columns2`: Split right, Split down, Maximize/Restore). The header holds
   only tabs and island actions; location lives in the breadcrumb row below.
-- **Tabs:** `h-[31px] rounded-t-lg pl-2.5 pr-1.5 gap-1.5 text-ui`, 64–220px
+- **Tabs:** `h-[31px] rounded-t-island pl-2.5 pr-1.5 gap-1.5 text-ui`, 64–220px
   wide, bottom-aligned in the row.
   Order: repo mark (`sm`) → state icon (16px box, `size-3.5`, coloured by
   open / merged / closed / draft) → mono `#number` in `--color-fg-faint` →

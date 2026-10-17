@@ -307,7 +307,7 @@ const TabItem = memo(function TabItem({
                 }
               }}
               className={cn(
-                "group relative flex h-[31px] shrink-0 cursor-default items-center gap-1.5 rounded-t-lg",
+                "group relative flex h-[31px] shrink-0 cursor-default items-center gap-1.5 rounded-t-island",
                 pinned ? "px-2" : "min-w-16 max-w-[220px] pl-2.5 pr-1.5",
                 "text-ui outline-none focus-visible:ring-1 focus-visible:ring-(--color-focus)",
                 "data-drag-source:opacity-30",
@@ -317,7 +317,7 @@ const TabItem = memo(function TabItem({
                 selected && [
                   "bg-background",
                   "before:pointer-events-none before:absolute before:-inset-x-px before:-top-px before:bottom-px",
-                  "before:rounded-t-[7px] before:border before:border-b-0 before:transition-colors before:duration-150",
+                  "before:rounded-t-[calc(var(--radius-island)+1px)] before:border before:border-b-0 before:transition-colors before:duration-150",
                   focused
                     ? "text-foreground before:border-(--color-island-edge-focus)"
                     : "text-muted-foreground before:border-(--color-island-edge)",
