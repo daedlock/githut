@@ -40,10 +40,25 @@ html {
    */
   --palette-hover: color-mix(in oklch, var(--color-focus) 6%, var(--color-bg));
   --palette-selected: color-mix(in oklch, var(--color-focus) 14%, var(--color-bg));
+
+  /*
+   * Islands: the only in-flow surface with elevation. A hairline edge plus a
+   * barely-there drop keeps islands distinct from the frame (DESIGN.md → Islands).
+   */
+  --island-elev: 0 1px 2px rgb(0 0 0 / 0.05);
+  --island-shadow: 0 0 0 1px var(--color-island-edge), var(--island-elev);
+  --island-shadow-focus: 0 0 0 1px var(--color-island-edge-focus), var(--island-elev);
+
+  /* Repo marks share one lightness and chroma so no repo shouts louder than another. */
+  --repo-l: 0.56;
+  --repo-c: 0.12;
 }
 
 html.dark {
   color-scheme: dark;
+  --island-elev: 0 1px 3px rgb(0 0 0 / 0.3);
+  --repo-l: 0.76;
+  --repo-c: 0.11;
 }
 
 /*
