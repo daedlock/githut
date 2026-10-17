@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import type { Env } from "./env";
 import app from "./index";
 
-const PREVIEW = "https://codex-pr-previews-githut.hossam-saraya.workers.dev";
+const PREVIEW = "https://codex-pr-previews.githut.app";
 
 // Previews run the same version config as production; only the host differs.
 const env = {
   APP_URL: "https://githut.app",
-  PREVIEW_HOST_SUFFIX: "githut.hossam-saraya.workers.dev",
+  PREVIEW_HOST_SUFFIX: "githut.app",
   GITHUB_CLIENT_ID: "client",
   GITHUB_CLIENT_SECRET: "secret",
   OAUTH_STATE_SECRET: "state-secret",
@@ -57,7 +57,7 @@ describe("PR preview sign-in", () => {
   });
 
   test("a lookalike host never receives the token", async () => {
-    const state = await stateFor("https://main-githut.attacker.workers.dev");
+    const state = await stateFor("https://main.githut.app.attacker.com");
     fetchSpy.mockResolvedValueOnce(Response.json({ access_token: "gho_test" }));
     const res = await app.request(`/api/auth/callback?state=${state}&code=abc`, {}, production);
     expect(res.headers.get("Location")).toBe("https://githut.app/#t=gho_test");

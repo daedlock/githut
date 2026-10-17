@@ -1,23 +1,24 @@
 // ─── Preview sign-in ──────────────────────────────────────────────────────
 //
-// Cloudflare Workers Builds serves every branch and PR as a preview version
-// at `<alias>-<worker>.<account-subdomain>.workers.dev`. GitHub only redirects
-// OAuth logins back to the registered callback host (githut.app), so a
-// preview signs in through production: production runs the OAuth flow and
-// hands the token back to the preview origin carried in the signed state.
+// Cloudflare Workers Builds serves every branch and PR as a Worker Preview at
+// `<preview-name>.githut.app` (and each deployment at
+// `<deployment-id>-<preview-name>.githut.app`). GitHub only redirects OAuth
+// logins back to the registered callback host, so a preview signs in through
+// production: production runs the OAuth flow and hands the token back to the
+// preview origin carried in the signed state.
 //
-// Only hosts under this account's own workers.dev subdomain may receive a
-// token. Nobody else can create aliases there, so another account can't
-// register a lookalike preview and catch the token.
+// Only single-label subdomains of our own zone may receive a token; nobody
+// else can create hosts there.
 
-const ALIAS = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
 /**
  * The origin of `raw` if it is one of our preview hosts
- * (`https://<alias>-<suffix>`), otherwise null.
+ * (`https://<label>.<zone>`), otherwise null. The zone apex itself is
+ * production, not a preview.
  */
-export function previewOrigin(raw: string | undefined, suffix: string | undefined): string | null {
-  if (!raw || !suffix) return null;
+export function previewOrigin(raw: string | undefined, zone: string | undefined): string | null {
+  if (!raw || !zone) return null;
   let url: URL;
   try {
     url = new URL(raw);
@@ -26,8 +27,8 @@ export function previewOrigin(raw: string | undefined, suffix: string | undefine
   }
   if (url.protocol !== "https:" || url.port || url.username || url.password) return null;
   const host = url.hostname.toLowerCase();
-  const tail = `-${suffix.toLowerCase()}`;
+  const tail = `.${zone.toLowerCase()}`;
   if (!host.endsWith(tail)) return null;
-  if (!ALIAS.test(host.slice(0, -tail.length))) return null;
+  if (!LABEL.test(host.slice(0, -tail.length))) return null;
   return url.origin;
 }
