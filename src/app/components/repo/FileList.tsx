@@ -114,7 +114,11 @@ export function FileList({
       <div className="flex items-center gap-2 border-b border-border bg-muted px-4 py-2">
         <GitCommitHorizontal className="size-3.5 text-[var(--color-fg-faint)] flex-shrink-0" />
         {commitPending ? (
-          <span className="flex min-w-0 flex-1 h-[1lh] items-center text-ui" role="status" aria-label="Loading latest commit">
+          <span
+            className="flex min-w-0 flex-1 h-[1lh] items-center text-ui"
+            role="status"
+            aria-label="Loading latest commit"
+          >
             <Skeleton className="h-3.5 w-64" />
           </span>
         ) : commit ? (
@@ -137,7 +141,11 @@ export function FileList({
         )}
       </div>
 
-      {isPending && <span className="sr-only" role="status">Loading files</span>}
+      {isPending && (
+        <span className="sr-only" role="status">
+          Loading files
+        </span>
+      )}
       <table className="w-full table-fixed border-collapse text-body">
         <tbody className={isPending ? "skeleton-fade" : undefined}>
           {isPending ? (
@@ -184,7 +192,7 @@ function ParentRow({ onNavigate }: { onNavigate: () => void }) {
       onClick={onNavigate}
     >
       <td className="min-w-0 py-2 pl-4 pr-4">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex h-[1lh] min-w-0 items-center gap-2 text-body">
           <Folder className="size-4 text-[var(--color-fg-faint)] flex-shrink-0" />
           <span className="font-mono text-code text-muted-foreground group-hover:text-foreground transition-colors duration-75 truncate">
             ..
@@ -192,7 +200,9 @@ function ParentRow({ onNavigate }: { onNavigate: () => void }) {
         </div>
       </td>
       <td className="hidden px-4 py-2 @2xl/pane:table-cell @2xl/pane:w-[52%]" />
-      <td className="w-[8.5rem] py-2 pr-4" />
+      <td className="w-[8.5rem] py-2 pr-4">
+        <span className="block h-[1lh] text-body" />
+      </td>
     </tr>
   );
 }
@@ -227,7 +237,7 @@ function FileRow({
       onClick={() => onNavigate?.(entry)}
     >
       <td className="min-w-0 py-2 pl-4 pr-4">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex h-[1lh] min-w-0 items-center gap-2 text-body">
           {isDir ? (
             <Folder className="size-4 text-[var(--color-fg-faint)] flex-shrink-0" />
           ) : (
@@ -263,15 +273,17 @@ function FileRow({
         )}
       </td>
       <td className="w-[8.5rem] py-2 pr-4 text-right">
-        {entryCommitPending ? (
-          <span className="ml-auto flex h-[1lh] items-center justify-end text-caption">
+        {/* Body-height line box in both states: the caption-sized time must
+            not set the row height, or rows grow as each commit arrives. */}
+        <span className="flex h-[1lh] items-center justify-end text-body">
+          {entryCommitPending ? (
             <Skeleton className="h-3.5 w-16" />
-          </span>
-        ) : (
-          <span className="font-mono text-caption text-muted-foreground whitespace-nowrap">
-            {entryCommit ? relativeTime(entryCommit.date) : ""}
-          </span>
-        )}
+          ) : (
+            <span className="whitespace-nowrap font-mono text-caption text-muted-foreground">
+              {entryCommit ? relativeTime(entryCommit.date) : ""}
+            </span>
+          )}
+        </span>
       </td>
     </tr>
   );
@@ -281,9 +293,9 @@ function SkeletonRow() {
   return (
     <tr className="border-b border-border last:border-0">
       <td className="py-2 pl-4 pr-4">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex h-[1lh] min-w-0 items-center gap-2 text-body">
           <Skeleton className="size-4" />
-          <span className="flex min-w-0 h-[1lh] items-center text-code">
+          <span className="flex min-w-0 items-center">
             <Skeleton className="h-3.5 w-32" />
           </span>
         </div>
@@ -294,7 +306,7 @@ function SkeletonRow() {
         </span>
       </td>
       <td className="w-[8.5rem] py-2 pr-4">
-        <span className="ml-auto flex h-[1lh] items-center justify-end text-caption">
+        <span className="flex h-[1lh] items-center justify-end text-body">
           <Skeleton className="h-3.5 w-16" />
         </span>
       </td>
