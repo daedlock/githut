@@ -25,7 +25,7 @@ export function TabHint({ focused, children }: { focused: boolean; children: Rea
         onInteractOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={retireTabHint}
       >
-        <p className="text-xs text-muted-foreground">
+        <p className="text-caption text-muted-foreground">
           drag to split · ⇧-click new tab · ⌥-click to the side
         </p>
         <Button

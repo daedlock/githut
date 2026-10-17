@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { trackWorkspaceAction } from "@/app/lib/analytics";
 import { useSidebarStore } from "./sidebar";
 
 /** Per-window presentation only. Resize and drawer actions never rewrite the saved layout/sidebar. */
@@ -13,9 +14,14 @@ export const useWorkspaceView = create<{
   sidebarOpen: false,
   setNarrow: (narrow) =>
     set((state) => (state.narrow === narrow ? state : { narrow, sidebarOpen: false })),
-  setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+  setSidebarOpen: (sidebarOpen) => {
+    if (get().sidebarOpen === sidebarOpen) return;
+    set({ sidebarOpen });
+    trackWorkspaceAction("sidebar-toggled");
+  },
   toggleSidebar: () => {
-    if (get().narrow) set((state) => ({ sidebarOpen: !state.sidebarOpen }));
-    else useSidebarStore.getState().toggle();
+    if (get().narrow) {
+      get().setSidebarOpen(!get().sidebarOpen);
+    } else useSidebarStore.getState().toggle();
   },
 }));

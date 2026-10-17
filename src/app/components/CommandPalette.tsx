@@ -13,8 +13,6 @@ import {
   LogOut,
   type LucideIcon,
   Palette as PaletteIcon,
-  Pin,
-  PinOff,
   Settings,
   Trash2,
 } from "lucide-react";
@@ -39,17 +37,16 @@ import {
 } from "@/app/hooks/useCommandPaletteItems";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { useRepos } from "@/app/hooks/useRepos";
+import { useWorkspacePaletteCommands } from "@/app/hooks/useWorkspacePaletteCommands";
 import { track } from "@/app/lib/analytics";
 import { logout } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
 import { clearRecentItems, pushRecentItem, type RecentItem } from "@/app/lib/recentItems";
-import { openOrJump, openToSide, pinTab, replaceFocusedTab } from "@/app/lib/tabActions";
+import { openOrJump, openToSide, replaceFocusedTab } from "@/app/lib/tabActions";
 import { THEME_OPTIONS } from "@/app/lib/themeCatalog";
 import { formatRelativeTime } from "@/app/lib/time";
 import { useCommandPalette, useCommandPaletteStore } from "@/app/stores/commandPalette";
 import { useThemeStore } from "@/app/stores/theme";
-import { focusedIsland, focusedTab } from "@/app/workspace/model";
-import { getFocusedTab, useWorkspaceStore } from "@/app/workspace/store";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -60,6 +57,9 @@ type PaletteCommand = {
   keywords?: string[];
   shortcut?: string;
   run: () => void;
+  disabled?: boolean;
+  /** Dynamic layout destinations must never enter ordinary page-aware telemetry. */
+  workspace?: boolean;
 };
 
 type RepoContext = { owner: string; repo: string } | null;
@@ -88,7 +88,6 @@ function buildCommands(
   close: () => void,
   repoContext: RepoContext,
   navigateTo: (href: string) => void,
-  focusedPinned: boolean,
 ): { actions: PaletteCommand[]; themes: PaletteCommand[] } {
   const goTo = (path: string) => () => {
     close();
@@ -99,16 +98,6 @@ function buildCommands(
   const repoKw = r ? [r.owner, r.repo] : [];
 
   const actions: PaletteCommand[] = [
-    {
-      id: "tab:pin",
-      label: focusedPinned ? "Unpin focused tab" : "Pin focused tab",
-      icon: focusedPinned ? PinOff : Pin,
-      keywords: ["tab", "pin", "keep"],
-      run: () => {
-        pinTab(getFocusedTab().id, !focusedPinned);
-        close();
-      },
-    },
     {
       id: "nav:home",
       label: "Go home",
@@ -201,9 +190,6 @@ export function CommandPalette() {
   const open = useCommandPaletteStore((s) => s.open);
   const setOpen = useCommandPaletteStore((s) => s.setOpen);
   const { close, toggle } = useCommandPalette();
-  const focusedPinned = useWorkspaceStore((s) =>
-    focusedIsland(s.workspace).pinned.includes(focusedTab(s.workspace).id),
-  );
   const navigationIntent = useRef<NavigationIntent>("jump");
   const navigateTo = useCallback((href: string) => {
     const intent = navigationIntent.current;
@@ -279,9 +265,10 @@ export function CommandPalette() {
     return hasQuery ? data : data.slice(0, 50);
   }, [repos.data, hasQuery]);
   const { actions, themes } = useMemo(
-    () => buildCommands(close, repoContext, navigateTo, focusedPinned),
-    [close, repoContext, navigateTo, focusedPinned],
+    () => buildCommands(close, repoContext, navigateTo),
+    [close, repoContext, navigateTo],
   );
+  const layoutActions = useWorkspacePaletteCommands(open, close);
 
   // Track opens + reset query on close.
   const wasOpen = useRef(open);
@@ -441,6 +428,13 @@ export function CommandPalette() {
           {showCommands && (
             <CommandGroup heading="Commands">
               {actions.map((cmd) => (
+                <CommandRow key={cmd.id} cmd={cmd} />
+              ))}
+            </CommandGroup>
+          )}
+          {showCommands && (
+            <CommandGroup heading="Layout">
+              {layoutActions.map((cmd) => (
                 <CommandRow key={cmd.id} cmd={cmd} />
               ))}
             </CommandGroup>
@@ -663,9 +657,11 @@ function CommandRow({ cmd }: { cmd: PaletteCommand }) {
   const Icon = cmd.icon;
   return (
     <CommandItem
+      aria-label={cmd.label}
+      disabled={cmd.disabled}
       value={`> ${cmd.label} ${cmd.keywords?.join(" ") ?? ""}`}
       onSelect={() => {
-        track("command_palette_command_selected", { id: cmd.id });
+        if (!cmd.workspace) track("command_palette_command_selected", { id: cmd.id });
         cmd.run();
       }}
     >

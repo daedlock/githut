@@ -30,8 +30,12 @@ export function setAnalyticsEnabledPreference(enabled: boolean) {
 }
 
 export function track(event: string, data?: UmamiEventData) {
-  if (!isAnalyticsEnabled()) return;
-  getUmami()?.track?.(event, data);
+  try {
+    if (!isAnalyticsEnabled()) return;
+    void Promise.resolve(getUmami()?.track?.(event, data)).catch(() => {});
+  } catch {
+    // Analytics and preference storage must never interrupt a user action.
+  }
 }
 
 export type WorkspaceAction =

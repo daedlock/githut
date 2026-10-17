@@ -33,8 +33,10 @@ async function fixture() {
       JSON.stringify({ state: { token: "fixture" }, version: 0 }),
     );
     window.workspaceEvents = [];
+    window.layoutCommandEvents = [];
     window.umami = {
-      track: (event) => {
+      track: (event, data) => {
+        if (event === "command_palette_command_selected") window.layoutCommandEvents.push(data);
         if (typeof event === "function")
           window.workspaceEvents.push(
             event({
@@ -79,6 +81,16 @@ async function command(page, cmd) {
     const { dispatch } = await import("/src/app/workspace/store.ts");
     dispatch(cmd);
   }, cmd);
+}
+
+async function palette(page, label) {
+  await page.keyboard.press("Control+k");
+  const input = page.getByRole("combobox");
+  await input.fill(`> ${typeof label === "string" ? label : "Merge focused island"}`);
+  await page
+    .getByRole("option", { name: label, exact: typeof label === "string" })
+    .click({ timeout: 3000 });
+  await input.waitFor({ state: "hidden" });
 }
 
 try {
@@ -187,12 +199,75 @@ try {
     });
     await page.keyboard.press("Alt+Backslash");
     await page.waitForFunction(() => document.querySelectorAll("[data-island]").length === 3);
+    await palette(page, "Split island down");
+    await page.waitForFunction(() => document.querySelectorAll("[data-island]").length === 4);
     assert.deepEqual(counts.errors, []);
     console.log(
       "PASS: actual splits, shortcuts, sidebar toggles, pins and drags emit anonymous counts; opt-out and failures are harmless",
     );
   } finally {
     await counts.close();
+  }
+
+  const discover = await fixture();
+  try {
+    const page = discover.page;
+    await palette(page, "Split island right");
+    await page.waitForFunction(() => document.querySelectorAll("[data-island]").length === 2);
+    const before = await page.locator("[data-island]").first().boundingBox();
+    await palette(page, "Resize gap 1 left");
+    const resized = await page.locator("[data-island]").first().boundingBox();
+    assert.ok(Math.abs(before.width - resized.width - 16) < 2);
+    await palette(page, "Equalize split 1");
+    assert.ok(
+      Math.abs((await page.locator("[data-island]").first().boundingBox()).width - before.width) <
+        2,
+    );
+    await palette(page, "Move focused island to window left edge");
+    await palette(page, /^Merge focused island into island 2 .*at end$/);
+    await page.waitForFunction(() => document.querySelectorAll("[data-island]").length === 1);
+    await palette(page, "Undo layout change");
+    await page.waitForFunction(() => document.querySelectorAll("[data-island]").length === 2);
+    await palette(page, "Maximize focused island");
+    assert.equal(await page.locator("[data-island]:visible").count(), 1);
+    await palette(page, "Restore island layout");
+    assert.equal(await page.locator("[data-island]:visible").count(), 2);
+    await palette(page, "Pin focused tab");
+    await palette(page, "Unpin focused tab");
+    await page.setViewportSize({ width: 600, height: 900 });
+    await page.waitForFunction(
+      () => document.querySelector("[data-workspace-area]")?.dataset.narrow === "true",
+    );
+    await palette(page, "Toggle sidebar");
+    await page.getByRole("dialog", { name: "Sidebar" }).waitFor();
+    assert.equal(
+      await page.evaluate(() => window.workspaceEvents.at(-1).data.action),
+      "sidebar-toggled",
+    );
+    const toggles = await page.evaluate(
+      () =>
+        window.workspaceEvents.filter((event) => event.data.action === "sidebar-toggled").length,
+    );
+    await page.keyboard.press("Escape");
+    await page.getByRole("dialog", { name: "Sidebar" }).waitFor({ state: "hidden" });
+    assert.equal(
+      await page.evaluate(
+        () =>
+          window.workspaceEvents.filter((event) => event.data.action === "sidebar-toggled").length,
+      ),
+      toggles + 1,
+    );
+    assert.deepEqual(
+      await page.evaluate(() => window.layoutCommandEvents),
+      [],
+      "Dynamic layout commands must never enter ordinary page-aware telemetry",
+    );
+    assert.deepEqual(discover.errors, []);
+    console.log(
+      "PASS: palette discovers and executes layout commands and toggles the narrow sidebar",
+    );
+  } finally {
+    await discover.close();
   }
 } finally {
   await browser?.close();
