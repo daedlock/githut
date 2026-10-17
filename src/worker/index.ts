@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "./env";
+import { previewOrigin } from "./previewAuth";
 
 const OAUTH_SCOPES = "repo read:user read:org";
 const STATE_TTL_MS = 10 * 60 * 1000;
@@ -9,7 +10,16 @@ const app = new Hono<{ Bindings: Env }>();
 app.get("/api/health", (c) => c.json({ ok: true, time: Date.now() }));
 
 app.get("/api/auth/login", async (c) => {
-  const state = await signState(c.env.OAUTH_STATE_SECRET);
+  // Previews can't receive GitHub's redirect, so they sign in through
+  // production (APP_URL), which hands the token back (see previewAuth.ts).
+  const preview = previewOrigin(c.req.url, c.env.PREVIEW_HOST_SUFFIX);
+  if (preview) {
+    const hop = new URL("/api/auth/login", c.env.APP_URL);
+    hop.searchParams.set("return_to", preview);
+    return c.redirect(hop.toString(), 302);
+  }
+  const returnTo = previewOrigin(c.req.query("return_to"), c.env.PREVIEW_HOST_SUFFIX);
+  const state = await signState(c.env.OAUTH_STATE_SECRET, returnTo);
   const url = new URL("https://github.com/login/oauth/authorize");
   url.searchParams.set("client_id", c.env.GITHUB_CLIENT_ID);
   url.searchParams.set("scope", OAUTH_SCOPES);
@@ -23,11 +33,15 @@ app.get("/api/auth/callback", async (c) => {
   const code = c.req.query("code");
   const error = c.req.query("error");
 
-  if (error) return c.redirect(`${c.env.APP_URL}/login?error=${encodeURIComponent(error)}`, 302);
-  if (!state || !code) return c.redirect(`${c.env.APP_URL}/login?error=missing_params`, 302);
+  const verified = state ? await verifyState(state, c.env.OAUTH_STATE_SECRET) : null;
+  // Where the user started: a PR preview, or this app. Re-checked here in case
+  // the allowed preview hosts changed since the login began.
+  const home =
+    previewOrigin(verified?.returnTo ?? undefined, c.env.PREVIEW_HOST_SUFFIX) ?? c.env.APP_URL;
 
-  const stateValid = await verifyState(state, c.env.OAUTH_STATE_SECRET);
-  if (!stateValid) return c.redirect(`${c.env.APP_URL}/login?error=bad_state`, 302);
+  if (error) return c.redirect(`${home}/login?error=${encodeURIComponent(error)}`, 302);
+  if (!state || !code) return c.redirect(`${home}/login?error=missing_params`, 302);
+  if (!verified) return c.redirect(`${c.env.APP_URL}/login?error=bad_state`, 302);
 
   const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
     method: "POST",
@@ -40,18 +54,18 @@ app.get("/api/auth/callback", async (c) => {
   });
 
   if (!tokenRes.ok) {
-    return c.redirect(`${c.env.APP_URL}/login?error=token_exchange_failed`, 302);
+    return c.redirect(`${home}/login?error=token_exchange_failed`, 302);
   }
 
   const payload = (await tokenRes.json()) as { access_token?: string; error?: string };
   if (payload.error || !payload.access_token) {
     return c.redirect(
-      `${c.env.APP_URL}/login?error=${encodeURIComponent(payload.error ?? "no_token")}`,
+      `${home}/login?error=${encodeURIComponent(payload.error ?? "no_token")}`,
       302,
     );
   }
 
-  return c.redirect(`${c.env.APP_URL}/#t=${payload.access_token}`, 302);
+  return c.redirect(`${home}/#t=${payload.access_token}`, 302);
 });
 
 // Redirect to GitHub's app management page so the user can grant/revoke per-org access.
@@ -99,6 +113,8 @@ app.post("/api/upload", async (c) => {
     httpMetadata: { contentType },
   });
 
+  // APP_URL is production even on previews, so images in comments posted from
+  // a preview outlive the preview.
   const url = `${c.env.APP_URL}/api/uploads/${key}`;
   return c.json({ url }, 201);
 });
@@ -282,7 +298,7 @@ app.get("/api/actions/jobs/:jobId/logs", async (c) => {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-store",
-        "Access-Control-Allow-Origin": c.env.APP_URL,
+        "Access-Control-Allow-Origin": allowedOrigin(c.req.header("Origin"), c.env),
       },
     });
   }
@@ -294,7 +310,7 @@ app.get("/api/actions/jobs/:jobId/logs", async (c) => {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-store",
-        "Access-Control-Allow-Origin": c.env.APP_URL,
+        "Access-Control-Allow-Origin": allowedOrigin(c.req.header("Origin"), c.env),
       },
     });
   }
@@ -340,26 +356,43 @@ function b64urlDecode(s: string): Uint8Array {
   return out;
 }
 
-async function signState(secret: string): Promise<string> {
+/** Production, or the preview the request came from. */
+function allowedOrigin(origin: string | undefined, env: Env): string {
+  return previewOrigin(origin, env.PREVIEW_HOST_SUFFIX) ?? env.APP_URL;
+}
+
+/** `nonce.issued.returnTo.sig` — returnTo is the preview origin, or empty. */
+async function signState(secret: string, returnTo: string | null): Promise<string> {
   const nonce = crypto.getRandomValues(new Uint8Array(16));
   const issued = Date.now();
-  const payload = `${b64url(nonce)}.${issued}`;
+  const payload = `${b64url(nonce)}.${issued}.${b64url(encoder.encode(returnTo ?? ""))}`;
   const key = await hmacKey(secret);
   const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(payload)));
   return `${payload}.${b64url(sig)}`;
 }
 
-async function verifyState(token: string, secret: string): Promise<boolean> {
+async function verifyState(
+  token: string,
+  secret: string,
+): Promise<{ returnTo: string | null } | null> {
   const parts = token.split(".");
-  if (parts.length !== 3) return false;
-  const [nonceB64, issuedStr, sigB64] = parts as [string, string, string];
+  if (parts.length !== 4) return null;
+  const [nonceB64, issuedStr, returnB64, sigB64] = parts as [string, string, string, string];
   const issued = Number(issuedStr);
-  if (!Number.isFinite(issued) || Date.now() - issued > STATE_TTL_MS) return false;
+  if (!Number.isFinite(issued) || Date.now() - issued > STATE_TTL_MS) return null;
   const key = await hmacKey(secret);
   const sig = b64urlDecode(sigB64);
   const sigBuffer = new ArrayBuffer(sig.byteLength);
   new Uint8Array(sigBuffer).set(sig);
-  return crypto.subtle.verify("HMAC", key, sigBuffer, encoder.encode(`${nonceB64}.${issuedStr}`));
+  const ok = await crypto.subtle.verify(
+    "HMAC",
+    key,
+    sigBuffer,
+    encoder.encode(`${nonceB64}.${issuedStr}.${returnB64}`),
+  );
+  if (!ok) return null;
+  const returnTo = new TextDecoder().decode(b64urlDecode(returnB64));
+  return { returnTo: returnTo || null };
 }
 
 function renderBadgeSvg(label: string, status: string, color: string): string {
