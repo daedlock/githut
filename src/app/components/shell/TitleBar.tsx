@@ -1,5 +1,5 @@
 import { GitBranch, Search } from "lucide-react";
-
+import { RateLimitNotice } from "@/app/components/shell/RateLimitNotice";
 import { RepoMark } from "@/app/components/shell/RepoMark";
 import { OfflinePill } from "@/app/components/shell/SessionNotices";
 import { UserMenu } from "@/app/components/shell/UserMenu";
@@ -42,6 +42,7 @@ export function TitleBar({ focusedHref }: { focusedHref: string | null }) {
       {focusedHref ? <FocusedContext href={focusedHref} /> : <span />}
       <SearchTrigger />
       <div className="flex min-w-0 items-center justify-end gap-1.5">
+        <RateLimitNotice />
         <OfflinePill />
         {mePending && <Skeleton className="size-7 shrink-0 rounded-full" />}
         {me && (
