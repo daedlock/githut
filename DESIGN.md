@@ -217,7 +217,7 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
 
 ### Frame
 - `--color-frame` is derived from the theme's `--color-bg` with Linear's
-  low contrast: 3% toward the text colour in light themes, 10% toward
+  low contrast: 5% toward the text colour in light themes, 16% toward
   black in dark themes. Islands sit barely above the frame; the hairline
   edge does most of the separating.
   A palette that needs a different frame sets `--color-frame` in its
@@ -231,8 +231,8 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
   `--island-elev`: a barely-there drop in light themes, a 1px top
   highlight in dark themes. Don't add others.
 - Edges are Linear-style: a translucent tint of the text colour, never a
-  border colour. Idle `--color-island-edge` (fg 7%), focused
-  `--color-island-edge-focus` (fg 11%). No brand on the edge; the
+  border colour. Idle `--color-island-edge` (fg 9%), focused
+  `--color-island-edge-focus` (fg 13%). No brand on the edge; the
   focused island's selected tab carries the brand tint.
 - An island is a `@container`, so its header adapts to the island's
   width, not the window's.
