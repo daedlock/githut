@@ -9,6 +9,7 @@ import {
 import { useEffect, useMemo } from "react";
 import { useRepoFile } from "@/app/hooks/useRepoFile";
 import { getGitHubClient } from "@/app/lib/github/client";
+import { retrySessionExpiry } from "@/app/lib/query";
 import { useAuthStore } from "@/app/stores/auth";
 import { parseDispatchInputs } from "./lib/parseDispatchInputs";
 import {
@@ -62,7 +63,7 @@ export type RunsFilters = {
 };
 const validId = (id: number) => Number.isSafeInteger(id) && id > 0;
 const retry = (count: number, error: unknown) =>
-  count < 2 && ![401, 403, 404, 422, 429].includes((error as { status?: number })?.status ?? 0);
+  count < 2 && ![403, 404, 422, 429].includes((error as { status?: number })?.status ?? 0);
 const requestOptions = { retry, refetchIntervalInBackground: false };
 
 export const workflowsQueryOptions = (owner: string, repo: string) =>
@@ -280,7 +281,7 @@ export const jobLogsQueryOptions = (
     queryKey: actionsKeys.logs(owner, repo, jobId),
     staleTime: isLive ? 0 : Infinity,
     gcTime: 10 * 60_000,
-    retry: false,
+    retry: retrySessionExpiry,
     queryFn: async ({ signal }): Promise<string> => {
       const token = useAuthStore.getState().token;
       if (!token) throw new Error("Not authenticated");
@@ -291,6 +292,8 @@ export const jobLogsQueryOptions = (
           signal,
         },
       );
+      if (res.status === 401 && useAuthStore.getState().token === token)
+        useAuthStore.getState().markExpired();
       if (!res.ok)
         throw Object.assign(new Error(`Could not load logs (${res.status}).`), {
           status: res.status,

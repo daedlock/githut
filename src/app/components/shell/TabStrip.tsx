@@ -1,17 +1,26 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { X } from "lucide-react";
+import { Check, ChevronDown, Pin, PinOff, X } from "lucide-react";
 import { type KeyboardEvent, memo, useEffect, useRef, useSyncExternalStore } from "react";
 
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { RepoMark } from "@/app/components/shell/RepoMark";
+import { Button } from "@/app/components/ui/button";
 import {
   ContextMenu,
   ContextMenuContent,
+  ContextMenuGroup,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/app/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/app/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { issueDetailQueryOptions, issueKeys } from "@/app/features/issues/hooks";
 import { prDetailQueryOptions, pullsKeys } from "@/app/features/pulls/hooks";
@@ -22,6 +31,7 @@ import {
   closeTab,
   closeTabsToRight,
   duplicateTab,
+  pinTab,
   reopenClosedTab,
   selectTab,
 } from "@/app/lib/tabActions";
@@ -76,10 +86,13 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
     reveal();
     // Titles arrive after first paint and the island can resize: re-check.
     const ro = new ResizeObserver(reveal);
-    ro.observe(sel);
+    for (const tab of tabs) {
+      const item = strip.querySelector<HTMLElement>(`[data-tab-id="${tab.id}"]`);
+      if (item) ro.observe(item);
+    }
     ro.observe(strip);
     return () => ro.disconnect();
-  }, [selectedTabId]);
+  }, [selectedTabId, tabs]);
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
@@ -91,28 +104,81 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
   }
 
   return (
-    <div
-      ref={scroller}
-      data-tab-strip
-      role="tablist"
-      aria-label="Open tabs"
-      onKeyDown={onKeyDown}
-      className={cn(
-        "relative flex h-full min-w-0 flex-1 select-none items-center gap-0.5 overflow-x-auto",
-        // Room for the selected tab's outline, which the scroller would clip.
-        "px-0.5 [scroll-padding-inline:2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-      )}
+    <>
+      <div
+        ref={scroller}
+        data-tab-strip
+        role="tablist"
+        aria-label="Open tabs"
+        onKeyDown={onKeyDown}
+        className={cn(
+          "relative flex h-full min-w-0 flex-1 select-none items-center gap-0.5 overflow-x-auto",
+          // Room for the selected tab's outline, which the scroller would clip.
+          "px-0.5 [scroll-padding-inline:2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        )}
+      >
+        {tabs.map((tab, i) => (
+          <TabItem
+            key={tab.id}
+            tab={tab}
+            selected={tab.id === selectedTabId}
+            focused={focused}
+            pinned={island.pinned.includes(tab.id)}
+            isLast={i === tabs.length - 1}
+          />
+        ))}
+      </div>
+      <TabOverflow island={island} />
+    </>
+  );
+}
+
+function TabOverflow({ island }: { island: Island }) {
+  return (
+    <DropdownMenu>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Show all tabs" className="shrink-0">
+              <ChevronDown />
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">Show all tabs</TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent align="end" className="w-72">
+        <DropdownMenuGroup>
+          {island.tabs.map((tab) => (
+            <OverflowTab
+              key={tab.id}
+              tab={tab}
+              selected={tab.id === island.selectedTabId}
+              pinned={island.pinned.includes(tab.id)}
+            />
+          ))}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function OverflowTab({ tab, selected, pinned }: { tab: Tab; selected: boolean; pinned: boolean }) {
+  const display = useTabDisplay(tab.href);
+  const Icon = display.icon;
+  return (
+    <DropdownMenuItem
+      onSelect={() => selectTab(tab.id)}
+      aria-current={selected ? "page" : undefined}
     >
-      {tabs.map((tab, i) => (
-        <TabItem
-          key={tab.id}
-          tab={tab}
-          selected={tab.id === selectedTabId}
-          focused={focused}
-          isLast={i === tabs.length - 1}
-        />
-      ))}
-    </div>
+      {display.repo && <RepoMark repo={display.repo} size="sm" />}
+      <Icon className={TONE_CLASS[display.tone]} />
+      <span className="min-w-0 flex-1 truncate">
+        {display.prefix && `${display.prefix} `}
+        {display.label}
+      </span>
+      {pinned && <Pin aria-label="Pinned" />}
+      {selected && <Check aria-label="Selected" />}
+    </DropdownMenuItem>
   );
 }
 
@@ -131,11 +197,13 @@ const TabItem = memo(function TabItem({
   tab,
   selected,
   focused,
+  pinned,
   isLast,
 }: {
   tab: Tab;
   selected: boolean;
   focused: boolean;
+  pinned: boolean;
   isLast: boolean;
 }) {
   const display = useTabDisplay(tab.href);
@@ -151,8 +219,10 @@ const TabItem = memo(function TabItem({
             <div
               role="tab"
               aria-selected={selected}
+              aria-label={`${display.prefix ? `${display.prefix} ` : ""}${display.label}${pinned ? ", pinned" : ""}${draft ? ", unsent draft" : ""}`}
               tabIndex={selected ? 0 : -1}
               data-tab-id={tab.id}
+              data-pinned={pinned || undefined}
               onPointerDown={(e) => {
                 if (e.button === 0) selectTab(tab.id);
               }}
@@ -167,7 +237,8 @@ const TabItem = memo(function TabItem({
                 }
               }}
               className={cn(
-                "group relative flex h-7 min-w-16 max-w-[220px] shrink-0 cursor-default items-center gap-1.5 rounded-lg pl-2 pr-1",
+                "group relative flex h-7 shrink-0 cursor-default items-center gap-1.5 rounded-lg",
+                pinned ? "px-2" : "min-w-16 max-w-[220px] pl-2 pr-1",
                 "text-ui outline-none focus-visible:ring-1 focus-visible:ring-(--color-focus)",
                 !selected &&
                   "text-muted-foreground hover:bg-[color-mix(in_oklab,var(--color-bg-sunken)_60%,transparent)] hover:text-foreground",
@@ -183,36 +254,45 @@ const TabItem = memo(function TabItem({
             >
               {display.repo && <RepoMark repo={display.repo} size="sm" />}
               <Icon aria-hidden className={cn("size-3.5 shrink-0", TONE_CLASS[display.tone])} />
-              {display.prefix && (
+              {!pinned && display.prefix && (
                 <span className="shrink-0 font-mono text-caption text-(--color-fg-faint)">
                   {display.prefix}
                 </span>
               )}
-              <span className="min-w-0 flex-1 truncate">{display.label}</span>
-              <button
-                type="button"
-                tabIndex={-1}
-                aria-label={`Close ${display.label}`}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  closeTab(tab.id);
-                }}
-                className={cn(
-                  "inline-flex size-4.5 shrink-0 items-center justify-center rounded-md text-muted-foreground",
-                  "hover:bg-accent hover:text-foreground",
-                  selected || draft ? "visible" : "invisible group-hover:visible",
-                )}
-              >
-                {draft && (
-                  <span
-                    aria-hidden
-                    data-draft-dot
-                    className="size-1.5 rounded-full bg-(--color-warning) group-hover:hidden"
-                  />
-                )}
-                <X className={cn("size-3", draft && "hidden group-hover:block")} />
-              </button>
+              {!pinned && <span className="min-w-0 flex-1 truncate">{display.label}</span>}
+              {pinned && draft && (
+                <span
+                  aria-hidden
+                  data-draft-dot
+                  className="absolute right-0.5 top-0.5 size-1.5 rounded-full bg-(--color-warning)"
+                />
+              )}
+              {!pinned && (
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-label={`Close ${display.label}`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeTab(tab.id);
+                  }}
+                  className={cn(
+                    "inline-flex size-4.5 shrink-0 items-center justify-center rounded-md text-muted-foreground",
+                    "hover:bg-accent hover:text-foreground",
+                    selected || draft ? "visible" : "invisible group-hover:visible",
+                  )}
+                >
+                  {draft && (
+                    <span
+                      aria-hidden
+                      data-draft-dot
+                      className="size-1.5 rounded-full bg-(--color-warning) group-hover:hidden"
+                    />
+                  )}
+                  <X className={cn("size-3", draft && "hidden group-hover:block")} />
+                </button>
+              )}
             </div>
           </TooltipTrigger>
         </ContextMenuTrigger>
@@ -230,28 +310,37 @@ const TabItem = memo(function TabItem({
       </Tooltip>
       <ContextMenuContent className="w-56">
         <DockingMenu source={{ type: "tab", tabId: tab.id }} />
-        <ContextMenuItem onSelect={() => closeTab(tab.id)}>
-          Close tab
-          {selected && focused && <ContextMenuShortcut>Alt W</ContextMenuShortcut>}
-        </ContextMenuItem>
-        <ContextMenuItem onSelect={() => closeOtherTabs(tab.id)}>Close other tabs</ContextMenuItem>
-        <ContextMenuItem disabled={isLast} onSelect={() => closeTabsToRight(tab.id)}>
-          Close tabs to the right
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem onSelect={() => duplicateTab(tab.id)}>Duplicate tab</ContextMenuItem>
-        <ContextMenuItem
-          onSelect={() =>
-            void navigator.clipboard?.writeText(`${window.location.origin}${tab.href}`)
-          }
-        >
-          Copy link
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem disabled={!hasClosed} onSelect={reopenClosedTab}>
-          Reopen closed tab
-          <ContextMenuShortcut>Alt ⇧ T</ContextMenuShortcut>
-        </ContextMenuItem>
+        <ContextMenuGroup>
+          <ContextMenuItem onSelect={() => pinTab(tab.id, !pinned)}>
+            {pinned ? <PinOff /> : <Pin />}
+            {pinned ? "Unpin tab" : "Pin tab"}
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={() => closeTab(tab.id)}>
+            Close tab
+            {selected && focused && <ContextMenuShortcut>Alt W</ContextMenuShortcut>}
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => closeOtherTabs(tab.id)}>
+            Close other tabs
+          </ContextMenuItem>
+          <ContextMenuItem disabled={isLast} onSelect={() => closeTabsToRight(tab.id)}>
+            Close tabs to the right
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={() => duplicateTab(tab.id)}>Duplicate tab</ContextMenuItem>
+          <ContextMenuItem
+            onSelect={() =>
+              void navigator.clipboard?.writeText(`${window.location.origin}${tab.href}`)
+            }
+          >
+            Copy link
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem disabled={!hasClosed} onSelect={reopenClosedTab}>
+            Reopen closed tab
+            <ContextMenuShortcut>Alt ⇧ T</ContextMenuShortcut>
+          </ContextMenuItem>
+        </ContextMenuGroup>
       </ContextMenuContent>
     </ContextMenu>
   );

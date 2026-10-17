@@ -36,6 +36,7 @@ import {
 import { useBulkContext } from "@/app/features/repo/components/BulkSelection";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 
 // ─── Floating bulk action bar ──────────────────────────────────────────────
 //
@@ -314,16 +315,19 @@ function ActionPicker({
   closeOnSelect?: boolean;
   onToggle: (id: string) => void;
 }) {
+  const { canMutate, reason } = useCanMutate();
+  const unavailable = disabled || !canMutate;
   return (
     <Hint
-      label={disabled && disabledHint ? disabledHint : hint}
-      shortcut={disabled ? undefined : shortcut}
+      label={reason ?? (disabled && disabledHint ? disabledHint : hint)}
+      shortcut={unavailable ? undefined : shortcut}
       suppressed={open}
     >
       <SidebarPicker
         title={label}
         ariaLabel={label}
-        open={open && !disabled}
+        open={open && !unavailable}
+        disabled={unavailable}
         onOpenChange={onOpenChange}
         side="top"
         align="center"
@@ -344,9 +348,10 @@ function ActionPicker({
               aria-label={label}
               aria-keyshortcuts={shortcut}
               aria-disabled={disabled || undefined}
+              disabled={!canMutate}
               className="aria-disabled:pointer-events-auto aria-disabled:cursor-not-allowed aria-disabled:opacity-50 max-sm:w-8 max-sm:px-0"
               onClick={(event) => {
-                if (disabled) event.preventDefault();
+                if (unavailable) event.preventDefault();
               }}
             >
               <Icon data-icon="inline-start" aria-hidden />
@@ -395,6 +400,7 @@ function Hint({
 // ─── Result notice ─────────────────────────────────────────────────────────
 
 function Notice({ notice }: { notice: BulkNotice }) {
+  const { canMutate, reason } = useCanMutate();
   const { undo, retry, dismiss } = useBulkContext();
   const { tone } = notice;
   useEffect(() => {
@@ -422,7 +428,14 @@ function Notice({ notice }: { notice: BulkNotice }) {
       </p>
       <div className="flex shrink-0 items-center gap-0.5">
         {action && (
-          <Button variant="ghost" size="xs" className="text-foreground" onClick={action}>
+          <Button
+            variant="ghost"
+            size="xs"
+            className="text-foreground"
+            onClick={action}
+            disabled={!canMutate}
+            title={reason}
+          >
             {error ? "Retry" : "Undo"}
           </Button>
         )}

@@ -1,6 +1,7 @@
 import { GitBranch, Search } from "lucide-react";
 import { RateLimitNotice } from "@/app/components/shell/RateLimitNotice";
 import { RepoMark } from "@/app/components/shell/RepoMark";
+import { OfflinePill } from "@/app/components/shell/SessionNotices";
 import { UserMenu } from "@/app/components/shell/UserMenu";
 import { Kbd } from "@/app/components/ui/kbd";
 import { Skeleton } from "@/app/components/ui/skeleton";
@@ -9,7 +10,7 @@ import { useMe } from "@/app/hooks/useMe";
 import { useRepo } from "@/app/hooks/useRepo";
 import { logout, manageGitHubAccess } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
-import { openInNewTab } from "@/app/lib/tabActions";
+import { openOrJump } from "@/app/lib/tabActions";
 import { getTabMeta, tabRepo } from "@/app/lib/tabMeta";
 import { useCommandPalette } from "@/app/stores/commandPalette";
 import { hrefPathname } from "@/app/workspace/model";
@@ -19,7 +20,7 @@ import { hrefPathname } from "@/app/workspace/model";
 // The slim window bar on the frame, above the islands. It is global chrome,
 // not part of any tab:
 //
-//   [logo] [repo mark owner/repo  ⎇ branch] ── [Search or jump to… ⌘K] ── [avatar]
+//   [logo] [repo mark owner/repo  ⎇ branch] ── [Search or jump to… ⌘K] ── [notices] [avatar]
 //
 // The context names the focused tab's repo and branch, so you always know
 // where actions land. App-wide pages (dashboard, profile) show their label.
@@ -42,6 +43,7 @@ export function TitleBar({ focusedHref }: { focusedHref: string | null }) {
       <SearchTrigger />
       <div className="flex min-w-0 items-center justify-end gap-1.5">
         <RateLimitNotice />
+        <OfflinePill />
         {mePending && <Skeleton className="size-7 shrink-0 rounded-full" />}
         {me && (
           <UserMenu
@@ -64,7 +66,7 @@ function LogoButton() {
         <button
           type="button"
           aria-label="Open dashboard"
-          onClick={() => openInNewTab("/")}
+          onClick={() => openOrJump("/")}
           className={cn(
             "inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-foreground",
             "outline-none transition-colors hover:bg-accent focus-visible:ring-1 focus-visible:ring-(--color-focus)",

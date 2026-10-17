@@ -14,6 +14,7 @@ import { Textarea } from "@/app/components/ui/textarea";
 import type { MergeMethod } from "@/app/features/pulls/hooks";
 import type { PullRequest } from "@/app/features/pulls/schemas";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 
 // ─── PrMergeDialog ─────────────────────────────────────────────────────────
 //
@@ -67,6 +68,7 @@ export function PrMergeDialog({
   allowedMethods = DEFAULT_ALLOWED_METHODS,
   errorMessage,
 }: PrMergeDialogProps) {
+  const { canMutate, reason } = useCanMutate();
   const availableMethods = useMemo(
     () => METHODS.filter((m) => allowedMethods.includes(m.id)),
     [allowedMethods],
@@ -193,7 +195,8 @@ export function PrMergeDialog({
                 commitMessage: method === "merge" ? message : undefined,
               })
             }
-            disabled={isPending}
+            disabled={isPending || !canMutate}
+            title={reason}
           >
             {isPending
               ? isAutoMerge

@@ -13,12 +13,34 @@ export function tabsEnabled(): boolean {
 }
 
 /** Open `href` as a new tab in the focused island (navigates instead when tabs are off). */
-export function openInNewTab(href: string, opts: { select?: boolean } = {}) {
+export function openInNewTab(href: string, opts: { select?: boolean; islandId?: string } = {}) {
   if (!tabsEnabled()) {
     void getFocusedTabRouter()?.navigate({ href });
     return;
   }
-  dispatch({ type: "openTab", href, select: opts.select });
+  dispatch({ type: "openTab", href, select: opts.select, islandId: opts.islandId, match: "href" });
+}
+
+/** Launchers never replace a page: jump to an existing tab or open a new one. */
+export function openOrJump(href: string) {
+  if (!tabsEnabled()) return replaceFocusedTab(href);
+  dispatch({ type: "openOrJump", href });
+}
+
+export function openToSide(href: string, islandId?: string) {
+  if (!tabsEnabled()) return replaceFocusedTab(href);
+  dispatch({ type: "openToSide", href, islandId });
+}
+
+/** Explicit palette replacement navigates through the tab's own history. */
+export function replaceFocusedTab(href: string) {
+  void getFocusedTabRouter()?.navigate({ href });
+}
+
+/** Keep link actions in the source island even when a hover menu is portalled. */
+export function linkIslandId(target: EventTarget | null): string | undefined {
+  if (!(target instanceof Element)) return undefined;
+  return target.closest<HTMLElement>("[data-island]")?.dataset.island;
 }
 
 export function selectTab(tabId: string) {
@@ -63,6 +85,10 @@ export function moveTab(tabId: string, islandId: string, index: number) {
   dispatch({ type: "moveTab", tabId, islandId, index });
 }
 
+export function pinTab(tabId: string, pinned: boolean) {
+  dispatch({ type: "pinTab", tabId, pinned });
+}
+
 export function focusIsland(islandId: string) {
   dispatch({ type: "focusIsland", islandId });
 }
@@ -86,7 +112,7 @@ export function toggleMaximize(islandId?: string) {
   dispatch({ type: "toggleMaximize", islandId });
 }
 
-function focusPaneOfFocusedTab() {
+export function focusPaneOfFocusedTab() {
   const id = focusedTab(getWorkspace()).id;
   requestAnimationFrame(() => {
     document.querySelector<HTMLElement>(`[data-tab-pane="${id}"]`)?.focus({ preventScroll: true });

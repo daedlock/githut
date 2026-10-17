@@ -11,18 +11,20 @@ import { DocumentTitle } from "@/app/components/shell/DocumentTitle";
 import { IslandLayout } from "@/app/components/shell/IslandLayout";
 import { LayoutUndo } from "@/app/components/shell/LayoutUndo";
 import { LinkHoverMenu } from "@/app/components/shell/LinkHoverMenu";
+import { SignInBanner } from "@/app/components/shell/SessionNotices";
 import { TabShortcuts } from "@/app/components/shell/TabShortcuts";
 import { TitleBar } from "@/app/components/shell/TitleBar";
 import { TooltipProvider } from "@/app/components/ui/tooltip";
 import { cn } from "@/app/lib/cn";
 import { queryClientForTab, startWorkspaceFreshness } from "@/app/lib/freshness";
 import { queryClient } from "@/app/lib/query";
-import { getTabRouter } from "@/app/lib/tabRouters";
+import { getTabRouter, releaseTabRouter } from "@/app/lib/tabRouters";
 import { type TabScope, TabScopeContext } from "@/app/lib/tabScope";
 import { useAuthStore } from "@/app/stores/auth";
 import { useSettingsStore } from "@/app/stores/settings";
 import { focusedIsland, focusedTab, type Island, islands } from "@/app/workspace/model";
 import { getFocusedTab, useWorkspaceStore } from "@/app/workspace/store";
+import { KEEP_ALIVE_BUDGET, keepAliveTabs } from "@/app/workspace/tabLifetime";
 
 // ─── TabHost ───────────────────────────────────────────────────────────────
 //
@@ -46,8 +48,6 @@ import { getFocusedTab, useWorkspaceStore } from "@/app/workspace/store";
 // recently focused tabs up to the keep-alive budget stay mounted, and the
 // rest are released and rebuilt from their href on demand.
 
-const KEEP_ALIVE = 8;
-
 export function TabHost() {
   const workspace = useWorkspaceStore((s) => s.workspace);
   const { layout, focusedIslandId, maximizedIslandId } = workspace;
@@ -63,9 +63,17 @@ export function TabHost() {
     const all = islands(layout);
     const open = new Set(all.flatMap((i) => i.tabs.map((t) => t.id)));
     const next = [focused.id, ...recent.current.filter((id) => id !== focused.id && open.has(id))];
-    recent.current = tabsEnabled ? next.slice(0, KEEP_ALIVE) : [focused.id];
-    return new Set([...recent.current, ...all.map((i) => i.selectedTabId)]);
+    recent.current = tabsEnabled ? next.slice(0, KEEP_ALIVE_BUDGET) : [focused.id];
+    return keepAliveTabs(layout, recent.current);
   }, [layout, focused.id, tabsEnabled]);
+
+  // React releases the pane; release its router too. Query data and scroll
+  // memory remain available when the page is rebuilt on its next selection.
+  useEffect(() => {
+    for (const island of islands(layout)) {
+      for (const tab of island.tabs) if (!mounted.has(tab.id)) releaseTabRouter(tab.id);
+    }
+  }, [layout, mounted]);
 
   const focusedRouter = getTabRouter(focused.id, focused.href);
 
@@ -105,7 +113,7 @@ export function TabHost() {
     <TooltipProvider delayDuration={500} skipDelayDuration={300}>
       <div
         className={cn(
-          "flex h-full flex-col bg-(--color-frame)",
+          "relative flex h-full flex-col bg-(--color-frame)",
           "pr-[max(1rem,env(safe-area-inset-right))] pb-2 pl-[max(1rem,env(safe-area-inset-left))]",
         )}
       >
@@ -120,6 +128,7 @@ export function TabHost() {
           maximizedIslandId={maximizedIslandId}
           renderPanes={renderPanes}
         />
+        <SignInBanner />
       </div>
     </TooltipProvider>
   );

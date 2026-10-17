@@ -84,6 +84,7 @@ function undoLabel(cmd: WorkspaceCommand): string | null {
       return "Tab closed";
     case "splitIsland":
     case "moveTab":
+    case "pinTab":
     case "resizeGap":
     case "equalizeSplit":
       return "Layout changed";
@@ -91,6 +92,8 @@ function undoLabel(cmd: WorkspaceCommand): string | null {
     // silently discards tabs opened since the operation being undone.
     case "openTab":
     case "openUrl":
+    case "openOrJump":
+    case "openToSide":
     case "duplicateTab":
     case "reopenClosedTab":
       return "Tab opened";
