@@ -1,5 +1,5 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
+import { refreshTabOnFocus } from "@/app/lib/query";
 import { useTabScope } from "@/app/lib/tabScope";
 import { bucketBackoff, type RateResource, useRateLimitStore } from "@/app/stores/rateLimit";
 import { useWorkspaceView } from "@/app/stores/workspaceView";
@@ -83,18 +83,18 @@ export function useLiveInterval(resource: RateResource = "core") {
 }
 
 /**
- * Focusing an island refreshes its stale data, just like returning to the
- * window: the same per-query rules (staleTime, refetchOnWindowFocus) decide
- * what refetches. Rendered once per tab, beside the page so the page itself
- * never re-renders on focus changes.
+ * Focusing an island refreshes that tab's stale data, just like returning to
+ * the window: the same per-query rules (staleTime, refetchOnWindowFocus)
+ * decide what refetches. Other islands on screen are left alone. Rendered
+ * once per tab, beside the page so the page never re-renders on focus changes.
  */
 export function IslandFocusRefresh() {
-  const client = useQueryClient();
+  const { tabId } = useTabScope();
   const level = useFreshnessLevel();
   const previous = useRef(level);
   useEffect(() => {
-    if (previous.current === "visible" && level === "focused") client.getQueryCache().onFocus();
+    if (tabId && previous.current === "visible" && level === "focused") refreshTabOnFocus(tabId);
     previous.current = level;
-  }, [client, level]);
+  }, [tabId, level]);
   return null;
 }

@@ -11,7 +11,7 @@ import {
   useNotificationState,
 } from "@/app/features/notifications/service";
 import { pullsKeys } from "@/app/features/pulls/hooks";
-import { queryClient } from "@/app/lib/query";
+import { queryClient, subscribeQueryData } from "@/app/lib/query";
 import { useAuthStore } from "@/app/stores/auth";
 import { getRateBackoff, useRateLimitStore } from "@/app/stores/rateLimit";
 import { useWorkspaceView } from "@/app/stores/workspaceView";
@@ -291,7 +291,7 @@ export function startBackgroundWatcher(): () => void {
     useAuthStore.subscribe(refresh),
     useNotificationState.subscribe(refresh),
     useRateLimitStore.subscribe(refresh),
-    queryClient.getQueryCache().subscribe(refresh),
+    subscribeQueryData(refresh),
     onlineManager.subscribe(refresh),
   ];
   document.addEventListener("visibilitychange", refresh);

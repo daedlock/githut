@@ -1,3 +1,4 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterContextProvider, RouterProvider } from "@tanstack/react-router";
 import { Activity, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -19,6 +20,7 @@ import { WorkspaceArea } from "@/app/components/shell/WorkspaceArea";
 import { TooltipProvider } from "@/app/components/ui/tooltip";
 
 import { IslandFocusRefresh } from "@/app/lib/freshness";
+import { tabQueryClient } from "@/app/lib/query";
 import { getTabRouter, releaseTabRouter } from "@/app/lib/tabRouters";
 import { type TabScope, TabScopeContext } from "@/app/lib/tabScope";
 import { useAuthStore } from "@/app/stores/auth";
@@ -142,6 +144,7 @@ const TabPane = memo(
   function TabPane({ id, href }: { id: string; href: string }) {
     const ref = useRef<HTMLDivElement>(null);
     const [router] = useState(() => getTabRouter(id, href));
+    const [queries] = useState(() => tabQueryClient(id));
     // Page shortcuts and key listeners only act while this is the focused tab.
     const scope = useMemo<TabScope>(
       () => ({ tabId: id, isFocused: () => getFocusedTab().id === id }),
@@ -203,9 +206,11 @@ const TabPane = memo(
         className="absolute inset-0 overflow-y-auto overscroll-contain outline-none [--app-header-height:0px]"
       >
         <TabScopeContext.Provider value={scope}>
-          <IslandFocusRefresh />
-          <RouterProvider router={router} />
-          <PageScrollControls scrollerRef={ref} />
+          <QueryClientProvider client={queries}>
+            <IslandFocusRefresh />
+            <RouterProvider router={router} />
+            <PageScrollControls scrollerRef={ref} />
+          </QueryClientProvider>
         </TabScopeContext.Provider>
       </div>
     );

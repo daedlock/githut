@@ -31,7 +31,7 @@ import { useNotificationState } from "@/app/features/notifications/service";
 import { pullsKeys } from "@/app/features/pulls/hooks";
 import { usePageHasDraft } from "@/app/hooks/usePageHasDraft";
 import { cn } from "@/app/lib/cn";
-import { queryClient as workspaceQueryClient } from "@/app/lib/query";
+import { subscribeQueryData } from "@/app/lib/query";
 import {
   closeOtherTabs,
   closeTab,
@@ -400,7 +400,7 @@ function subscribeUnread(changed: () => void) {
   const cleanups = [
     useTabActivityStore.subscribe(changed),
     useNotificationState.subscribe(changed),
-    workspaceQueryClient.getQueryCache().subscribe(changed),
+    subscribeQueryData(changed),
   ];
   return () =>
     cleanups.forEach((stop) => {
@@ -473,7 +473,7 @@ function useCachedEntity(pathname: string): { title: string; tone: Tone } | null
   // Snapshot is a primitive so useSyncExternalStore can compare it cheaply.
   const snapshot = useSyncExternalStore(
     (cb) => {
-      const stops = [queryClient.getQueryCache().subscribe(cb), useTabActivityStore.subscribe(cb)];
+      const stops = [subscribeQueryData(cb), useTabActivityStore.subscribe(cb)];
       return () =>
         stops.forEach((stop) => {
           stop();
