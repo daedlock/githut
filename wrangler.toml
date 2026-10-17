@@ -3,9 +3,6 @@ main = "src/worker/index.ts"
 compatibility_date = "2025-04-20"
 compatibility_flags = ["nodejs_compat"]
 
-# Workers Builds serves each branch/PR at <alias>-githut.hossam-saraya.workers.dev.
-preview_urls = true
-
 routes = [
   { pattern = "githut.app", custom_domain = true },
   { pattern = "www.githut.app", custom_domain = true }
@@ -24,5 +21,20 @@ PREVIEW_HOST_SUFFIX = "githut.hossam-saraya.workers.dev"
 
 
 [[r2_buckets]]
+bucket_name = "githut-uploads"
+binding = "UPLOADS"
+
+# ─── Worker Previews ──────────────────────────────────────────────────────
+# Workers Builds runs `npx wrangler preview` for every branch/PR and comments
+# the URL (<branch>-githut.hossam-saraya.workers.dev) on the PR. Previews do
+# not inherit the settings above, so everything they need is repeated here.
+# Secrets come from the Preview base config (`wrangler preview base-config secret put`).
+[previews.vars]
+# Previews sign in through production and link uploads to it.
+APP_URL = "https://githut.app"
+PREVIEW_HOST_SUFFIX = "githut.hossam-saraya.workers.dev"
+
+[[previews.r2_buckets]]
+# Shared with production so upload links (on githut.app) keep working.
 bucket_name = "githut-uploads"
 binding = "UPLOADS"
