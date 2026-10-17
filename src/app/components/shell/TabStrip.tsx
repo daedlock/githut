@@ -26,18 +26,19 @@ import { issueDetailQueryOptions, issueKeys } from "@/app/features/issues/hooks"
 import { prDetailQueryOptions, pullsKeys } from "@/app/features/pulls/hooks";
 import { cn } from "@/app/lib/cn";
 import {
-  activateTab,
   closeOtherTabs,
-  closeTabById,
+  closeTab,
   closeTabsToRight,
   duplicateTab,
+  moveTab,
   reopenClosedTab,
-  reorderTabs,
+  selectTab,
 } from "@/app/lib/tabActions";
 import { getTabMeta, type TabMeta } from "@/app/lib/tabMeta";
 import { useAuthStore } from "@/app/stores/auth";
-import { hrefPathname, type Tab, useTabsStore } from "@/app/stores/tabs";
 import { useTabTitlesStore } from "@/app/stores/tabTitles";
+import { hrefPathname, type Island, type Tab } from "@/app/workspace/model";
+import { useWorkspaceStore } from "@/app/workspace/store";
 
 // ─── TabStrip ──────────────────────────────────────────────────────────────
 //
@@ -50,9 +51,8 @@ import { useTabTitlesStore } from "@/app/stores/tabTitles";
 //   click → switch · middle-click / × → close · drag → reorder
 //   right-click → close / close others / close to the right / duplicate / …
 
-export function TabStrip({ focused }: { focused: boolean }) {
-  const tabs = useTabsStore((s) => s.tabs);
-  const activeId = useTabsStore((s) => s.activeId);
+export function TabStrip({ island, focused }: { island: Island; focused: boolean }) {
+  const { tabs, selectedTabId } = island;
   const scroller = useRef<HTMLDivElement>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -73,7 +73,7 @@ export function TabStrip({ focused }: { focused: boolean }) {
   // ancestor (the page, the island) ever scrolls along with the strip.
   useEffect(() => {
     const strip = scroller.current;
-    const sel = activeId ? strip?.querySelector<HTMLElement>(`[data-tab-id="${activeId}"]`) : null;
+    const sel = strip?.querySelector<HTMLElement>(`[data-tab-id="${selectedTabId}"]`);
     if (!strip || !sel) return;
     const reveal = () => {
       const left = sel.offsetLeft - 2;
@@ -89,12 +89,13 @@ export function TabStrip({ focused }: { focused: boolean }) {
     ro.observe(sel);
     ro.observe(strip);
     return () => ro.disconnect();
-  }, [activeId]);
+  }, [selectedTabId]);
 
   function onDragEnd({ active, over }: DragEndEvent) {
     if (!over || active.id === over.id) return;
-    reorderTabs(
-      tabs.findIndex((t) => t.id === active.id),
+    moveTab(
+      String(active.id),
+      island.id,
       tabs.findIndex((t) => t.id === over.id),
     );
   }
@@ -127,7 +128,7 @@ export function TabStrip({ focused }: { focused: boolean }) {
             <TabItem
               key={tab.id}
               tab={tab}
-              active={tab.id === activeId}
+              selected={tab.id === selectedTabId}
               focused={focused}
               isLast={i === tabs.length - 1}
             />
@@ -151,17 +152,17 @@ const TONE_CLASS: Record<Tone, string> = {
 
 const TabItem = memo(function TabItem({
   tab,
-  active,
+  selected,
   focused,
   isLast,
 }: {
   tab: Tab;
-  active: boolean;
+  selected: boolean;
   focused: boolean;
   isLast: boolean;
 }) {
   const display = useTabDisplay(tab.href);
-  const hasClosed = useTabsStore((s) => s.closed.length > 0);
+  const hasClosed = useWorkspaceStore((s) => s.workspace.closed.length > 0);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: tab.id,
   });
@@ -177,21 +178,21 @@ const TabItem = memo(function TabItem({
               {...attributes}
               {...listeners}
               role="tab"
-              aria-selected={active}
-              tabIndex={active ? 0 : -1}
+              aria-selected={selected}
+              tabIndex={selected ? 0 : -1}
               data-tab-id={tab.id}
               onPointerDown={(e) => {
-                if (e.button === 0) activateTab(tab.id);
+                if (e.button === 0) selectTab(tab.id);
                 listeners?.onPointerDown?.(e);
               }}
               onMouseDown={(e) => e.button === 1 && e.preventDefault()}
-              onAuxClick={(e) => e.button === 1 && closeTabById(tab.id)}
+              onAuxClick={(e) => e.button === 1 && closeTab(tab.id)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  activateTab(tab.id);
+                  selectTab(tab.id);
                 } else if (e.key === "Delete") {
-                  closeTabById(tab.id);
+                  closeTab(tab.id);
                 }
               }}
               style={{
@@ -201,12 +202,12 @@ const TabItem = memo(function TabItem({
               className={cn(
                 "group relative flex h-7 min-w-16 max-w-[220px] shrink-0 cursor-default items-center gap-1.5 rounded-lg pl-2 pr-1",
                 "text-ui outline-none focus-visible:ring-1 focus-visible:ring-(--color-focus)",
-                !active &&
+                !selected &&
                   "text-muted-foreground hover:bg-[color-mix(in_oklab,var(--color-bg-sunken)_60%,transparent)] hover:text-foreground",
-                active &&
+                selected &&
                   !focused &&
                   "bg-muted text-foreground shadow-[0_0_0_1px_var(--color-border),0_1px_2px_rgb(0_0_0/0.12)]",
-                active &&
+                selected &&
                   focused && [
                     "bg-[color-mix(in_oklab,var(--color-brand)_9%,var(--color-bg-subtle))] text-foreground",
                     "shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-brand)_45%,var(--color-border)),0_1px_2px_rgb(0_0_0/0.14)]",
@@ -229,12 +230,12 @@ const TabItem = memo(function TabItem({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
-                  closeTabById(tab.id);
+                  closeTab(tab.id);
                 }}
                 className={cn(
                   "inline-flex size-4.5 shrink-0 items-center justify-center rounded-md text-muted-foreground",
                   "hover:bg-accent hover:text-foreground",
-                  active ? "visible" : "invisible group-hover:visible",
+                  selected ? "visible" : "invisible group-hover:visible",
                 )}
               >
                 <X className="size-3" />
@@ -256,9 +257,9 @@ const TabItem = memo(function TabItem({
         )}
       </Tooltip>
       <ContextMenuContent className="w-56">
-        <ContextMenuItem onSelect={() => closeTabById(tab.id)}>
+        <ContextMenuItem onSelect={() => closeTab(tab.id)}>
           Close tab
-          {active && <ContextMenuShortcut>Alt W</ContextMenuShortcut>}
+          {selected && focused && <ContextMenuShortcut>Alt W</ContextMenuShortcut>}
         </ContextMenuItem>
         <ContextMenuItem onSelect={() => closeOtherTabs(tab.id)}>Close other tabs</ContextMenuItem>
         <ContextMenuItem disabled={isLast} onSelect={() => closeTabsToRight(tab.id)}>

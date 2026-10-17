@@ -1,87 +1,96 @@
-import { getActiveTabRouter } from "@/app/lib/tabRouters";
+import { getFocusedTabRouter } from "@/app/lib/tabRouters";
 import { useSettingsStore } from "@/app/stores/settings";
-import {
-  closeOthers,
-  closeTab,
-  closeToRight,
-  getTabsSnapshot,
-  moveTab,
-  openTab,
-  type TabsSnapshot,
-  useTabsStore,
-} from "@/app/stores/tabs";
+import { type Direction, focusedTab, type Side } from "@/app/workspace/model";
+import { dispatch, getWorkspace } from "@/app/workspace/store";
 
-// Imperative tab commands shared by the tab strip, keyboard shortcuts, the
-// shift+click interceptor, the link hover menu and the command palette.
-// Every tab stays mounted (TabHost), so these are pure state changes —
-// switching tabs is just a visibility flip.
-
-function apply(fn: (s: TabsSnapshot) => TabsSnapshot) {
-  useTabsStore.getState().apply(fn);
-}
+// Imperative workspace commands shared by island headers, keyboard
+// shortcuts, the shift+click interceptor, the link hover menu and the
+// command palette. Every tab stays mounted (TabHost), so these are pure
+// state changes — switching tabs is just a visibility flip.
 
 export function tabsEnabled(): boolean {
   return useSettingsStore.getState().tabsEnabled;
 }
 
-/** Navigate the active tab (used when tabs are turned off). */
-function navigateActive(href: string) {
-  void getActiveTabRouter()?.navigate({ href });
+/** Open `href` as a new tab in the focused island (navigates instead when tabs are off). */
+export function openInNewTab(href: string, opts: { select?: boolean } = {}) {
+  if (!tabsEnabled()) {
+    void getFocusedTabRouter()?.navigate({ href });
+    return;
+  }
+  dispatch({ type: "openTab", href, select: opts.select });
 }
 
-export function openInNewTab(href: string, opts: { activate?: boolean } = {}) {
-  if (!tabsEnabled()) return navigateActive(href);
-  apply((s) => openTab(s, href, opts).state);
+export function selectTab(tabId: string) {
+  dispatch({ type: "selectTab", tabId });
 }
 
-export function activateTab(id: string) {
-  apply((s) =>
-    s.activeId === id || !s.tabs.some((t) => t.id === id) ? s : { ...s, activeId: id },
-  );
-}
-
-export function activateTabAt(index: number) {
-  const { tabs } = getTabsSnapshot();
-  const tab = index < 0 ? tabs[tabs.length - 1] : tabs[index];
-  if (tab) activateTab(tab.id);
+/** Select the n-th tab of the focused island; -1 is the last. */
+export function selectTabAt(index: number) {
+  dispatch({ type: "selectTabAt", index });
 }
 
 export function cycleTab(delta: 1 | -1) {
-  const { tabs, activeId } = getTabsSnapshot();
-  if (tabs.length < 2) return;
-  const idx = tabs.findIndex((t) => t.id === activeId);
-  activateTab(tabs[(idx + delta + tabs.length) % tabs.length]!.id);
+  dispatch({ type: "cycleTab", delta });
 }
 
-export function closeTabById(id: string) {
-  apply((s) => closeTab(s, id));
+export function closeTab(tabId: string) {
+  dispatch({ type: "closeTab", tabId });
 }
 
-export function closeActiveTab() {
-  const { activeId } = getTabsSnapshot();
-  if (activeId) closeTabById(activeId);
+export function closeFocusedTab() {
+  closeTab(focusedTab(getWorkspace()).id);
 }
 
-export function closeOtherTabs(id: string) {
-  apply((s) => closeOthers(s, id));
+export function closeOtherTabs(tabId: string) {
+  dispatch({ type: "closeOtherTabs", tabId });
 }
 
-export function closeTabsToRight(id: string) {
-  apply((s) => closeToRight(s, id));
+export function closeTabsToRight(tabId: string) {
+  dispatch({ type: "closeTabsToRight", tabId });
 }
 
-export function duplicateTab(id: string) {
-  const tab = getTabsSnapshot().tabs.find((t) => t.id === id);
-  if (tab) apply((s) => openTab({ ...s, activeId: id }, tab.href, { allowDuplicate: true }).state);
+export function duplicateTab(tabId: string) {
+  dispatch({ type: "duplicateTab", tabId });
 }
 
 export function reopenClosedTab() {
-  const href = getTabsSnapshot().closed.at(-1);
-  if (href) apply((s) => openTab({ ...s, closed: s.closed.slice(0, -1) }, href).state);
+  dispatch({ type: "reopenClosedTab" });
 }
 
-export function reorderTabs(from: number, to: number) {
-  apply((s) => moveTab(s, from, to));
+/** Reorder a tab within its island. */
+export function moveTab(tabId: string, islandId: string, index: number) {
+  dispatch({ type: "moveTab", tabId, islandId, index });
+}
+
+export function focusIsland(islandId: string) {
+  dispatch({ type: "focusIsland", islandId });
+}
+
+/**
+ * Focus the neighbouring island and move keyboard focus into its page, so
+ * keys typed next land there rather than in the island just left.
+ */
+export function focusNeighbourIsland(direction: Direction) {
+  const before = getWorkspace().focusedIslandId;
+  dispatch({ type: "focusNeighbour", direction });
+  if (getWorkspace().focusedIslandId !== before) focusPaneOfFocusedTab();
+}
+
+/** Open the island's selected page in a new island beside it (default: the focused island). */
+export function splitIsland(side: Extract<Side, "right" | "bottom">, islandId?: string) {
+  dispatch({ type: "splitIsland", side, islandId });
+}
+
+export function toggleMaximize(islandId?: string) {
+  dispatch({ type: "toggleMaximize", islandId });
+}
+
+function focusPaneOfFocusedTab() {
+  const id = focusedTab(getWorkspace()).id;
+  requestAnimationFrame(() => {
+    document.querySelector<HTMLElement>(`[data-tab-pane="${id}"]`)?.focus({ preventScroll: true });
+  });
 }
 
 /** In-app href for an `<a>` the event landed in, or null if it isn't an internal link. */

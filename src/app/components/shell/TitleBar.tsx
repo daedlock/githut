@@ -12,7 +12,7 @@ import { cn } from "@/app/lib/cn";
 import { openInNewTab } from "@/app/lib/tabActions";
 import { getTabMeta, tabRepo } from "@/app/lib/tabMeta";
 import { useCommandPalette } from "@/app/stores/commandPalette";
-import { hrefPathname } from "@/app/stores/tabs";
+import { hrefPathname } from "@/app/workspace/model";
 
 // ─── TitleBar ──────────────────────────────────────────────────────────────
 //

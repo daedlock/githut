@@ -30,6 +30,9 @@ const SHORTCUTS: readonly Shortcut[] = [
   { chord: "Alt [", label: "Previous tab", scope: "tabs" },
   { chord: "Alt ]", label: "Next tab", scope: "tabs" },
   { chord: "Alt 1–9", label: "Jump to tab (9 = last)", scope: "tabs" },
+  { chord: "Alt \\", label: "Split island right", scope: "tabs" },
+  { chord: "Alt ⇧ ←↑↓→", label: "Focus neighbouring island", scope: "tabs" },
+  { chord: "←↑↓→", label: "Resize the focused gap (⇧ for larger steps)", scope: "tabs" },
 
   // Diff viewer (already wired in DiffLayout)
   { chord: "j", label: "Next file", scope: "diff" },
@@ -51,7 +54,7 @@ const SHORTCUTS: readonly Shortcut[] = [
 
 const SCOPE_TITLES: Record<Scope, string> = {
   global: "Global",
-  tabs: "Tabs",
+  tabs: "Tabs and islands",
   repo: "Repo",
   diff: "Diff viewer",
   list: "List",

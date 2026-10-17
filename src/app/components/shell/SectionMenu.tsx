@@ -19,7 +19,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/too
 import { cn } from "@/app/lib/cn";
 import { openInNewTab } from "@/app/lib/tabActions";
 import { type RepoSection, tabRepo, tabSection } from "@/app/lib/tabMeta";
-import { hrefPathname } from "@/app/stores/tabs";
+import { hrefPathname } from "@/app/workspace/model";
 
 // ─── SectionMenu ───────────────────────────────────────────────────────────
 //

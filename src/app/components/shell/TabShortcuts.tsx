@@ -2,16 +2,18 @@ import { useEffect, useMemo } from "react";
 
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import {
-  activateTabAt,
-  closeActiveTab,
+  closeFocusedTab,
   cycleTab,
+  focusNeighbourIsland,
   internalLinkHref,
   openInNewTab,
   reopenClosedTab,
+  selectTabAt,
+  splitIsland,
 } from "@/app/lib/tabActions";
 import { useSettingsStore } from "@/app/stores/settings";
 
-/** Global tab entry points: shift+click on internal links and alt-based shortcuts. */
+/** Global tab and island entry points: shift+click on internal links and alt-based shortcuts. */
 export function TabShortcuts() {
   const tabsEnabled = useSettingsStore((s) => s.tabsEnabled);
 
@@ -40,13 +42,18 @@ export function TabShortcuts() {
   const shortcuts = useMemo(() => {
     if (!tabsEnabled) return {};
     const map: Record<string, () => void> = {
-      "alt+w": closeActiveTab,
+      "alt+w": closeFocusedTab,
       "alt+shift+t": reopenClosedTab,
       "alt+]": () => cycleTab(1),
       "alt+[": () => cycleTab(-1),
-      "alt+9": () => activateTabAt(-1),
+      "alt+9": () => selectTabAt(-1),
+      "alt+\\": () => splitIsland("right"),
+      "alt+shift+arrowleft": () => focusNeighbourIsland("left"),
+      "alt+shift+arrowright": () => focusNeighbourIsland("right"),
+      "alt+shift+arrowup": () => focusNeighbourIsland("up"),
+      "alt+shift+arrowdown": () => focusNeighbourIsland("down"),
     };
-    for (let n = 1; n <= 8; n++) map[`alt+${n}`] = () => activateTabAt(n - 1);
+    for (let n = 1; n <= 8; n++) map[`alt+${n}`] = () => selectTabAt(n - 1);
     return map;
   }, [tabsEnabled]);
   useKeybindings(shortcuts);

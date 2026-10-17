@@ -6,8 +6,9 @@ import { TabHost } from "@/app/components/shell/TabHost";
 import { bootstrapAuthFromHash } from "@/app/lib/auth";
 import { queryClient } from "@/app/lib/query";
 import { setTabRouterFactory, startBrowserSync } from "@/app/lib/tabRouters";
-import { getTabsSnapshot, normalizeHref, syncActive, useTabsStore } from "@/app/stores/tabs";
 import { bootstrapTheme } from "@/app/stores/theme";
+import { normalizeHref } from "@/app/workspace/model";
+import { dispatch, initWorkspace } from "@/app/workspace/store";
 import "./styles/index.css";
 import { routeTree } from "./routeTree.gen";
 
@@ -32,14 +33,13 @@ declare module "@tanstack/react-router" {
 
 setTabRouterFactory(createAppRouter);
 
-// Reconcile persisted tabs with the URL we were opened at: focus the tab
-// already showing it, otherwise point the active tab there.
+// Restore this window's layout, then reconcile it with the URL we were
+// opened at: focus the tab already showing it, otherwise open it in the
+// focused island (ADR 0002).
 {
   const href = normalizeHref(window.location.href);
-  const match = getTabsSnapshot().tabs.find((t) => t.href === href);
-  useTabsStore
-    .getState()
-    .apply((s) => (match ? { ...s, activeId: match.id } : syncActive(s, href)));
+  initWorkspace(href);
+  dispatch({ type: "openUrl", href });
 }
 startBrowserSync();
 

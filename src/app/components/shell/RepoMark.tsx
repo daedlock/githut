@@ -3,7 +3,8 @@ import type { CSSProperties } from "react";
 import { cn } from "@/app/lib/cn";
 import { repoHue, repoMarkLetter } from "@/app/lib/repoMark";
 import { tabRepo } from "@/app/lib/tabMeta";
-import { hrefPathname, useTabsStore } from "@/app/stores/tabs";
+import { hrefPathname, islands } from "@/app/workspace/model";
+import { useWorkspaceStore } from "@/app/workspace/store";
 
 // ─── RepoMark ──────────────────────────────────────────────────────────────
 //
@@ -13,9 +14,9 @@ import { hrefPathname, useTabsStore } from "@/app/stores/tabs";
 
 /** Repos with an open tab, newline-joined so selectors compare cheaply. */
 function useReposInView(): string {
-  return useTabsStore((s) => {
+  return useWorkspaceStore((s) => {
     const repos = new Set<string>();
-    for (const t of s.tabs) {
+    for (const t of islands(s.workspace.layout).flatMap((i) => i.tabs)) {
       const r = tabRepo(hrefPathname(t.href));
       if (r) repos.add(r.toLowerCase());
     }

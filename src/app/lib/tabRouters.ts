@@ -1,13 +1,15 @@
 import type { AnyRouter } from "@tanstack/react-router";
-import { getTabsSnapshot, setTabHref, useTabsStore } from "@/app/stores/tabs";
+import { findTab, focusedTab, islands } from "@/app/workspace/model";
+import { dispatch, getFocusedTab, getWorkspace, useWorkspaceStore } from "@/app/workspace/store";
 
 // ─── Per-tab routers ─────────────────────────────────────────────────────────
 //
 // Each tab gets its own TanStack router over an in-memory history, created
-// lazily on first activation. The browser URL mirrors whichever tab is active:
+// lazily on first show. The browser URL mirrors the focused tab (ADR 0002):
 // in-tab navigation pushes/replaces browser entries, and browser back/forward
-// is replayed onto the active tab's own history, so Back never leaks across
-// tabs.
+// is replayed onto the focused tab's own history, so Back never leaks across
+// tabs. Routers are keyed by tab id, so a tab moved to another island keeps
+// its router and history.
 //
 // The factory is injected from main.tsx (which owns routeTree + queryClient)
 // to keep this module out of the route import graph.
@@ -41,9 +43,8 @@ export function getTabRouter(id: string, href: string): AnyRouter {
   return router;
 }
 
-export function getActiveTabRouter(): AnyRouter | undefined {
-  const { activeId } = getTabsSnapshot();
-  return activeId ? routers.get(activeId) : undefined;
+export function getFocusedTabRouter(): AnyRouter | undefined {
+  return routers.get(getFocusedTab().id);
 }
 
 /** Drop a tab's router; it's rebuilt from the tab's href if the tab is shown again. */
@@ -68,9 +69,9 @@ function writeUrl(href: string, mode: "push" | "replace") {
 }
 
 function onTabLocation(id: string, href: string, action: string) {
-  const before = getTabsSnapshot().tabs.find((t) => t.id === id)?.href;
-  useTabsStore.getState().apply((s) => setTabHref(s, id, href));
-  if (getTabsSnapshot().activeId !== id) return;
+  const before = findTab(getWorkspace().layout, id)?.tab.href;
+  dispatch({ type: "navigate", tabId: id, href });
+  if (getFocusedTab().id !== id) return;
 
   writeUrl(href, action === "PUSH" ? "push" : "replace");
 
@@ -82,8 +83,8 @@ function onTabLocation(id: string, href: string, action: string) {
 }
 
 /**
- * Wire the browser URL to the tab model. Call once at startup, after the
- * store has been reconciled with the URL the app was opened at.
+ * Wire the browser URL to the workspace. Call once at startup, after the
+ * workspace has been reconciled with the URL the app was opened at.
  */
 export function startBrowserSync(): () => void {
   seq = typeof window.history.state?.ghSeq === "number" ? window.history.state.ghSeq : 0;
@@ -92,7 +93,7 @@ export function startBrowserSync(): () => void {
   const onPopState = (e: PopStateEvent) => {
     const next = e.state?.ghSeq;
     if (typeof next !== "number") return;
-    const router = getActiveTabRouter();
+    const router = getFocusedTabRouter();
     const delta = next - seq;
     seq = next;
     if (!router || delta === 0) return;
@@ -104,16 +105,15 @@ export function startBrowserSync(): () => void {
   };
   window.addEventListener("popstate", onPopState);
 
-  // Switching tabs re-points the URL without adding history entries, and
+  // Moving focus re-points the URL without adding history entries, and
   // routers of closed tabs are released.
-  const unsubscribe = useTabsStore.subscribe((s, prev) => {
-    if (s.activeId !== prev.activeId) {
-      const active = s.tabs.find((t) => t.id === s.activeId);
-      if (active) writeUrl(active.href, "replace");
-    }
-    if (s.tabs !== prev.tabs) {
+  const unsubscribe = useWorkspaceStore.subscribe(({ workspace: ws }, { workspace: prev }) => {
+    const focused = focusedTab(ws);
+    if (focused.id !== focusedTab(prev).id) writeUrl(focused.href, "replace");
+    if (ws.layout !== prev.layout) {
+      const open = new Set(islands(ws.layout).flatMap((i) => i.tabs.map((t) => t.id)));
       for (const id of routers.keys()) {
-        if (!s.tabs.some((t) => t.id === id)) disposeTabRouter(id);
+        if (!open.has(id)) disposeTabRouter(id);
       }
     }
   });
