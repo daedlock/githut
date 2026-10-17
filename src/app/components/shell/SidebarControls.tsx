@@ -15,8 +15,9 @@ const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navi
 /**
  * Global controls stay in the sidebar; the islands own the entire adjacent
  * area. The top row is `h-10` in both states, so Inbox and every row below
- * keep their position when the sidebar collapses: the rail keeps only the
- * toggle on top and moves search and account to its foot (`SidebarRailFooter`).
+ * keep their position when the sidebar collapses. Expanded, it is the account
+ * switcher, then search and the toggle; the rail keeps only the toggle on top
+ * and moves search and account to its foot (`SidebarRailFooter`).
  */
 export function SidebarControls({
   collapsed = false,
@@ -29,16 +30,20 @@ export function SidebarControls({
     <div
       data-link-menu="off"
       className={cn(
-        "flex h-10 shrink-0 items-center gap-1",
-        collapsed ? "justify-center" : "px-1",
+        "flex h-10 shrink-0 items-center gap-0.5",
+        collapsed ? "justify-center" : "pr-2",
         drawer && "pr-6",
       )}
     >
-      {!drawer && <SidebarToggle />}
-      {!collapsed && (
+      {collapsed ? (
+        <SidebarToggle />
+      ) : (
         <>
-          <span className="min-w-0 flex-1 truncate text-ui font-medium">GitHut</span>
-          <GlobalControls drawer={drawer} />
+          {/* Account switcher on the left, like a workspace switcher; search and the toggle on the right. */}
+          <AccountMenu drawer={drawer} />
+          <span className="flex-1" />
+          <SearchButton drawer={drawer} />
+          {!drawer && <SidebarToggle />}
         </>
       )}
     </div>
@@ -54,39 +59,60 @@ export function SidebarRailFooter() {
   );
 }
 
-function GlobalControls({ drawer = false }: { drawer?: boolean }) {
-  const { data: me } = useMe();
+function GlobalControls() {
+  return (
+    <>
+      <SearchButton />
+      <AccountMenu variant="avatar" />
+    </>
+  );
+}
+
+function SearchButton({ drawer = false }: { drawer?: boolean }) {
   const { open: openSearch } = useCommandPalette();
   const setSidebarOpen = useWorkspaceView((state) => state.setSidebarOpen);
   return (
-    <>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Search or jump to"
-            aria-keyshortcuts={mac ? "Meta+K" : "Control+K"}
-            onClick={() => {
-              if (drawer) setSidebarOpen(false);
-              openSearch();
-            }}
-          >
-            <Search />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          Search or jump to <Kbd>{mac ? "⌘K" : "Ctrl K"}</Kbd>
-        </TooltipContent>
-      </Tooltip>
-      <UserMenu
-        login={me?.login}
-        avatarUrl={me?.avatar_url}
-        onSignOut={logout}
-        onReAuth={manageGitHubAccess}
-        onNavigate={drawer ? () => setSidebarOpen(false) : undefined}
-      />
-    </>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Search or jump to"
+          aria-keyshortcuts={mac ? "Meta+K" : "Control+K"}
+          className="text-muted-foreground"
+          onClick={() => {
+            if (drawer) setSidebarOpen(false);
+            openSearch();
+          }}
+        >
+          <Search />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        Search or jump to <Kbd>{mac ? "⌘K" : "Ctrl K"}</Kbd>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+function AccountMenu({
+  drawer = false,
+  variant = "account",
+}: {
+  drawer?: boolean;
+  variant?: "avatar" | "account";
+}) {
+  const { data: me } = useMe();
+  const setSidebarOpen = useWorkspaceView((state) => state.setSidebarOpen);
+  return (
+    <UserMenu
+      variant={variant}
+      login={me?.login}
+      avatarUrl={me?.avatar_url}
+      onSignOut={logout}
+      onReAuth={manageGitHubAccess}
+      onNavigate={drawer ? () => setSidebarOpen(false) : undefined}
+    />
   );
 }
 

@@ -202,7 +202,7 @@ try {
     await sidebar
       .getByRole("button", { name: "Favorite project · demo/project", exact: true })
       .click();
-    await sidebar.getByRole("button", { name: "Favorite current view", exact: true }).click();
+    await sidebar.getByRole("button", { name: "Favorite this page", exact: true }).click();
     await section
       .getByRole("button", { name: "project · PRs · demo/project", exact: true })
       .waitFor();
@@ -225,7 +225,7 @@ try {
       const { useAuthStore } = await import("/src/app/stores/auth.ts");
       useAuthStore.getState().setToken("account-b", 2);
     });
-    await section.getByText("Keep repos and views here.").waitFor();
+    await section.getByText("Star a repo or page to keep it here.").waitFor();
     assert.equal(await section.locator("[data-sidebar-row]").count(), 0);
     await page.evaluate(async () => {
       const { useAuthStore } = await import("/src/app/stores/auth.ts");
@@ -292,9 +292,6 @@ try {
         .innerText(),
       "Pr",
     );
-    await sidebar.getByRole("textbox", { name: "Filter sidebar" }).fill("phoenix");
-    assert.equal(await stars.locator("[data-sidebar-row]").count(), 1);
-    await sidebar.getByRole("textbox", { name: "Filter sidebar" }).fill("");
     await stars
       .getByRole("button", { name: "phoenix · demo/phoenix", exact: true })
       .click({ button: "right" });
@@ -305,7 +302,7 @@ try {
     assert.equal(await page.locator("[data-island]").first().getAttribute("data-focused"), "true");
     assert.deepEqual(navigation.errors, []);
     console.log(
-      "PASS launcher jump, Alt side, menu duplicate, filtering, open indicators and shared repo marks",
+      "PASS launcher jump, Alt side, menu duplicate, open indicators and shared repo marks",
     );
   } finally {
     await navigation.close();
@@ -326,16 +323,12 @@ try {
     for (const icon of [
       mark,
       sidebar.getByRole("button", { name: "Search or jump to", exact: true }).locator("svg"),
-      sidebar.getByRole("button", { name: "Filter sidebar", exact: true }).locator("svg"),
       sidebar.getByRole("button", { name: "company repositories", exact: true }).locator("svg"),
     ]) {
       const box = await icon.boundingBox();
       assert.equal(box.x + box.width / 2, railCenter);
     }
-    await sidebar.getByRole("button", { name: "Filter sidebar", exact: true }).click();
-    await page.waitForFunction(() =>
-      document.activeElement?.matches('input[aria-label="Filter sidebar"]'),
-    );
+    await page.getByRole("button", { name: "Expand sidebar", exact: true }).click();
     assert.equal((await sidebar.boundingBox()).width, 240);
     await page.getByRole("button", { name: "Collapse sidebar", exact: true }).click();
     assert.equal((await sidebar.boundingBox()).width, 40);
@@ -358,7 +351,7 @@ try {
     assert.equal((await sidebar.boundingBox()).width, 240);
     assert.deepEqual(resize.errors, []);
     console.log(
-      "PASS collapsed controls align and filter focuses, keyboard collapse, resize snaps, persists and resets",
+      "PASS collapsed controls align, keyboard collapse, resize snaps, persists and resets",
     );
   } finally {
     await resize.close();

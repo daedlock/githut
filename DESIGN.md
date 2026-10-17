@@ -265,8 +265,9 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
   previous sizes. Nothing animates.
 
 ### Global controls
-- Compact sidebar controls hold its toggle, command-search icon and account menu.
-  In the collapsed rail these controls stack vertically. There is no global title
+- The sidebar's top row (`h-10`) is the account switcher (avatar, login, ⌄) on
+  the left, then the command-search icon and the sidebar toggle. The collapsed
+  rail keeps only the toggle on top and stacks search and account at its foot. There is no global title
   bar or visible command-search field. Cmd/Ctrl+K still opens command search.
 - Repo identity and sections live in each island's breadcrumb row; focused
   context is reflected by the focused island and browser URL.
@@ -344,15 +345,30 @@ island's tabs, for its selected tab:
 ### Sidebar
 
 The sidebar holds Inbox, Favorites, Your repos, then Organizations. Repository
-lists start with six rows and reveal more on request; a text filter finds
-repository names and favorite pages. Organizations start collapsed and load
-accessible repos when expanded. Your repos includes owned and direct-collaborator
+lists start with six rows and reveal more on request. There is no filter
+field: command search (Cmd/Ctrl+K) finds repos and favorites. Organizations
+start collapsed and load accessible repos when expanded; their repos indent
+under a hairline guide (`bg-foreground/8`) with the caret beside the name.
+
+- Section headers are quiet: `h-7 text-caption font-medium` in
+  `--color-fg-faint`, sentence case, no icons. Hovering shows a collapse caret
+  and the section's one action (Favorites: favorite this page). In the rail a
+  section header is a hairline.
+- Rows are `h-7 rounded-md px-2 gap-2 text-ui`, icon or repo mark first.
+  Each row has one trailing slot: at rest a count pill (Inbox) or up to three
+  3px dots for tabs open on that repo; on hover the favorite star takes the
+  slot. No star shows at rest.
+- Favorited views read like the breadcrumb: `nickai-app › PRs`, with the
+  section in `--color-fg-faint`.
+- The current row is `bg-accent text-foreground`; others are
+  `text-foreground/90` with muted icons. Gaps between sections are `gap-3.5`. Your repos includes owned and direct-collaborator
 repos, not every repo from organization membership.
 
 Favorites are explicit local navigation preferences for this verified account
 on this device. Repos and specific pages are independent entries; a page label
-uses `repo · section` with the full owner/repo in its accessible label and tooltip.
-Keep the favorite action visible and keyboard accessible. Do not populate the
+uses `repo › section` on screen, `repo · section · owner/repo` as its
+accessible label, and the owner/repo in its tooltip. Keep the favorite action
+keyboard accessible (it reveals on focus too, and always shows on touch). Do not populate the
 sidebar with GitHub stars, recent pages, or expanded pull request queues.
 
 ### Repo marks
@@ -456,7 +472,24 @@ h-8, `lg` h-9, plus `icon-*` squares. Icons take
 `data-icon="inline-start|inline-end"` and no manual size. Don't invent
 variants.
 
-### Tooltips and shortcuts
+### Tooltips and previews
+Two hover surfaces, each with one job:
+
+- **Shell tooltip** (`ShellTipContent`) for islands and app chrome: tabs,
+  sidebar rows, island controls. Inverted to the theme (the tooltip
+  primitive). A title line (`text-caption font-medium`, two lines max), then
+  one quiet detail line (`text-micro`, `text-background/65`) whose parts join
+  with `·`: a state dot and mono `owner/repo#n`, state, pinned, draft.
+  Identifiers truncate, never wrap. 500ms first, instant between neighbours.
+- **Preview card** (`EntityHoverCard`) for content refs: #issues, PRs and
+  @people inside comments and descriptions. The hover-card primitive, `w-72`.
+  An identity line (state icon, mono `owner/repo#n`, age in fg-faint), the
+  title (`text-ui font-medium`, two lines), the first line of the body, labels,
+  then author and comment count. Loading is a `Skeleton` card.
+
+Never use a preview card on chrome or a shell tooltip on content.
+
+### Shortcuts
 Every icon-only control gets a tooltip. Put shortcuts in the tooltip as
 `<Kbd>`, set `aria-keyshortcuts`, register them with `useKeybindings`, and
 list them in `KeyboardHelp.tsx`. `Esc` belongs to the innermost layer

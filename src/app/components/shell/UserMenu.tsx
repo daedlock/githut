@@ -1,4 +1,14 @@
-import { KeyRound, LogOut, Monitor, Moon, PanelsTopLeft, Settings, Sun, User2 } from "lucide-react";
+import {
+  ChevronDown,
+  KeyRound,
+  LogOut,
+  Monitor,
+  Moon,
+  PanelsTopLeft,
+  Settings,
+  Sun,
+  User2,
+} from "lucide-react";
 import { ThemePalettePicker } from "@/app/components/shell/ThemePalettePicker";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
@@ -23,6 +33,8 @@ export type UserMenuProps = {
   onSignOut: () => void;
   onReAuth?: () => void;
   onNavigate?: () => void;
+  /** "account" shows avatar and login as the sidebar's account switcher; "avatar" is the bare avatar. */
+  variant?: "avatar" | "account";
 };
 
 const THEME_OPTIONS: { value: ThemePreference; icon: typeof Sun; label: string }[] = [
@@ -31,7 +43,14 @@ const THEME_OPTIONS: { value: ThemePreference; icon: typeof Sun; label: string }
   { value: "dark", icon: Moon, label: "Dark" },
 ];
 
-export function UserMenu({ login, avatarUrl, onSignOut, onReAuth, onNavigate }: UserMenuProps) {
+export function UserMenu({
+  login,
+  avatarUrl,
+  onSignOut,
+  onReAuth,
+  onNavigate,
+  variant = "avatar",
+}: UserMenuProps) {
   const themePreference = useThemeStore((s) => s.preference);
   const setThemePreference = useThemeStore((s) => s.setPreference);
 
@@ -40,25 +59,41 @@ export function UserMenu({ login, avatarUrl, onSignOut, onReAuth, onNavigate }: 
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Open user menu"
-              className="rounded-full p-0"
-            >
-              {avatarUrl ? (
-                <Avatar login={login ?? "User avatar"} avatarUrl={avatarUrl} size="lg" />
-              ) : (
-                <User2 />
-              )}
-            </Button>
+            {variant === "account" ? (
+              <button
+                type="button"
+                aria-label="Open user menu"
+                className="flex h-7 min-w-0 items-center gap-2 rounded-md px-1.5 text-ui font-medium outline-none hover:bg-accent focus-visible:ring-1 focus-visible:ring-foreground/15 aria-expanded:bg-accent"
+              >
+                {avatarUrl ? (
+                  <Avatar login={login ?? "User avatar"} avatarUrl={avatarUrl} size="sm" />
+                ) : (
+                  <User2 className="size-4 text-muted-foreground" />
+                )}
+                <span className="truncate">{login ?? "Account"}</span>
+                <ChevronDown aria-hidden className="size-3 shrink-0 text-(--color-fg-faint)" />
+              </button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Open user menu"
+                className="rounded-full p-0"
+              >
+                {avatarUrl ? (
+                  <Avatar login={login ?? "User avatar"} avatarUrl={avatarUrl} size="lg" />
+                ) : (
+                  <User2 />
+                )}
+              </Button>
+            )}
           </DropdownMenuTrigger>
         </TooltipTrigger>
         <TooltipContent>Account</TooltipContent>
       </Tooltip>
 
       <DropdownMenuContent
-        align="end"
+        align={variant === "account" ? "start" : "end"}
         sideOffset={8}
         className="w-[320px] overflow-hidden rounded-xl bg-popover p-2.5"
       >

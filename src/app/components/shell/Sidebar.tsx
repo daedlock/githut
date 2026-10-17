@@ -1,7 +1,8 @@
-import { Building2, ChevronRight, FolderGit2, Funnel, Inbox, Star } from "lucide-react";
+import { ChevronDown, ChevronRight, Inbox, Star } from "lucide-react";
 import { memo, type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { RepoMark } from "@/app/components/shell/RepoMark";
+import { ShellTipContent, TipId } from "@/app/components/shell/ShellTip";
 import { SidebarControls, SidebarRailFooter } from "@/app/components/shell/SidebarControls";
 import type { useDocking } from "@/app/components/shell/useDocking";
 import { Avatar } from "@/app/components/ui/avatar";
@@ -18,18 +19,15 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/app/components/ui/context-menu";
-import { Input } from "@/app/components/ui/input";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
+import { Tooltip, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { useNotificationUnreadCount } from "@/app/features/notifications/service";
 import {
   type RepositoryList,
   type SidebarOrganization,
   useOrganizationRepositories,
-  useRepositorySearch,
   useSidebarOrganizations,
   useYourRepositories,
 } from "@/app/hooks/sidebarRepositories";
-import { useMe } from "@/app/hooks/useMe";
 import { useStableList } from "@/app/hooks/useStableList";
 import { cn } from "@/app/lib/cn";
 import { focusPaneOfFocusedTab, openInNewTab, openOrJump, openToSide } from "@/app/lib/tabActions";
@@ -53,6 +51,8 @@ type Row = {
   repo?: string;
   meta?: string;
   kind?: "repo" | "view";
+  /** A favorited view's section, shown after the repo name: "nickai-app › PRs". */
+  view?: string;
   favorite?: Favorite;
   icon?: typeof Inbox;
   count?: number;
@@ -173,29 +173,21 @@ export function SidebarContent({
   beginDrag?: BeginDrag;
   onLaunch?: () => void;
 }) {
-  const [typed, setFilter] = useState("");
-  // The rail has no filter field, so a filter must not keep applying invisibly.
-  useEffect(() => {
-    if (collapsed) setFilter("");
-  }, [collapsed]);
-  const filter = collapsed ? "" : typed;
-  const input = useRef<HTMLInputElement>(null);
   const unreadCount = useNotificationUnreadCount();
   const workspace = useWorkspaceStore((state) => state.workspace);
   const accountId = useAuthStore((state) => state.accountId);
   const favorites = useFavoritesStore((state) => state.forAccount(accountId));
-  const { data: me } = useMe();
   const [orgLimit, setOrgLimit] = useState(INITIAL_ROWS);
   const repos = useYourRepositories();
   const orgs = useSidebarOrganizations();
   const current = focusedTab(workspace);
   const currentHref = canonicalHref(current.href);
   const focusedRepo = tabRepo(hrefPathname(current.href))?.toLowerCase();
-  const openRepos = new Set(
-    islands(workspace.layout)
-      .flatMap((island) => island.tabs)
-      .map((tab) => tabRepo(hrefPathname(tab.href))?.toLowerCase()),
-  );
+  const openTabs = new Map<string, number>();
+  for (const tab of islands(workspace.layout).flatMap((island) => island.tabs)) {
+    const repo = tabRepo(hrefPathname(tab.href))?.toLowerCase();
+    if (repo) openTabs.set(repo, (openTabs.get(repo) ?? 0) + 1);
+  }
   // Exactly one row is current: a favorite of this exact page, else a
   // favorite of its repo, else the repo's row in the lists below.
   const exactFavorite = favorites.find((item) => canonicalHref(item.href) === currentHref);
@@ -225,7 +217,7 @@ export function SidebarContent({
             ? activeKey === `repo:${row.repo?.toLowerCase()}`
             : row.href === "/" && activeKey === "inbox"
       }
-      open={!!row.repo && openRepos.has(row.repo.toLowerCase())}
+      openTabs={(row.repo && openTabs.get(row.repo.toLowerCase())) || 0}
     />
   );
   const favoriteRows = favorites.map((item) => {
@@ -241,6 +233,7 @@ export function SidebarContent({
       // A view says where in the repo it goes (#43): "githut · Code".
       label:
         item.kind === "repo" ? (name ?? meta.label) : name ? `${name} · ${meta.label}` : meta.label,
+      view: item.kind === "repo" || !name ? undefined : meta.label,
       icon: meta.icon,
     };
   });
@@ -250,50 +243,15 @@ export function SidebarContent({
       aria-label="Workspace navigation"
       data-link-menu="off"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden pb-3",
+        "flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto overflow-x-hidden pb-3",
         collapsed ? "px-1" : "pr-2",
       )}
     >
-      <div className="flex flex-col gap-1">
-        <div className="flex h-8 items-center">
-          {collapsed ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Filter sidebar"
-                  onClick={() => {
-                    useSidebarStore.getState().expand();
-                    requestAnimationFrame(() => input.current?.focus());
-                  }}
-                >
-                  <Funnel />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Filter sidebar</TooltipContent>
-            </Tooltip>
-          ) : (
-            <Input
-              ref={input}
-              aria-label="Filter sidebar"
-              placeholder="Find repos and favorites…"
-              value={typed}
-              onChange={(event) => setFilter(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape" && typed) {
-                  event.preventDefault();
-                  setFilter("");
-                }
-              }}
-            />
-          )}
-        </div>
+      <div className="flex flex-col pt-0.5">
         {renderRow({ href: "/", label: "Inbox", icon: Inbox, count: unreadCount })}
       </div>
       <SidebarSection
         title="Favorites"
-        icon={Star}
         collapsed={collapsed}
         action={
           !collapsed && currentCanFavorite ? (
@@ -301,13 +259,7 @@ export function SidebarContent({
           ) : null
         }
       >
-        <RowList
-          key={accountId}
-          rows={favoriteRows}
-          filter={filter}
-          collapsed={collapsed}
-          renderRow={renderRow}
-        />
+        <RowList key={accountId} rows={favoriteRows} collapsed={collapsed} renderRow={renderRow} />
         {!collapsed && !favorites.length && (
           <p className="px-2 text-caption text-muted-foreground">
             {accountId
@@ -316,28 +268,15 @@ export function SidebarContent({
           </p>
         )}
       </SidebarSection>
-      <SidebarSection
-        id="sidebar-your-repos"
-        title="Your repos"
-        icon={FolderGit2}
-        collapsed={collapsed}
-      >
-        <RepositoryRows
-          key={accountId}
-          list={repos}
-          qualifier={me ? `user:${me.login}` : null}
-          filter={filter}
-          collapsed={collapsed}
-          renderRow={renderRow}
-        />
+      <SidebarSection id="sidebar-your-repos" title="Your repos" collapsed={collapsed}>
+        <RepositoryRows key={accountId} list={repos} collapsed={collapsed} renderRow={renderRow} />
       </SidebarSection>
       {(!!orgs.data?.length || orgs.isPending || orgs.isError) && (
-        <SidebarSection title="Organizations" icon={Building2} collapsed={collapsed}>
+        <SidebarSection title="Organizations" collapsed={collapsed}>
           {(orgs.data ?? []).slice(0, orgLimit).map((org) => (
             <OrganizationRow
               key={`${accountId}:${org.id}`}
               org={org}
-              filter={filter}
               collapsed={collapsed}
               renderRow={renderRow}
             />
@@ -372,6 +311,11 @@ function FavoriteCurrentButton({ href, accountId }: { href: string; accountId: n
           size="icon-xs"
           aria-label={saved ? "Remove this page from favorites" : "Favorite this page"}
           aria-pressed={!!saved}
+          // Revealed with the section's hover, like its collapse caret; a saved page keeps its filled star.
+          className={cn(
+            !saved &&
+              "opacity-0 group-hover/section:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100",
+          )}
           onClick={() => {
             const store = useFavoritesStore.getState();
             if (saved) store.remove(accountId, saved.id);
@@ -381,10 +325,10 @@ function FavoriteCurrentButton({ href, accountId }: { href: string; accountId: n
           <Star data-icon="inline-start" className={cn(saved && "fill-current")} />
         </Button>
       </TooltipTrigger>
-      <TooltipContent>
-        {saved ? "Remove this page from favorites" : "Favorite this page"}
-        <span className="block text-muted-foreground">Only for this account, on this device.</span>
-      </TooltipContent>
+      <ShellTipContent
+        title={saved ? "Remove this page from favorites" : "Favorite this page"}
+        detail={[<span key="d">Only for this account, on this device</span>]}
+      />
     </Tooltip>
   );
 }
@@ -395,14 +339,13 @@ function repoRow(repo: string): Row {
 
 function ShowMore({ onClick, children }: { onClick: () => void; children: ReactNode }) {
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="justify-start text-muted-foreground"
+    <button
+      type="button"
       onClick={onClick}
+      className="flex h-7 items-center rounded-md px-2 text-left text-ui text-(--color-fg-faint) outline-none hover:bg-accent hover:text-muted-foreground focus-visible:ring-1 focus-visible:ring-foreground/15"
     >
       {children}
-    </Button>
+    </button>
   );
 }
 
@@ -440,32 +383,24 @@ function ListStatus({
   return null;
 }
 
-function matches(row: Row, filter: string) {
-  return `${row.label} ${row.repo ?? ""}`.toLowerCase().includes(filter.trim().toLowerCase());
-}
-
 function RowList({
   rows,
-  filter,
   collapsed,
   renderRow,
   more,
 }: {
   rows: Row[];
-  filter: string;
   collapsed: boolean;
   renderRow: (row: Row) => ReactNode;
   /** More rows exist on the server; "Show more" fetches the next page. */
   more?: { hasMore: boolean; loading: boolean; load: () => void };
 }) {
   const [limit, setLimit] = useState(INITIAL_ROWS);
-  const filtered = rows.filter((row) => matches(row, filter));
-  const list = useStableList(filtered, {
+  const list = useStableList(rows, {
     key: (row) => row.favorite?.id ?? row.href,
-    resetKey: `${filter}:${rows.map((row) => row.favorite?.id ?? "").join(",")}`,
+    resetKey: rows.map((row) => row.favorite?.id ?? "").join(","),
   });
-  const searching = !!filter.trim();
-  const canShowMore = filtered.length > limit || (!searching && !!more?.hasMore);
+  const canShowMore = rows.length > limit || !!more?.hasMore;
   return (
     <div {...list.listProps} className="flex flex-col">
       {list.items.slice(0, limit).map(renderRow)}
@@ -473,7 +408,7 @@ function RowList({
         <ShowMore
           onClick={() => {
             setLimit((n) => n + 12);
-            if (filtered.length <= limit + 12) more?.load();
+            if (rows.length <= limit + 12) more?.load();
           }}
         >
           {more?.loading ? "Loading…" : "Show more"}
@@ -486,45 +421,24 @@ function RowList({
   );
 }
 
-/** A repo list loaded a page at a time, searched on GitHub when the filter outruns it. */
+/** A repo list loaded a page at a time. */
 function RepositoryRows({
   list,
-  qualifier,
-  filter,
   collapsed,
   renderRow,
 }: {
   list: RepositoryList;
-  qualifier: string | null;
-  filter: string;
   collapsed: boolean;
   renderRow: (row: Row) => ReactNode;
 }) {
-  const term = filter.trim();
-  const search = useRepositorySearch(qualifier, term, !!term && list.hasMore);
-  const loaded = list.items.map((repo) => repoRow(repo.full_name));
-  const known = new Set(loaded.map((row) => row.repo!.toLowerCase()));
-  const found = list.hasMore
-    ? (search.data ?? [])
-        .filter((repo) => !known.has(repo.full_name.toLowerCase()))
-        .map((repo) => repoRow(repo.full_name))
-    : [];
-  const rows = [...loaded, ...found];
-  const noMatches = !!term && !rows.some((row) => matches(row, term));
   return (
     <>
       <RowList
-        rows={rows}
-        filter={filter}
+        rows={list.items.map((repo) => repoRow(repo.full_name))}
         collapsed={collapsed}
         renderRow={renderRow}
         more={{ hasMore: list.hasMore, loading: list.loadingMore, load: list.loadMore }}
       />
-      {!collapsed && noMatches && (
-        <p role="status" className="px-2 text-caption text-muted-foreground">
-          {search.isFetching ? "Searching…" : "No matches."}
-        </p>
-      )}
       {!collapsed && (
         <ListStatus
           pending={list.isPending}
@@ -540,12 +454,10 @@ function RepositoryRows({
 function OrganizationRow({
   org,
   collapsed,
-  filter,
   renderRow,
 }: {
   org: SidebarOrganization;
   collapsed: boolean;
-  filter: string;
   renderRow: (row: Row) => ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -561,14 +473,12 @@ function OrganizationRow({
       <Tooltip>
         <TooltipTrigger asChild>
           <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              size={collapsed ? "icon" : "default"}
+            <button
+              type="button"
               aria-label={`${org.login} repositories`}
               className={cn(
-                // Expanded is a chevron state, not a selection.
-                "w-full aria-expanded:bg-transparent aria-expanded:hover:bg-muted",
-                collapsed ? "justify-center" : "justify-start gap-2 px-2 font-normal",
+                "flex h-7 w-full items-center gap-2 rounded-md text-left text-ui text-foreground/90 outline-none hover:bg-accent focus-visible:ring-1 focus-visible:ring-foreground/15",
+                collapsed ? "justify-center" : "px-2",
               )}
             >
               <Avatar
@@ -578,24 +488,29 @@ function OrganizationRow({
                 className="rounded-sm after:rounded-sm [&_img]:rounded-sm"
               />
               {!collapsed && (
-                <>
-                  <span className="min-w-0 flex-1 truncate text-left">{org.login}</span>
-                  <ChevronRight data-icon="inline-end" className={cn(expanded && "rotate-90")} />
-                </>
+                <span className="flex min-w-0 flex-1 items-center gap-1">
+                  <span className="truncate">{org.login}</span>
+                  <ChevronRight
+                    aria-hidden
+                    className={cn(
+                      "size-3 shrink-0 text-(--color-fg-faint) transition-transform duration-150",
+                      expanded && "rotate-90",
+                    )}
+                  />
+                </span>
               )}
-            </Button>
+            </button>
           </CollapsibleTrigger>
         </TooltipTrigger>
-        <TooltipContent side="right">{org.login} repositories</TooltipContent>
-      </Tooltip>
-      <CollapsibleContent className="pl-3">
-        <RepositoryRows
-          list={repos}
-          qualifier={`org:${org.login}`}
-          filter={filter}
-          collapsed={collapsed}
-          renderRow={renderRow}
+        <ShellTipContent
+          side="right"
+          title={org.login}
+          detail={[<span key="d">{expanded ? "Hide" : "Show"} repositories</span>]}
         />
+      </Tooltip>
+      {/* Nested repos hang off a guide line under the organization's avatar. */}
+      <CollapsibleContent className="relative pl-3.5 before:absolute before:inset-y-0.5 before:left-3.75 before:w-px before:bg-foreground/8">
+        <RepositoryRows list={repos} collapsed={collapsed} renderRow={renderRow} />
       </CollapsibleContent>
     </Collapsible>
   );
@@ -604,29 +519,45 @@ function OrganizationRow({
 function SidebarSection({
   id,
   title,
-  icon: Icon,
   collapsed,
   action,
   children,
 }: {
   id?: string;
   title: string;
-  icon: typeof Inbox;
   collapsed: boolean;
   action?: ReactNode;
   children: ReactNode;
 }) {
+  const [open, setOpen] = useState(true);
   return (
-    <section id={id} aria-label={title} className="flex flex-col gap-0">
-      <div className="flex h-6 shrink-0 items-center gap-2 px-2">
-        <h2 className="flex min-w-0 flex-1 items-center gap-2 text-micro font-medium uppercase tracking-widest text-muted-foreground">
-          <Icon className="size-4 shrink-0" aria-hidden />
-          <span className={cn("truncate", collapsed && "sr-only")}>{title}</span>
-        </h2>
-        {action}
-      </div>
-      {children}
-    </section>
+    <Collapsible asChild open={open || collapsed} onOpenChange={setOpen}>
+      <section id={id} aria-label={title} className="flex flex-col">
+        {collapsed ? (
+          // The rail separates sections with a hairline; the title stays for screen readers.
+          <h2 className="mx-2 my-1.5 h-px bg-foreground/8">
+            <span className="sr-only">{title}</span>
+          </h2>
+        ) : (
+          <div className="group/section flex h-7 shrink-0 items-center gap-1 pr-0.5 pl-2">
+            <h2 className="min-w-0 flex-1">
+              <CollapsibleTrigger className="flex max-w-full items-center gap-1 rounded-sm text-caption font-medium text-(--color-fg-faint) outline-none hover:text-muted-foreground focus-visible:ring-1 focus-visible:ring-foreground/15">
+                <span className="truncate">{title}</span>
+                <ChevronDown
+                  aria-hidden
+                  className={cn(
+                    "size-3 shrink-0 opacity-0 transition-[opacity,transform] duration-150 group-hover/section:opacity-100 group-focus-within/section:opacity-100",
+                    !open && "-rotate-90 opacity-100",
+                  )}
+                />
+              </CollapsibleTrigger>
+            </h2>
+            {action}
+          </div>
+        )}
+        <CollapsibleContent className="flex flex-col">{children}</CollapsibleContent>
+      </section>
+    </Collapsible>
   );
 }
 
@@ -636,14 +567,15 @@ function SidebarRow({
   beginDrag,
   onLaunch,
   active,
-  open,
+  openTabs,
 }: {
   row: Row;
   collapsed: boolean;
   beginDrag?: BeginDrag;
   onLaunch?: () => void;
   active: boolean;
-  open: boolean;
+  /** Tabs open on this row's repo, anywhere in the workspace. */
+  openTabs: number;
 }) {
   const accountId = useAuthStore((state) => state.accountId);
   const entry = { kind: row.kind ?? ("view" as const), href: row.href };
@@ -665,6 +597,7 @@ function SidebarRow({
     if (isFavorite) store.remove(accountId, id);
     else store.add(accountId, entry);
   };
+  const hasStar = !collapsed && !!row.kind && favoritable;
   const favoriteLabel = isFavorite
     ? "Remove favorite"
     : row.kind === "repo"
@@ -695,61 +628,88 @@ function SidebarRow({
                   launch(() => (event.altKey ? openToSide(row.href) : openOrJump(row.href)))
                 }
                 className={cn(
-                  "relative flex h-8 w-full shrink-0 items-center gap-2 rounded-lg px-2 text-left text-ui outline-none hover:bg-accent focus-visible:ring-1 focus-visible:ring-foreground/15",
-                  active && "bg-accent hover:bg-accent",
-                  !collapsed && "pr-8",
+                  "relative flex h-7 w-full shrink-0 items-center gap-2 rounded-md px-2 text-left text-ui text-foreground/90 outline-none hover:bg-accent focus-visible:ring-1 focus-visible:ring-foreground/15",
+                  active && "bg-accent text-foreground hover:bg-accent",
+                  !collapsed && "pr-1.5",
                 )}
               >
                 {row.repo ? (
                   <RepoMark repo={row.repo} />
                 ) : (
-                  <Icon aria-hidden className="size-4 shrink-0" />
+                  <Icon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
                 )}
                 {collapsed && !!row.count && (
                   // The rail keeps unread visible as a corner dot.
                   <span
                     aria-hidden
-                    className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-primary"
+                    className="absolute top-1 right-1 size-1.5 rounded-full bg-primary"
                   />
                 )}
                 {!collapsed && (
                   <>
-                    <span className="min-w-0 flex-1 truncate">{row.label}</span>
-                    {!!row.count && (
-                      <span aria-hidden className="text-caption tabular-nums text-muted-foreground">
-                        {row.count}
+                    <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+                      <span className="truncate">
+                        {row.view ? row.label.split(" · ")[0] : row.label}
                       </span>
-                    )}
-                    {row.kind === "repo" && open && (
-                      <span
-                        role="img"
-                        aria-label="Has open tabs"
-                        className="size-1 shrink-0 rounded-full bg-muted-foreground/60"
-                      />
-                    )}
+                      {row.view && (
+                        <span className="shrink-0 text-(--color-fg-faint)">› {row.view}</span>
+                      )}
+                    </span>
+                    {/* One trailing slot: a quiet status at rest; the star takes it on hover. */}
+                    <span
+                      className={cn(
+                        "flex h-5 min-w-5 shrink-0 items-center justify-end",
+                        hasStar &&
+                          "group-hover:invisible group-focus-within:invisible [@media(hover:none)]:invisible",
+                      )}
+                    >
+                      {!!row.count && (
+                        <span
+                          aria-hidden
+                          className="min-w-4.5 rounded-full bg-foreground/8 px-1.5 text-center text-micro leading-4 font-medium tabular-nums text-muted-foreground"
+                        >
+                          {row.count}
+                        </span>
+                      )}
+                      {row.kind === "repo" && openTabs > 0 && (
+                        <span role="img" aria-label="Has open tabs" className="flex gap-0.5">
+                          {Array.from({ length: Math.min(openTabs, 3) }, (_, i) => (
+                            <span
+                              // biome-ignore lint/suspicious/noArrayIndexKey: identical dots
+                              key={i}
+                              className="size-0.75 rounded-full bg-(--color-fg-faint)"
+                            />
+                          ))}
+                        </span>
+                      )}
+                    </span>
                   </>
                 )}
               </button>
             </ContextMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent side="right">
-            {row.label}
-            {row.repo && <span className="ml-2 font-mono">{row.repo}</span>}
-            {row.meta && <span className="ml-2">{row.meta}</span>}
-          </TooltipContent>
+          <ShellTipContent
+            side="right"
+            title={row.view ? `${row.label.split(" · ")[0]} › ${row.view}` : row.label}
+            detail={[
+              row.repo && <TipId key="repo">{row.repo}</TipId>,
+              !!row.count && <span key="count">{row.count} unread</span>,
+              openTabs > 0 && (
+                <span key="tabs">
+                  {openTabs} open {openTabs === 1 ? "tab" : "tabs"}
+                </span>
+              ),
+              row.meta && <span key="meta">{row.meta}</span>,
+            ]}
+          />
         </Tooltip>
-        {!collapsed && row.kind && favoritable && (
+        {hasStar && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon-xs"
-                className={cn(
-                  "absolute top-1 right-1",
-                  // Stars reveal on hover or focus; a favorite keeps its filled star.
-                  !isFavorite &&
-                    "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100",
-                )}
+                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                 aria-label={`${isFavorite ? "Remove favorite" : "Favorite"} ${row.label} · ${row.repo ?? row.href}`}
                 disabled={!accountId}
                 onClick={toggleFavorite}
@@ -757,7 +717,7 @@ function SidebarRow({
                 <Star className={cn(isFavorite && "fill-current")} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{favoriteLabel}</TooltipContent>
+            <ShellTipContent title={favoriteLabel} />
           </Tooltip>
         )}
       </div>

@@ -1,8 +1,17 @@
 import { Check, ChevronDown, Pin, PinOff, X } from "lucide-react";
-import { type KeyboardEvent, memo, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  Fragment,
+  type KeyboardEvent,
+  memo,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { RepoMark } from "@/app/components/shell/RepoMark";
+import { ShellTipContent, TipDot, TipId } from "@/app/components/shell/ShellTip";
 import { TabHint } from "@/app/components/shell/TabHint";
 import { Button } from "@/app/components/ui/button";
 import {
@@ -245,6 +254,14 @@ export const TONE_CLASS: Record<Tone, string> = {
   failed: "text-(--color-danger)",
 };
 
+const TONE_LABEL: Partial<Record<Tone, string>> = {
+  open: "Open",
+  merged: "Merged",
+  closed: "Closed",
+  done: "Closed",
+  draft: "Draft",
+};
+
 export function UnreadDot({ pinned = false }: { pinned?: boolean }) {
   return (
     <span
@@ -373,19 +390,32 @@ const TabItem = memo(function TabItem({
             </div>
           </TooltipTrigger>
         </ContextMenuTrigger>
-        <TooltipContent side="bottom" align="start">
-          {display.repo && (
-            <span className="font-mono">
-              {display.repo}
-              {display.prefix && ` ${display.prefix}`}
-            </span>
-          )}
-          {display.repo && " · "}
-          {display.title}
-          {display.status && ` · ${display.status}`}
-          {display.unread && " · Unread activity"}
-          {draft && " · Unsent draft"}
-        </TooltipContent>
+        <ShellTipContent
+          side="bottom"
+          align="start"
+          title={display.title}
+          detail={[
+            display.repo && (
+              <Fragment key="id">
+                {display.tone !== "none" && <TipDot className={TONE_CLASS[display.tone]} />}
+                <TipId>
+                  {display.repo}
+                  {display.prefix}
+                </TipId>
+              </Fragment>
+            ),
+            (display.status ?? TONE_LABEL[display.tone]) && (
+              <span key="status">{display.status ?? TONE_LABEL[display.tone]}</span>
+            ),
+            pinned && <span key="pinned">Pinned</span>,
+            display.unread && <span key="unread">Unread activity</span>,
+            draft && (
+              <span key="draft" className="text-(--color-warning)">
+                Unsent draft
+              </span>
+            ),
+          ]}
+        />
       </Tooltip>
       <ContextMenuContent className="w-56">
         <DockingMenu source={{ type: "tab", tabId: tab.id }} />

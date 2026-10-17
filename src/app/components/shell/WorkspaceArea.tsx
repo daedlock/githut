@@ -101,11 +101,9 @@ export function WorkspaceArea({ children }: { children: ReactNode }) {
             className="w-80 max-w-[calc(100vw-2rem)] p-4"
             onOpenAutoFocus={(event) => {
               event.preventDefault();
-              document
-                .querySelector<HTMLInputElement>(
-                  '#workspace-sidebar input[aria-label="Filter sidebar"]',
-                )
-                ?.focus();
+              // Focus the drawer itself: focusing a row would open its tooltip,
+              // and Escape would then close the tooltip instead of the drawer.
+              (event.currentTarget as HTMLElement | null)?.focus();
             }}
             onCloseAutoFocus={(event) => {
               event.preventDefault();
