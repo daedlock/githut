@@ -58,12 +58,15 @@ export function useNotifications() {
 }
 
 /** Counts what the Inbox opens on (Participating), so the sidebar and list agree. */
-export function useNotificationUnreadCount(): number {
+export function useNotificationUnreadCount(
+  filter: "participating" | "all" = "participating",
+): number {
   const { data } = useNotifications();
   const unread = useNotificationState((state) => state.unread);
   return (
-    data?.items.filter((item) => isParticipating(item) && (item.unread || unread[item.id]))
-      .length ?? 0
+    data?.items.filter(
+      (item) => (filter === "all" || isParticipating(item)) && (item.unread || unread[item.id]),
+    ).length ?? 0
   );
 }
 

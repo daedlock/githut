@@ -33,8 +33,7 @@ export function YourWorkView() {
   useListNavigation(!isPending && !isError);
 
   return (
-    <Container className="pt-6">
-      <h1 className="mb-5 text-heading font-semibold">Your work</h1>
+    <Container className="sm:pr-14">
       {isPending ? (
         <SkeletonGroup label="Loading your work" className="flex flex-col gap-5">
           {[0, 1, 2, 3].map((index) => (

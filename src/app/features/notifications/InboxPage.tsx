@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Bell,
   BellOff,
@@ -8,7 +8,6 @@ import {
   CloudOff,
   GitCommitHorizontal,
   GitPullRequest,
-  Inbox,
   KeyRound,
   type LucideIcon,
   Mail,
@@ -72,35 +71,58 @@ import {
   runNotificationAction,
   useNotificationState,
   useNotifications,
+  useNotificationUnreadCount,
 } from "./service";
 
-export type HomeView = "work" | undefined;
+export type HomeView = "all" | "work" | undefined;
 
-/** Home: the Inbox, or Your work at `/?view=work`. */
+/**
+ * Home: the Inbox (Participating, or All at `/?view=all`) and Your work at
+ * `/?view=work`. One heading and one switch; no navigation bar in the page.
+ */
 export function InboxPage({ view }: { view?: HomeView }) {
+  const navigate = useNavigate();
+  const unread = useNotificationUnreadCount(view === "all" ? "all" : "participating");
+  const value = view ?? "participating";
   return (
     <main className="min-h-full min-w-0 pb-24">
-      <Container className="pt-5">
-        <nav aria-label="Home views" className="flex gap-1">
-          <Button variant={view ? "ghost" : "secondary"} asChild>
-            <Link to="/" search={{}} aria-current={view ? undefined : "page"}>
-              <Inbox data-icon="inline-start" />
-              Inbox
-            </Link>
-          </Button>
-          <Button variant={view === "work" ? "secondary" : "ghost"} asChild>
-            <Link
-              to="/"
-              search={{ view: "work" }}
-              aria-current={view === "work" ? "page" : undefined}
-            >
-              <GitPullRequest data-icon="inline-start" />
-              Your work
-            </Link>
-          </Button>
-        </nav>
+      <Container className="pt-6 sm:pr-14">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-baseline gap-3">
+            <h1 className="text-heading font-semibold">
+              {view === "work" ? "Your work" : "Inbox"}
+            </h1>
+            {view !== "work" && unread > 0 && (
+              <span className="text-caption tabular-nums text-muted-foreground">
+                {unread} unread
+              </span>
+            )}
+          </div>
+          <ToggleGroup
+            type="single"
+            size="sm"
+            value={value}
+            onValueChange={(next) => {
+              if (next === "participating") void navigate({ to: "/", search: {} });
+              else if (next === "all" || next === "work")
+                void navigate({ to: "/", search: { view: next } });
+            }}
+            aria-label="Home view"
+          >
+            <ToggleGroupItem value="participating">Participating</ToggleGroupItem>
+            <ToggleGroupItem value="all">All</ToggleGroupItem>
+            <ToggleGroupItem value="work">Your work</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
       </Container>
-      {view === "work" ? <YourWorkView /> : <InboxList />}
+      {view === "work" ? (
+        <YourWorkView />
+      ) : (
+        <InboxList
+          filter={view === "all" ? "all" : "participating"}
+          onShowAll={() => void navigate({ to: "/", search: { view: "all" } })}
+        />
+      )}
     </main>
   );
 }
@@ -126,8 +148,13 @@ const VERBS: Record<NotificationAction, string> = {
 /** Selection keys are numbers; GitHub thread IDs are numeric strings. */
 const rowKey = (id: string) => Number(id);
 
-function InboxList() {
-  const [filter, setFilter] = useState<"participating" | "all">("participating");
+function InboxList({
+  filter,
+  onShowAll,
+}: {
+  filter: "participating" | "all";
+  onShowAll: () => void;
+}) {
   const { data, isPending, isError, error, isFetching } = useNotifications();
   const online = useBrowserOnline();
   const expired = useAuthStore((state) => state.expired);
@@ -207,34 +234,11 @@ function InboxList() {
   const blocked = !data && (!online || expired);
 
   return (
-    <Container className="pt-6 sm:pr-14">
+    <Container className="sm:pr-14">
       <SelectionRoot
         visible={rows.map((item) => rowKey(item.id))}
         bar={<InboxBar notice={notice} onDismiss={dismiss} act={act} items={data?.items} />}
       >
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-baseline gap-3">
-            <h1 className="text-heading font-semibold">Inbox</h1>
-            {data && (
-              <span className="text-caption tabular-nums text-muted-foreground">
-                {incoming.length}
-                {data.hasMore ? "+" : ""}
-              </span>
-            )}
-          </div>
-          <ToggleGroup
-            type="single"
-            size="sm"
-            value={filter}
-            onValueChange={(value) => {
-              if (value === "participating" || value === "all") setFilter(value);
-            }}
-            aria-label="Notification filter"
-          >
-            <ToggleGroupItem value="participating">Participating</ToggleGroupItem>
-            <ToggleGroupItem value="all">All</ToggleGroupItem>
-          </ToggleGroup>
-        </div>
         {isError && !blocked && (
           <p role="status" className="mb-4 text-caption text-destructive">
             {data ? "Notifications could not refresh. " : "Could not load notifications. "}
@@ -256,7 +260,7 @@ function InboxList() {
             ))}
           </SkeletonGroup>
         ) : !rows.length && !isError && !data?.hasMore ? (
-          <CaughtUp hiddenUnread={hiddenUnread} onShowAll={() => setFilter("all")} />
+          <CaughtUp hiddenUnread={hiddenUnread} onShowAll={onShowAll} />
         ) : (
           <LiveUpdates ready={!isPending} announce={false}>
             <InboxRows rows={rows} listProps={listProps} act={act} />
@@ -528,6 +532,7 @@ function NotificationRow({
   const href = notificationHref(item);
   const scope = useTabScope();
   const bulk = useBulkRow(rowKey(item.id));
+  const selecting = useSelection().selected.size > 0;
   const islandId = () =>
     scope.tabId ? findTab(getWorkspace().layout, scope.tabId)?.island.id : undefined;
   const Icon = SUBJECT_ICONS[item.subject.type] ?? Bell;
@@ -559,13 +564,6 @@ function NotificationRow({
           {deviceOnly && <span>Unread on this device</span>}
         </div>
       </div>
-      {unread && (
-        <span
-          role="img"
-          aria-label={deviceOnly ? "Unread on this device" : "Unread"}
-          className="mt-2 size-1.5 shrink-0 rounded-full bg-primary"
-        />
-      )}
     </>
   );
   const linkProps = {
@@ -581,6 +579,17 @@ function NotificationRow({
       {...bulk?.rowProps}
       className={cn(bulk?.className, "flex items-center gap-2 pr-2 pl-10")}
     >
+      {unread && (
+        <span
+          role="img"
+          aria-label={deviceOnly ? "Unread on this device" : "Unread"}
+          className={cn(
+            "absolute top-[1.1rem] left-[1.15rem] size-1.5 rounded-full bg-primary transition-opacity",
+            "group-hover/bulk:opacity-0 group-focus-within/bulk:opacity-0 [@media(hover:none)]:hidden",
+            selecting && "opacity-0",
+          )}
+        />
+      )}
       <BulkRowCheckbox number={rowKey(item.id)} label={`Select ${item.subject.title}`} />
       {href ? (
         <Link to={href} {...linkProps}>
