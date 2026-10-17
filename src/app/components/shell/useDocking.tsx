@@ -93,6 +93,16 @@ export function useDocking(ref: RefObject<HTMLDivElement | null>) {
       document.documentElement.style.userSelect = previousSelection;
       cleanup.current = null;
       setDrag(null);
+      if (active) {
+        // A drag can start on a launcher button; its trailing click must not
+        // launch again after docking (or after Escape cancels the gesture).
+        const suppress = (event: MouseEvent) => {
+          event.preventDefault();
+          event.stopPropagation();
+        };
+        window.addEventListener("click", suppress, { capture: true, once: true });
+        setTimeout(() => window.removeEventListener("click", suppress, true), 0);
+      }
       if (commit && current?.drop) dispatch({ type: "dock", source, target: current.drop.target });
     };
     const up = (event: globalThis.PointerEvent) => {
@@ -201,6 +211,8 @@ function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): 
           index = from?.island.pinned.includes(source.tabId)
             ? Math.min(index, pins)
             : Math.max(index, pins);
+        } else if (source.type === "href") {
+          index = Math.max(index, findIsland(ws.layout, islandId)?.pinned.length ?? 0);
         }
         const next = tabs[index]?.getBoundingClientRect();
         const previous = tabs[index - 1]?.getBoundingClientRect();
@@ -236,11 +248,13 @@ function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): 
   // Preview the actual command result: removing the source can collapse or
   // flatten splits, so a naive half of the old target would be misleading.
   const next = normalizeWorkspace(result);
+  const layoutBounds =
+    root.querySelector("[data-workspace-layout]")?.getBoundingClientRect() ?? bounds;
   const geometry = layoutGeometry(next.layout, {
-    left: bounds.left,
-    top: bounds.top,
-    width: bounds.width,
-    height: bounds.height,
+    left: layoutBounds.left,
+    top: layoutBounds.top,
+    width: layoutBounds.width,
+    height: layoutBounds.height,
   });
   const rect = geometry.islands.get(next.focusedIslandId);
   return rect ? { target, rect, line: false } : null;

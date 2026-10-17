@@ -1,4 +1,5 @@
-import type { CSSProperties } from "react";
+import { type CSSProperties, createContext, type ReactNode, useContext } from "react";
+import { useStarredRepos } from "@/app/hooks/useStarredRepos";
 
 import { cn } from "@/app/lib/cn";
 import { repoHue, repoMarkLetter } from "@/app/lib/repoMark";
@@ -24,6 +25,18 @@ function useReposInView(): string {
   });
 }
 
+const StarredRepoContext = createContext<readonly string[]>([]);
+
+/** Every mark, including marks inside tabs, disambiguates against the same stars. */
+export function RepoMarkScope({ children }: { children: ReactNode }) {
+  const { data } = useStarredRepos();
+  return (
+    <StarredRepoContext.Provider value={data?.map((repo) => repo.full_name) ?? []}>
+      {children}
+    </StarredRepoContext.Provider>
+  );
+}
+
 export function RepoMark({
   repo,
   size = "md",
@@ -35,7 +48,8 @@ export function RepoMark({
   className?: string;
 }) {
   const inView = useReposInView();
-  const letter = repoMarkLetter(repo, inView ? inView.split("\n") : []);
+  const starred = useContext(StarredRepoContext);
+  const letter = repoMarkLetter(repo, [...starred, ...(inView ? inView.split("\n") : [])]);
 
   return (
     <span
