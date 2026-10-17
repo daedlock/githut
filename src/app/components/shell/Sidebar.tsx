@@ -146,6 +146,7 @@ export function SidebarContent({
 }) {
   const [filter, setFilter] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const workspace = useWorkspaceStore((state) => state.workspace);
   const recent = useSyncExternalStore(subscribeRecentItems, getRecentItemsSync);
@@ -227,6 +228,7 @@ export function SidebarContent({
       collapsed={collapsed}
       beginDrag={beginDrag}
       onLaunch={onLaunch}
+      onMutationError={setMutationError}
       active={
         row.starred !== undefined
           ? row.repo?.toLowerCase() === focusedRepo
@@ -303,6 +305,14 @@ export function SidebarContent({
           {recentRows.map(renderRow)}
         </SidebarSection>
       )}
+      {mutationError && (
+        <p
+          role="alert"
+          className={cn("px-2 text-caption text-destructive", collapsed && "sr-only")}
+        >
+          {mutationError}
+        </p>
+      )}
       {!collapsed &&
         filter.trim() &&
         !yourWork.length &&
@@ -359,6 +369,7 @@ function SidebarRow({
   collapsed,
   beginDrag,
   onLaunch,
+  onMutationError,
   active,
   open,
 }: {
@@ -366,6 +377,7 @@ function SidebarRow({
   collapsed: boolean;
   beginDrag?: BeginDrag;
   onLaunch?: () => void;
+  onMutationError: (message: string | null) => void;
   active: boolean;
   open: boolean;
 }) {
@@ -458,18 +470,20 @@ function SidebarRow({
             <ContextMenuItem
               disabled={!canMutate || unstar.isPending}
               title={reason}
-              onSelect={() => unstar.mutate(false)}
+              onSelect={() => {
+                onMutationError(null);
+                // Optimistic removal unmounts this row. The content owns the
+                // failure notice so it survives until GitHub responds.
+                void unstar
+                  .mutateAsync(false)
+                  .catch(() => onMutationError(`Could not unstar ${row.label}. Try again.`));
+              }}
             >
               Unstar
             </ContextMenuItem>
           </ContextMenuGroup>
         )}
       </ContextMenuContent>
-      {unstar.isError && !collapsed && (
-        <span role="alert" className="px-2 text-caption text-destructive">
-          Could not unstar {row.label}. Try again.
-        </span>
-      )}
     </ContextMenu>
   );
 }

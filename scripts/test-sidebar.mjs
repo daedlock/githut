@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright";
 
@@ -88,7 +86,7 @@ const prs = (prefix, start) =>
     },
   }));
 
-async function fixture({ empty = false } = {}) {
+async function fixture({ empty = false, failUnstar = false } = {}) {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
     reducedMotion: "reduce",
@@ -107,6 +105,12 @@ async function fixture({ empty = false } = {}) {
     const path = url.pathname;
     if (route.request().method() === "DELETE" && path.startsWith("/user/starred/")) {
       writes.push(path);
+      if (failUnstar)
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ message: "Fixture: could not unstar" }),
+        });
       currentStars = currentStars.filter((repo) => path !== `/user/starred/${repo.full_name}`);
       return route.fulfill({ status: 204, body: "" });
     }
@@ -359,9 +363,8 @@ try {
     await page.mouse.up();
     assert.equal(await page.getByRole("tab").count(), 5);
     assert.deepEqual(drag.errors, []);
-    await page.screenshot({
-      path: process.env.SIDEBAR_SCREENSHOT || join(tmpdir(), "githut-sidebar.png"),
-    });
+    if (process.env.SIDEBAR_SCREENSHOT)
+      await page.screenshot({ path: process.env.SIDEBAR_SCREENSHOT });
     console.log(
       "PASS sidebar dragging inserts in strips, adds at island and window edges, and cancels with Escape",
     );
@@ -409,6 +412,19 @@ try {
     );
   } finally {
     await empty.close();
+  }
+  const failed = await fixture({ failUnstar: true });
+  try {
+    const page = failed.page;
+    const sidebar = page.getByRole("complementary", { name: "Sidebar" });
+    await sidebar.getByRole("button", { name: "phoenix", exact: true }).click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Unstar", exact: true }).click();
+    await sidebar.getByRole("alert").waitFor({ timeout: 3000 });
+    await sidebar.getByRole("button", { name: "phoenix", exact: true }).waitFor();
+    assert.deepEqual(failed.errors, []);
+    console.log("PASS failed Unstar restores the repository and explains the failure");
+  } finally {
+    await failed.close();
   }
 } finally {
   await browser.close();
