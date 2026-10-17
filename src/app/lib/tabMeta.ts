@@ -154,3 +154,35 @@ export function getDocumentTitle(pathname: string): string {
   const meta = getTabMeta(pathname);
   return meta.sublabel ? `${meta.label} · ${meta.sublabel} · GitHut` : `${meta.label} · GitHut`;
 }
+
+/** The repo (`owner/name`) a page belongs to, or undefined for app-wide pages. */
+export function tabRepo(pathname: string): string | undefined {
+  return getTabMeta(pathname).sublabel;
+}
+
+export type RepoSection = "code" | "commits" | "pulls" | "issues" | "actions";
+
+/** Which repo section a page sits in — PR detail pages count as PRs, etc. */
+export function tabSection(pathname: string): RepoSection | null {
+  if (!tabRepo(pathname)) return null;
+  const rest = /^\/[^/]+\/[^/]+(\/[^/]+)?/.exec(pathname)?.[1] ?? "";
+  switch (rest) {
+    case "":
+    case "/code":
+      return "code";
+    case "/commits":
+    case "/commit":
+      return "commits";
+    case "/pulls":
+    case "/pull":
+    case "/pr":
+    case "/review":
+      return "pulls";
+    case "/issues":
+      return "issues";
+    case "/actions":
+      return "actions";
+    default:
+      return null;
+  }
+}
