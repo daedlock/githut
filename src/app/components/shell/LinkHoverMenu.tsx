@@ -66,8 +66,9 @@ export function LinkHoverMenu() {
     const onOver = (e: PointerEvent) => {
       if (e.pointerType !== "mouse" || e.buttons !== 0) return;
       const next = eligibleLink(e.target);
-      if (next === link) return;
+      // Leaving the drop-point link (even onto plain content) lifts its suppression.
       if (next !== suppressed) suppressed = null;
+      if (next === link) return;
       if (next && next === suppressed) return;
       link = next;
       if (!link) return clearTimeout(restTimer);
@@ -212,11 +213,15 @@ function overLinkContent(link: HTMLAnchorElement, x: number, y: number): boolean
   if (hit.closest("img, svg, picture")) return true;
   const walker = document.createTreeWalker(hit, NodeFilter.SHOW_TEXT);
   const range = document.createRange();
+  // Glyph boxes are shorter than the line height, so a wrapped title has
+  // thin gaps between its lines; pad them so those still count as the title.
+  const pad = 4;
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     if (!node.textContent?.trim()) continue;
     range.selectNodeContents(node);
     for (const r of range.getClientRects()) {
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
+      if (x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad)
+        return true;
     }
   }
   return false;
