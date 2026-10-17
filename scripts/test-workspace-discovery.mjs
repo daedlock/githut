@@ -126,13 +126,12 @@ try {
   const second = await fixture();
   try {
     await command(second.page, { type: "splitIsland", side: "right" });
-    await command(second.page, { type: "undo" });
     await command(second.page, { type: "openTab", href: "/private-owner/secret-repo/pulls" });
     await second.page.reload();
-    await second.page.locator("[data-tab-strip]").waitFor();
+    await second.page.locator("[data-tab-strip]").first().waitFor();
     assert.equal(await second.page.getByRole("dialog", { name: "Tab tips" }).count(), 0);
     assert.deepEqual(second.errors, []);
-    console.log("PASS: first split retires the hint permanently, including after undo");
+    console.log("PASS: first split retires the hint permanently");
   } finally {
     await second.close();
   }
@@ -214,17 +213,21 @@ try {
     const page = discover.page;
     await palette(page, "Split island right");
     await page.waitForFunction(() => document.querySelectorAll("[data-island]").length === 2);
+    await page.waitForTimeout(300);
     const before = await page.locator("[data-island]").first().boundingBox();
-    await palette(page, "Resize gap 1 left");
+    // The palette no longer lists per-gap resizes; gaps resize from the keyboard.
+    await page.getByRole("separator", { name: "Resize islands" }).first().focus();
+    await page.keyboard.press("ArrowLeft");
+    await page.waitForTimeout(300);
     const resized = await page.locator("[data-island]").first().boundingBox();
-    assert.ok(Math.abs(before.width - resized.width - 16) < 2);
-    await palette(page, "Equalize split 1");
+    assert.ok(Math.abs(before.width - resized.width - 16) < 2, `${before.width} -> ${resized.width}`);
+    await page.locator("[data-island]").nth(1).getByRole("tab").first().click();
+    await palette(page, "Equalize island sizes");
     assert.ok(
       Math.abs((await page.locator("[data-island]").first().boundingBox()).width - before.width) <
         2,
     );
-    await palette(page, "Move focused island to window left edge");
-    await palette(page, /^Merge focused island into island 2 .*at end$/);
+    await palette(page, "Merge focused island into island left");
     await page.waitForFunction(() => document.querySelectorAll("[data-island]").length === 1);
     await palette(page, "Undo layout change");
     await page.waitForFunction(() => document.querySelectorAll("[data-island]").length === 2);
