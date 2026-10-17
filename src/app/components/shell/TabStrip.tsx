@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { type KeyboardEvent, memo, useEffect, useRef, useSyncExternalStore } from "react";
 
+import { RepoMark } from "@/app/components/shell/RepoMark";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -20,12 +21,7 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/app/components/ui/context-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/app/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { issueDetailQueryOptions, issueKeys } from "@/app/features/issues/hooks";
 import { prDetailQueryOptions, pullsKeys } from "@/app/features/pulls/hooks";
 import { cn } from "@/app/lib/cn";
@@ -45,16 +41,16 @@ import { useTabTitlesStore } from "@/app/stores/tabTitles";
 
 // ─── TabStrip ──────────────────────────────────────────────────────────────
 //
-// Editor-style tab bar (VS Code / Zed): flush, full-height tabs separated by
-// hairlines on a raised frame. The active tab is lifted onto the page surface
-// — it breaks the frame's bottom edge and carries a brand accent on top — so
-// it reads as the front sheet the content below belongs to.
+// The tab row in an island header. Tabs are rounded chips on the island
+// surface: each shows its repo mark, a state-coloured icon, the mono number
+// and the title. The selected tab is raised onto bg-muted with a hairline;
+// in the focused island it carries a faint brand tint instead.
 //
 // Interaction is immediate: tabs activate on pointerdown, nothing animates.
 //   click → switch · middle-click / × → close · drag → reorder
 //   right-click → close / close others / close to the right / duplicate / …
 
-export function TabStrip() {
+export function TabStrip({ focused }: { focused: boolean }) {
   const tabs = useTabsStore((s) => s.tabs);
   const activeId = useTabsStore((s) => s.activeId);
   const scroller = useRef<HTMLDivElement>(null);
@@ -73,15 +69,27 @@ export function TabStrip() {
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
+  // Keep the selected tab in view. scrollLeft math, not scrollIntoView, so no
+  // ancestor (the page, the island) ever scrolls along with the strip.
   useEffect(() => {
-    if (!activeId) return;
-    scroller.current
-      ?.querySelector<HTMLElement>(`[data-tab-id="${activeId}"]`)
-      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const strip = scroller.current;
+    const sel = activeId ? strip?.querySelector<HTMLElement>(`[data-tab-id="${activeId}"]`) : null;
+    if (!strip || !sel) return;
+    const reveal = () => {
+      const left = sel.offsetLeft - 2;
+      const right = sel.offsetLeft + sel.offsetWidth + 2;
+      if (left < strip.scrollLeft) strip.scrollLeft = left;
+      else if (right > strip.scrollLeft + strip.clientWidth) {
+        strip.scrollLeft = right - strip.clientWidth;
+      }
+    };
+    reveal();
+    // Titles arrive after first paint and the island can resize: re-check.
+    const ro = new ResizeObserver(reveal);
+    ro.observe(sel);
+    ro.observe(strip);
+    return () => ro.disconnect();
   }, [activeId]);
-
-  const repos = new Set(tabs.map((t) => getTabMeta(hrefPathname(t.href)).sublabel ?? ""));
-  const showRepo = repos.size > 1;
 
   function onDragEnd({ active, over }: DragEndEvent) {
     if (!over || active.id === over.id) return;
@@ -101,35 +109,32 @@ export function TabStrip() {
   }
 
   return (
-    <div
-      data-tab-strip
-      data-link-menu="off"
-      className="flex h-9 shrink-0 select-none items-stretch bg-muted shadow-[inset_0_-1px_0_var(--color-border)]"
-    >
-      <TooltipProvider delayDuration={700} skipDelayDuration={300}>
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
-            <div
-              ref={scroller}
-              role="tablist"
-              aria-label="Open tabs"
-              onKeyDown={onKeyDown}
-              className="flex min-w-0 flex-1 items-stretch overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {tabs.map((tab, i) => (
-                <TabItem
-                  key={tab.id}
-                  tab={tab}
-                  active={tab.id === activeId}
-                  isLast={i === tabs.length - 1}
-                  showRepo={showRepo}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-      </TooltipProvider>
-    </div>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <SortableContext items={tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
+        <div
+          ref={scroller}
+          data-tab-strip
+          role="tablist"
+          aria-label="Open tabs"
+          onKeyDown={onKeyDown}
+          className={cn(
+            "relative flex h-full min-w-0 flex-1 select-none items-center gap-0.5 overflow-x-auto",
+            // Room for the selected tab's outline, which the scroller would clip.
+            "px-0.5 [scroll-padding-inline:2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          )}
+        >
+          {tabs.map((tab, i) => (
+            <TabItem
+              key={tab.id}
+              tab={tab}
+              active={tab.id === activeId}
+              focused={focused}
+              isLast={i === tabs.length - 1}
+            />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
   );
 }
 
@@ -147,13 +152,13 @@ const TONE_CLASS: Record<Tone, string> = {
 const TabItem = memo(function TabItem({
   tab,
   active,
+  focused,
   isLast,
-  showRepo,
 }: {
   tab: Tab;
   active: boolean;
+  focused: boolean;
   isLast: boolean;
-  showRepo: boolean;
 }) {
   const display = useTabDisplay(tab.href);
   const hasClosed = useTabsStore((s) => s.closed.length > 0);
@@ -161,7 +166,6 @@ const TabItem = memo(function TabItem({
     id: tab.id,
   });
   const Icon = display.icon;
-  const repoName = display.repo?.split("/")[1];
 
   return (
     <ContextMenu>
@@ -195,36 +199,29 @@ const TabItem = memo(function TabItem({
                 transition: isDragging ? undefined : transition,
               }}
               className={cn(
-                "group relative flex min-w-28 max-w-60 shrink cursor-default items-center gap-2 pl-3 pr-1.5",
-                "border-r border-border text-ui outline-none",
-                "focus-visible:shadow-[inset_0_0_0_1px_var(--color-focus)]",
-                active
-                  ? [
-                      "z-10 bg-background text-foreground",
-                      // Left hairline lands on the neighbour's separator; the soft
-                      // lift keeps the front sheet distinct from the frame.
-                      "shadow-[-1px_0_0_var(--color-border),0_-6px_14px_-8px_color-mix(in_oklab,black_35%,transparent)]",
-                    ]
-                  : "text-muted-foreground hover:bg-[color-mix(in_oklab,var(--color-bg-sunken)_55%,transparent)] hover:text-foreground",
-                isDragging &&
-                  "z-20 bg-background text-foreground shadow-[0_4px_16px_color-mix(in_oklab,black_30%,transparent)]",
+                "group relative flex h-7 min-w-16 max-w-[220px] shrink-0 cursor-default items-center gap-1.5 rounded-lg pl-2 pr-1",
+                "text-ui outline-none focus-visible:ring-1 focus-visible:ring-(--color-focus)",
+                !active &&
+                  "text-muted-foreground hover:bg-[color-mix(in_oklab,var(--color-bg-sunken)_60%,transparent)] hover:text-foreground",
+                active &&
+                  !focused &&
+                  "bg-muted text-foreground shadow-[0_0_0_1px_var(--color-border),0_1px_2px_rgb(0_0_0/0.12)]",
+                active &&
+                  focused && [
+                    "bg-[color-mix(in_oklab,var(--color-brand)_9%,var(--color-bg-subtle))] text-foreground",
+                    "shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-brand)_45%,var(--color-border)),0_1px_2px_rgb(0_0_0/0.14)]",
+                  ],
+                isDragging && "z-20",
               )}
             >
-              {active && <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-primary" />}
-              <Icon aria-hidden className={cn("size-4 shrink-0", TONE_CLASS[display.tone])} />
-              <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
-                {display.prefix && (
-                  <span className="shrink-0 font-mono text-caption text-(--color-fg-faint)">
-                    {display.prefix}
-                  </span>
-                )}
-                <span className="min-w-0 truncate">{display.label}</span>
-                {showRepo && repoName && (
-                  <span className="min-w-0 max-w-24 shrink-[3] truncate text-caption text-(--color-fg-faint)">
-                    {repoName}
-                  </span>
-                )}
-              </span>
+              {display.repo && <RepoMark repo={display.repo} size="sm" />}
+              <Icon aria-hidden className={cn("size-3.5 shrink-0", TONE_CLASS[display.tone])} />
+              {display.prefix && (
+                <span className="shrink-0 font-mono text-caption text-(--color-fg-faint)">
+                  {display.prefix}
+                </span>
+              )}
+              <span className="min-w-0 flex-1 truncate">{display.label}</span>
               <button
                 type="button"
                 tabIndex={-1}
@@ -235,22 +232,26 @@ const TabItem = memo(function TabItem({
                   closeTabById(tab.id);
                 }}
                 className={cn(
-                  "inline-flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground",
-                  "hover:bg-(--color-bg-sunken) hover:text-foreground",
+                  "inline-flex size-4.5 shrink-0 items-center justify-center rounded-md text-muted-foreground",
+                  "hover:bg-accent hover:text-foreground",
                   active ? "visible" : "invisible group-hover:visible",
                 )}
               >
-                <X className="size-3.5" />
+                <X className="size-3" />
               </button>
             </div>
           </TooltipTrigger>
         </ContextMenuTrigger>
         {!isDragging && (
-          <TooltipContent side="bottom" align="start" className="flex flex-col items-start gap-0.5">
-            <span className="text-caption">{display.title}</span>
+          <TooltipContent side="bottom" align="start">
             {display.repo && (
-              <span className="font-mono text-micro opacity-70">{display.repo}</span>
+              <span className="font-mono">
+                {display.repo}
+                {display.prefix && ` ${display.prefix}`}
+              </span>
             )}
+            {display.repo && " · "}
+            {display.title}
           </TooltipContent>
         )}
       </Tooltip>
@@ -310,7 +311,7 @@ function useTabDisplay(href: string): TabDisplay {
       tone: entity.tone,
       label: entity.title,
       prefix: `#${num}`,
-      title: `${meta.label} · ${entity.title}`,
+      title: entity.title,
     };
   }
 
