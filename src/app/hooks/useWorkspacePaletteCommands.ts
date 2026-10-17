@@ -3,35 +3,43 @@ import { useMemo } from "react";
 import { focusPaneOfFocusedTab } from "@/app/lib/tabActions";
 import { useSidebarStore } from "@/app/stores/sidebar";
 import { useWorkspaceView } from "@/app/stores/workspaceView";
-import { buildWorkspaceCommands } from "@/app/workspace/palette";
-import { dispatch, getWorkspace, useWorkspaceStore } from "@/app/workspace/store";
+import type { Workspace } from "@/app/workspace/model";
+import { buildWorkspaceCommands, runWorkspacePaletteCommand } from "@/app/workspace/palette";
+import { previewCommand, useWorkspaceStore } from "@/app/workspace/store";
 
-/** Adapts named layout commands to the palette, resolving current geometry on execution. */
+/** The palette's layout commands, built against a workspace and the current room. */
+function commandsFor(workspace: Workspace, canUndo: boolean, canRedo: boolean) {
+  return buildWorkspaceCommands(workspace, {
+    canUndo,
+    canRedo,
+    allowed: (cmd) => previewCommand(cmd) !== null,
+  });
+}
+
+function currentCommands() {
+  const { workspace, undo, redo } = useWorkspaceStore.getState();
+  return commandsFor(workspace, undo.length > 0, redo.length > 0);
+}
+
+/** Adapts named layout commands to the palette, resolving them again on execution. */
 export function useWorkspacePaletteCommands(open: boolean, close: () => void) {
   const workspace = useWorkspaceStore((s) => s.workspace);
   const canUndo = useWorkspaceStore((s) => s.undo.length > 0);
+  const canRedo = useWorkspaceStore((s) => s.redo.length > 0);
   return useMemo(() => {
     if (!open) return [];
-    const size = () => {
-      const element = document.querySelector<HTMLElement>("[data-workspace-layout]");
-      return { width: element?.clientWidth ?? 0, height: element?.clientHeight ?? 0 };
-    };
     return [
-      ...buildWorkspaceCommands(workspace, size(), canUndo).map((entry) => ({
+      ...commandsFor(workspace, canUndo, canRedo).map((entry) => ({
         ...entry,
         icon: Columns2,
         workspace: true,
         run: () => {
-          // The browser may have resized while the palette was open. Resolve
-          // the same command again so gap extents and destinations are current.
-          const current = buildWorkspaceCommands(
-            getWorkspace(),
-            size(),
-            useWorkspaceStore.getState().undo.length > 0,
-          ).find((item) => item.id === entry.id);
+          // The workspace may have changed while the palette was open.
+          // Resolve the same entry again so its targets are current.
+          const current = currentCommands().find((item) => item.id === entry.id);
           close();
           if (current && !current.disabled) {
-            dispatch(current.command);
+            runWorkspacePaletteCommand(current.command);
             focusPaneOfFocusedTab();
           }
         },
@@ -72,5 +80,5 @@ export function useWorkspacePaletteCommands(open: boolean, close: () => void) {
         },
       })),
     ];
-  }, [workspace, canUndo, close, open]);
+  }, [workspace, canUndo, canRedo, close, open]);
 }

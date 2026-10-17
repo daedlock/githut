@@ -56,14 +56,14 @@ export function getFocusedTabRouter(): AnyRouter | undefined {
   return routers.get(getFocusedTab().id);
 }
 
-/** Release page/router state while preserving the open tab's small history. */
+/** Release page/router state while keeping an open tab's small history for its rebuild. */
 export function releaseTabRouter(id: string) {
   unsubscribers.get(id)?.();
   unsubscribers.delete(id);
   routers.delete(id);
 }
 
-/** Forget a tab once it is absent from both the layout and bounded undo history. */
+/** Forget a closed tab entirely; if undo brings it back, it rebuilds from its href. */
 export function disposeTabRouter(id: string) {
   releaseTabRouter(id);
   histories.delete(id);
@@ -127,26 +127,22 @@ export function startBrowserSync(): () => void {
     seq = next;
     if (!router || delta === 0) return;
     const before = router.history.location.href;
-    if (delta < 0) router.history.back();
-    else router.history.forward();
+    // The browser's long-press menu can traverse several entries at once;
+    // memory history clamps the jump to the tab's own entries.
+    router.history.go(delta);
     // The tab had no further history in that direction — keep showing it.
     if (router.history.location.href === before) writeUrl(before, "replace");
   };
   window.addEventListener("popstate", onPopState);
 
   // Moving focus re-points the URL without adding history entries, and
-  // routers of closed tabs are released.
+  // closed tabs' routers and histories are disposed.
   const unsubscribe = useWorkspaceStore.subscribe(({ workspace: ws }, { workspace: prev }) => {
     const focused = focusedTab(ws);
     if (focused.id !== focusedTab(prev).id && !useSettingsModal.getState().open)
       writeUrl(focused.href, "replace");
     if (ws.layout !== prev.layout) {
       const open = new Set(islands(ws.layout).flatMap((i) => i.tabs.map((t) => t.id)));
-      for (const entry of useWorkspaceStore.getState().undo) {
-        for (const island of islands(entry.workspace.layout)) {
-          for (const tab of island.tabs) open.add(tab.id);
-        }
-      }
       for (const id of histories.keys()) {
         if (!open.has(id)) disposeTabRouter(id);
       }

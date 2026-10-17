@@ -11,7 +11,7 @@ import { dispatch, getWorkspace } from "@/app/workspace/store";
 /** Open `href` as a new tab in the focused island. Settings is always an overlay. */
 export function openInNewTab(href: string, opts: { select?: boolean; islandId?: string } = {}) {
   if (isSettingsHref(href)) return openSettings();
-  dispatch({ type: "openTab", href, select: opts.select, islandId: opts.islandId, match: "href" });
+  dispatch({ type: "openTab", href, select: opts.select, islandId: opts.islandId });
 }
 
 /** Launchers never replace a page: jump to an existing tab or open a new one. */
@@ -20,6 +20,7 @@ export function openOrJump(href: string) {
   dispatch({ type: "openOrJump", href });
 }
 
+/** Open beside the source island: in the island to its right, else in a new one. */
 export function openToSide(href: string, islandId?: string) {
   if (isSettingsHref(href)) return openSettings();
   dispatch({ type: "openToSide", href, islandId });
@@ -72,11 +73,6 @@ export function duplicateTab(tabId: string) {
 
 export function reopenClosedTab() {
   dispatch({ type: "reopenClosedTab" });
-}
-
-/** Reorder a tab within its island. */
-export function moveTab(tabId: string, islandId: string, index: number) {
-  dispatch({ type: "moveTab", tabId, islandId, index });
 }
 
 export function pinTab(tabId: string, pinned: boolean) {

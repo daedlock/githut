@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { trackWorkspaceAction } from "@/app/lib/analytics";
-import type { ShortcutMap } from "@/app/lib/shortcuts";
+import { IS_MAC, type ShortcutMap } from "@/app/lib/shortcuts";
 import { useTabScope } from "@/app/lib/tabScope";
 import { getWorkspace } from "@/app/workspace/store";
 
@@ -18,8 +18,6 @@ type Registration = {
   /** Registered from inside a tab: only live while that tab is focused. */
   inScope: () => boolean;
 };
-
-const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
 
 // Keys we must never intercept — the browser owns these. Mirrored against
 // common shortcuts; dispatching would break reload/close/new-tab/etc.
@@ -123,6 +121,8 @@ function eventMatchesMods(e: KeyboardEvent, mods: Set<Mod>): boolean {
   // Shift on printable keys (like "?") is implicit; only enforce when caller
   // explicitly asked for shift+<letter>.
   if (wantShift && !e.shiftKey) return false;
+  // ⌘ chords are exact: ⌘⇧Z (redo) must not also run ⌘Z (undo).
+  if (wantMeta && !wantShift && e.shiftKey) return false;
   return true;
 }
 

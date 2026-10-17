@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/app/com
 import { Kbd } from "@/app/components/ui/kbd";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { cn } from "@/app/lib/cn";
+import { MOD_KEY } from "@/app/lib/shortcuts";
 import { useKeyboardHelpStore } from "@/app/stores/keyboardHelp";
 
 type Scope = "global" | "tabs" | "repo" | "diff" | "list" | "inbox";
@@ -28,6 +29,7 @@ const SHORTCUTS: readonly Shortcut[] = [
   { chord: "⇧ Click", label: "Open link in new tab", scope: "tabs" },
   { chord: "Alt W", label: "Close tab", scope: "tabs" },
   { chord: "⌘ Z", label: "Undo layout change", scope: "tabs" },
+  { chord: "⌘ ⇧ Z", label: "Redo layout change", scope: "tabs" },
   { chord: "Alt ⇧ T", label: "Reopen closed tab", scope: "tabs" },
   { chord: "Alt [", label: "Previous tab", scope: "tabs" },
   { chord: "Alt ]", label: "Next tab", scope: "tabs" },
@@ -86,7 +88,7 @@ function renderChord(chord: string): React.ReactNode {
   return (
     <span className="inline-flex items-center gap-[3px]">
       {tokens.map((token) => (
-        <Kbd key={token}>{token}</Kbd>
+        <Kbd key={token}>{token === "⌘" ? MOD_KEY : token}</Kbd>
       ))}
     </span>
   );
