@@ -1,4 +1,4 @@
-import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { useRouterState } from "@tanstack/react-router";
 import {
   BookMarked,
   CheckCircle2,
@@ -41,7 +41,7 @@ import { track } from "@/app/lib/analytics";
 import { logout } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
 import { clearRecentItems, pushRecentItem, type RecentItem } from "@/app/lib/recentItems";
-import { openInNewTab } from "@/app/lib/tabActions";
+import { openOrJump, openToSide, replaceFocusedTab } from "@/app/lib/tabActions";
 import { THEME_OPTIONS } from "@/app/lib/themeCatalog";
 import { formatRelativeTime } from "@/app/lib/time";
 import { useCommandPalette, useCommandPaletteStore } from "@/app/stores/commandPalette";
@@ -63,24 +63,7 @@ type RepoContext = { owner: string; repo: string } | null;
 // ─── Command builder ─────────────────────────────────────────────────────────
 // Returns a flat array of all available commands. cmdk handles the filtering.
 
-// Set from the dialog's capture handlers just before cmdk fires onSelect, so a
-// shift+Enter / shift+click on any result opens it in a new tab.
-let newTabIntent = false;
-function setNewTabIntent(shift: boolean) {
-  newTabIntent = shift;
-  // cmdk selects synchronously within the same event; never let it leak.
-  if (shift) setTimeout(() => (newTabIntent = false));
-}
-
-/** Navigate the active tab to an href, or open a new tab if shift was held. */
-function navigateTo(href: string, navigate: ReturnType<typeof useNavigate>) {
-  if (newTabIntent) {
-    newTabIntent = false;
-    openInNewTab(href);
-    return;
-  }
-  navigate({ to: href });
-}
+type NavigationIntent = "jump" | "side" | "replace";
 
 function repoCodeHref(
   owner: string,
@@ -100,11 +83,11 @@ function repoCodeHref(
 function buildCommands(
   close: () => void,
   repoContext: RepoContext,
-  navigate: ReturnType<typeof useNavigate>,
+  navigateTo: (href: string) => void,
 ): { actions: PaletteCommand[]; themes: PaletteCommand[] } {
   const goTo = (path: string) => () => {
     close();
-    navigateTo(path, navigate);
+    navigateTo(path);
   };
   const r = repoContext;
   const base = r ? `/${r.owner}/${r.repo}` : null;
@@ -203,7 +186,14 @@ export function CommandPalette() {
   const open = useCommandPaletteStore((s) => s.open);
   const setOpen = useCommandPaletteStore((s) => s.setOpen);
   const { close, toggle } = useCommandPalette();
-  const navigate = useNavigate();
+  const navigationIntent = useRef<NavigationIntent>("jump");
+  const navigateTo = useCallback((href: string) => {
+    const intent = navigationIntent.current;
+    navigationIntent.current = "jump";
+    if (intent === "side") openToSide(href);
+    else if (intent === "replace") replaceFocusedTab(href);
+    else openOrJump(href);
+  }, []);
 
   // Close on route change
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -227,18 +217,18 @@ export function CommandPalette() {
   const shortcuts = useMemo(
     () => ({
       "⌘k": toggle,
-      "g h": () => navigateTo("/", navigate),
+      "g h": () => openOrJump("/"),
       "g i": () => {
-        if (repoContext) navigateTo(`/${repoContext.owner}/${repoContext.repo}/issues`, navigate);
+        if (repoContext) openOrJump(`/${repoContext.owner}/${repoContext.repo}/issues`);
       },
       "g p": () => {
-        if (repoContext) navigateTo(`/${repoContext.owner}/${repoContext.repo}/pulls`, navigate);
+        if (repoContext) openOrJump(`/${repoContext.owner}/${repoContext.repo}/pulls`);
       },
       "g c": () => {
-        if (repoContext) navigateTo(`/${repoContext.owner}/${repoContext.repo}/code`, navigate);
+        if (repoContext) openOrJump(`/${repoContext.owner}/${repoContext.repo}/code`);
       },
     }),
-    [toggle, repoContext, navigate],
+    [toggle, repoContext],
   );
   useKeybindings(shortcuts);
 
@@ -271,8 +261,8 @@ export function CommandPalette() {
     return hasQuery ? data : data.slice(0, 50);
   }, [repos.data, hasQuery]);
   const { actions, themes } = useMemo(
-    () => buildCommands(close, repoContext, navigate),
-    [close, repoContext, navigate],
+    () => buildCommands(close, repoContext, navigateTo),
+    [close, repoContext, navigateTo],
   );
 
   // Track opens + reset query on close.
@@ -289,9 +279,9 @@ export function CommandPalette() {
       track("command_palette_result_selected", { kind: item.kind });
       void pushRecentItem(item);
       close();
-      navigateTo(item.href, navigate);
+      navigateTo(item.href);
     },
-    [close, navigate],
+    [close, navigateTo],
   );
 
   const jumpToNumber = useCallback(
@@ -345,23 +335,28 @@ export function CommandPalette() {
       description="Search, navigate, or run a command"
       shouldFilter={shouldFilter}
     >
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: cmdk owns focus; we intercept Enter for number-mode jump */}
       <div
         onKeyDownCapture={(e) => {
-          if (e.key === "Enter") setNewTabIntent(e.shiftKey);
-        }}
-        onClickCapture={(e) => {
-          setNewTabIntent(e.shiftKey);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+          if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+          navigationIntent.current =
+            e.metaKey || e.ctrlKey ? "replace" : e.altKey ? "side" : "jump";
+          // Keep the intent through React's separate capture/bubble listeners.
+          // A microtask can run before cmdk's bubble handler selects the result.
+          setTimeout(() => {
+            navigationIntent.current = "jump";
+          });
+          if (numberMode) {
             e.preventDefault();
-            return;
-          }
-          if (numberMode && e.key === "Enter") {
-            e.preventDefault();
+            e.stopPropagation();
             jumpToNumber(mode.number);
           }
+        }}
+        onClickCapture={(e) => {
+          navigationIntent.current =
+            e.metaKey || e.ctrlKey ? "replace" : e.altKey ? "side" : "jump";
+          setTimeout(() => {
+            navigationIntent.current = "jump";
+          });
         }}
       >
         <CommandInput
@@ -628,9 +623,10 @@ export function CommandPalette() {
         </CommandList>
 
         {/* ── Footer ── */}
-        <div className="flex items-center gap-3 border-t border-border px-3 py-2">
-          <FooterHint keys={["↵"]} label="select" />
-          <FooterHint keys={["⇧", "↵"]} label="new tab" />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border px-3 py-2">
+          <FooterHint keys={["↵"]} label="open or jump" />
+          <FooterHint keys={["Alt", "↵"]} label="to side" />
+          <FooterHint keys={["⌘/Ctrl", "↵"]} label="replace" />
           <span className="flex-1" />
           <FooterHint keys={[">"]} label="commands" />
           <FooterHint keys={["@"]} label="repos" />

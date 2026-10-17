@@ -6,14 +6,16 @@ import {
   cycleTab,
   focusNeighbourIsland,
   internalLinkHref,
+  linkIslandId,
   openInNewTab,
+  openToSide,
   reopenClosedTab,
   selectTabAt,
   splitIsland,
 } from "@/app/lib/tabActions";
 import { useSettingsStore } from "@/app/stores/settings";
 
-/** Global tab and island entry points: shift+click on internal links and alt-based shortcuts. */
+/** Global tab and island entry points: modified links and alt-based shortcuts. */
 export function TabShortcuts() {
   const tabsEnabled = useSettingsStore((s) => s.tabsEnabled);
 
@@ -24,12 +26,14 @@ export function TabShortcuts() {
       if (isShiftClick(e) && internalLinkHref(e.target)) e.preventDefault();
     };
     const onClick = (e: MouseEvent) => {
-      if (!isShiftClick(e)) return;
+      if (!isShiftClick(e) && !isAltClick(e)) return;
       const href = internalLinkHref(e.target);
       if (!href) return;
       e.preventDefault();
       e.stopPropagation();
-      openInNewTab(href);
+      const islandId = linkIslandId(e.target);
+      if (e.altKey) openToSide(href, islandId);
+      else openInNewTab(href, { islandId });
     };
     document.addEventListener("mousedown", onMouseDown, true);
     document.addEventListener("click", onClick, true);
@@ -63,4 +67,8 @@ export function TabShortcuts() {
 
 function isShiftClick(e: MouseEvent): boolean {
   return e.button === 0 && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey;
+}
+
+function isAltClick(e: MouseEvent): boolean {
+  return e.button === 0 && e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey;
 }

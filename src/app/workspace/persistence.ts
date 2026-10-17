@@ -28,7 +28,7 @@ const LEGACY_TABS_KEY = "githut.tabs.v3";
 
 type Saved = {
   version: number;
-  workspace: Pick<Workspace, "layout" | "focusedIslandId" | "maximizedIslandId">;
+  workspace: Pick<Workspace, "layout" | "focusedIslandId" | "maximizedIslandId" | "focusHistory">;
 };
 
 /** Upgrades from older schema versions; index n turns version n into n + 1. */
@@ -50,6 +50,7 @@ export function saveWorkspace(ws: Workspace, { lastUsed = true } = {}) {
     workspace: {
       layout: ws.layout,
       focusedIslandId: ws.focusedIslandId,
+      focusHistory: ws.focusHistory,
       maximizedIslandId: ws.maximizedIslandId,
     },
   };
@@ -81,6 +82,9 @@ function read(raw: string | null | undefined): Workspace | null {
       layout,
       focusedIslandId: typeof w?.focusedIslandId === "string" ? w.focusedIslandId : "",
       maximizedIslandId: typeof w?.maximizedIslandId === "string" ? w.maximizedIslandId : null,
+      focusHistory: Array.isArray(w?.focusHistory)
+        ? w.focusHistory.filter((id) => typeof id === "string")
+        : [],
       closed: [],
     });
   } catch {
