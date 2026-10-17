@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { trackWorkspaceAction } from "@/app/lib/analytics";
+import { useAuthStore } from "@/app/stores/auth";
 import { retireTabHint } from "@/app/stores/tabHint";
-
 import {
   createWorkspace,
   findIsland,
@@ -14,7 +14,13 @@ import {
   type Workspace,
   type WorkspaceCommand,
 } from "@/app/workspace/model";
-import { loadWorkspace, saveWorkspace } from "@/app/workspace/persistence";
+import {
+  forgetUnscopedWorkspace,
+  type LayoutScope,
+  loadWorkspace,
+  readSavedWorkspace,
+  saveWorkspace,
+} from "@/app/workspace/persistence";
 
 // ─── Workspace store ─────────────────────────────────────────────────────────
 //
@@ -147,13 +153,36 @@ export function useFocusedTab(): Tab {
 }
 
 /**
+ * Where this window's layout is saved: the verified account's namespace, the
+ * unscoped one while the token's account is unverified, or nowhere when
+ * signed out (the login page never becomes anyone's layout).
+ */
+function layoutScope(): { save: boolean; scope: LayoutScope } {
+  const { token, accountId } = useAuthStore.getState();
+  if (!token) return { save: false, scope: undefined };
+  return { save: true, scope: accountId != null ? `account.${accountId}` : undefined };
+}
+
+function save(ws: Workspace) {
+  const { save, scope } = layoutScope();
+  if (save) saveWorkspace(ws, { scope });
+}
+
+/**
  * Load this window's saved layout and keep it saved. The window that changes
- * its layout, or comes back to the front, becomes the last-used one.
+ * its layout, or comes back to the front, becomes the last-used one. Layouts
+ * are kept per account: once a token's account is verified, its saved layout
+ * replaces the provisional one (or the provisional one becomes its layout).
  */
 export function initWorkspace(href: string): () => void {
-  useWorkspaceStore.setState({ workspace: loadWorkspace(href), undo: [], notice: null });
+  const initial = layoutScope();
+  useWorkspaceStore.setState({
+    workspace: initial.save ? loadWorkspace(href, initial.scope) : createWorkspace([href]),
+    undo: [],
+    notice: null,
+  });
   if (islands(getWorkspace().layout).length > 1) retireTabHint();
-  saveWorkspace(getWorkspace());
+  save(getWorkspace());
 
   const unsubscribe = useWorkspaceStore.subscribe((s, prev) => {
     if (
@@ -161,16 +190,35 @@ export function initWorkspace(href: string): () => void {
       s.workspace.focusedIslandId !== prev.workspace.focusedIslandId ||
       s.workspace.maximizedIslandId !== prev.workspace.maximizedIslandId
     ) {
-      saveWorkspace(s.workspace);
+      save(s.workspace);
     }
   });
+  const unsubscribeAuth = useAuthStore.subscribe((state, previous) => {
+    if (!state.token) {
+      // Signed out: the next account must not inherit this layout.
+      if (previous.token) forgetUnscopedWorkspace();
+      return;
+    }
+    if (previous.accountId != null || state.accountId == null) return;
+    if (state.token !== previous.token) return;
+    // The provisional layout's account is now known.
+    const saved = readSavedWorkspace(`account.${state.accountId}`);
+    if (saved) {
+      const here = focusedTab(getWorkspace()).href;
+      useWorkspaceStore.setState({ workspace: saved, undo: [], notice: null });
+      if (here !== HOME_HREF) dispatch({ type: "openUrl", href: here });
+    }
+    save(getWorkspace());
+    forgetUnscopedWorkspace();
+  });
   const onFront = () => {
-    if (document.visibilityState === "visible") saveWorkspace(getWorkspace());
+    if (document.visibilityState === "visible") save(getWorkspace());
   };
   window.addEventListener("focus", onFront);
   document.addEventListener("visibilitychange", onFront);
   return () => {
     unsubscribe();
+    unsubscribeAuth();
     window.removeEventListener("focus", onFront);
     document.removeEventListener("visibilitychange", onFront);
   };
