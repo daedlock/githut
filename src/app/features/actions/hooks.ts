@@ -341,9 +341,6 @@ function useRunCommand(owner: string, repo: string, command: RunCommand) {
   return useMutation({
     mutationKey: ["actions-command", owner, repo],
     mutationFn: async (runId: number) => {
-      const previousAttempt = qc.getQueryData<WorkflowRun>(
-        actionsKeys.run(owner, repo, runId),
-      )?.run_attempt;
       await getGitHubClient().request(
         `POST /repos/{owner}/{repo}/actions/runs/{run_id}/${command}`,
         {
@@ -352,23 +349,12 @@ function useRunCommand(owner: string, repo: string, command: RunCommand) {
           run_id: runId,
         },
       );
-      return previousAttempt;
     },
-    onSuccess: async (previousAttempt, runId) => {
-      // Keep server state truthful while GitHub propagates the command. Never
-      // overwrite a completed attempt with a fabricated queued/cancelled state.
-      for (let i = 0; i < 10; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 3_000));
-        const run = await qc
-          .fetchQuery({ ...workflowRunQueryOptions(owner, repo, runId), staleTime: 0 })
-          .catch(() => undefined);
-        if (
-          run &&
-          (command === "cancel" ? run.status === "completed" : run.run_attempt !== previousAttempt)
-        )
-          break;
-      }
+    onSuccess: async (_, runId) => {
+      // Reconcile the accepted command, then let workspace freshness follow
+      // propagation. A detached polling loop would keep fetching hidden tabs.
       await Promise.all([
+        qc.invalidateQueries({ queryKey: actionsKeys.run(owner, repo, runId) }),
         qc.invalidateQueries({ queryKey: actionsKeys.jobs(owner, repo, runId) }),
         qc.invalidateQueries({ queryKey: actionsKeys.artifacts(owner, repo, runId) }),
         qc.invalidateQueries({ queryKey: ["actions-runs", owner, repo] }),
