@@ -9,6 +9,7 @@ import { PageScrollControls } from "@/app/components/PageScrollControls";
 import { DocumentTitle } from "@/app/components/shell/DocumentTitle";
 import { LinkHoverMenu } from "@/app/components/shell/LinkHoverMenu";
 import { SectionMenu } from "@/app/components/shell/SectionMenu";
+import { SignInBanner } from "@/app/components/shell/SessionNotices";
 import { TabShortcuts } from "@/app/components/shell/TabShortcuts";
 import { TabStrip } from "@/app/components/shell/TabStrip";
 import { TitleBar } from "@/app/components/shell/TitleBar";
@@ -100,7 +101,7 @@ export function TabHost() {
     <TooltipProvider delayDuration={500} skipDelayDuration={300}>
       <div
         className={cn(
-          "flex h-full flex-col bg-(--color-frame)",
+          "relative flex h-full flex-col bg-(--color-frame)",
           "pr-[max(1rem,env(safe-area-inset-right))] pb-2 pl-[max(1rem,env(safe-area-inset-left))]",
         )}
       >
@@ -127,6 +128,7 @@ export function TabHost() {
           </div>
           <div className="relative min-h-0 flex-1">{panes}</div>
         </section>
+        <SignInBanner />
       </div>
     </TooltipProvider>
   );
