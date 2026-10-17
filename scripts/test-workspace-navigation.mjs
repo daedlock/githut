@@ -176,12 +176,14 @@ try {
     await tabCount(page, 3);
     assert.equal(await source.getByRole("tab").count(), 2);
     await source.getByRole("tab").first().click();
-    await issueLink(page, 1).locator("span").first().hover();
+    await issueLink(page, 2).locator("span").first().hover();
     await page
       .getByRole("button", { name: "Open to the side", exact: false })
       .click({ timeout: 5000 });
     await tabCount(page, 4);
-    assert.equal(await page.locator("[data-island]").count(), 3);
+    // Side opens fill the island already to the right instead of adding one.
+    assert.equal(await page.locator("[data-island]").count(), 2);
+    assert.equal(await source.getByRole("tab").count(), 2);
     assert.deepEqual(hover.errors, []);
     console.log("PASS resting link actions retain the source island across a portalled menu");
   } finally {
