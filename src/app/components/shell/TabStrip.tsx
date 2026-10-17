@@ -146,9 +146,9 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
           aria-label="Open tabs"
           onKeyDown={onKeyDown}
           className={cn(
-            "relative flex h-full min-w-0 flex-1 select-none items-center gap-0.5 overflow-x-auto",
+            "relative flex h-full min-w-0 flex-1 select-none items-end gap-0.5 overflow-x-auto",
             // Room for the selected tab's outline, which the scroller would clip.
-            "px-0.5 [scroll-padding-inline:2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            "px-px pt-px [scroll-padding-inline:2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
           )}
           style={{ maskImage: fadeMask(fade.start, fade.end) }}
         >
@@ -306,17 +306,21 @@ const TabItem = memo(function TabItem({
                 }
               }}
               className={cn(
-                "group relative flex h-7 shrink-0 cursor-default items-center gap-1.5 rounded-lg",
-                pinned ? "px-2" : "min-w-16 max-w-[220px] pl-2 pr-1",
+                "group relative flex h-[31px] shrink-0 cursor-default items-center gap-1.5 rounded-t-lg",
+                pinned ? "px-2" : "min-w-16 max-w-[220px] pl-2.5 pr-1.5",
                 "text-ui outline-none focus-visible:ring-1 focus-visible:ring-(--color-focus)",
                 "data-drag-source:opacity-30",
                 !selected && "text-muted-foreground hover:bg-accent hover:text-foreground",
-                selected && !focused && "bg-muted text-foreground ring-1 ring-border",
-                selected &&
-                  focused && [
-                    "bg-[color-mix(in_oklab,var(--color-brand)_9%,var(--color-bg-subtle))] text-foreground",
-                    "ring-1 ring-[color:color-mix(in_oklab,var(--color-brand)_45%,var(--color-border))]",
-                  ],
+                // The selected tab is part of the island sheet: same surface,
+                // and the sheet's edge continues around its sides and top.
+                selected && [
+                  "bg-background",
+                  "before:pointer-events-none before:absolute before:-inset-x-px before:-top-px before:bottom-px",
+                  "before:rounded-t-[7px] before:border before:border-b-0 before:transition-colors before:duration-150",
+                  focused
+                    ? "text-foreground before:border-(--color-island-edge-focus)"
+                    : "text-muted-foreground before:border-(--color-island-edge)",
+                ],
               )}
             >
               {display.repo && <RepoMark repo={display.repo} size="sm" />}

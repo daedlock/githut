@@ -49,7 +49,7 @@ color is shadcn's `primary`.
 
 | Token | Class | Use |
 |---|---|---|
-| `--color-brand` | `bg-primary`, `text-primary` | Primary button, checked controls, links, sub-tab indicator, the focused island's tab tint (see Islands), focus. |
+| `--color-brand` | `bg-primary`, `text-primary` | Primary button, checked controls, links, sub-tab indicator, focus. |
 | `--color-success` | `text-(--color-success)` | Open, additions, passing checks. |
 | `--color-danger` | `text-destructive`, `bg-destructive` | Closed (PRs), deletions, failures, errors. |
 | `--color-warning` | `text-(--color-warning)` | Pending, draft. |
@@ -169,7 +169,7 @@ Use only this z-index scale:
 ## Layout
 
 ### Chrome
-- Pages have no navigation bar of their own. Global controls live in the sidebar; each island owns its header (`h-10`); see Islands. Rows inside
+- Pages have no navigation bar of their own. Global controls live in the sidebar; each island owns its header (`h-9`); see Islands. Rows inside
   chrome are `h-* flex items-center`. **Never use `py-*` on a chrome bar.**
 - Each tab scrolls in its own pane, with no chrome above the page inside it.
   Sticky page bars stick at `top-0`; sticky sidebars offset only by the page's
@@ -226,15 +226,15 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
 - The frame leaves a consistent `max(8px, safe-area)` gutter on every outer edge, including narrow screens. Sidebar-to-island and inter-island gaps are `8px`. No global header row reserves space above the islands.
 
 ### Island
-- `bg-background rounded-island overflow-hidden`, with
+- An island is its header (tabs, on the frame) above its **sheet**: the
+  sheet is `bg-background rounded-island overflow-hidden`, with
   `shadow-(--island-shadow)` at rest and `shadow-(--island-shadow-focus)`
   for the focused island. The recipe is a 1px hairline edge plus
   `--island-elev`: a barely-there drop in light themes, a 1px top
   highlight in dark themes. Don't add others.
 - Edges are Linear-style: a translucent tint of the text colour, never a
   border colour. Idle `--color-island-edge` (fg 9%), focused
-  `--color-island-edge-focus` (fg 13%). No brand on the edge; the
-  focused island's selected tab carries the brand tint.
+  `--color-island-edge-focus` (fg 13%). No brand on the edge or the tabs.
 - An island is a `@container`, so its header adapts to the island's
   width, not the window's.
 - Islands are labelled regions (`<section aria-label>` naming the
@@ -276,21 +276,26 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
   An expired sign-in shows a persistent top-centre toast with its recovery
   action and never replaces tabs or drafts.
 ### Island header
-- `h-10 flex items-center gap-1 pl-1 pr-1.5`: the tab row takes the
+- `h-9 flex items-center gap-1 pr-0.5`, sitting on the frame outside the
+  sheet and overlapping it by 1px (`-mb-px`, above it) so the selected tab
+  covers the sheet's top edge. The tab row takes the
   remaining width, then the island menu (`Button ghost icon-sm`,
   `Columns2`: Split right, Split down, Maximize/Restore). The header holds
   only tabs and island actions; location lives in the breadcrumb row below.
-- **Tabs:** `h-7 rounded-lg pl-2 pr-1 gap-1.5 text-ui`, 64–220px wide.
+- **Tabs:** `h-[31px] rounded-t-lg pl-2.5 pr-1.5 gap-1.5 text-ui`, 64–220px
+  wide, bottom-aligned in the row.
   Order: repo mark (`sm`) → state icon (16px box, `size-3.5`, coloured by
   open / merged / closed / draft) → mono `#number` in `--color-fg-faint` →
   title (truncates) → close `×` (shown on hover and on the selected tab).
   A tab whose page has an unsent draft shows a 6px `--color-warning` draft
   dot in the close slot instead; `×` replaces it on hover. Closing never
   prompts: the draft stays with the page.
-- Tab states: rest has no fill; hover `bg-accent` (the sunken token);
-  selected `bg-muted` with `ring-1 ring-border`; selected in the focused
-  island takes a brand tint instead (9% brand over `bg-muted`, ring 45%
-  brand into border). This is the one place brand tints a selection.
+- Tab states: rest has no fill; hover `bg-accent` (the sunken token).
+  The selected tab is part of the sheet, like a folder tab: `bg-background`,
+  and the sheet's edge continues around its sides and top (a 1px border
+  drawn just outside the tab, no bottom) in the same colour as the
+  island's edge, idle or focused. Its text is `text-foreground` in the
+  focused island, muted elsewhere.
 - Tabs activate on pointer-down. Nothing animates on switch.
 - Pinned tabs lead the row and show only their repo mark and state icon,
   with the title in the tooltip. They keep their draft dot and survive

@@ -240,20 +240,29 @@ const IslandFrame = memo(
         }}
         style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
         className={cn(
-          "@container absolute flex-col overflow-hidden rounded-island bg-background",
+          "@container absolute flex-col data-drag-source:opacity-45",
           shown ? "flex" : "hidden",
-          "transition-shadow duration-150 data-drag-source:opacity-45",
-          focused ? "shadow-(--island-shadow-focus)" : "shadow-(--island-shadow)",
         )}
       >
+        {/* Tabs sit on the window frame, outside the island sheet; the
+            selected tab joins the sheet below it like a file folder tab. */}
         <IslandHeader
           island={island}
           focused={focused}
           maximized={maximized}
           canMaximize={canMaximize}
         />
-        <BreadcrumbRow island={island} focused={focused} />
-        <div className="relative min-h-0 flex-1">{renderPanes(island, shown)}</div>
+        <div
+          data-island-sheet
+          className={cn(
+            "flex min-h-0 flex-1 flex-col overflow-hidden rounded-island bg-background",
+            "transition-shadow duration-150",
+            focused ? "shadow-(--island-shadow-focus)" : "shadow-(--island-shadow)",
+          )}
+        >
+          <BreadcrumbRow island={island} focused={focused} />
+          <div className="relative min-h-0 flex-1">{renderPanes(island, shown)}</div>
+        </div>
       </section>
     );
   },
@@ -289,7 +298,8 @@ const IslandHeader = memo(function IslandHeader({
         if ((e.target as Element).closest("button, a, nav, input, [role=menu]")) return;
         toggleMaximize(island.id);
       }}
-      className="flex h-10 shrink-0 touch-none items-center gap-1 pr-1.5 pl-1"
+      // Overlaps the sheet by 1px so the selected tab covers the sheet's top edge.
+      className="relative z-10 -mb-px flex h-9 shrink-0 touch-none items-center gap-1 pr-0.5"
     >
       {narrow && focused && <SidebarToggle />}
       <TabStrip island={island} focused={focused} />
