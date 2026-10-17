@@ -160,11 +160,29 @@ try {
   await page.mouse.move(pulls.x + 40, pulls.y + 12);
   await page.mouse.down();
   await page.mouse.move(inbox.x + inbox.width / 2 - 8, inbox.y + 12, { steps: 12 });
-  await page.locator('[data-dock-preview="insert"]').waitFor();
-  const line = await page.locator('[data-dock-preview="insert"]').boundingBox();
+  // Live sorting: no insertion line; the unpinned tab slides aside to open
+  // the gap after the pinned prefix, and the pinned tab stays put.
+  await page.waitForFunction(() =>
+    document.querySelector('[data-tab-id="issues"]').style.transform.includes("translateX"),
+  );
+  assert.equal(await page.locator('[data-dock-preview="insert"]').count(), 0);
+  assert.equal(
+    await page.locator('[data-tab-id="inbox"]').evaluate((el) => el.style.transform),
+    "",
+    "Pinned tabs never shift for an unpinned tab",
+  );
   await page.mouse.up();
+  await page.waitForFunction(() => !document.querySelector("[data-dock-ghost]"));
   const reordered = await page.locator('[data-tab-id="pulls"]').boundingBox();
-  assert.ok(Math.abs(reordered.x - line.x) < 3, "Insertion preview respects the pinned prefix");
+  assert.ok(
+    Math.abs(reordered.x - (inbox.x + inbox.width + 2)) < 3,
+    "Lands after the pinned prefix",
+  );
+  assert.equal(
+    await page.locator('[data-tab-id="issues"]').evaluate((el) => el.style.transform),
+    "",
+    "Shifts are cleared once the order is committed",
+  );
   assert.deepEqual(
     await page
       .locator('[data-island="first"] [data-tab-id]')

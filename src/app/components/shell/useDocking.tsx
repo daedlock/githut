@@ -5,7 +5,7 @@ import {
   useEffect,
   useRef,
 } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { create } from "zustand";
 import { trackWorkspaceAction } from "@/app/lib/analytics";
 import { cn } from "@/app/lib/cn";
@@ -88,6 +88,7 @@ export function useDocking(
             ? root.querySelector<HTMLElement>(`[data-island="${CSS.escape(source.islandId)}"]`)
             : null;
       let lifted: { el: HTMLElement; dx: number; dy: number } | null = null;
+      let sorter: ReturnType<typeof createSorter> | null = null;
       let point = start;
       const previousCursor = document.documentElement.style.cursor;
       const previousSelection = document.documentElement.style.userSelect;
@@ -103,9 +104,32 @@ export function useDocking(
           lifted: !!lifted,
           drop: findDrop(root, source, point.x, point.y),
         };
+        const target = current.drop?.target;
         if (lifted) {
-          const x = Math.min(point.x - lifted.dx, window.innerWidth - lifted.el.offsetWidth);
-          lifted.el.style.transform = `translate(${x}px, ${point.y - lifted.dy}px)`;
+          const { el } = lifted;
+          let x = Math.min(point.x - lifted.dx, window.innerWidth - el.offsetWidth);
+          let y = point.y - lifted.dy;
+          // Over a strip the tab rides along it, level with its neighbours;
+          // anywhere else it follows the pointer freely.
+          const home = origin?.closest<HTMLElement>("[data-tab-strip]");
+          const overHome = home && within(home.getBoundingClientRect(), point);
+          // Over its own strip with no move yet (a no-op target), it rides too.
+          const strip =
+            target?.type === "tabs" ? stripOf(root, target.islandId) : overHome ? home : null;
+          if (strip) {
+            const r = strip.getBoundingClientRect();
+            x = Math.max(r.left, Math.min(x, r.right - el.offsetWidth));
+            y = r.bottom - el.offsetHeight - (origin ? stripInset(origin) : 0);
+          }
+          el.style.transform = `translate(${x}px, ${y}px)`;
+          // Riding its own strip without a move yet: the gap stays at home.
+          const islandId = origin?.closest<HTMLElement>("[data-island]")?.dataset.island;
+          const index = home ? [...home.querySelectorAll("[data-tab-id]")].indexOf(origin!) : -1;
+          sorter?.show(
+            target?.type !== "tabs" && overHome && islandId
+              ? { type: "tabs", islandId, index }
+              : target,
+          );
         }
         // Holding still at a strip end keeps scrolling it, not only on move.
         if (stripScroll.active) frame = requestAnimationFrame(update);
@@ -122,7 +146,10 @@ export function useDocking(
           document.documentElement.style.cursor = "grabbing";
           document.documentElement.style.userSelect = "none";
           origin?.setAttribute("data-drag-source", "");
-          if (source.type === "tab" && origin) lifted = liftCopy(origin, start);
+          if (source.type === "tab" && origin) {
+            lifted = liftCopy(origin, start);
+            sorter = createSorter(root, origin);
+          }
         }
         event.preventDefault();
         if (!frame) frame = requestAnimationFrame(update);
@@ -140,10 +167,20 @@ export function useDocking(
         if (root.hasPointerCapture(e.pointerId)) root.releasePointerCapture(e.pointerId);
         document.documentElement.style.cursor = previousCursor;
         document.documentElement.style.userSelect = previousSelection;
-        origin?.removeAttribute("data-drag-source");
-        lifted?.el.remove();
+        const drop = commit ? current?.drop : null;
+        const sorted = !!lifted && drop?.target.type === "tabs";
         cleanup.current = null;
         setDrag(null);
+        if (!sorted) {
+          // Cancelled: the gap closes and the tab glides back to its slot.
+          sorter?.show(undefined);
+          if (lifted && origin && !drop) settle(lifted.el, origin, () => sorter?.clear());
+          else {
+            lifted?.el.remove();
+            sorter?.clear();
+          }
+          origin?.removeAttribute("data-drag-source");
+        }
         if (active) {
           // A drag can start on a launcher button; its trailing click must not
           // launch again after docking (or after Escape cancels the gesture).
@@ -160,10 +197,22 @@ export function useDocking(
           if (!buttonStillDown) release();
           else window.addEventListener("pointerup", release, { capture: true, once: true });
         }
-        if (commit && current?.drop) {
+        if (drop) {
           const before = getWorkspace();
-          dispatch({ type: "dock", source, target: current.drop.target });
+          // Sorted: commit the new order synchronously, drop the shifts in the
+          // same frame (the DOM order now matches them), and land the lifted
+          // tab in its real slot.
+          if (sorted) flushSync(() => dispatch({ type: "dock", source, target: drop.target }));
+          else dispatch({ type: "dock", source, target: drop.target });
           if (getWorkspace() !== before) trackWorkspaceAction("drag-dock");
+          if (sorted && lifted) {
+            sorter?.clear();
+            origin?.removeAttribute("data-drag-source");
+            const id = (source as { tabId: string }).tabId;
+            const landed = root.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(id)}"]`);
+            if (landed) settle(lifted.el, landed);
+            else lifted.el.remove();
+          }
         }
       };
       const up = (event: globalThis.PointerEvent) => {
@@ -248,6 +297,88 @@ function liftCopy(tab: HTMLElement, grab: { x: number; y: number }) {
   return { el, dx: grab.x - rect.left, dy: grab.y - rect.top };
 }
 
+const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
+const SORT_MS = 160;
+const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function stripOf(root: HTMLElement, islandId: string) {
+  return root
+    .querySelector(`[data-island="${CSS.escape(islandId)}"]`)
+    ?.querySelector<HTMLElement>("[data-tab-strip]");
+}
+
+const within = (r: DOMRect, p: { x: number; y: number }) =>
+  p.x >= r.left && p.x <= r.right && p.y >= r.top && p.y <= r.bottom;
+
+/** Gap between a tab's bottom and its strip's, so a riding tab sits level. */
+function stripInset(tab: HTMLElement) {
+  const strip = tab.closest("[data-tab-strip]");
+  return strip ? strip.getBoundingClientRect().bottom - tab.getBoundingClientRect().bottom : 0;
+}
+
+/**
+ * Live sorting: while a tab hovers a strip, the tabs there slide aside to
+ * open its landing gap. Shifts are transforms on the real tabs, so nothing
+ * re-renders mid-drag; the order itself changes only on drop.
+ */
+function createSorter(root: HTMLElement, origin: HTMLElement) {
+  const strip = origin.closest<HTMLElement>("[data-tab-strip]");
+  const gap = strip ? Number.parseFloat(getComputedStyle(strip).columnGap) || 0 : 0;
+  const width = origin.offsetWidth + gap;
+  const tabs = [...root.querySelectorAll<HTMLElement>("[data-tab-id]")];
+  const transition = reducedMotion() ? "none" : `transform ${SORT_MS}ms ${EASE}`;
+  for (const tab of tabs) tab.style.transition = transition;
+
+  return {
+    show(target: DockTarget | undefined) {
+      const into = target?.type === "tabs" ? stripOf(root, target.islandId) : null;
+      const row = into ? [...into.querySelectorAll<HTMLElement>("[data-tab-id]")] : [];
+      const from = row.indexOf(origin);
+      const to = target?.type === "tabs" ? target.index : -1;
+      for (const tab of tabs) {
+        const i = row.indexOf(tab);
+        let shift = 0;
+        if (i >= 0 && tab !== origin) {
+          if (from < 0) shift = i >= to ? width : 0;
+          else if (to > from) shift = i > from && i < to ? -width : 0;
+          else shift = i >= to && i < from ? width : 0;
+        }
+        tab.style.transform = shift ? `translateX(${shift}px)` : "";
+      }
+      // Sorting its own strip, the tab's slot is the moving gap itself.
+      origin.style.opacity = from >= 0 ? "0" : "";
+    },
+    clear() {
+      for (const tab of tabs) {
+        tab.style.transition = "";
+        tab.style.transform = "";
+      }
+      origin.style.opacity = "";
+    },
+  };
+}
+
+/** Glide the lifted copy onto a tab's real slot, then hand back to the tab. */
+function settle(copy: HTMLElement, tab: HTMLElement, done?: () => void) {
+  const to = tab.getBoundingClientRect();
+  const finish = () => {
+    copy.remove();
+    tab.style.opacity = "";
+    done?.();
+  };
+  if (reducedMotion()) return finish();
+  tab.style.opacity = "0";
+  const animation = copy.animate(
+    [
+      { transform: copy.style.transform },
+      { transform: `translate(${to.left}px, ${to.top}px)`, boxShadow: "none" },
+    ],
+    { duration: SORT_MS, easing: EASE, fill: "forwards" },
+  );
+  animation.onfinish = finish;
+  animation.oncancel = finish;
+}
+
 /** Glides between drop targets the way the prototype does, and fades in and out. */
 const PREVIEW_MOTION =
   "transition-[left,top,width,height,opacity] duration-[110ms,110ms,110ms,110ms,90ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none";
@@ -264,7 +395,7 @@ function DockingOverlay() {
     drag &&
     createPortal(
       <>
-        {shown && (
+        {shown && !(drag.lifted && shown.target.type === "tabs") && (
           <div
             data-dock-preview={shown.line ? "insert" : shown.target.type}
             aria-hidden
@@ -356,9 +487,16 @@ function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): 
         if (step) strip.scrollLeft += step;
         stripScroll.active = strip.scrollLeft !== before;
         const tabs = [...strip.querySelectorAll<HTMLElement>("[data-tab-id]")];
+        // Home slots, not on-screen rects: live sorting shifts tabs with
+        // transforms, and measuring those would make the target flicker.
+        const home = (tab: HTMLElement | undefined) =>
+          tab && {
+            left: stripRect.left + tab.offsetLeft - strip.scrollLeft,
+            right: stripRect.left + tab.offsetLeft - strip.scrollLeft + tab.offsetWidth,
+          };
         let index = tabs.findIndex((tab) => {
-          const r = tab.getBoundingClientRect();
-          return x < r.left + r.width / 2;
+          const r = home(tab)!;
+          return x < (r.left + r.right) / 2;
         });
         if (index < 0) index = tabs.length;
         // The line must describe the legal insertion gap: pinned tabs stay
@@ -372,8 +510,8 @@ function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): 
         } else if (source.type === "href") {
           index = Math.max(index, findIsland(ws.layout, islandId)?.pinned.length ?? 0);
         }
-        const next = tabs[index]?.getBoundingClientRect();
-        const previous = tabs[index - 1]?.getBoundingClientRect();
+        const next = home(tabs[index]);
+        const previous = home(tabs[index - 1]);
         const left = Math.max(
           stripRect.left,
           Math.min(next?.left ?? previous?.right ?? stripRect.left, stripRect.right - 2),
