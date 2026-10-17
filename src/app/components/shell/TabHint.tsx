@@ -23,7 +23,13 @@ export function TabHint({ focused, children }: { focused: boolean; children: Rea
         onOpenAutoFocus={(event) => event.preventDefault()}
         onCloseAutoFocus={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
-        onEscapeKeyDown={retireTabHint}
+        // Escape meant for something else (a drag, a page dialog) must not
+        // retire the hint for good; only Escape from inside the hint does.
+        onEscapeKeyDown={(event) => {
+          const inside = event.target instanceof Element && event.target.closest("[data-tab-hint]");
+          if (inside) retireTabHint();
+        }}
+        data-tab-hint
       >
         <p className="text-caption text-muted-foreground">
           drag to split · ⇧-click new tab · ⌥-click to the side
