@@ -22,7 +22,31 @@ import {
 } from "@/app/workspace/model";
 import { dispatch, getWorkspace } from "@/app/workspace/store";
 
-type Drop = { target: DockTarget; rect: Rect; line: boolean };
+type Drop = { target: DockTarget; rect: Rect; line: boolean; label?: string };
+
+/** Share of an island's width/height, from each edge, that splits instead of moving. */
+const EDGE_ZONE = 0.28;
+
+function dropLabel(source: DockSource, target: DockTarget): string | undefined {
+  if (target.type === "island-edge")
+    return {
+      left: "Split left",
+      right: "Split right",
+      top: "Split up",
+      bottom: "Split down",
+    }[target.side];
+  if (target.type === "workspace-edge")
+    return {
+      left: "Dock at window left",
+      right: "Dock at window right",
+      bottom: "Dock at window bottom",
+    }[target.side];
+  return source.type === "island"
+    ? "Merge tabs"
+    : source.type === "href"
+      ? "Open here"
+      : "Move here";
+}
 type Drag = { source: DockSource; x: number; y: number; label: string; drop: Drop | null };
 
 /**
@@ -174,14 +198,26 @@ function DockingOverlay() {
               "pointer-events-none fixed z-40",
               drag.drop.line
                 ? "rounded-full bg-primary"
-                : "rounded-island bg-[color-mix(in_oklab,var(--color-brand)_12%,transparent)] ring-1 ring-primary/40",
+                : "grid place-items-center rounded-island bg-[color-mix(in_oklab,var(--color-brand)_12%,transparent)] ring-1 ring-primary/40",
             )}
-          />
+          >
+            {!drag.drop.line && drag.drop.label && (
+              <span
+                data-dock-label
+                className="rounded-full bg-popover px-2.5 py-1 font-medium text-caption text-foreground shadow-md ring-1 ring-foreground/10"
+              >
+                {drag.drop.label}
+              </span>
+            )}
+          </div>
         )}
         <div
           data-dock-ghost
           aria-hidden
-          style={{ left: drag.x + 14, top: drag.y + 14 }}
+          style={{
+            left: Math.min(drag.x + 12, window.innerWidth - 264),
+            top: Math.min(drag.y + 10, window.innerHeight - 44),
+          }}
           className="pointer-events-none fixed z-50 max-w-64 truncate rounded-lg bg-popover px-3 py-2 text-ui shadow-md ring-1 ring-foreground/10"
         >
           {drag.label}
@@ -260,11 +296,13 @@ function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): 
         target = { type: "tabs", islandId, index };
         line = { left, top: stripRect.top + 6, width: 2, height: stripRect.height - 12 };
       } else {
+        // Nearest edge as a share of the island's size; within EDGE_ZONE it
+        // splits, otherwise the centre moves into the island.
         const edges = [
-          { side: "left" as const, distance: (x - rect.left) / Math.min(72, rect.width / 4) },
-          { side: "right" as const, distance: (rect.right - x) / Math.min(72, rect.width / 4) },
-          { side: "top" as const, distance: (y - rect.top) / Math.min(72, rect.height / 4) },
-          { side: "bottom" as const, distance: (rect.bottom - y) / Math.min(72, rect.height / 4) },
+          { side: "left" as const, distance: (x - rect.left) / rect.width / EDGE_ZONE },
+          { side: "right" as const, distance: (rect.right - x) / rect.width / EDGE_ZONE },
+          { side: "top" as const, distance: (y - rect.top) / rect.height / EDGE_ZONE },
+          { side: "bottom" as const, distance: (rect.bottom - y) / rect.height / EDGE_ZONE },
         ].sort((a, b) => a.distance - b.distance);
         const edge = edges[0]!;
         const sameIsland =
@@ -292,6 +330,7 @@ function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): 
   // flatten splits, so a naive half of the old target would be misleading.
   const next = normalizeWorkspace(result);
   const layoutBounds = bounds;
+  const label = dropLabel(source, target);
   if (useWorkspaceView.getState().narrow) {
     return {
       target,
@@ -302,6 +341,7 @@ function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): 
         height: layoutBounds.height,
       },
       line: false,
+      label,
     };
   }
   const geometry = layoutGeometry(next.layout, {
@@ -311,5 +351,5 @@ function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): 
     height: layoutBounds.height,
   });
   const rect = geometry.islands.get(next.focusedIslandId);
-  return rect ? { target, rect, line: false } : null;
+  return rect ? { target, rect, line: false, label } : null;
 }

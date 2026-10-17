@@ -252,6 +252,12 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
 - Gaps resize by drag, or with arrow keys while focused (16px, Shift
   64px, Home/End to the limits). Double-clicking a gap equalizes its
   split.
+- Docking drags hit-test against the islands: the outer 28% of an island
+  from its nearest edge splits it, the centre moves into it, the strip
+  inserts at a 2px `bg-primary` line, and the outer 24px of the islands
+  area docks at the window edge. Every preview but the line carries a
+  centred label chip ("Split right", "Move here", "Merge tabs", "Dock at
+  window left"). Dropping on your own island's centre does nothing.
 - Double-clicking an island header (outside buttons, links and sections)
   maximizes the island over the others; again restores the exact
   previous sizes. Nothing animates.
