@@ -277,7 +277,7 @@ export const jobLogsQueryOptions = (
   jobId: number,
   { isLive = false, pollUntil }: { isLive?: boolean; pollUntil?: number } = {},
 ) =>
-  queryOptions({
+  queryOptions<string>({
     queryKey: actionsKeys.logs(owner, repo, jobId),
     // Log polling has terminal errors and a materialization deadline; false is a stop.
     meta: { workspacePolling: "interval" },
