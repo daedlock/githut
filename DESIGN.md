@@ -278,8 +278,8 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
   A tab whose page has an unsent draft shows a 6px `--color-warning` draft
   dot in the close slot instead; `×` replaces it on hover. Closing never
   prompts: the draft stays with the page.
-- Tab states: rest has no fill; hover `bg-sunken` at 60%; selected
-  `bg-muted` with a 1px `--color-border` ring; selected in the focused
+- Tab states: rest has no fill; hover `bg-accent` (the sunken token);
+  selected `bg-muted` with `ring-1 ring-border`; selected in the focused
   island takes a brand tint instead (9% brand over `bg-muted`, ring 45%
   brand into border). This is the one place brand tints a selection.
 - Tabs activate on pointer-down. Nothing animates on switch.
@@ -287,7 +287,11 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
   with the title in the tooltip. They keep their draft dot and survive
   bulk close actions. Pin and unpin are in the tab menu and command palette.
 - The tab row scrolls horizontally and keeps the selected tab visible.
-  A chevron menu lists every tab, including pins, for keyboard navigation.
+  While it overflows, a chevron menu lists every tab, including pins. In
+  narrow mode the island switcher lists them instead, so there is never a
+  second menu with the same list.
+- A maximized island shows a Restore button (`Minimize2`) before the
+  island menu, so hidden islands never look closed.
 - **Sections** (Code, Commits, PRs, Issues, Actions) act on the island's
   selected tab's repo; their labels and tooltips name it ("githut · PRs").
   Tiers are static and decided by island width only (container queries),

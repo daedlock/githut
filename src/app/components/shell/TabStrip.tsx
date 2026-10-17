@@ -1,5 +1,5 @@
 import { Check, ChevronDown, Pin, PinOff, X } from "lucide-react";
-import { type KeyboardEvent, memo, useEffect, useRef, useSyncExternalStore } from "react";
+import { type KeyboardEvent, memo, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { RepoMark } from "@/app/components/shell/RepoMark";
@@ -42,6 +42,7 @@ import {
 } from "@/app/lib/tabActions";
 import { getTabMeta, type TabMeta } from "@/app/lib/tabMeta";
 import { useTabTitlesStore } from "@/app/stores/tabTitles";
+import { useWorkspaceView } from "@/app/stores/workspaceView";
 import { hrefPathname, type Island, type Tab } from "@/app/workspace/model";
 import { useWorkspaceStore } from "@/app/workspace/store";
 
@@ -59,6 +60,8 @@ import { useWorkspaceStore } from "@/app/workspace/store";
 export function TabStrip({ island, focused }: { island: Island; focused: boolean }) {
   const { tabs, selectedTabId } = island;
   const scroller = useRef<HTMLDivElement>(null);
+  const narrow = useWorkspaceView((state) => state.narrow);
+  const [overflowing, setOverflowing] = useState(false);
 
   // Vertical wheel scrolls the strip sideways when it overflows.
   useEffect(() => {
@@ -88,15 +91,27 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
       }
     };
     reveal();
-    // Titles arrive after first paint and the island can resize: re-check.
+    // The island can resize and the selected title can arrive late: re-check
+    // on those only. Other tabs resizing (titles, unread dots) must not undo
+    // the user's own scroll of the strip.
     const ro = new ResizeObserver(reveal);
-    for (const tab of tabs) {
-      const item = strip.querySelector<HTMLElement>(`[data-tab-id="${tab.id}"]`);
-      if (item) ro.observe(item);
-    }
     ro.observe(strip);
+    ro.observe(sel);
     return () => ro.disconnect();
-  }, [selectedTabId, tabs]);
+  }, [selectedTabId]);
+
+  // The "all tabs" chevron only appears when the strip actually overflows.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-observe when the tab elements change
+  useEffect(() => {
+    const strip = scroller.current;
+    if (!strip) return;
+    const measure = () => setOverflowing(strip.scrollWidth > strip.clientWidth + 1);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(strip);
+    for (const item of strip.querySelectorAll<HTMLElement>("[data-tab-id]")) ro.observe(item);
+    return () => ro.disconnect();
+  }, [tabs]);
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
@@ -134,7 +149,8 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
           ))}
         </div>
       </TabHint>
-      <TabOverflow island={island} />
+      {/* In narrow mode the island switcher lists every tab instead. */}
+      {overflowing && !narrow && <TabOverflow island={island} />}
     </>
   );
 }
@@ -263,15 +279,12 @@ const TabItem = memo(function TabItem({
                 "group relative flex h-7 shrink-0 cursor-default items-center gap-1.5 rounded-lg",
                 pinned ? "px-2" : "min-w-16 max-w-[220px] pl-2 pr-1",
                 "text-ui outline-none focus-visible:ring-1 focus-visible:ring-(--color-focus)",
-                !selected &&
-                  "text-muted-foreground hover:bg-[color-mix(in_oklab,var(--color-bg-sunken)_60%,transparent)] hover:text-foreground",
-                selected &&
-                  !focused &&
-                  "bg-muted text-foreground shadow-[0_0_0_1px_var(--color-border)]",
+                !selected && "text-muted-foreground hover:bg-accent hover:text-foreground",
+                selected && !focused && "bg-muted text-foreground ring-1 ring-border",
                 selected &&
                   focused && [
                     "bg-[color-mix(in_oklab,var(--color-brand)_9%,var(--color-bg-subtle))] text-foreground",
-                    "shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-brand)_45%,var(--color-border))]",
+                    "ring-1 ring-[color:color-mix(in_oklab,var(--color-brand)_45%,var(--color-border))]",
                   ],
               )}
             >
@@ -296,8 +309,9 @@ const TabItem = memo(function TabItem({
                 />
               )}
               {!pinned && (
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   tabIndex={-1}
                   aria-label={`Close ${display.label}`}
                   onPointerDown={(e) => e.stopPropagation()}
@@ -306,8 +320,7 @@ const TabItem = memo(function TabItem({
                     closeTab(tab.id);
                   }}
                   className={cn(
-                    "inline-flex size-4.5 shrink-0 items-center justify-center rounded-md text-muted-foreground",
-                    "hover:bg-accent hover:text-foreground",
+                    "size-4.5 rounded-md hover:bg-accent active:not-aria-[haspopup]:translate-y-0",
                     selected || draft ? "visible" : "invisible group-hover:visible",
                   )}
                 >
@@ -319,7 +332,7 @@ const TabItem = memo(function TabItem({
                     />
                   )}
                   <X className={cn("size-3", draft && "hidden group-hover:block")} />
-                </button>
+                </Button>
               )}
             </div>
           </TooltipTrigger>
