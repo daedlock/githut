@@ -14,11 +14,12 @@ import { dispatch, getFocusedTab, getWorkspace, useWorkspaceStore } from "@/app/
 // The factory is injected from main.tsx (which owns routeTree + queryClient)
 // to keep this module out of the route import graph.
 
-type RouterFactory = (href: string) => AnyRouter;
+type RouterFactory = (href: string, history?: AnyRouter["history"]) => AnyRouter;
 type HistoryEvent = { location: { href: string }; action: { type: string } };
 
 let factory: RouterFactory | null = null;
 const routers = new Map<string, AnyRouter>();
+const histories = new Map<string, AnyRouter["history"]>();
 const unsubscribers = new Map<string, () => void>();
 
 /** Browser history entries we create carry a monotonically increasing index. */
@@ -32,8 +33,9 @@ export function getTabRouter(id: string, href: string): AnyRouter {
   const existing = routers.get(id);
   if (existing) return existing;
   if (!factory) throw new Error("Tab router factory not configured");
-  const router = factory(href);
+  const router = factory(href, histories.get(id));
   routers.set(id, router);
+  histories.set(id, router.history);
   unsubscribers.set(
     id,
     router.history.subscribe(({ location, action }: HistoryEvent) =>
@@ -47,11 +49,17 @@ export function getFocusedTabRouter(): AnyRouter | undefined {
   return routers.get(getFocusedTab().id);
 }
 
-/** Drop a tab's router; it's rebuilt from the tab's href if the tab is shown again. */
-export function disposeTabRouter(id: string) {
+/** Release page/router state while preserving the open tab's small history. */
+export function releaseTabRouter(id: string) {
   unsubscribers.get(id)?.();
   unsubscribers.delete(id);
   routers.delete(id);
+}
+
+/** Forget a tab once it is absent from both the layout and bounded undo history. */
+export function disposeTabRouter(id: string) {
+  releaseTabRouter(id);
+  histories.delete(id);
 }
 
 function currentUrl() {
@@ -117,7 +125,7 @@ export function startBrowserSync(): () => void {
           for (const tab of island.tabs) open.add(tab.id);
         }
       }
-      for (const id of routers.keys()) {
+      for (const id of histories.keys()) {
         if (!open.has(id)) disposeTabRouter(id);
       }
     }

@@ -63,6 +63,10 @@ export function moveTab(tabId: string, islandId: string, index: number) {
   dispatch({ type: "moveTab", tabId, islandId, index });
 }
 
+export function pinTab(tabId: string, pinned: boolean) {
+  dispatch({ type: "pinTab", tabId, pinned });
+}
+
 export function focusIsland(islandId: string) {
   dispatch({ type: "focusIsland", islandId });
 }

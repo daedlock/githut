@@ -84,6 +84,7 @@ function undoLabel(cmd: WorkspaceCommand): string | null {
       return "Tab closed";
     case "splitIsland":
     case "moveTab":
+    case "pinTab":
     case "resizeGap":
     case "equalizeSplit":
       return "Layout changed";

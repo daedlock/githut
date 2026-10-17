@@ -57,3 +57,11 @@ test("closing other tabs offers undo and later opened tabs are undone first", ()
   dispatch({ type: "undo" });
   expect(getWorkspace()).toEqual(before);
 });
+
+test("undoing a pin preserves the tab opened before it", () => {
+  dispatch({ type: "openTab", href: "/two" });
+  const before = getWorkspace();
+  dispatch({ type: "pinTab", tabId: focusedIsland(before).selectedTabId, pinned: true });
+  dispatch({ type: "undo" });
+  expect(getWorkspace()).toEqual(before);
+});
