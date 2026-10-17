@@ -40,7 +40,11 @@ export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot
   override componentWillUnmount() {
     this.scroller?.removeEventListener("scroll", this.onScroll);
     this.resize?.disconnect();
-    for (const timer of this.timers.values()) clearTimeout(timer);
+    for (const [node, timer] of this.timers) {
+      clearTimeout(timer);
+      node.removeAttribute("data-live-new");
+    }
+    this.timers.clear();
   }
 
   override getSnapshotBeforeUpdate(previous: Props): Snapshot | null {

@@ -149,44 +149,46 @@ try {
     }
     assert.equal(route.request().method(), "GET", "Fixtures never mutate GitHub");
     const body =
-      path === "/user"
-        ? actor
-        : path === "/repos/demo/project"
-          ? repo
-          : path.endsWith("/pulls/1")
-            ? pr
-            : path.endsWith("/pulls/2")
-              ? { ...pr, id: 2, number: 2, title: "Other PR" }
-              : path.endsWith("/project/issues")
-                ? listItems.map(({ pull_request, ...item }) => item)
-                : path.endsWith("/issues/9")
-                  ? {
-                      ...pr,
-                      id: 9,
-                      number: 9,
-                      title: "Issue discussion",
-                      labels: [],
-                      closed_at: null,
-                    }
-                  : /\/issues\/(1|9)\/comments$/.test(path)
-                    ? comments
-                    : path.endsWith("/actions/runs/100")
-                      ? run
-                      : path.endsWith("/jobs")
-                        ? { total_count: 0, jobs: [] }
-                        : path.endsWith("/artifacts")
-                          ? { total_count: 0, artifacts: [] }
-                          : path.endsWith("/check-runs")
-                            ? { total_count: 0, check_runs: [] }
-                            : path.endsWith("/status")
-                              ? { state: "success", total_count: 0, statuses: [] }
-                              : path === "/search/issues"
-                                ? {
-                                    total_count: listItems.length,
-                                    incomplete_results: false,
-                                    items: listItems,
-                                  }
-                                : [];
+      path === "/user/starred"
+        ? [repo, { ...repo, id: 2, name: "satellite", full_name: "demo/satellite" }]
+        : path === "/user"
+          ? actor
+          : path === "/repos/demo/project"
+            ? repo
+            : path.endsWith("/pulls/1")
+              ? pr
+              : path.endsWith("/pulls/2")
+                ? { ...pr, id: 2, number: 2, title: "Other PR" }
+                : path.endsWith("/project/issues")
+                  ? listItems.map(({ pull_request, ...item }) => item)
+                  : path.endsWith("/issues/9")
+                    ? {
+                        ...pr,
+                        id: 9,
+                        number: 9,
+                        title: "Issue discussion",
+                        labels: [],
+                        closed_at: null,
+                      }
+                    : /\/issues\/(1|9)\/comments$/.test(path)
+                      ? comments
+                      : path.endsWith("/actions/runs/100")
+                        ? run
+                        : path.endsWith("/jobs")
+                          ? { total_count: 0, jobs: [] }
+                          : path.endsWith("/artifacts")
+                            ? { total_count: 0, artifacts: [] }
+                            : path.endsWith("/check-runs")
+                              ? { total_count: 0, check_runs: [] }
+                              : path.endsWith("/status")
+                                ? { state: "success", total_count: 0, statuses: [] }
+                                : path === "/search/issues"
+                                  ? {
+                                      total_count: listItems.length,
+                                      incomplete_results: false,
+                                      items: listItems,
+                                    }
+                                  : [];
     return route.fulfill({
       json: body,
       headers: {
@@ -205,6 +207,7 @@ try {
   });
   await context.route("https://cloud.umami.is/**", (route) => route.fulfill({ body: "" }));
   const page = await context.newPage();
+  const content = page.locator("[data-tab-pane]").filter({ visible: true });
   let releaseImage;
   await context.route(
     "https://example.test/late.svg",
@@ -221,7 +224,7 @@ try {
   );
   await page.clock.install({ time: new Date(now) });
   await page.goto(`${app}/demo/project/pull/1`);
-  const reader = page.getByText("Discussion comment 20", { exact: true });
+  const reader = content.getByText("Discussion comment 20", { exact: true });
   await reader.scrollIntoViewIfNeeded();
   const scroller = page.locator("[data-tab-pane]").filter({ visible: true });
   const before = await scroller.evaluate((element) => element.scrollTop);
@@ -239,7 +242,7 @@ try {
   await pill.waitFor({ timeout: 5000 });
   assert.equal(await scroller.evaluate((element) => element.scrollTop), before);
   await pill.click({ timeout: 5000 });
-  const incoming = page.getByText("Incoming comment below the fold", { exact: true });
+  const incoming = content.getByText("Incoming comment below the fold", { exact: true });
   assert.ok(
     await incoming.evaluate((element) => {
       const bounds = element.getBoundingClientRect();
@@ -270,7 +273,7 @@ try {
     ...comments,
   ];
   await page.clock.fastForward(16_000);
-  await page.getByText("Older event delivered late", { exact: true }).waitFor();
+  await content.getByText("Older event delivered late", { exact: true }).waitFor();
   assert.ok(
     Math.abs((await reader.boundingBox()).y - anchorTop) <= 1,
     "An insertion above keeps the same text at the same viewport position",
@@ -286,7 +289,7 @@ try {
     ...comments,
   ];
   await page.clock.fastForward(16_000);
-  await page.getByText("Attachment delivered late", { exact: true }).waitFor();
+  await content.getByText("Attachment delivered late", { exact: true }).waitFor();
   await releaseImage();
   await page
     .getByRole("img", { name: "Late attachment", exact: true })
@@ -299,7 +302,7 @@ try {
   console.log("PASS: delayed attachments above the reader preserve the anchor");
 
   await page.goto(`${app}/demo/project/issues/9`);
-  await page.getByText("Discussion comment 20", { exact: true }).scrollIntoViewIfNeeded();
+  await content.getByText("Discussion comment 20", { exact: true }).scrollIntoViewIfNeeded();
   const issueScroll = await scroller.evaluate((element) => element.scrollTop);
   comments = [
     ...comments,
@@ -310,7 +313,7 @@ try {
   assert.equal(await scroller.evaluate((element) => element.scrollTop), issueScroll);
   await pill.click();
   assert.ok(
-    await page.getByText("New issue reply", { exact: true }).evaluate((element) => {
+    await content.getByText("New issue reply", { exact: true }).evaluate((element) => {
       const bounds = element.getBoundingClientRect();
       const viewport = element.closest("[data-tab-pane]").getBoundingClientRect();
       return bounds.top >= viewport.top && bounds.bottom <= viewport.bottom;
@@ -319,15 +322,15 @@ try {
   console.log("PASS: issue conversation uses the same non-disruptive updates");
 
   await page.goto(`${app}/demo/project/pulls`);
-  const alpha = page.getByText("List row Alpha", { exact: true });
-  const beta = page.getByText("List row Beta", { exact: true });
+  const alpha = content.getByText(/^List row Alpha/);
+  const beta = content.getByText("List row Beta", { exact: true });
   await alpha.waitFor();
   await alpha.hover();
   const rowTop = (await alpha.boundingBox()).y;
   listItems = [
     { ...listItems[0], id: 203, number: 203, title: "List row Gamma" },
     listItems[1],
-    listItems[0],
+    { ...listItems[0], title: "List row Alpha updated" },
   ];
   await Promise.all([
     page.waitForResponse(
@@ -338,6 +341,7 @@ try {
     page.clock.fastForward(16_000),
   ]);
   await delay(150);
+  await content.getByText("List row Alpha updated", { exact: true }).waitFor({ timeout: 3000 });
   assert.equal(
     (await alpha.boundingBox()).y,
     rowTop,
@@ -361,6 +365,31 @@ try {
   );
   console.log("PASS: PR rows keep their order under the pointer and reconcile on leave");
 
+  await beta.hover();
+  const beforeRemoval = (await beta.boundingBox()).y;
+  listItems = listItems.filter((item) => item.id !== 203);
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url().includes("/search/issues?") &&
+        new URL(response.url()).searchParams.get("per_page") === "30",
+    ),
+    page.clock.fastForward(16_000),
+  ]);
+  await delay(100);
+  assert.equal(
+    (await beta.boundingBox()).y,
+    beforeRemoval,
+    "Removing a row above cannot move the pointer target",
+  );
+  await content.getByRole("textbox", { name: "Search pull requests", exact: true }).fill("Beta");
+  assert.equal(
+    await alpha.count(),
+    0,
+    "Explicit keyboard filter changes apply even while the pointer remains over the list",
+  );
+  console.log("PASS: removals wait under the pointer while explicit filters apply immediately");
+
   listItems = listItems.filter((item) => item.id !== 203).sort((a, b) => a.id - b.id);
   await page.goto(`${app}/demo/project/issues`);
   await alpha.waitFor();
@@ -379,6 +408,24 @@ try {
   await delay(100);
   assert.ok((await beta.boundingBox()).y < (await alpha.boundingBox()).y);
   console.log("PASS: issue rows defer reordered responses while hovered");
+  const stars = page.getByRole("region", { name: "Starred", exact: true });
+  const starOrder = () =>
+    stars
+      .locator("[data-sidebar-href]")
+      .evaluateAll((rows) => rows.map((row) => row.dataset.sidebarHref));
+  const initialOrder = await starOrder();
+  await stars.getByRole("button", { name: "satellite", exact: true }).click();
+  await page.waitForURL(`${app}/demo/satellite/code`);
+  await delay(100);
+  assert.deepEqual(
+    await starOrder(),
+    initialOrder,
+    "Recent-use sorting cannot move a hovered sidebar row",
+  );
+  await page.mouse.move(0, 0);
+  await delay(100);
+  assert.equal((await starOrder())[0], "/demo/satellite/code");
+  console.log("PASS: sidebar star order waits until the pointer leaves");
 } finally {
   await browser?.close();
   server?.kill();

@@ -18,7 +18,7 @@ import { ListDisplayMenu } from "@/app/features/repo/components/ListDisplayMenu"
 import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
 import { groupListItems } from "@/app/features/repo/listGrouping";
 import { useListNavigation } from "@/app/hooks/useListNavigation";
-import { useStableList } from "@/app/hooks/useStableList";
+import { holdListOrder, useStableList } from "@/app/hooks/useStableList";
 import { cn } from "@/app/lib/cn";
 import { useListGrouping } from "@/app/stores/listGrouping";
 
@@ -75,7 +75,21 @@ export function IssueList({
     () => groupListItems(issues, grouping.groupBy),
     [issues, grouping.groupBy],
   );
-  const { items: groups, listProps } = useStableList(incomingGroups);
+  const { items: groups, listProps } = useStableList(incomingGroups, {
+    key: (group) => group.key,
+    resetKey: JSON.stringify([
+      owner,
+      repo,
+      searchText,
+      stateFilter,
+      activeFilters,
+      grouping.groupBy,
+    ]),
+    merge: (held, current) => ({
+      ...current,
+      items: holdListOrder(held.items, issues, (issue) => issue.id),
+    }),
+  });
   const bulkItems = useMemo(() => issues.map(toBulkItem), [issues]);
   const visibleNumbers = useMemo(
     () =>

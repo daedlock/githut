@@ -40,7 +40,7 @@ import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
 import { groupListItems } from "@/app/features/repo/listGrouping";
 import { useListNavigation } from "@/app/hooks/useListNavigation";
 import { useRepo } from "@/app/hooks/useRepo";
-import { useStableList } from "@/app/hooks/useStableList";
+import { holdListOrder, useStableList } from "@/app/hooks/useStableList";
 import { cn } from "@/app/lib/cn";
 import { useListGrouping } from "@/app/stores/listGrouping";
 
@@ -175,7 +175,14 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
     () => groupListItems(filtered, grouping.groupBy),
     [filtered, grouping.groupBy],
   );
-  const { items: groups, listProps } = useStableList(incomingGroups);
+  const { items: groups, listProps } = useStableList(incomingGroups, {
+    key: (group) => group.key,
+    resetKey: JSON.stringify([owner, repo, searchText, search, grouping.groupBy]),
+    merge: (held, current) => ({
+      ...current,
+      items: holdListOrder(held.items, filtered, (pr) => pr.id),
+    }),
+  });
   const bulkItems = useMemo(() => filtered.map(toBulkItem), [filtered]);
   const visibleNumbers = useMemo(
     () =>
