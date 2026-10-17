@@ -48,7 +48,7 @@ if (authStart !== "handoff") {
     isSettingsHref(href) || (authStart === "redirect" && restoreSettingsAfterSignIn());
   initWorkspace(isSettingsHref(href) ? "/" : href);
   if (authStart === "redirect") window.history.replaceState(null, "", getFocusedTab().href);
-  else if (!showSettings) dispatch({ type: "openUrl", href });
+  else if (!showSettings) dispatch({ type: "openOrJump", href, match: "href" });
   if (showSettings) openSettings({ replace: true });
 }
 

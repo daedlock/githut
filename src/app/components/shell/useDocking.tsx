@@ -11,16 +11,10 @@ import { trackWorkspaceAction } from "@/app/lib/analytics";
 import { cn } from "@/app/lib/cn";
 import { getTabMeta } from "@/app/lib/tabMeta";
 import { useWorkspaceView } from "@/app/stores/workspaceView";
-import { applyDock, type DockSource, type DockTarget } from "@/app/workspace/docking";
 import { layoutGeometry, type Rect } from "@/app/workspace/geometry";
-import {
-  findIsland,
-  findTab,
-  hrefPathname,
-  normalizeWorkspace,
-  selectedTab,
-} from "@/app/workspace/model";
-import { dispatch, getWorkspace } from "@/app/workspace/store";
+import type { DockSource, DockTarget } from "@/app/workspace/model";
+import { findIsland, findTab, hrefPathname, selectedTab } from "@/app/workspace/model";
+import { dispatch, getWorkspace, previewCommand } from "@/app/workspace/store";
 
 type Drop = { target: DockTarget; rect: Rect; line: boolean; label?: string };
 
@@ -323,12 +317,13 @@ function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): 
       break;
     }
   if (!target) return null;
-  const result = applyDock(ws, source, target);
-  if (result === ws) return null;
-  if (line) return { target, rect: line, line: true };
-  // Preview the actual command result: removing the source can collapse or
+  // Preview the actual command result, fitted to the minimum island size
+  // exactly as the drop will commit it: removing the source can collapse or
   // flatten splits, so a naive half of the old target would be misleading.
-  const next = normalizeWorkspace(result);
+  // A drop with no room for its island offers no target at all.
+  const next = previewCommand({ type: "dock", source, target });
+  if (!next) return null;
+  if (line) return { target, rect: line, line: true };
   const layoutBounds = bounds;
   const label = dropLabel(source, target);
   if (useWorkspaceView.getState().narrow) {

@@ -15,7 +15,7 @@ import {
   DropdownMenuSubTrigger,
 } from "@/app/components/ui/dropdown-menu";
 import { getTabMeta } from "@/app/lib/tabMeta";
-import { type DockSource, type DockTarget, reorderTargets } from "@/app/workspace/docking";
+import { type DockSource, type DockTarget, reorderTargets } from "@/app/workspace/model";
 import {
   findIsland,
   findTab,
@@ -24,7 +24,7 @@ import {
   islands,
   selectedTab,
 } from "@/app/workspace/model";
-import { dispatch, useWorkspaceStore } from "@/app/workspace/store";
+import { dispatch, previewCommand, useWorkspaceStore } from "@/app/workspace/store";
 
 /** Menus and pointer docking dispatch exactly the same command. */
 export function DockingMenu({
@@ -58,6 +58,8 @@ export function DockingMenu({
     dispatch({ type: "dock", source, target });
     onDock?.();
   };
+  // Disable docks that would change nothing or leave an island below its minimum size.
+  const blocked = (target: DockTarget) => !previewCommand({ type: "dock", source, target });
   const isTab = source.type === "tab";
   const reorder = found ? reorderTargets(workspace, found.tab.id) : [];
   return (
@@ -65,17 +67,18 @@ export function DockingMenu({
       <Group>
         {isTab && (
           <>
+            {/* Moves the tab; "Split right" in the island menu copies the page instead. */}
             <Item
-              disabled={from.tabs.length < 2}
+              disabled={blocked({ type: "island-edge", islandId: from.id, side: "right" })}
               onSelect={() => dock({ type: "island-edge", islandId: from.id, side: "right" })}
             >
-              Split right
+              Move to new island right
             </Item>
             <Item
-              disabled={from.tabs.length < 2}
+              disabled={blocked({ type: "island-edge", islandId: from.id, side: "bottom" })}
               onSelect={() => dock({ type: "island-edge", islandId: from.id, side: "bottom" })}
             >
-              Split down
+              Move to new island below
             </Item>
             <Sub>
               <Trigger>Reorder tab</Trigger>
@@ -148,6 +151,7 @@ export function DockingMenu({
                       {(["left", "right", "top", "bottom"] as const).map((side) => (
                         <Item
                           key={side}
+                          disabled={blocked({ type: "island-edge", islandId: island.id, side })}
                           onSelect={() => dock({ type: "island-edge", islandId: island.id, side })}
                         >
                           {side === "top"
@@ -177,7 +181,11 @@ export function DockingMenu({
           <Content>
             <Group>
               {(["left", "right", "bottom"] as const).map((side) => (
-                <Item key={side} onSelect={() => dock({ type: "workspace-edge", side })}>
+                <Item
+                  key={side}
+                  disabled={blocked({ type: "workspace-edge", side })}
+                  onSelect={() => dock({ type: "workspace-edge", side })}
+                >
                   {side === "left" ? "Left" : side === "right" ? "Right" : "Bottom"}
                 </Item>
               ))}

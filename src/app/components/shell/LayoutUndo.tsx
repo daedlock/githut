@@ -5,22 +5,32 @@ import { Button } from "@/app/components/ui/button";
 import { Kbd } from "@/app/components/ui/kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
-import { dismissLayoutNotice, undoLayout, useWorkspaceStore } from "@/app/workspace/store";
+import { IS_MAC, MOD_KEY } from "@/app/lib/shortcuts";
+import {
+  dismissLayoutNotice,
+  redoLayout,
+  undoLayout,
+  useWorkspaceStore,
+} from "@/app/workspace/store";
 
 const DURATION = 6000;
-const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 
 /**
- * Mirrors the store's undo notice into a sonner toast. Sonner pauses the timer
- * while the pointer is over it; keyboard focus inside pauses it too (the toast
- * is re-issued with an infinite duration until focus leaves).
+ * ⌘Z / ⌘⇧Z for destructive layout changes, and the sonner toast that
+ * announces them. Sonner pauses the timer while the pointer is over it;
+ * keyboard focus inside pauses it too (the toast is re-issued with an
+ * infinite duration until focus leaves).
  */
 export function LayoutUndo() {
   const notice = useWorkspaceStore((s) => s.notice);
   const canUndo = useWorkspaceStore((s) => s.undo.length > 0);
+  const canRedo = useWorkspaceStore((s) => s.redo.length > 0);
   const shortcuts = useMemo<Record<string, () => void>>(
-    (): Record<string, () => void> => (canUndo ? { "⌘z": undoLayout } : {}),
-    [canUndo],
+    () => ({
+      ...(canUndo ? { "⌘z": undoLayout } : {}),
+      ...(canRedo ? { "⌘shift+z": redoLayout } : {}),
+    }),
+    [canUndo, canRedo],
   );
   useKeybindings(shortcuts);
 
@@ -36,6 +46,7 @@ export function LayoutUndo() {
         () => (
           <UndoToast
             label={notice.label}
+            undoable={notice.undoable}
             onFocusChange={(focused) => show(focused ? Number.POSITIVE_INFINITY : DURATION)}
             onUndo={() => {
               undoLayout();
@@ -57,11 +68,13 @@ export function LayoutUndo() {
 
 function UndoToast({
   label,
+  undoable,
   onUndo,
   onDismiss,
   onFocusChange,
 }: {
   label: string;
+  undoable: boolean;
   onUndo: () => void;
   onDismiss: () => void;
   onFocusChange: (focused: boolean) => void;
@@ -76,14 +89,16 @@ function UndoToast({
       className="flex h-10 items-center gap-3 rounded-xl bg-popover px-3 font-sans text-ui text-popover-foreground shadow-lg ring-1 ring-foreground/10"
     >
       <span>{label}</span>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onUndo}
-        aria-keyshortcuts={mac ? "Meta+Z" : "Control+Z"}
-      >
-        Undo <Kbd>{mac ? "⌘Z" : "Ctrl Z"}</Kbd>
-      </Button>
+      {undoable && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onUndo}
+          aria-keyshortcuts={IS_MAC ? "Meta+Z" : "Control+Z"}
+        >
+          Undo <Kbd>{IS_MAC ? "⌘Z" : `${MOD_KEY} Z`}</Kbd>
+        </Button>
+      )}
       <Tooltip>
         <TooltipTrigger asChild>
           <Button variant="ghost" size="icon-xs" aria-label="Dismiss notice" onClick={onDismiss}>

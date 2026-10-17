@@ -27,7 +27,7 @@ import { useAuthStore } from "@/app/stores/auth";
 import { useWorkspaceView } from "@/app/stores/workspaceView";
 import { focusedIsland, focusedTab, type Island, islands } from "@/app/workspace/model";
 import { getFocusedTab, useWorkspaceStore } from "@/app/workspace/store";
-import { KEEP_ALIVE_BUDGET, keepAliveTabs } from "@/app/workspace/tabLifetime";
+import { keepAliveTabs } from "@/app/workspace/tabLifetime";
 import { visibleIslandIds } from "@/app/workspace/view";
 
 // ─── TabHost ───────────────────────────────────────────────────────────────
@@ -51,14 +51,16 @@ export function TabHost() {
   const narrow = useWorkspaceView((s) => s.narrow);
   useEffect(() => (signedIn ? startWorkspaceFreshness(queryClient) : undefined), [signedIn]);
 
-  // Most recently focused first, trimmed to the keep-alive budget; every
-  // island's selected tab is mounted on top of that.
+  // Open tabs, most recently focused first; keepAliveTabs trims them to the
+  // keep-alive budget and adds every island's selected tab and every pin.
   const recent = useRef<string[]>([]);
   const mounted = useMemo(() => {
     const all = islands(layout);
     const open = new Set(all.flatMap((i) => i.tabs.map((t) => t.id)));
-    const next = [focused.id, ...recent.current.filter((id) => id !== focused.id && open.has(id))];
-    recent.current = next.slice(0, KEEP_ALIVE_BUDGET);
+    recent.current = [
+      focused.id,
+      ...recent.current.filter((id) => id !== focused.id && open.has(id)),
+    ];
     return keepAliveTabs(layout, recent.current, visibleIslandIds(workspace, narrow));
   }, [layout, focused.id, workspace, narrow]);
 
@@ -151,18 +153,38 @@ const TabPane = memo(
       [id],
     );
 
-    // Runs on every reveal (Activity re-mounts effects), before paint.
+    // Runs on every reveal (Activity re-mounts effects), before paint. A tab
+    // rebuilt after its router was released has no content on first commit
+    // (the router loads in an effect), so keep restoring each frame until the
+    // page is tall enough, the user scrolls, or a few seconds pass.
     useLayoutEffect(() => {
       const el = ref.current;
-      if (el) el.scrollTop = scrollMemory.get(id) ?? 0;
-    }, [id]);
-
-    useEffect(() => {
-      const el = ref.current;
       if (!el) return;
-      const onScroll = () => scrollMemory.set(id, el.scrollTop);
+      const target = scrollMemory.get(id) ?? 0;
+      let frame = 0;
+      let restoring = true;
+      const stop = () => {
+        restoring = false;
+        cancelAnimationFrame(frame);
+      };
+      const deadline = performance.now() + 3000;
+      const restore = () => {
+        el.scrollTop = target;
+        if (Math.abs(el.scrollTop - target) <= 1 || performance.now() > deadline) stop();
+        else frame = requestAnimationFrame(restore);
+      };
+      const onScroll = () => {
+        if (!restoring) scrollMemory.set(id, el.scrollTop);
+      };
+      restore();
+      const interactions = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
+      for (const type of interactions) el.addEventListener(type, stop, { passive: true });
       el.addEventListener("scroll", onScroll, { passive: true });
-      return () => el.removeEventListener("scroll", onScroll);
+      return () => {
+        stop();
+        for (const type of interactions) el.removeEventListener(type, stop);
+        el.removeEventListener("scroll", onScroll);
+      };
     }, [id]);
 
     // Pages size full-height regions against the pane, not the viewport:
