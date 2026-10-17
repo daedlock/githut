@@ -27,7 +27,7 @@ export function IslandSwitcher() {
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon-sm" aria-label="Switch island or tab">
-                <PanelsTopLeft data-icon="inline-start" />
+                <PanelsTopLeft />
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>

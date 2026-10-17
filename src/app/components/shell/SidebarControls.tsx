@@ -28,7 +28,8 @@ export function SidebarControls({
       data-link-menu="off"
       className={cn(
         "flex shrink-0 items-center gap-1",
-        collapsed ? "flex-col py-2" : "h-10 px-1",
+        // pt-1.5 centres the first 28px control on the islands' 40px header row.
+        collapsed ? "flex-col gap-1.5 pt-1.5" : "h-10 px-1",
         drawer && "pr-6",
       )}
     >
@@ -46,7 +47,7 @@ export function SidebarControls({
               openSearch();
             }}
           >
-            <Search data-icon="inline-start" />
+            <Search />
           </Button>
         </TooltipTrigger>
         <TooltipContent>
@@ -59,7 +60,6 @@ export function SidebarControls({
         onSignOut={logout}
         onReAuth={manageGitHubAccess}
         onNavigate={drawer ? () => setSidebarOpen(false) : undefined}
-        variant="compact"
       />
     </div>
   );
@@ -81,7 +81,7 @@ export function SidebarToggle() {
           aria-keyshortcuts={mac ? "Meta+B" : "Control+B"}
           onClick={toggleSidebar}
         >
-          <PanelLeft data-icon="inline-start" />
+          <PanelLeft />
         </Button>
       </TooltipTrigger>
       <TooltipContent>

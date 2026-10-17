@@ -1,5 +1,5 @@
 import { Building2, ChevronRight, FolderGit2, Funnel, Inbox, Star } from "lucide-react";
-import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { memo, type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { RepoMark } from "@/app/components/shell/RepoMark";
 import { SidebarControls } from "@/app/components/shell/SidebarControls";
@@ -48,7 +48,8 @@ type Row = {
   count?: number;
 };
 
-export function Sidebar({ beginDrag }: { beginDrag: BeginDrag }) {
+/** Memoized: the workspace area re-renders on layout changes the sidebar doesn't read. */
+export const Sidebar = memo(function Sidebar({ beginDrag }: { beginDrag: BeginDrag }) {
   const { width, collapsed, resize, reset } = useSidebarStore();
   const cleanup = useRef<(() => void) | null>(null);
   useEffect(() => () => cleanup.current?.(), []);
@@ -129,7 +130,7 @@ export function Sidebar({ beginDrag }: { beginDrag: BeginDrag }) {
       </div>
     </aside>
   );
-}
+});
 
 /** The drawer uses the same content and launch behavior as the desktop sidebar. */
 export function SidebarContent({
@@ -211,7 +212,7 @@ export function SidebarContent({
                     requestAnimationFrame(() => input.current?.focus());
                   }}
                 >
-                  <Funnel data-icon="inline-start" />
+                  <Funnel />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right">Filter sidebar</TooltipContent>
@@ -415,7 +416,7 @@ function OrganizationRow({
               aria-label={`${org} repositories`}
               className={cn("w-full", collapsed ? "justify-center" : "justify-start gap-2")}
             >
-              <Building2 data-icon="inline-start" />
+              <Building2 data-icon={collapsed ? undefined : "inline-start"} />
               {!collapsed && (
                 <>
                   <span className="min-w-0 flex-1 truncate text-left">{org}</span>
@@ -520,7 +521,7 @@ function SidebarRow({
                   launch(() => (event.altKey ? openToSide(row.href) : openOrJump(row.href)))
                 }
                 className={cn(
-                  "flex h-8 w-full shrink-0 items-center gap-2 rounded-lg px-2 text-left text-ui outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-foreground/15",
+                  "flex h-8 w-full shrink-0 items-center gap-2 rounded-lg px-2 text-left text-ui outline-none hover:bg-accent focus-visible:ring-1 focus-visible:ring-foreground/15",
                   active && "bg-accent hover:bg-accent",
                   !collapsed && "pr-8",
                 )}
@@ -571,7 +572,7 @@ function SidebarRow({
                   else store.add(accountId, entry);
                 }}
               >
-                <Star data-icon="inline-start" className={cn(isFavorite && "fill-current")} />
+                <Star className={cn(isFavorite && "fill-current")} />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
