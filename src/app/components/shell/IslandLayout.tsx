@@ -272,8 +272,11 @@ const IslandHeader = memo(function IslandHeader({
       {narrow && focused && <SidebarToggle />}
       <TabStrip island={island} focused={focused} />
       {narrow && focused && <IslandSwitcher />}
-      <SectionMenu href={href} />
-      {maximized && (
+      {/* Narrow mode keeps most of the header for tabs: sections fold into
+          one menu, and the island menu (splits only make sense with room for
+          two islands) gives way to the switcher. */}
+      <SectionMenu href={href} compact={narrow} />
+      {maximized && !narrow && (
         // The other islands are hidden, not closed: say so and offer the way back.
         <Tooltip>
           <TooltipTrigger asChild>
@@ -291,7 +294,9 @@ const IslandHeader = memo(function IslandHeader({
           <TooltipContent side="bottom">Restore layout · other islands are hidden</TooltipContent>
         </Tooltip>
       )}
-      <IslandMenu islandId={island.id} maximized={maximized} canMaximize={canMaximize} />
+      {!narrow && (
+        <IslandMenu islandId={island.id} maximized={maximized} canMaximize={canMaximize} />
+      )}
     </div>
   );
 });

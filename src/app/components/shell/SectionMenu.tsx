@@ -47,7 +47,8 @@ const SECTIONS: readonly {
   { id: "actions", suffix: "/actions", label: "Actions", icon: PlayIcon },
 ];
 
-export function SectionMenu({ href }: { href: string }) {
+/** `compact` (narrow mode) always folds the group into the "⋯" menu. */
+export function SectionMenu({ href, compact = false }: { href: string; compact?: boolean }) {
   const launched = useRef(false);
   const pathname = hrefPathname(href);
   const repo = tabRepo(pathname);
@@ -59,7 +60,7 @@ export function SectionMenu({ href }: { href: string }) {
     <>
       <nav
         aria-label={`${name} sections`}
-        className="flex shrink-0 items-center gap-px @max-[480px]:hidden"
+        className={cn("flex shrink-0 items-center gap-px @max-[480px]:hidden", compact && "hidden")}
       >
         {SECTIONS.map((s) => {
           const on = s.id === current;
@@ -98,7 +99,10 @@ export function SectionMenu({ href }: { href: string }) {
                 variant="ghost"
                 size="icon-sm"
                 aria-label={`${name} sections`}
-                className="hidden shrink-0 text-muted-foreground @max-[480px]:inline-flex"
+                className={cn(
+                  "hidden shrink-0 text-muted-foreground @max-[480px]:inline-flex",
+                  compact && "inline-flex",
+                )}
               >
                 <MoreHorizontal />
               </Button>

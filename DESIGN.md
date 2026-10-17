@@ -304,7 +304,8 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
   never by hover: icon plus label while the island is wider than 760px,
   icons only up to 760px, and one "⋯" menu at 480px and below. The
   current section is `bg-muted text-foreground`. Pages without a repo
-  show no sections.
+  show no sections. In narrow mode the header is sidebar toggle → tabs →
+  island switcher → "⋯" sections: no island menu, no tab chevron.
 
 ### Sidebar
 
