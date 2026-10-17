@@ -76,7 +76,7 @@ function scopeForPath(pathname: string): Scope {
   if (pathname === "/") return "inbox";
   if (/\/[^/]+\/[^/]+\/commit\/[^/]+/.test(pathname)) return "diff";
   if (/\/[^/]+\/[^/]+\/pr\/[^/]+/.test(pathname)) return "diff";
-  if (pathname === "/" || /^\/[^/]+\/[^/]+\/(pulls|issues|commits|actions)\/?$/.test(pathname))
+  if (/^\/[^/]+\/[^/]+\/(pulls|issues|commits|actions)\/?$/.test(pathname))
     return "list";
   if (/^\/[^/]+\/[^/]+(\/|$)/.test(pathname) && !pathname.startsWith("/w/")) return "repo";
   return "global";

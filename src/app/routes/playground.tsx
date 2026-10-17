@@ -51,7 +51,7 @@ function PlaygroundPage() {
         <ThemeToggle />
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-10 px-6 py-10">
+      <div className="mx-auto max-w-3xl space-y-10 px-6 py-10">
         <div className="space-y-2">
           <h1 className="font-mono text-heading font-medium">
             UI primitives<span className="text-[var(--color-brand)]">_</span>
@@ -168,7 +168,7 @@ function PlaygroundPage() {
           </div>
         </Section>
 
-      </main>
+      </div>
 
       {/*
        * Diff layout preview — full viewport width, pinned height. DiffLayout

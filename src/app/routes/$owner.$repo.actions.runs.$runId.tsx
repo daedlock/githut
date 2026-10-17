@@ -174,7 +174,7 @@ function RunDetailPage() {
               </div>
             </div>
           </aside>
-          <main className="min-w-0 w-full flex-1 space-y-6">
+          <div className="min-w-0 w-full flex-1 space-y-6">
             {jobsQuery.isError ? (
               <QueryError
                 title="Could not refresh jobs. Any visible jobs show the last received state."
@@ -309,7 +309,7 @@ function RunDetailPage() {
                 </section>
               </>
             )}
-          </main>
+          </div>
         </div>
       </Container>
     </NowTicker>

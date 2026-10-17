@@ -55,7 +55,7 @@ export function InboxPage() {
   const [view, setView] = useState<"inbox" | "your-turn">("inbox");
   const [filter, setFilter] = useState("participating");
   return (
-    <main className="min-h-full min-w-0 pb-24">
+    <div className="min-h-full min-w-0 pb-24">
       <Container className="pt-5">
         <nav aria-label="Home views" className="flex gap-1">
           <Button
@@ -80,7 +80,7 @@ export function InboxPage() {
       ) : (
         <InboxList filter={filter} setFilter={setFilter} onYourWork={() => setView("your-turn")} />
       )}
-    </main>
+    </div>
   );
 }
 

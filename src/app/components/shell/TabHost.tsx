@@ -95,10 +95,10 @@ export function TabHost() {
   // owns the whole window.
   if (!signedIn) {
     return (
-      <div className="relative h-full">
+      <main className="relative h-full">
         {renderPanes(focusedIsland(workspace), true)}
         <RouterContextProvider router={focusedRouter}>{overlays}</RouterContextProvider>
-      </div>
+      </main>
     );
   }
 

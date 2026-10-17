@@ -21,8 +21,8 @@ export const Route = createFileRoute("/$username")({
 function ProfilePage() {
   const { username } = Route.useParams();
   return (
-    <main className="flex min-h-full min-w-0 flex-col">
+    <div className="flex min-h-full min-w-0 flex-col">
       <ProfileView login={username} />
-    </main>
+    </div>
   );
 }
