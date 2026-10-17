@@ -173,6 +173,61 @@ try {
     "PASS 720px threshold, minimum-fit trigger, stable mode and exact desktop restoration",
   );
 
+  await page
+    .locator('[data-island][data-focused="true"]')
+    .getByRole("button", {
+      name: "Island actions",
+      exact: true,
+    })
+    .click();
+  await page.getByRole("menuitem", { name: "Maximize", exact: true }).click();
+  const maximized = await page.evaluate(() => sessionStorage.getItem("githut.workspace.window"));
+  const maximizedIsland = JSON.parse(maximized).workspace.focusedIslandId;
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Switch island or tab", exact: true }).waitFor();
+  assert.equal(
+    await page.evaluate(() => sessionStorage.getItem("githut.workspace.window")),
+    maximized,
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page
+    .getByRole("button", { name: "Switch island or tab", exact: true })
+    .waitFor({ state: "hidden" });
+  assert.equal(
+    await page.locator("[data-island]:visible").getAttribute("data-island"),
+    maximizedIsland,
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Switch island or tab", exact: true }).click();
+  const otherIsland = JSON.parse(saved).workspace.layout.children.find(
+    (island) => island.id !== maximizedIsland,
+  );
+  await page.locator(`[data-switcher-tab="${otherIsland.selectedTabId}"]`).click();
+  await page.waitForFunction(
+    (id) =>
+      document.querySelector('[data-island][data-focused="true"]')?.getAttribute("data-island") ===
+      id,
+    otherIsland.id,
+  );
+  assert.equal(
+    await page.locator("[data-island]:visible").getAttribute("data-island"),
+    otherIsland.id,
+  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page
+    .getByRole("button", { name: "Switch island or tab", exact: true })
+    .waitFor({ state: "hidden" });
+  assert.equal(await page.locator("[data-island]:visible").count(), 2);
+  assert.deepEqual(
+    await page.evaluate(
+      () => JSON.parse(sessionStorage.getItem("githut.workspace.window")).workspace.layout,
+    ),
+    JSON.parse(saved).workspace.layout,
+  );
+  console.log(
+    "PASS maximize survives resizing and switching narrow focus restores both desktop islands",
+  );
+
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Switch island or tab", exact: true }).waitFor();
   const allTabs = await page.evaluate(() => {
