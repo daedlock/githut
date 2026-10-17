@@ -6,6 +6,7 @@ import { type ReviewEvent, useSubmitPrReview } from "@/app/features/pulls/hooks"
 import type { PendingComment } from "@/app/features/pulls/stores/review";
 import { cn } from "@/app/lib/cn";
 import { useCanMutate } from "@/app/lib/connectivity";
+import { useAuthStore } from "@/app/stores/auth";
 import { draftKey, draftPage, useDraft } from "@/app/stores/drafts";
 
 const VERDICTS: Array<{
@@ -65,6 +66,7 @@ export function PrReviewPopover({
   const verdict = VERDICTS.find((v) => v.id === event)!;
 
   function handleSubmit() {
+    const submittingAccount = useAuthStore.getState().accountId;
     setError(null);
     if (event === "REQUEST_CHANGES" && !body.trim()) {
       setError("A comment is required when requesting changes.");
@@ -80,6 +82,7 @@ export function PrReviewPopover({
       { event, body, comments },
       {
         onSuccess: () => {
+          if (useAuthStore.getState().accountId !== submittingAccount) return;
           setBody("");
           setEvent("COMMENT");
           setOpen(false);

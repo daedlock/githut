@@ -439,6 +439,94 @@ function checkBounds(m, name, width, preset) {
   assert.ok(Math.abs(m.width - Math.min(expected, m.pane)) < 1, `Wrong width ${name}`);
 }
 try {
+  // Run against Vite: this case drives the public token-adoption boundary in
+  // the live document, where a pending review observer can survive adoption.
+  if (process.env.CASE === "review-account-callback") {
+    const f = await fixture(1280, "md", { hold: false });
+    const p = f.page;
+    let releaseReview;
+    const reviewGate = new Promise((resolve) => {
+      releaseReview = resolve;
+    });
+    await f.context.route(
+      "https://api.github.com/repos/demo/project/pulls/1/reviews",
+      async (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        await reviewGate;
+        await route.fallback();
+      },
+    );
+    await p.goto(`${app}/demo/project/pr/1`);
+    await p.getByRole("button", { name: "Submit review", exact: true }).waitFor();
+    await p.evaluate(() => {
+      localStorage.setItem(
+        "githut.drafts.v1.account.2",
+        JSON.stringify({
+          state: {
+            drafts: {
+              "demo/project/1#review": { body: "Bob saved summary", at: Date.now() },
+              "demo/project/1#inline:src/main.ts:RIGHT:1": {
+                body: "Bob saved inline",
+                at: Date.now(),
+              },
+            },
+          },
+          version: 0,
+        }),
+      );
+      localStorage.setItem(
+        "githut.review-drafts.v1.account.2",
+        JSON.stringify({
+          state: {
+            pendingByPr: {
+              "demo/project/1": [
+                { id: -1, path: "src/main.ts", line: 1, side: "RIGHT", body: "Bob saved pending" },
+              ],
+            },
+            composerByPr: { "demo/project/1": { path: "src/main.ts", line: 2, side: "RIGHT" } },
+          },
+          version: 0,
+        }),
+      );
+    });
+    const snapshot = () =>
+      p.evaluate(() => ({
+        drafts: JSON.parse(localStorage.getItem("githut.drafts.v1.account.2")),
+        review: JSON.parse(localStorage.getItem("githut.review-drafts.v1.account.2")),
+      }));
+    const expected = await snapshot();
+    await p.getByRole("button", { name: "Submit review", exact: true }).click();
+    await p.getByRole("textbox", { name: "Review summary" }).fill("Alice submitted summary");
+    const sent = p.waitForRequest(
+      (request) => request.method() === "POST" && request.url().endsWith("/reviews"),
+    );
+    await p
+      .getByRole("dialog", { name: "Submit review" })
+      .getByRole("button", { name: "Submit review", exact: true })
+      .click();
+    await sent;
+    await p.evaluate(async () => {
+      const { adoptToken } = await import("/src/app/lib/github/client.ts");
+      adoptToken("bob-token", { sameUser: false, accountId: 2 });
+    });
+    const returned = p.waitForResponse(
+      (response) => response.request().method() === "POST" && response.url().endsWith("/reviews"),
+    );
+    releaseReview();
+    await returned;
+    await p.getByRole("button", { name: "Submitting…", exact: true }).waitFor({ state: "hidden" });
+    assert.deepEqual(
+      await snapshot(),
+      expected,
+      "Alice's late success preserves every Bob review draft",
+    );
+    assert.deepEqual(f.errors, []);
+    await f.close();
+    console.log("PASS late review success preserves the adopted account's drafts");
+    await browser.close();
+    server?.kill();
+    process.exit(0);
+  }
   const configs =
     process.env.CASE === "review-flow"
       ? []
