@@ -23,8 +23,12 @@ export type NotificationResult = {
   failed: Array<{ id: string; message: string }>;
 };
 
-/** Overrides contain thread IDs only, and never change GitHub's read state. */
-type NotificationState = { unread: Record<string, true>; busy: string[] };
+/**
+ * Overrides contain thread IDs only, and never change GitHub's read state.
+ * Each holds when it was set (`true` from before that was recorded).
+ */
+export type UnreadOverrides = Record<string, number | true>;
+type NotificationState = { unread: UnreadOverrides; busy: string[] };
 export const useNotificationState = create<NotificationState>()(
   persist((): NotificationState => ({ unread: {}, busy: [] }), {
     name: "githut.notifications",
@@ -39,10 +43,38 @@ export function notificationIsUnread(item: Notification): boolean {
   return item.unread || !!useNotificationState.getState().unread[item.id];
 }
 
+/**
+ * Device-only unread gives way to github.com: an override ends once the
+ * thread is read there after it was set, or once the thread is gone (Done
+ * elsewhere) from a feed that is fully loaded.
+ */
+export function pruneUnreadOverrides(
+  unread: UnreadOverrides,
+  feed: Pick<NotificationFeed, "items" | "hasMore">,
+): UnreadOverrides {
+  const byId = new Map(feed.items.map((item) => [item.id, item]));
+  let changed = false;
+  const next: UnreadOverrides = {};
+  for (const [id, at] of Object.entries(unread)) {
+    const item = byId.get(id);
+    const readAt = item?.last_read_at ? Date.parse(item.last_read_at) : 0;
+    const gone = !item && !feed.hasMore;
+    if (gone || readAt > (at === true ? 0 : at)) changed = true;
+    else next[id] = at;
+  }
+  return changed ? next : unread;
+}
+
 /** A poll asks for page 1 only and keeps any older pages already loaded. */
 async function pollFirstPage(signal?: AbortSignal): Promise<NotificationFeed> {
   const first = await fetchNotificationPage(1, signal);
-  return mergeFirstPage(first, queryClient.getQueryData<NotificationFeed>(NOTIFICATIONS_KEY));
+  const feed = mergeFirstPage(first, queryClient.getQueryData<NotificationFeed>(NOTIFICATIONS_KEY));
+  const { unread, busy } = useNotificationState.getState();
+  if (!busy.length) {
+    const pruned = pruneUnreadOverrides(unread, feed);
+    if (pruned !== unread) useNotificationState.setState({ unread: pruned });
+  }
+  return feed;
 }
 
 /** Consumers observe the same cache without starting another polling loop. */
@@ -167,7 +199,7 @@ export async function runNotificationAction(
   useNotificationState.setState((state) => {
     const unread = { ...state.unread };
     for (const id of targets) {
-      if (action === "unread") unread[id] = true;
+      if (action === "unread") unread[id] = Date.now();
       else if (action !== "unsubscribe") delete unread[id];
     }
     return { unread, busy: [...state.busy, ...targets] };
@@ -219,8 +251,9 @@ export async function runNotificationAction(
             items.splice(Math.min(index, items.length), 0, original);
             return { ...current, items };
           });
-        if (previousUnread[id])
-          useNotificationState.setState((state) => ({ unread: { ...state.unread, [id]: true } }));
+        const was = previousUnread[id];
+        if (was)
+          useNotificationState.setState((state) => ({ unread: { ...state.unread, [id]: was } }));
       } finally {
         useNotificationState.setState((state) => ({
           busy: state.busy.filter((item) => item !== id),
