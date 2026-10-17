@@ -73,6 +73,20 @@ describe("workspace model (single island)", () => {
     expect(runCommand(ws, { type: "closeTab", tabId: tabId(ws, 0) })).toBe(ws);
   });
 
+  test("reopening a closed file keeps the surviving file tab and restores its exact query state", () => {
+    const first = "/demo/project/code?path=first.ts";
+    const second = "/demo/project/code?path=second.ts";
+    let ws = withTabs([first, second], 1);
+    const survivingId = tabId(ws, 0);
+    ws = runCommand(ws, { type: "closeTab", tabId: tabId(ws, 1) });
+    ws = runCommand(ws, { type: "reopenClosedTab" });
+    expect(hrefs(ws)).toEqual([first, second]);
+    expect(focusedIsland(ws).tabs[0]).toMatchObject({ id: survivingId, href: first });
+    expect(focusedTab(ws).id).not.toBe(survivingId);
+    expect(selectedHref(ws)).toBe(second);
+    expect(ws.closed).toEqual([]);
+  });
+
   test("close others / close to the right", () => {
     const ws = withTabs(["/1", "/2", "/3", "/4"], 3);
     const others = runCommand(ws, { type: "closeOtherTabs", tabId: tabId(ws, 1) });

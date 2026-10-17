@@ -277,6 +277,7 @@ function apply(ws: Workspace, cmd: WorkspaceCommand): Workspace {
       return openTab({ ...ws, closed: ws.closed.slice(0, -1) }, href, ws.focusedIslandId, {
         select: true,
         allowDuplicate: false,
+        match: "href",
       });
     }
 
