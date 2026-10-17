@@ -45,16 +45,14 @@
    * dark ones (see .dark) — so islands read as raised sheets in every
    * palette. A theme overrides it by setting --color-frame itself.
    *
-   * Island edges: idle is a whisper; the focused island is a touch firmer
-   * with a hint of brand.
+   * Island edges follow Linear: a translucent tint of the text colour, so
+   * they read as a faint highlight on dark themes and a faint shade on light
+   * ones, in every palette. Focus only firms the edge a little; the focused
+   * tab carries the brand tint.
    */
-  --color-frame: color-mix(in oklab, var(--color-bg) 91%, var(--color-fg));
-  --color-island-edge: color-mix(in oklab, var(--color-border) 70%, transparent);
-  --color-island-edge-focus: color-mix(
-    in oklab,
-    var(--color-brand) 14%,
-    var(--color-border-strong)
-  );
+  --color-frame: color-mix(in oklab, var(--color-bg) 93%, var(--color-fg));
+  --color-island-edge: color-mix(in oklab, var(--color-fg) 7%, transparent);
+  --color-island-edge-focus: color-mix(in oklab, var(--color-fg) 11%, transparent);
   --radius-island: 10px;
 
   /* form controls: translucent so focus states lift relative to their local surface */

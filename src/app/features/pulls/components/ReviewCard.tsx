@@ -30,6 +30,7 @@ import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { useMe } from "@/app/hooks/useMe";
 import { cn } from "@/app/lib/cn";
 import { formatRelativeTime } from "@/app/lib/time";
+import { draftKey, draftPage, hasDraft } from "@/app/stores/drafts";
 
 // ─── State styling ─────────────────────────────────────────────────────────
 
@@ -249,7 +250,8 @@ function ThreadBlock({
   repo: string;
   number: number;
 }) {
-  const [replyOpen, setReplyOpen] = useState(false);
+  const replyDraftKey = draftKey(draftPage(owner, repo, number), `reply:${thread.root.id}`);
+  const [replyOpen, setReplyOpen] = useState(() => hasDraft(replyDraftKey));
   const [expandedAfterResolve, setExpandedAfterResolve] = useState(false);
 
   const meQuery = useMe();
@@ -389,6 +391,7 @@ function ThreadBlock({
               repo={repo}
               onSubmit={handleReply}
               onCancel={() => setReplyOpen(false)}
+              draftKey={replyDraftKey}
               isPending={replyMutation.isPending}
               placeholder="Reply to this thread…"
               submitLabel="Reply"

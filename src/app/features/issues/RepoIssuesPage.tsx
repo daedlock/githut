@@ -14,6 +14,7 @@ import {
 import { IssueDetail } from "@/app/features/issues/IssueDetail";
 import { IssueList } from "@/app/features/issues/IssueList";
 import { useMe } from "@/app/hooks/useMe";
+import { draftKey, draftPage, useDraft } from "@/app/stores/drafts";
 
 export type RepoIssuesPageProps = {
   owner: string;
@@ -57,7 +58,9 @@ export function RepoIssuesPage({
   const [isComposing, setIsComposing] = useState(false);
   const [newIssueTitle, setNewIssueTitle] = useState("");
   const [newIssueBody, setNewIssueBody] = useState("");
-  const [newCommentBody, setNewCommentBody] = useState("");
+  const [newCommentBody, setNewCommentBody] = useDraft(
+    draftKey(draftPage(owner, repo, selectedIssueNumber ?? 0), "comment"),
+  );
 
   const issuesQuery = useRepoIssues(owner, repo);
   const issueQuery = useRepoIssue(owner, repo, selectedIssueNumber);

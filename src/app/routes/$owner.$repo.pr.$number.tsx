@@ -38,6 +38,7 @@ import {
 } from "@/app/features/pulls/stores/review";
 import { useMe } from "@/app/hooks/useMe";
 import { detectLang } from "@/app/lib/detectLang";
+import { draftKey } from "@/app/stores/drafts";
 
 // ─── PR review route ──────────────────────────────────────────────────────
 //
@@ -224,6 +225,7 @@ const LineSlotContent = memo(function LineSlotContent({
           onSubmit={(body: string) => { store.addPending(owner, repo, number, { path, side, line, body }); store.closeComposer(owner, repo, number); }}
           onCancel={() => store.closeComposer(owner, repo, number)}
           submitLabel="Add review comment"
+          draftKey={draftKey(prKey, `inline:${path}:${side}:${line}`)}
         />
       )}
     </>

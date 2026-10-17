@@ -24,6 +24,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { issueDetailQueryOptions, issueKeys } from "@/app/features/issues/hooks";
 import { prDetailQueryOptions, pullsKeys } from "@/app/features/pulls/hooks";
+import { usePageHasDraft } from "@/app/hooks/usePageHasDraft";
 import { cn } from "@/app/lib/cn";
 import {
   closeOtherTabs,
@@ -162,6 +163,7 @@ const TabItem = memo(function TabItem({
   isLast: boolean;
 }) {
   const display = useTabDisplay(tab.href);
+  const draft = usePageHasDraft(tab.href);
   const hasClosed = useWorkspaceStore((s) => s.workspace.closed.length > 0);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: tab.id,
@@ -235,10 +237,17 @@ const TabItem = memo(function TabItem({
                 className={cn(
                   "inline-flex size-4.5 shrink-0 items-center justify-center rounded-md text-muted-foreground",
                   "hover:bg-accent hover:text-foreground",
-                  selected ? "visible" : "invisible group-hover:visible",
+                  selected || draft ? "visible" : "invisible group-hover:visible",
                 )}
               >
-                <X className="size-3" />
+                {draft && (
+                  <span
+                    aria-hidden
+                    data-draft-dot
+                    className="size-1.5 rounded-full bg-(--color-warning) group-hover:hidden"
+                  />
+                )}
+                <X className={cn("size-3", draft && "hidden group-hover:block")} />
               </button>
             </div>
           </TooltipTrigger>
@@ -253,6 +262,7 @@ const TabItem = memo(function TabItem({
             )}
             {display.repo && " · "}
             {display.title}
+            {draft && " · Unsent draft"}
           </TooltipContent>
         )}
       </Tooltip>

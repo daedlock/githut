@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/pop
 import { type ReviewEvent, useSubmitPrReview } from "@/app/features/pulls/hooks";
 import type { PendingComment } from "@/app/features/pulls/stores/review";
 import { cn } from "@/app/lib/cn";
+import { draftKey, draftPage, useDraft } from "@/app/stores/drafts";
 
 const VERDICTS: Array<{
   id: ReviewEvent;
@@ -55,7 +56,7 @@ export function PrReviewPopover({
 }: PrReviewPopoverProps) {
   const [open, setOpen] = useState(false);
   const [event, setEvent] = useState<ReviewEvent>("COMMENT");
-  const [body, setBody] = useState("");
+  const [body, setBody] = useDraft(draftKey(draftPage(owner, repo, number), "review"));
   const [error, setError] = useState<string | null>(null);
   const submit = useSubmitPrReview(owner, repo, number);
 
