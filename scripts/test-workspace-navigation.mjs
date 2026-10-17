@@ -244,6 +244,31 @@ try {
   } finally {
     await modifiers.close();
   }
+  const lifetime = await fixture();
+  try {
+    const page = lifetime.page;
+    await issueLink(page, 1).click();
+    await page.waitForURL(`${app}/demo/project/issues/1`);
+    const originalId = await page.getByRole("tab").first().getAttribute("data-tab-id");
+    for (let index = 0; index < 8; index++) {
+      await page.locator('[data-tab-id][aria-selected="true"]').click({ button: "right" });
+      await page.getByRole("menuitem", { name: "Duplicate tab", exact: true }).click();
+      await tabCount(page, index + 2);
+    }
+    assert.equal(await page.locator(`[data-tab-pane="${originalId}"]`).count(), 0);
+    await page.getByRole("button", { name: "Show all tabs", exact: true }).click();
+    await page.getByRole("menuitem").first().click();
+    await page.goBack();
+    await issueLink(page, 1).waitFor();
+    assert.equal(new URL(page.url()).pathname, "/demo/project/issues");
+    await page.goForward();
+    await page.getByRole("heading", { name: /Navigation issue 1/ }).waitFor();
+    assert.equal(new URL(page.url()).pathname, "/demo/project/issues/1");
+    assert.deepEqual(lifetime.errors, []);
+    console.log("PASS released tabs retain back/forward history after reopening from overflow");
+  } finally {
+    await lifetime.close();
+  }
 } finally {
   await browser.close();
   server?.kill();
