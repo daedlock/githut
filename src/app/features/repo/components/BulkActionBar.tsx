@@ -25,7 +25,6 @@ import {
 } from "@/app/components/ui/tooltip";
 import { PrStateIcon } from "@/app/features/pulls/components/PrStatePill";
 import { type PickerItem, SidebarPicker } from "@/app/features/pulls/components/SidebarPicker";
-import type { BulkNotice } from "@/app/features/repo/bulkActions";
 import {
   type BulkItem,
   type BulkStatus,
@@ -33,7 +32,7 @@ import {
   coverage,
   sameLogin,
 } from "@/app/features/repo/bulkSelection";
-import { useBulkContext } from "@/app/features/repo/components/BulkSelection";
+import { useBulkContext, useSelection } from "@/app/features/repo/components/BulkSelection";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { cn } from "@/app/lib/cn";
 import { useCanMutate } from "@/app/lib/connectivity";
@@ -71,8 +70,33 @@ const PULL_STATUSES: { value: BulkStatus; label: string; icon: ReactNode }[] = [
 // DESIGN.md micro-interaction curve.
 const EASE = [0.16, 1, 0.3, 1] as const;
 
-export function BulkActionBar() {
-  const { selected, notice } = useBulkContext();
+/** What a result notice shows; `action` is Undo or a targeted Retry. */
+export type BarNotice = {
+  id: number | string;
+  tone: "success" | "error";
+  message: string;
+  detail?: string;
+  action?: { label: string; run: () => void; needsWrite?: boolean };
+};
+
+/**
+ * The floating bar shell for any `SelectionRoot` list: master checkbox and
+ * count, the list's own actions, clear, and a result notice stacked above.
+ */
+export function FloatingActionBar({
+  label,
+  pending,
+  notice,
+  onDismiss,
+  children,
+}: {
+  label: string;
+  pending: boolean;
+  notice: BarNotice | null;
+  onDismiss: () => void;
+  children: ReactNode;
+}) {
+  const { selected } = useSelection();
   const reduced = useReducedMotion();
   const hidden = { opacity: 0, y: reduced ? 0 : 8, scale: reduced ? 1 : 0.98 };
   const presence = {
@@ -94,12 +118,14 @@ export function BulkActionBar() {
         <AnimatePresence mode="popLayout">
           {notice && (
             <motion.div key={`notice-${notice.id}`} {...presence}>
-              <Notice notice={notice} />
+              <Notice notice={notice} onDismiss={onDismiss} />
             </motion.div>
           )}
           {selected.size > 0 && (
             <motion.div key="toolbar" {...presence}>
-              <Toolbar count={selected.size} />
+              <Toolbar label={label} count={selected.size} pending={pending}>
+                {children}
+              </Toolbar>
             </motion.div>
           )}
         </AnimatePresence>
@@ -108,34 +134,46 @@ export function BulkActionBar() {
   );
 }
 
+export function BulkActionBar() {
+  const { notice, pending, undo, retry, dismiss } = useBulkContext();
+  const shown: BarNotice | null = notice && {
+    id: notice.id,
+    tone: notice.tone,
+    message: notice.message,
+    detail: notice.tone === "error" ? notice.detail : undefined,
+    action:
+      notice.tone === "error"
+        ? { label: "Retry", run: retry, needsWrite: true }
+        : notice.undo
+          ? { label: "Undo", run: undo, needsWrite: true }
+          : undefined,
+  };
+  return (
+    <FloatingActionBar label="Bulk actions" pending={pending} notice={shown} onDismiss={dismiss}>
+      <IssueActions />
+    </FloatingActionBar>
+  );
+}
+
 const surface =
   "pointer-events-auto max-w-full rounded-xl bg-popover text-popover-foreground shadow-lg ring-1 ring-foreground/10";
 
-function Toolbar({ count }: { count: number }) {
-  const { visibleCount, selectAll, clear, pending } = useBulkContext();
-  const [picker, setPicker] = useState<PickerId | null>(null);
-  useKeybindings(
-    useMemo(
-      () => ({
-        s: () => setPicker("status"),
-        l: () => setPicker("labels"),
-        a: () => setPicker("assignees"),
-      }),
-      [],
-    ),
-  );
-  const pickerProps = (id: PickerId) => ({
-    open: picker === id,
-    onOpenChange: (open: boolean) => setPicker(open ? id : null),
-  });
+function Toolbar({
+  label,
+  count,
+  pending,
+  children,
+}: {
+  label: string;
+  count: number;
+  pending: boolean;
+  children: ReactNode;
+}) {
+  const { visibleCount, selectAll, clear } = useSelection();
   const all = count >= visibleCount;
 
   return (
-    <div
-      role="toolbar"
-      aria-label="Bulk actions"
-      className={cn(surface, "flex h-11 items-center p-1.5")}
-    >
+    <div role="toolbar" aria-label={label} className={cn(surface, "flex h-11 items-center p-1.5")}>
       <div className="flex h-8 items-center gap-2.5 pr-2 pl-2.5">
         {pending ? (
           // Same footprint as the checkbox, so the bar never shifts while saving.
@@ -158,9 +196,7 @@ function Toolbar({ count }: { count: number }) {
         </span>
       </div>
       <Separator orientation="vertical" className="mx-1 h-4 w-px" />
-      <StatusPicker {...pickerProps("status")} />
-      <LabelsPicker {...pickerProps("labels")} />
-      <AssigneesPicker {...pickerProps("assignees")} />
+      {children}
       <Separator orientation="vertical" className="mx-1 h-4 w-px" />
       <Hint label="Clear selection" shortcut="Esc">
         <Button variant="ghost" size="icon-sm" aria-label="Clear selection" onClick={clear}>
@@ -168,6 +204,67 @@ function Toolbar({ count }: { count: number }) {
         </Button>
       </Hint>
     </div>
+  );
+}
+
+function IssueActions() {
+  const [picker, setPicker] = useState<PickerId | null>(null);
+  useKeybindings(
+    useMemo(
+      () => ({
+        s: () => setPicker("status"),
+        l: () => setPicker("labels"),
+        a: () => setPicker("assignees"),
+      }),
+      [],
+    ),
+  );
+  const pickerProps = (id: PickerId) => ({
+    open: picker === id,
+    onOpenChange: (open: boolean) => setPicker(open ? id : null),
+  });
+  return (
+    <>
+      <StatusPicker {...pickerProps("status")} />
+      <LabelsPicker {...pickerProps("labels")} />
+      <AssigneesPicker {...pickerProps("assignees")} />
+    </>
+  );
+}
+
+/** A ghost `size="sm"` bar action with a tooltip; icon-only below `sm`. */
+export function BarAction({
+  icon: Icon,
+  label,
+  hint,
+  shortcut,
+  disabled,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  hint?: string;
+  shortcut?: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Hint label={hint ?? label} shortcut={disabled ? undefined : shortcut}>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={label}
+          aria-keyshortcuts={shortcut}
+          disabled={disabled}
+          className="max-sm:w-8 max-sm:px-0"
+          onClick={onClick}
+        >
+          <Icon data-icon="inline-start" aria-hidden />
+          <span className="max-sm:sr-only">{label}</span>
+        </Button>
+      </TooltipTrigger>
+    </Hint>
   );
 }
 
@@ -399,17 +496,16 @@ function Hint({
 
 // ─── Result notice ─────────────────────────────────────────────────────────
 
-function Notice({ notice }: { notice: BulkNotice }) {
+function Notice({ notice, onDismiss }: { notice: BarNotice; onDismiss: () => void }) {
   const { canMutate, reason } = useCanMutate();
-  const { undo, retry, dismiss } = useBulkContext();
-  const { tone } = notice;
+  const { tone, action } = notice;
   useEffect(() => {
     if (tone !== "success") return;
-    const timer = setTimeout(dismiss, 6000);
+    const timer = setTimeout(onDismiss, 6000);
     return () => clearTimeout(timer);
-  }, [tone, dismiss]);
-  const error = notice.tone === "error";
-  const action = error ? retry : notice.undo ? undo : null;
+  }, [tone, onDismiss]);
+  const error = tone === "error";
+  const blocked = !!action?.needsWrite && !canMutate;
   return (
     <div
       role={error ? "alert" : "status"}
@@ -432,14 +528,14 @@ function Notice({ notice }: { notice: BulkNotice }) {
             variant="ghost"
             size="xs"
             className="text-foreground"
-            onClick={action}
-            disabled={!canMutate}
-            title={reason}
+            onClick={action.run}
+            disabled={blocked}
+            title={blocked ? reason : undefined}
           >
-            {error ? "Retry" : "Undo"}
+            {action.label}
           </Button>
         )}
-        <Button variant="ghost" size="icon-xs" aria-label="Dismiss" onClick={dismiss}>
+        <Button variant="ghost" size="icon-xs" aria-label="Dismiss" onClick={onDismiss}>
           <X />
         </Button>
       </div>
