@@ -147,8 +147,9 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
           onKeyDown={onKeyDown}
           className={cn(
             "relative flex h-full min-w-0 flex-1 select-none items-end gap-0.5 overflow-x-auto",
-            // Room for the selected tab's outline, which the scroller would clip.
-            "px-px pt-px [scroll-padding-inline:2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            // The left inset matches the island radius, so the first tab starts after the
+            // sheet's corner curve; the rest leaves room for the selected tab's outline.
+            "pl-2.5 pr-px pt-px [scroll-padding-inline:10px_2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
           )}
           style={{ maskImage: fadeMask(fade.start, fade.end) }}
         >

@@ -87,7 +87,7 @@ export const BreadcrumbRow = memo(function BreadcrumbRow({
       data-link-menu="off"
       data-breadcrumbs
       className={cn(
-        "flex h-8 shrink-0 items-center gap-2 pr-1.5 pl-2 text-ui text-muted-foreground transition-opacity duration-150",
+        "mt-1 flex h-8 shrink-0 items-center gap-2 pr-1.5 pl-2 text-ui text-muted-foreground transition-opacity duration-150",
         !focused && "opacity-65",
       )}
     >

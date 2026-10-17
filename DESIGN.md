@@ -276,7 +276,7 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
   An expired sign-in shows a persistent top-centre toast with its recovery
   action and never replaces tabs or drafts.
 ### Island header
-- `h-9 flex items-center gap-1 pr-0.5`, sitting on the frame outside the
+- `h-9 flex items-center gap-1 pr-0.5` (tab row inset `pl-2.5`, the island radius, so the first tab clears the sheet corner), sitting on the frame outside the
   sheet and overlapping it by 1px (`-mb-px`, above it) so the selected tab
   covers the sheet's top edge. The tab row takes the
   remaining width, then the island menu (`Button ghost icon-sm`,
@@ -317,7 +317,7 @@ island's tabs, for its selected tab:
 [mark] owner / repo ⌄  ›  Section ⌄  ›  #n Title ⌄          ⎇ branch ⌄  ↗
 ```
 
-- `h-8 flex items-center gap-2 pl-2 pr-1.5 text-ui text-muted-foreground`.
+- `mt-1 h-8 flex items-center gap-2 pl-2 pr-1.5 text-ui text-muted-foreground`. The `mt-1` keeps it clear of the tabs above.
   Crumbs are `h-6` links; a crumb and its chevron share one hover surface
   (`bg-accent/60`). Separators are `›` in `--color-fg-faint`. The current
   crumb is `font-medium text-foreground` and goes nowhere.
