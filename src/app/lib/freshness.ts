@@ -74,18 +74,26 @@ export async function refreshWorkspaceQueries(
       if (!meta || !shown.has(meta.tabId) || enabled === false) continue;
       const previousInterval =
         typeof meta.interval === "function" ? meta.interval(query) : meta.interval;
+      // Some resources (Actions logs) define a terminal polling policy. Ordinary
+      // CI metadata still refreshes at the workspace cadence when its fast interval ends.
+      if (
+        candidate.options.meta?.workspacePolling === "interval" &&
+        previousInterval === false &&
+        query.state.status !== "pending"
+      )
+        continue;
       const staleTime =
         typeof candidate.options.staleTime === "function"
           ? candidate.options.staleTime(query)
           : (candidate.options.staleTime ?? 30_000);
       const running =
         typeof previousInterval === "number" && previousInterval > 0 && previousInterval <= 15_000;
-      // Loaded immutable files never poll. An initially disabled observer
-      // still needs its first fetch when its tab or window becomes visible.
+      // Attempted immutable files never poll without an explicit interval.
+      // An initially disabled observer still needs its first fetch on reveal.
       if (
         !running &&
         (staleTime === "static" || staleTime === Infinity) &&
-        query.state.data !== undefined
+        query.state.status !== "pending"
       )
         continue;
       const normal =
