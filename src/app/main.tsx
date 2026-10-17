@@ -2,6 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { type AnyRouter, createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { NotFound } from "@/app/components/NotFound";
 import { TabHost } from "@/app/components/shell/TabHost";
 import { bootstrapAuthFromHash } from "@/app/lib/auth";
 import { queryClient } from "@/app/lib/query";
@@ -28,6 +29,7 @@ function createAppRouter(href: string, history?: AnyRouter["history"]) {
     routeTree,
     context: { queryClient },
     defaultPreload: "intent",
+    defaultNotFoundComponent: NotFound,
     history: history ?? createMemoryHistory({ initialEntries: [href] }),
   });
 }

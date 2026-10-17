@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
+import { actionsKeys } from "@/app/features/actions/hooks";
 import { pageEntity } from "@/app/features/activity/api";
 import { useTabActivityStore } from "@/app/features/activity/store";
 import { pageIsUnread } from "@/app/features/activity/watcher";
@@ -410,17 +411,21 @@ export function useTabDisplay(href: string): TabDisplay {
   const pathname = hrefPathname(href);
   const meta = getTabMeta(pathname);
   const entity = useCachedEntity(pathname);
+  const runNumber = useCachedRunNumber(pathname);
   const unread = useSyncExternalStore(subscribeUnread, () => pageIsUnread(href));
   const base = { icon: meta.icon, tone: "none" as Tone, repo: meta.sublabel, unread };
 
   const num = /\/(?:pull|pr|review|issues)\/(\d+)/.exec(pathname)?.[1];
   if (num && entity) {
+    // A PR's files view and its conversation would otherwise read the same.
+    const files = /\/(?:pr|review)\/\d+/.test(pathname);
+    const label = files ? `${entity.title} · Files` : entity.title;
     return {
       ...base,
       tone: entity.tone,
-      label: entity.title,
+      label,
       prefix: `#${num}`,
-      title: entity.title,
+      title: label,
       status:
         entity.tone === "failed"
           ? "CI failed"
@@ -430,6 +435,8 @@ export function useTabDisplay(href: string): TabDisplay {
     };
   }
 
+  if (runNumber) return { ...base, label: `Run #${runNumber}`, title: `Run #${runNumber}` };
+
   // Code view: show the open file or folder instead of the generic "Code".
   if (pathname.endsWith("/code")) {
     const path = new URLSearchParams(href.split("?")[1]?.split("#")[0]).get("path");
@@ -437,6 +444,42 @@ export function useTabDisplay(href: string): TabDisplay {
   }
 
   return { ...base, label: meta.label, title: meta.label };
+}
+
+/** An Actions run's number (`#34`) from the query cache; the URL only has its id. */
+function useCachedRunNumber(pathname: string): number | null {
+  const queryClient = useQueryClient();
+  const m = /^\/([^/]+)\/([^/]+)\/actions\/runs\/(\d+)$/.exec(pathname);
+  return useSyncExternalStore(
+    (cb) => queryClient.getQueryCache().subscribe(cb),
+    () => {
+      if (!m) return null;
+      const [, owner, repo, id] = m as unknown as [string, string, string, string];
+      const runId = Number(id);
+      const run = queryClient.getQueryData<{ run_number?: number }>(
+        actionsKeys.run(owner, repo, runId),
+      );
+      if (typeof run?.run_number === "number") return run.run_number;
+      for (const query of queryClient.getQueryCache().findAll({
+        queryKey: ["actions-runs", owner, repo],
+      })) {
+        const found = findRun(query.state.data, runId);
+        if (found) return found;
+      }
+      return null;
+    },
+  );
+}
+
+/** Runs lists are infinite queries whose pages are arrays of runs. */
+function findRun(data: unknown, runId: number): number | null {
+  for (const page of (data as { pages?: unknown[] } | undefined)?.pages ?? []) {
+    if (!Array.isArray(page)) continue;
+    for (const run of page as { id?: number; run_number?: number }[]) {
+      if (run?.id === runId && typeof run.run_number === "number") return run.run_number;
+    }
+  }
+  return null;
 }
 
 type EntityRow = {

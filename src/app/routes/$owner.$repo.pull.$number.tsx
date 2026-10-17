@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AlertCircle } from "lucide-react";
 import { Container } from "@/app/components/ui/Container";
 import { MetadataSkeleton } from "@/app/components/ui/MetadataSkeleton";
@@ -11,6 +11,11 @@ import { prDetailQueryOptions, useFullPr, usePrReviews } from "@/app/features/pu
 
 export const Route = createFileRoute("/$owner/$repo/pull/$number")({
   parseParams: (raw) => ({ number: Number(raw.number) }),
+  // GitHub's `/pull/:n/files` is our review view.
+  beforeLoad: ({ location, params }) => {
+    if (/\/files\/?$/.test(location.pathname))
+      throw redirect({ to: "/$owner/$repo/pr/$number", params, replace: true });
+  },
   loader: ({ context, params }) => {
     if (!Number.isFinite(params.number)) return;
     void context.queryClient.prefetchQuery(
@@ -55,7 +60,9 @@ function PrDetailLayout() {
             pr={pr}
             actionsSlot={<PrActions owner={owner} repo={repo} pr={pr} />}
           />
-        ) : <PrHeaderSkeleton />}
+        ) : (
+          <PrHeaderSkeleton />
+        )}
       </Container>
 
       {/* Sticky tabs bar */}
@@ -88,7 +95,9 @@ function PrDetailLayout() {
             <div className="sticky top-14">
               {pr ? (
                 <PrSidebar owner={owner} repo={repo} pr={pr} reviews={reviews} />
-              ) : <MetadataSkeleton />}
+              ) : (
+                <MetadataSkeleton />
+              )}
             </div>
           </aside>
         </div>
