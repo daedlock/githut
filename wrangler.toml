@@ -3,6 +3,10 @@ main = "src/worker/index.ts"
 compatibility_date = "2025-04-20"
 compatibility_flags = ["nodejs_compat"]
 
+# PR previews: `wrangler versions upload --preview-alias pr-<n>` (see
+# .github/workflows/preview.yml) serves each PR at pr-<n>-githut.<subdomain>.workers.dev.
+preview_urls = true
+
 routes = [
   { pattern = "githut.app", custom_domain = true },
   { pattern = "www.githut.app", custom_domain = true }

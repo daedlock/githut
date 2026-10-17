@@ -38,11 +38,29 @@ jobs:
       - name: Build
         run: bun run build
 
+      # Production hands sign-in tokens back only to our own PR preview hosts
+      # (see src/worker/previewAuth.ts), so it needs this account's subdomain.
+      - name: Resolve preview host suffix
+        id: preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          sub=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" \
+            | jq -r '.result.subdomain')
+          if [ -z "$sub" ] || [ "$sub" = "null" ]; then
+            echo "::warning::No workers.dev subdomain; PR preview sign-in stays disabled."
+            echo "suffix=" >> "$GITHUB_OUTPUT"
+          else
+            echo "suffix=githut.$sub.workers.dev" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deploy to Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy
+          command: deploy --var PREVIEW_HOST_SUFFIX:${{ steps.preview.outputs.suffix }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           packageManager: bun
