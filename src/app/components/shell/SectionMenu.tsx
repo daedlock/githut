@@ -28,10 +28,10 @@ import { hrefPathname } from "@/app/workspace/model";
 // header. An island belongs to no repo, so they act on the island's selected
 // tab's repo and say so in their labels.
 //
-// Icons at rest; hovering the group slides the labels out, and the current
-// section keeps its label. Narrow islands drop the labels (≤620px) and then
-// fold the whole group into one "⋯" menu (≤480px), so tabs keep most of the
-// header. Sections are launchers: they jump to an open tab showing the
+// Static tiers decided by the island's width only (container queries), so
+// nothing in the header moves on hover: labels while the island is wide,
+// icons only at ≤760px, then one "⋯" menu at ≤480px, so tabs keep most of
+// the header. Sections are launchers: they jump to an open tab showing the
 // section, or open a new one — never replacing the current tab's page.
 
 const SECTIONS: readonly {
@@ -59,10 +59,7 @@ export function SectionMenu({ href }: { href: string }) {
     <>
       <nav
         aria-label={`${name} sections`}
-        className={cn(
-          "group/sections flex shrink-0 items-center gap-px rounded-lg p-0.5 transition-colors @max-[480px]:hidden",
-          "hover:bg-[color-mix(in_oklab,var(--color-bg-sunken)_45%,transparent)]",
-        )}
+        className="flex shrink-0 items-center gap-px @max-[480px]:hidden"
       >
         {SECTIONS.map((s) => {
           const on = s.id === current;
@@ -70,30 +67,20 @@ export function SectionMenu({ href }: { href: string }) {
           return (
             <Tooltip key={s.id}>
               <TooltipTrigger asChild>
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   aria-label={`${name} ${s.label}`}
                   aria-current={on ? "page" : undefined}
                   onClick={() => openOrJump(`/${repo}${s.suffix}`)}
                   className={cn(
-                    "flex h-6.5 items-center rounded-lg px-2 text-ui outline-none transition-colors",
-                    "hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-(--color-focus)",
-                    on ? "text-foreground" : "text-muted-foreground",
+                    "h-6.5 gap-1.5 px-2 font-normal text-ui @max-[760px]:px-1.5",
+                    on && "bg-muted text-foreground",
                   )}
                 >
-                  <Icon aria-hidden size={14} className="shrink-0" />
-                  <span
-                    className={cn(
-                      "overflow-hidden whitespace-nowrap @max-[620px]:hidden",
-                      "transition-[max-width,opacity,margin] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
-                      on
-                        ? "ml-1.5 max-w-18 opacity-100"
-                        : "ml-0 max-w-0 opacity-0 group-hover/sections:ml-1.5 group-hover/sections:max-w-18 group-hover/sections:opacity-100",
-                    )}
-                  >
-                    {s.label}
-                  </span>
-                </button>
+                  <Icon aria-hidden size={14} />
+                  <span className="@max-[760px]:hidden">{s.label}</span>
+                </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 <span className="font-mono">{name}</span> · {s.label}

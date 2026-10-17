@@ -216,7 +216,7 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
 `GLOSSARY.md`; the shell lives in `components/shell/TabHost.tsx`.
 
 ### Frame
-- `--color-frame` is derived from the theme's `--color-bg`: mixed 9% toward
+- `--color-frame` is derived from the theme's `--color-bg`: mixed 7% toward
   `--color-fg` in light themes (deeper), 30% toward black in dark themes.
   A palette that needs a different frame sets `--color-frame` in its
   `themes/*.css` block. Never hardcode a frame colour in a component.
@@ -288,10 +288,11 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
   A chevron menu lists every tab, including pins, for keyboard navigation.
 - **Sections** (Code, Commits, PRs, Issues, Actions) act on the island's
   selected tab's repo; their labels and tooltips name it ("githut · PRs").
-  Icons at rest, labels slide out while the group is hovered, and the
-  current section keeps its label. Below 620px of island width labels
-  go; below 480px the group folds into one "⋯" menu. Pages without a
-  repo show no sections.
+  Tiers are static and decided by island width only (container queries),
+  never by hover: icon plus label while the island is wider than 760px,
+  icons only up to 760px, and one "⋯" menu at 480px and below. The
+  current section is `bg-muted text-foreground`. Pages without a repo
+  show no sections.
 
 ### Sidebar
 
