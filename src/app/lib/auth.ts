@@ -18,19 +18,23 @@ export type AuthChannelMessage = { type: "token"; token: string };
  */
 export type AuthBootstrap = "none" | "redirect" | "handoff";
 
-export function bootstrapAuthFromHash(): AuthBootstrap {
-  const storedToken = sessionStorage.getItem(OAUTH_TOKEN_KEY);
-  if (storedToken) {
+/** The token the OAuth callback handed this page, if any (`/#t=<token>`). */
+function takeRedirectToken(): string | null {
+  // index.html strips the fragment before analytics runs and stashes it here.
+  const stored = sessionStorage.getItem(OAUTH_TOKEN_KEY);
+  if (stored) {
     sessionStorage.removeItem(OAUTH_TOKEN_KEY);
-    useAuthStore.getState().setToken(storedToken);
-    return "none";
+    return stored;
   }
-
   const hash = window.location.hash;
-  if (!hash.startsWith("#t=")) return "none";
-  const token = hash.slice(3);
-  if (!token) return "none";
+  if (!hash.startsWith("#t=") || hash.length === 3) return null;
   history.replaceState(null, "", window.location.pathname + window.location.search);
+  return hash.slice(3);
+}
+
+export function bootstrapAuthFromHash(): AuthBootstrap {
+  const token = takeRedirectToken();
+  if (!token) return "none";
 
   // The OAuth callback lands on `<origin>/#t=…` whichever window started it.
   // A pending marker means a workspace window opened us as a popup.

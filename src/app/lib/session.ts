@@ -7,7 +7,7 @@ import { useAuthStore } from "@/app/stores/auth";
 //
 // When the sign-in popup hands back a token, the workspace adopts it in place:
 // the expired flag clears, the onlineManager comes back online, and TanStack
-// resumes paused queries and refetches stale ones. Nothing remounts, so
+// resumes paused queries, and visible data refetches. Nothing remounts, so
 // layout, tabs, scroll and drafts are exactly as they were.
 //
 // A different GitHub account must not see the previous one's cached pages, so
@@ -37,7 +37,14 @@ export async function resumeSession(token: string): Promise<void> {
   const login = previous ? await fetchLogin(token) : undefined;
   const sameUser = !previous || login === previous;
   adoptToken(token, { sameUser });
-  if (!sameUser) window.location.reload();
+  if (!sameUser) {
+    window.location.reload();
+    return;
+  }
+  // Refresh what's on screen: anything may have changed while signed out, and
+  // queries that opted out of retries errored on the 401 instead of pausing.
+  // Conditional requests keep this cheap.
+  void queryClient.invalidateQueries();
 }
 
 /** Listen for tokens handed over by a sign-in popup. Call once at startup. */
