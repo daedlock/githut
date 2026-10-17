@@ -62,6 +62,10 @@ jobs:
             --var "APP_URL:$url" \
             --var "PRODUCTION_URL:https://githut.app" \
             --message "PR-$PR@${SHA:0:7}" | tee upload.log
+          if ! grep -q "Preview Alias URL" upload.log; then
+            echo "::error::Preview URLs aren't enabled on the githut Worker yet. They turn on with the next production deploy (preview_urls in wrangler.toml), or in the Cloudflare dashboard under the Worker's Domains & Routes."
+            exit 1
+          fi
           if ! grep -qF "$url" upload.log; then
             echo "::error::Wrangler reported a different preview URL than $url"
             exit 1
