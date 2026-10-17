@@ -41,7 +41,9 @@ type Session = {
   pending?: Promise<void>;
 };
 let session: Session | undefined;
-const windowVisible = () => typeof document === "undefined" || !document.hidden;
+// Same signal TanStack Query uses to pause polling in a hidden window.
+const windowVisible = () =>
+  typeof document === "undefined" || (!document.hidden && document.visibilityState !== "hidden");
 const canRefresh = () =>
   windowVisible() &&
   onlineManager.isOnline() &&

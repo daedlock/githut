@@ -55,7 +55,9 @@ export async function refreshNotifications(now = Date.now()): Promise<void> {
   if (
     !token ||
     expired ||
-    (typeof document !== "undefined" && document.hidden) ||
+    // Same signal TanStack Query uses to pause polling in a hidden window.
+    (typeof document !== "undefined" &&
+      (document.hidden || document.visibilityState === "hidden")) ||
     (typeof navigator !== "undefined" && navigator.onLine === false)
   )
     return;
