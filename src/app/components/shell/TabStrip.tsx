@@ -268,11 +268,11 @@ const TabItem = memo(function TabItem({
                   "text-muted-foreground hover:bg-[color-mix(in_oklab,var(--color-bg-sunken)_60%,transparent)] hover:text-foreground",
                 selected &&
                   !focused &&
-                  "bg-muted text-foreground shadow-[0_0_0_1px_var(--color-border),0_1px_2px_rgb(0_0_0/0.12)]",
+                  "bg-muted text-foreground shadow-[0_0_0_1px_var(--color-border)]",
                 selected &&
                   focused && [
                     "bg-[color-mix(in_oklab,var(--color-brand)_9%,var(--color-bg-subtle))] text-foreground",
-                    "shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-brand)_45%,var(--color-border)),0_1px_2px_rgb(0_0_0/0.14)]",
+                    "shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-brand)_45%,var(--color-border))]",
                   ],
               )}
             >
