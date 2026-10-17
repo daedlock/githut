@@ -1,25 +1,92 @@
 import { useAuthStore } from "@/app/stores/auth";
 
 const OAUTH_TOKEN_KEY = "githut.oauth_token";
+/** Set while a sign-in popup is open: the time it was opened. */
+const REAUTH_PENDING_KEY = "githut.reauth_pending";
+const REAUTH_TTL_MS = 15 * 60 * 1000;
+/** Same-origin channel the sign-in popup hands its token over on. */
+export const AUTH_CHANNEL = "githut.auth";
 
-export function bootstrapAuthFromHash() {
+export type AuthChannelMessage = { type: "token"; token: string };
+
+/**
+ * How this page load started:
+ * - `none`: an ordinary load.
+ * - `redirect`: back from the OAuth round-trip in this window (`/#t=<token>`).
+ * - `handoff`: this window is the sign-in popup; its token went to the
+ *   workspace window and the popup has nothing else to show.
+ */
+export type AuthBootstrap = "none" | "redirect" | "handoff";
+
+export function bootstrapAuthFromHash(): AuthBootstrap {
   const storedToken = sessionStorage.getItem(OAUTH_TOKEN_KEY);
   if (storedToken) {
     sessionStorage.removeItem(OAUTH_TOKEN_KEY);
     useAuthStore.getState().setToken(storedToken);
-    return;
+    return "none";
   }
 
   const hash = window.location.hash;
-  if (!hash.startsWith("#t=")) return;
+  if (!hash.startsWith("#t=")) return "none";
   const token = hash.slice(3);
-  if (!token) return;
-  useAuthStore.getState().setToken(token);
+  if (!token) return "none";
   history.replaceState(null, "", window.location.pathname + window.location.search);
+
+  // The OAuth callback lands on `<origin>/#t=…` whichever window started it.
+  // A pending marker means a workspace window opened us as a popup.
+  if (takeReauthPending()) {
+    useAuthStore.getState().setToken(token);
+    try {
+      const channel = new BroadcastChannel(AUTH_CHANNEL);
+      channel.postMessage({ type: "token", token } satisfies AuthChannelMessage);
+      channel.close();
+    } catch {
+      // No BroadcastChannel: the token is persisted; the workspace picks it
+      // up on its next load.
+    }
+    return "handoff";
+  }
+
+  useAuthStore.getState().setToken(token);
+  return "redirect";
+}
+
+function takeReauthPending(): boolean {
+  try {
+    const at = Number(localStorage.getItem(REAUTH_PENDING_KEY));
+    localStorage.removeItem(REAUTH_PENDING_KEY);
+    return at > 0 && Date.now() - at < REAUTH_TTL_MS;
+  } catch {
+    return false;
+  }
 }
 
 export function startLogin() {
   window.location.href = "/api/auth/login";
+}
+
+/**
+ * Sign in again after the token expired, without leaving the workspace: the
+ * OAuth flow runs in a popup and hands the token back (see `lib/session.ts`),
+ * so tabs, scroll positions and unsent drafts survive. Falls back to a full
+ * redirect when popups are blocked; the layout and tabs still restore from
+ * storage, but in-memory drafts don't.
+ */
+export function startReauth() {
+  try {
+    localStorage.setItem(REAUTH_PENDING_KEY, String(Date.now()));
+  } catch {
+    startLogin();
+    return;
+  }
+  const popup = window.open("/api/auth/login", "githut-sign-in", "popup,width=520,height=720");
+  if (popup) return;
+  try {
+    localStorage.removeItem(REAUTH_PENDING_KEY);
+  } catch {
+    // ignore
+  }
+  startLogin();
 }
 
 export function logout() {
