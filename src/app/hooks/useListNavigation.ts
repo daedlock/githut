@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
+import { tabPaneRoot, useTabScope } from "@/app/lib/tabScope";
 
 const LIST_ITEM_SELECTOR = "[data-keyboard-list-item]";
 
@@ -10,13 +11,15 @@ export function getNextListIndex(current: number, length: number, direction: 1 |
 }
 
 export function useListNavigation(enabled = true): void {
+  const scope = useTabScope();
   const moveFocus = useCallback(
     (direction: 1 | -1) => {
       if (!enabled) return;
 
-      const items = Array.from(document.querySelectorAll<HTMLElement>(LIST_ITEM_SELECTOR)).filter(
-        (item) => item.getClientRects().length > 0,
-      );
+      // Only this page's rows: other islands show lists of their own.
+      const items = Array.from(
+        tabPaneRoot(scope).querySelectorAll<HTMLElement>(LIST_ITEM_SELECTOR),
+      ).filter((item) => item.getClientRects().length > 0);
       const activeItem =
         document.activeElement instanceof HTMLElement
           ? document.activeElement.closest<HTMLElement>(LIST_ITEM_SELECTOR)
@@ -27,7 +30,7 @@ export function useListNavigation(enabled = true): void {
       next?.focus({ preventScroll: true });
       next?.scrollIntoView({ block: "nearest" });
     },
-    [enabled],
+    [enabled, scope],
   );
 
   const shortcuts = useMemo(

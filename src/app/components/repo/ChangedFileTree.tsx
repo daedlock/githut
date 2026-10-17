@@ -28,6 +28,7 @@ import {
 } from "@/app/components/ui/input-group";
 import { Kbd } from "@/app/components/ui/kbd";
 import { cn } from "@/app/lib/cn";
+import { useTabScope } from "@/app/lib/tabScope";
 
 export type { ChangedFile } from "@/app/components/repo/fileTree";
 
@@ -75,6 +76,7 @@ export function ChangedFileTree({
   );
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const { isFocused } = useTabScope();
 
   useEffect(() => {
     function isEditable(el: EventTarget | null): boolean {
@@ -85,7 +87,7 @@ export function ChangedFileTree({
     }
 
     function onKeyDown(event: KeyboardEvent) {
-      if (!showSearch || event.metaKey || event.ctrlKey || event.altKey) return;
+      if (!showSearch || event.metaKey || event.ctrlKey || event.altKey || !isFocused()) return;
       if (event.key !== "/" || isEditable(event.target)) return;
       event.preventDefault();
       searchInputRef.current?.focus();
@@ -93,7 +95,7 @@ export function ChangedFileTree({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [showSearch]);
+  }, [showSearch, isFocused]);
 
   // Keep the expand set in sync when the file list changes — if a file set
   // shrinks, stale paths linger harmlessly but we also add any new top-level

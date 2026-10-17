@@ -24,6 +24,7 @@ import { BulkActionBar } from "@/app/features/repo/components/BulkActionBar";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { cn } from "@/app/lib/cn";
 import type { ShortcutMap } from "@/app/lib/shortcuts";
+import { useTabScope } from "@/app/lib/tabScope";
 
 // ─── Bulk selection ────────────────────────────────────────────────────────
 //
@@ -159,10 +160,11 @@ export function BulkSelectionProvider({
   );
 
   const count = selected.size;
+  const { isFocused } = useTabScope();
   useEffect(() => {
     if (!count) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (event.key !== "Escape" || event.defaultPrevented || !isFocused()) return;
       const target = event.target;
       // Escape belongs to whatever has focus first: inputs, menus, pickers.
       if (
@@ -176,7 +178,7 @@ export function BulkSelectionProvider({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [count, clear]);
+  }, [count, clear, isFocused]);
 
   const value: BulkContextValue = {
     kind,

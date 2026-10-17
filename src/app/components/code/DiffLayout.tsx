@@ -14,6 +14,7 @@ import { type ChangedFile, ChangedFileTree } from "@/app/components/repo/Changed
 import { Container } from "@/app/components/ui/Container";
 import { cn } from "@/app/lib/cn";
 import { tabScrollContainer } from "@/app/lib/scrollContainer";
+import { useTabScope } from "@/app/lib/tabScope";
 import { useSettingsStore } from "@/app/stores/settings";
 import { ChangeStatsBadge } from "./ChangeStatsBadge";
 import { type DiffMode, DiffModeContext, type DiffReviewHooks } from "./DiffView";
@@ -152,6 +153,7 @@ export function DiffLayout({
     };
   }, [files, toolbarHeight]);
 
+  const { isFocused } = useTabScope();
   const scrollToFile = useCallback((filename: string) => {
     const el = fileRefs.current.get(filename);
     if (!el) return;
@@ -167,7 +169,7 @@ export function DiffLayout({
       return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
     }
     function onKey(e: KeyboardEvent) {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || !isFocused()) return;
       if (isEditable(e.target)) return;
       if (e.key === "j" || e.key === "k") {
         e.preventDefault();
@@ -182,7 +184,7 @@ export function DiffLayout({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [files, activeFile, scrollToFile]);
+  }, [files, activeFile, scrollToFile, isFocused]);
 
   return (
     <Container className={cn("bg-background", className)}>

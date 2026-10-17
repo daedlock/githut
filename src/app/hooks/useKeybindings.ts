@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { ShortcutMap } from "@/app/lib/shortcuts";
+import { useTabScope } from "@/app/lib/tabScope";
 
 type Mod = "meta" | "shift" | "alt";
 type Parsed = {
@@ -12,6 +13,8 @@ type Registration = {
   id: number;
   parsed: Parsed[];
   map: ShortcutMap;
+  /** Registered from inside a tab: only live while that tab is focused. */
+  inScope: () => boolean;
 };
 
 const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
@@ -47,7 +50,11 @@ function normalizeKey(raw: string): string {
   return k;
 }
 
-const CODE_KEYS: Record<string, string> = { BracketLeft: "[", BracketRight: "]" };
+const CODE_KEYS: Record<string, string> = {
+  BracketLeft: "[",
+  BracketRight: "]",
+  Backslash: "\\",
+};
 
 // Option on macOS rewrites e.key ("alt+w" arrives as "∑"), so alt chords
 // match on the physical key instead.
@@ -125,6 +132,7 @@ function findHandler(
   // Later registrations shadow earlier ones, so iterate LIFO.
   for (let i = registrations.length - 1; i >= 0; i--) {
     const reg = registrations[i]!;
+    if (!reg.inScope()) continue;
     for (const p of reg.parsed) {
       if (p.sequence.length === 2) {
         if (!prefix) continue;
@@ -142,6 +150,7 @@ function findHandler(
 
 function isSequencePrefix(key: string): boolean {
   for (const reg of registrations) {
+    if (!reg.inScope()) continue;
     for (const p of reg.parsed) {
       if (p.sequence.length === 2 && p.mods.size === 0 && p.sequence[0] === key) return true;
     }
@@ -194,10 +203,13 @@ function detachListener() {
   clearPending();
 }
 
-function warnCollisionsOnce(parsed: Parsed[]) {
+function warnCollisionsOnce(parsed: Parsed[], inScope: () => boolean) {
   if (!import.meta.env.DEV) return;
   for (const p of parsed) {
     for (const reg of registrations) {
+      // Two tabs registering the same page shortcut don't collide: only the
+      // focused one is live.
+      if (reg.inScope !== inScope) continue;
       if (reg.map[p.chord] && !warnedCollisions.has(p.chord)) {
         warnedCollisions.add(p.chord);
         // biome-ignore lint/suspicious/noConsole: intentional dev-only warning
@@ -207,11 +219,16 @@ function warnCollisionsOnce(parsed: Parsed[]) {
   }
 }
 
+/**
+ * Register shortcuts while the calling component is mounted. Called inside a
+ * tab, they only fire while that tab is focused (see lib/tabScope).
+ */
 export function useKeybindings(map: ShortcutMap): void {
+  const { isFocused } = useTabScope();
   useEffect(() => {
     const parsed = Object.keys(map).map(parseChord);
-    warnCollisionsOnce(parsed);
-    const reg: Registration = { id: nextId++, parsed, map };
+    warnCollisionsOnce(parsed, isFocused);
+    const reg: Registration = { id: nextId++, parsed, map, inScope: isFocused };
     registrations.push(reg);
     attachListener();
     return () => {
@@ -221,5 +238,5 @@ export function useKeybindings(map: ShortcutMap): void {
     };
     // map is intentionally a dep so consumers can pass inline maps; if this
     // churns we'll revisit with a ref, but keeping the contract simple first.
-  }, [map]);
+  }, [map, isFocused]);
 }
