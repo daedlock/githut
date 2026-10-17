@@ -12,7 +12,7 @@
  */
 import { get, set } from "idb-keyval";
 
-export type RecentKind = "repo" | "issue" | "pr" | "file" | "action";
+export type RecentKind = "repo" | "issue" | "pr" | "file" | "action" | "page";
 
 export type RecentItem = {
   id: string;
@@ -72,10 +72,11 @@ export function subscribeRecentItems(fn: () => void): () => void {
 
 export async function pushRecentItem(item: Omit<RecentItem, "visitedAt">): Promise<void> {
   const current = await loadOnce();
-  // De-dupe by id: a re-visit should move-to-front, not accumulate duplicates.
+  // A palette result and a focused-page visit can use different ids for the
+  // same URL. Both represent one page in Recent.
   const next: RecentItem[] = [
     { ...item, visitedAt: Date.now() },
-    ...current.filter((x) => x.id !== item.id),
+    ...current.filter((x) => x.id !== item.id && x.href !== item.href),
   ].slice(0, STORAGE_CAP);
   cache = next;
   notify();

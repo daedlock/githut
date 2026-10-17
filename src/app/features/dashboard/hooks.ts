@@ -95,9 +95,7 @@ async function fetchSearch(
 //                      enough to drop dead-issue assignments from years ago.
 //   mentioned       → 30 days. Mentions decay fastest — a stale mention is
 //                      almost never actionable.
-//   author (my PRs) → 90 days. PRs you authored that haven't moved in three
-//                      months are functionally abandoned; hide unless the
-//                      user asks.
+//   author (my PRs) → no filter. Open work stays available in the sidebar.
 
 const DAY_MS = 86_400_000;
 
@@ -120,18 +118,11 @@ export type YourTurnResult = {
   isError: boolean;
 };
 
-export function useYourTurn(): YourTurnResult {
+export function useReviewRequestedPrs() {
   const token = useAuthStore((s) => s.token);
-  const enabled = !!token;
-
-  // The horizon date changes once a day; cache key includes the day so we
-  // don't hold yesterday's results past midnight.
-  const assignedSince = dateAgoIso(60);
-  const mentionedSince = dateAgoIso(30);
-
-  const reviewRequested = useQuery({
+  return useQuery({
     queryKey: ["dashboard", "your-turn", "review-requested"] as const,
-    enabled,
+    enabled: !!token,
     staleTime: 30_000,
     queryFn: () =>
       fetchSearch(
@@ -141,6 +132,18 @@ export function useYourTurn(): YourTurnResult {
         "asc",
       ),
   });
+}
+
+export function useYourTurn(): YourTurnResult {
+  const token = useAuthStore((s) => s.token);
+  const enabled = !!token;
+
+  // The horizon date changes once a day; cache key includes the day so we
+  // don't hold yesterday's results past midnight.
+  const assignedSince = dateAgoIso(60);
+  const mentionedSince = dateAgoIso(30);
+
+  const reviewRequested = useReviewRequestedPrs();
 
   const assigned = useQuery({
     queryKey: ["dashboard", "your-turn", "assigned", assignedSince] as const,
@@ -194,17 +197,10 @@ export function useYourTurn(): YourTurnResult {
 
 export function useMyOpenPrs() {
   const token = useAuthStore((s) => s.token);
-  const since = dateAgoIso(90);
   return useQuery({
-    queryKey: ["dashboard", "my-open-prs", since] as const,
+    queryKey: ["dashboard", "my-open-prs"] as const,
     enabled: !!token,
     staleTime: 30_000,
-    queryFn: () =>
-      fetchSearch(
-        `is:open is:pr author:@me archived:false updated:>=${since}`,
-        null,
-        "updated",
-        "desc",
-      ),
+    queryFn: () => fetchSearch("is:open is:pr author:@me archived:false", null, "updated", "desc"),
   });
 }

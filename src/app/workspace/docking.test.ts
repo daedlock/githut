@@ -8,6 +8,20 @@ import {
   runCommand,
 } from "@/app/workspace/model";
 
+test("docking a sidebar page inserts a new tab without disturbing existing pages or pins", () => {
+  const workspace = createWorkspace(["/one", "/two"]);
+  const island = focusedIsland(workspace);
+  island.pinned = [island.tabs[0]!.id];
+  const moved = runCommand(workspace, {
+    type: "dock",
+    source: { type: "href", href: "/three" },
+    target: { type: "tabs", islandId: island.id, index: 0 },
+  });
+  expect(focusedIsland(moved).tabs.map((tab) => tab.href)).toEqual(["/one", "/three", "/two"]);
+  expect(focusedIsland(moved).pinned).toEqual(island.pinned);
+  expect(focusedIsland(moved).tabs[0]).toBe(island.tabs[0]);
+});
+
 test("docking a tab between its neighbours preserves its identity and exact insertion point", () => {
   const workspace = createWorkspace(["/one", "/two", "/three"]);
   const island = focusedIsland(workspace);
