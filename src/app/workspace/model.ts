@@ -20,6 +20,7 @@
 // ─── Shape ───────────────────────────────────────────────────────────────────
 
 import { applyDock, type DockingCommand } from "@/app/workspace/docking";
+import { layoutGeometry } from "@/app/workspace/geometry";
 
 export type Tab = {
   id: string;
@@ -479,27 +480,7 @@ export function resizedGapSizes(
   return sizes;
 }
 
-type Rect = { x0: number; y0: number; x1: number; y1: number };
-
-/** Each island's rectangle in a unit square, from the split sizes. */
-export function islandRects(node: LayoutNode, rect: Rect = { x0: 0, y0: 0, x1: 1, y1: 1 }) {
-  const out = new Map<string, Rect>();
-  const walk = (n: LayoutNode, r: Rect) => {
-    if (n.kind === "island") {
-      out.set(n.id, r);
-      return;
-    }
-    let at = n.direction === "row" ? r.x0 : r.y0;
-    const span = n.direction === "row" ? r.x1 - r.x0 : r.y1 - r.y0;
-    n.children.forEach((child, i) => {
-      const end = at + span * n.sizes[i]!;
-      walk(child, n.direction === "row" ? { ...r, x0: at, x1: end } : { ...r, y0: at, y1: end });
-      at = end;
-    });
-  };
-  walk(node, rect);
-  return out;
-}
+const VIRTUAL = 100_000;
 
 /**
  * The island next to `fromId` in a direction: among islands lying that way
@@ -511,10 +492,16 @@ export function neighbourIsland(
   fromId: string,
   direction: Direction,
 ): string | null {
-  const rects = islandRects(layout);
+  // Pixel geometry on a large virtual canvas, so the 8px gaps are negligible
+  // and neighbours line up with what the workspace renders.
+  const rects = new Map(
+    [...layoutGeometry(layout, { left: 0, top: 0, width: VIRTUAL, height: VIRTUAL }).islands].map(
+      ([id, r]) => [id, { x0: r.left, y0: r.top, x1: r.left + r.width, y1: r.top + r.height }],
+    ),
+  );
   const from = rects.get(fromId);
   if (!from) return null;
-  const eps = 1e-6;
+  const eps = 0.01;
   const horizontal = direction === "left" || direction === "right";
   const centre = horizontal ? (from.y0 + from.y1) / 2 : (from.x0 + from.x1) / 2;
   let best: { id: string; dist: number; level: boolean; overlap: number } | null = null;
