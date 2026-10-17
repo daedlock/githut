@@ -284,6 +284,11 @@ The workspace is a darker **frame** holding a slim **title bar** and rounded
   island takes a brand tint instead (9% brand over `bg-muted`, ring 45%
   brand into border). This is the one place brand tints a selection.
 - Tabs activate on pointer-down. Nothing animates on switch.
+- Pinned tabs lead the row and show only their repo mark and state icon,
+  with the title in the tooltip. They keep their draft dot and survive
+  bulk close actions. Pin and unpin are in the tab menu and command palette.
+- The tab row scrolls horizontally and keeps the selected tab visible.
+  A chevron menu lists every tab, including pins, for keyboard navigation.
 - **Sections** (Code, Commits, PRs, Issues, Actions) act on the island's
   selected tab's repo; their labels and tooltips name it ("githut · PRs").
   Icons at rest, labels slide out while the group is hovered, and the

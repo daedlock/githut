@@ -13,6 +13,8 @@ import {
   LogOut,
   type LucideIcon,
   Palette as PaletteIcon,
+  Pin,
+  PinOff,
   Settings,
   Trash2,
 } from "lucide-react";
@@ -41,11 +43,13 @@ import { track } from "@/app/lib/analytics";
 import { logout } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
 import { clearRecentItems, pushRecentItem, type RecentItem } from "@/app/lib/recentItems";
-import { openInNewTab } from "@/app/lib/tabActions";
+import { openInNewTab, pinTab } from "@/app/lib/tabActions";
 import { THEME_OPTIONS } from "@/app/lib/themeCatalog";
 import { formatRelativeTime } from "@/app/lib/time";
 import { useCommandPalette, useCommandPaletteStore } from "@/app/stores/commandPalette";
 import { useThemeStore } from "@/app/stores/theme";
+import { focusedIsland, focusedTab } from "@/app/workspace/model";
+import { getFocusedTab, useWorkspaceStore } from "@/app/workspace/store";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -101,6 +105,7 @@ function buildCommands(
   close: () => void,
   repoContext: RepoContext,
   navigate: ReturnType<typeof useNavigate>,
+  focusedPinned: boolean,
 ): { actions: PaletteCommand[]; themes: PaletteCommand[] } {
   const goTo = (path: string) => () => {
     close();
@@ -111,6 +116,16 @@ function buildCommands(
   const repoKw = r ? [r.owner, r.repo] : [];
 
   const actions: PaletteCommand[] = [
+    {
+      id: "tab:pin",
+      label: focusedPinned ? "Unpin focused tab" : "Pin focused tab",
+      icon: focusedPinned ? PinOff : Pin,
+      keywords: ["tab", "pin", "keep"],
+      run: () => {
+        pinTab(getFocusedTab().id, !focusedPinned);
+        close();
+      },
+    },
     {
       id: "nav:home",
       label: "Go home",
@@ -204,6 +219,9 @@ export function CommandPalette() {
   const setOpen = useCommandPaletteStore((s) => s.setOpen);
   const { close, toggle } = useCommandPalette();
   const navigate = useNavigate();
+  const focusedPinned = useWorkspaceStore((s) =>
+    focusedIsland(s.workspace).pinned.includes(focusedTab(s.workspace).id),
+  );
 
   // Close on route change
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -271,8 +289,8 @@ export function CommandPalette() {
     return hasQuery ? data : data.slice(0, 50);
   }, [repos.data, hasQuery]);
   const { actions, themes } = useMemo(
-    () => buildCommands(close, repoContext, navigate),
-    [close, repoContext, navigate],
+    () => buildCommands(close, repoContext, navigate, focusedPinned),
+    [close, repoContext, navigate, focusedPinned],
   );
 
   // Track opens + reset query on close.

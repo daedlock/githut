@@ -97,6 +97,7 @@ export type WorkspaceCommand =
   /** Select the next/previous tab of the focused island, wrapping. */
   | { type: "cycleTab"; delta: 1 | -1 }
   | { type: "moveTab"; tabId: string; islandId: string; index: number }
+  | { type: "pinTab"; tabId: string; pinned: boolean }
   | { type: "duplicateTab"; tabId: string }
   | { type: "closeTab"; tabId: string }
   | { type: "closeOtherTabs"; tabId: string }
@@ -174,6 +175,16 @@ function apply(ws: Workspace, cmd: WorkspaceCommand): Workspace {
     case "moveTab":
       return moveTab(ws, cmd.tabId, cmd.islandId, cmd.index);
 
+    case "pinTab": {
+      const found = findTab(ws.layout, cmd.tabId);
+      if (!found || found.island.pinned.includes(cmd.tabId) === cmd.pinned) return ws;
+      const pinned = cmd.pinned
+        ? [...found.island.pinned, cmd.tabId]
+        : found.island.pinned.filter((id) => id !== cmd.tabId);
+      const island = { ...found.island, pinned };
+      return { ...ws, layout: replaceNode(ws.layout, island.id, island) };
+    }
+
     case "duplicateTab": {
       const found = findTab(ws.layout, cmd.tabId);
       if (!found) return ws;
@@ -191,7 +202,9 @@ function apply(ws: Workspace, cmd: WorkspaceCommand): Workspace {
     case "closeOtherTabs": {
       const found = findTab(ws.layout, cmd.tabId);
       if (!found) return ws;
-      const gone = found.island.tabs.filter((t) => t.id !== cmd.tabId).map((t) => t.id);
+      const gone = found.island.tabs
+        .filter((t) => t.id !== cmd.tabId && !found.island.pinned.includes(t.id))
+        .map((t) => t.id);
       return selectTab(closeTabs(ws, gone), cmd.tabId);
     }
 
@@ -199,7 +212,10 @@ function apply(ws: Workspace, cmd: WorkspaceCommand): Workspace {
       const found = findTab(ws.layout, cmd.tabId);
       if (!found) return ws;
       const idx = found.island.tabs.findIndex((t) => t.id === cmd.tabId);
-      const gone = found.island.tabs.slice(idx + 1).map((t) => t.id);
+      const gone = found.island.tabs
+        .slice(idx + 1)
+        .filter((t) => !found.island.pinned.includes(t.id))
+        .map((t) => t.id);
       return closeTabs(ws, gone);
     }
 
@@ -593,7 +609,12 @@ function moveTab(ws: Workspace, tabId: string, toIslandId: string, index: number
   const tabs = [...dest.tabs];
   tabs.splice(Math.min(Math.max(index, 0), tabs.length), 0, found.tab);
   let layout = replaceNode(ws.layout, source.id, source);
-  layout = replaceNode(layout, dest.id, { ...dest, tabs, selectedTabId: tabId });
+  layout = replaceNode(layout, dest.id, {
+    ...dest,
+    tabs,
+    selectedTabId: tabId,
+    pinned: found.island.pinned.includes(tabId) ? [...dest.pinned, tabId] : dest.pinned,
+  });
   return { ...ws, layout, focusedIslandId: dest.id };
 }
 
@@ -708,8 +729,18 @@ export function normalizeLayout(node: LayoutNode): LayoutNode | null {
     const ids = new Set(node.tabs.map((t) => t.id));
     const selectedTabId = ids.has(node.selectedTabId) ? node.selectedTabId : node.tabs[0]!.id;
     const pinned = node.pinned.filter((id) => ids.has(id));
-    if (selectedTabId === node.selectedTabId && pinned.length === node.pinned.length) return node;
-    return { ...node, selectedTabId, pinned };
+    const pinnedIds = new Set(pinned);
+    const tabs = [
+      ...node.tabs.filter((tab) => pinnedIds.has(tab.id)),
+      ...node.tabs.filter((tab) => !pinnedIds.has(tab.id)),
+    ];
+    if (
+      selectedTabId === node.selectedTabId &&
+      pinned.length === node.pinned.length &&
+      tabs.every((tab, index) => tab === node.tabs[index])
+    )
+      return node;
+    return { ...node, tabs, selectedTabId, pinned };
   }
 
   const children: LayoutNode[] = [];
