@@ -85,10 +85,7 @@ export function SiblingPicker({
   };
   return (
     <Popover open={open} onOpenChange={setPickerOpen}>
-      <Tooltip
-        open={tip && !open}
-        onOpenChange={(next) => setTip(next && !returningFocus.current)}
-      >
+      <Tooltip open={tip && !open} onOpenChange={(next) => setTip(next && !returningFocus.current)}>
         <TooltipTrigger
           asChild
           onPointerEnter={() => {
