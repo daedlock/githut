@@ -13,8 +13,7 @@ import {
 import { type ChangedFile, ChangedFileTree } from "@/app/components/repo/ChangedFileTree";
 import { Container } from "@/app/components/ui/Container";
 import { cn } from "@/app/lib/cn";
-import { tabScrollContainer } from "@/app/lib/scrollContainer";
-import { useTabScope } from "@/app/lib/tabScope";
+import { tabScrollContainer, useTabScope } from "@/app/lib/tabScope";
 import { useSettingsStore } from "@/app/stores/settings";
 import { ChangeStatsBadge } from "./ChangeStatsBadge";
 import { type DiffMode, DiffModeContext, type DiffReviewHooks } from "./DiffView";
