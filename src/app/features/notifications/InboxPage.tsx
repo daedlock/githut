@@ -510,7 +510,7 @@ function CaughtUp({ hiddenUnread, onShowAll }: { hiddenUnread: number; onShowAll
 
 /** Row actions stay out of the way at rest, like the selection checkbox. */
 const ROW_ACTION =
-  "opacity-0 group-hover/bulk:opacity-100 group-focus-within/bulk:opacity-100 data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100";
+  "opacity-0 group-hover/bulk:opacity-100 group-focus-within/bulk:opacity-100 group-data-selected/bulk:opacity-100 data-[state=open]:opacity-100 [@media(hover:none)]:opacity-100";
 
 function NotificationRow({
   item,
