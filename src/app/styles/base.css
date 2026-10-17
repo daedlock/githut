@@ -8,9 +8,13 @@ body,
    scrollbar disappearing. Override it to 0 and keep the scrollbar
    visible instead via overflow-y on html. */
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-fg-faint) transparent;
+/* Layered so utilities like [scrollbar-width:none] can override it — an
+   unlayered rule would beat every Tailwind utility regardless of specificity. */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-fg-faint) transparent;
+  }
 }
 
 button,

@@ -64,6 +64,8 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
   const scroller = useRef<HTMLDivElement>(null);
   const narrow = useWorkspaceView((state) => state.narrow);
   const [overflowing, setOverflowing] = useState(false);
+  // Which edges have tabs hidden past them; each one fades out to say so.
+  const [fade, setFade] = useState({ start: false, end: false });
 
   // Vertical wheel scrolls the strip sideways when it overflows.
   useEffect(() => {
@@ -107,12 +109,22 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
   useEffect(() => {
     const strip = scroller.current;
     if (!strip) return;
-    const measure = () => setOverflowing(strip.scrollWidth > strip.clientWidth + 1);
+    const measure = () => {
+      const hidden = strip.scrollWidth - strip.clientWidth;
+      setOverflowing(hidden > 1);
+      const start = strip.scrollLeft > 1;
+      const end = strip.scrollLeft < hidden - 1;
+      setFade((f) => (f.start === start && f.end === end ? f : { start, end }));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(strip);
     for (const item of strip.querySelectorAll<HTMLElement>("[data-tab-id]")) ro.observe(item);
-    return () => ro.disconnect();
+    strip.addEventListener("scroll", measure, { passive: true });
+    return () => {
+      ro.disconnect();
+      strip.removeEventListener("scroll", measure);
+    };
   }, [tabs]);
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
@@ -138,6 +150,7 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
             // Room for the selected tab's outline, which the scroller would clip.
             "px-0.5 [scroll-padding-inline:2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
           )}
+          style={{ maskImage: fadeMask(fade.start, fade.end) }}
         >
           {tabs.map((tab, i) => (
             <TabItem
@@ -155,6 +168,16 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
       {overflowing && !narrow && <TabOverflow island={island} />}
     </>
   );
+}
+
+const FADE = "2.5rem";
+
+/** Horizontal mask that fades whichever edges have more tabs past them. */
+function fadeMask(start: boolean, end: boolean): string | undefined {
+  if (!start && !end) return undefined;
+  const from = start ? `transparent, black ${FADE}` : "black";
+  const to = end ? `black calc(100% - ${FADE}), transparent` : "black";
+  return `linear-gradient(to right, ${from}, ${to})`;
 }
 
 function TabOverflow({ island }: { island: Island }) {
