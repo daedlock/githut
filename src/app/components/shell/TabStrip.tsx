@@ -4,6 +4,7 @@ import { type KeyboardEvent, memo, useEffect, useRef, useSyncExternalStore } fro
 
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { RepoMark } from "@/app/components/shell/RepoMark";
+import { TabHint } from "@/app/components/shell/TabHint";
 import { Button } from "@/app/components/ui/button";
 import {
   ContextMenu,
@@ -105,29 +106,31 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
 
   return (
     <>
-      <div
-        ref={scroller}
-        data-tab-strip
-        role="tablist"
-        aria-label="Open tabs"
-        onKeyDown={onKeyDown}
-        className={cn(
-          "relative flex h-full min-w-0 flex-1 select-none items-center gap-0.5 overflow-x-auto",
-          // Room for the selected tab's outline, which the scroller would clip.
-          "px-0.5 [scroll-padding-inline:2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-        )}
-      >
-        {tabs.map((tab, i) => (
-          <TabItem
-            key={tab.id}
-            tab={tab}
-            selected={tab.id === selectedTabId}
-            focused={focused}
-            pinned={island.pinned.includes(tab.id)}
-            isLast={i === tabs.length - 1}
-          />
-        ))}
-      </div>
+      <TabHint focused={focused}>
+        <div
+          ref={scroller}
+          data-tab-strip
+          role="tablist"
+          aria-label="Open tabs"
+          onKeyDown={onKeyDown}
+          className={cn(
+            "relative flex h-full min-w-0 flex-1 select-none items-center gap-0.5 overflow-x-auto",
+            // Room for the selected tab's outline, which the scroller would clip.
+            "px-0.5 [scroll-padding-inline:2px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+          )}
+        >
+          {tabs.map((tab, i) => (
+            <TabItem
+              key={tab.id}
+              tab={tab}
+              selected={tab.id === selectedTabId}
+              focused={focused}
+              pinned={island.pinned.includes(tab.id)}
+              isLast={i === tabs.length - 1}
+            />
+          ))}
+        </div>
+      </TabHint>
       <TabOverflow island={island} />
     </>
   );

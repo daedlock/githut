@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
+import { trackWorkspaceAction } from "@/app/lib/analytics";
 
 export const SIDEBAR_DEFAULT_WIDTH = 240;
 export const SIDEBAR_RAIL_WIDTH = 40;
@@ -18,7 +19,10 @@ export const createSidebarStore = (storage?: StateStorage) =>
       (set) => ({
         width: SIDEBAR_DEFAULT_WIDTH,
         collapsed: false,
-        toggle: () => set((state) => ({ collapsed: !state.collapsed })),
+        toggle: () => {
+          set((state) => ({ collapsed: !state.collapsed }));
+          trackWorkspaceAction("sidebar-toggled");
+        },
         resize: (width) => {
           if (!Number.isFinite(width)) return;
           set(
