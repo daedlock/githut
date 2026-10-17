@@ -439,6 +439,46 @@ function checkBounds(m, name, width, preset) {
   assert.ok(Math.abs(m.width - Math.min(expected, m.pane)) < 1, `Wrong width ${name}`);
 }
 try {
+  if (process.env.CASE === "session-motion") {
+    const f = await fixture(1280, "md", { hold: false });
+    const p = f.page;
+    await p.goto(`${app}/demo/project/issues/1`);
+    await p.getByRole("button", { name: "Edit labels", exact: true }).waitFor();
+    const samples = await p.evaluate(async () => {
+      const { useAuthStore } = await import("/src/app/stores/auth.ts");
+      const samples = [];
+      return new Promise((resolve) => {
+        const observer = new MutationObserver(() => {
+          const notice = document.querySelector('[role="alert"]');
+          if (!notice?.textContent?.includes("Your GitHub sign-in expired")) return;
+          observer.disconnect();
+          const sample = () => {
+            const matrix = new DOMMatrixReadOnly(getComputedStyle(notice).transform);
+            samples.push({ x: matrix.m41, y: matrix.m42, scaleX: matrix.m11, scaleY: matrix.m22 });
+            if (samples.length < 12) requestAnimationFrame(sample);
+            else resolve(samples);
+          };
+          sample();
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        useAuthStore.getState().markExpired();
+      });
+    });
+    assert.equal(samples.length, 12);
+    assert.ok(
+      samples.every(
+        ({ x, y, scaleX, scaleY }) => x === 0 && y === 0 && scaleX === 1 && scaleY === 1,
+      ),
+      `Reduced-motion notice must not translate or scale: ${JSON.stringify(samples)}`,
+    );
+    await p.getByRole("button", { name: "Sign in again", exact: true }).waitFor();
+    assert.deepEqual(f.errors, []);
+    await f.close();
+    console.log("PASS expired-session notice respects reduced motion throughout its entrance");
+    await browser.close();
+    server?.kill();
+    process.exit(0);
+  }
   // Run against Vite: this case drives the public token-adoption boundary in
   // the live document, where a pending review observer can survive adoption.
   if (process.env.CASE === "review-account-callback") {
