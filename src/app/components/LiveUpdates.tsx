@@ -19,7 +19,7 @@ export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot
   private scroller: HTMLElement | null = null;
   private timers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
   private resize: ResizeObserver | undefined;
-  private readingAnchor: { node: HTMLElement; top: number } | undefined;
+  private readingAnchor: { node: HTMLElement; top: number; atTop: boolean } | undefined;
 
   override componentDidMount() {
     this.scroller = this.root.current?.closest<HTMLElement>("[data-tab-pane]") ?? null;
@@ -27,8 +27,11 @@ export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot
     this.captureAnchor();
     this.resize = new ResizeObserver(() => {
       // Images and expanded markdown can settle after the React commit.
+      // A reader at the very top stays there: when an island narrows and a
+      // toolbar above the rows wraps, following the anchor would scroll the
+      // toolbar under the island header.
       const anchor = this.readingAnchor;
-      if (anchor?.node.isConnected && this.scroller) {
+      if (anchor?.node.isConnected && this.scroller && !anchor.atTop) {
         this.scroller.scrollTop += anchor.node.getBoundingClientRect().top - anchor.top;
       }
       this.captureAnchor();
@@ -102,7 +105,9 @@ export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot
       const bounds = item.getBoundingClientRect();
       return bounds.bottom > viewport.top + 8 && bounds.top < viewport.bottom;
     });
-    this.readingAnchor = node ? { node, top: node.getBoundingClientRect().top } : undefined;
+    this.readingAnchor = node
+      ? { node, top: node.getBoundingClientRect().top, atTop: this.scroller.scrollTop <= 0 }
+      : undefined;
   }
 
   private onScroll = () => {
