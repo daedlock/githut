@@ -2,6 +2,7 @@ import { Building2, ChevronRight, FolderGit2, Inbox, Search, Star } from "lucide
 import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { RepoMark } from "@/app/components/shell/RepoMark";
+import { SidebarControls } from "@/app/components/shell/SidebarControls";
 import type { useDocking } from "@/app/components/shell/useDocking";
 import { Button } from "@/app/components/ui/button";
 import {
@@ -94,8 +95,9 @@ export function Sidebar({ beginDrag }: { beginDrag: BeginDrag }) {
       aria-label="Sidebar"
       data-sidebar-collapsed={collapsed}
       style={{ width: collapsed ? SIDEBAR_RAIL_WIDTH : width }}
-      className="relative mr-2 min-h-0 shrink-0"
+      className={cn("relative mr-2 flex min-h-0 shrink-0 flex-col", !collapsed && "px-2")}
     >
+      <SidebarControls collapsed={collapsed} />
       <SidebarContent collapsed={collapsed} beginDrag={beginDrag} />
       {/* biome-ignore lint/a11y/useSemanticElements: a keyboard-operable window splitter */}
       <div
@@ -190,7 +192,7 @@ export function SidebarContent({
     <nav
       aria-label="Workspace navigation"
       data-link-menu="off"
-      className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto overflow-x-hidden pr-2 pb-3"
+      className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden pr-2 pb-3"
     >
       <div className="flex flex-col gap-1">
         <div className="flex h-8 items-center">

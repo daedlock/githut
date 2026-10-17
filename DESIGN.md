@@ -26,7 +26,7 @@ colors and every theme works for free.
 
 | Token | Class | Use |
 |---|---|---|
-| `--color-frame` | `bg-(--color-frame)` | Window frame behind the title bar and islands (see Islands). Nothing else. |
+| `--color-frame` | `bg-(--color-frame)` | Window frame behind the sidebar and islands (see Islands). Nothing else. |
 | `--color-bg` | `bg-background` | Island and page canvas. Rows at rest, in-page sidebars, cards. |
 | `--color-bg-subtle` | `bg-muted` | Raised: toolbars, row hover, file and hunk headers, group headers (`/60`). |
 | `--color-bg-sunken` | `bg-accent` | Active: selected rows, pressed or open controls. |
@@ -168,8 +168,7 @@ Use only this z-index scale:
 ## Layout
 
 ### Chrome
-- Pages have no navigation bar of their own. Global chrome is the title
-  bar (`h-11`) and each island's header (`h-10`); see Islands. Rows inside
+- Pages have no navigation bar of their own. Global controls live in the sidebar; each island owns its header (`h-10`); see Islands. Rows inside
   chrome are `h-* flex items-center`. **Never use `py-*` on a chrome bar.**
 - Each tab scrolls in its own pane. Sticky page bars stick at
   `top-(--app-header-height)`, which is `0px` inside a pane; keep using the
@@ -213,8 +212,7 @@ Full viewport, no Container
 
 ## Islands
 
-The workspace is a darker **frame** holding a slim **title bar** and rounded
-**islands**. Every page renders inside an island. Vocabulary is in
+The workspace is a darker **frame** holding a sidebar and rounded **islands**. Every page renders inside an island. Vocabulary is in
 `GLOSSARY.md`; the shell lives in `components/shell/TabHost.tsx`.
 
 ### Frame
@@ -222,8 +220,7 @@ The workspace is a darker **frame** holding a slim **title bar** and rounded
   `--color-fg` in light themes (deeper), 30% toward black in dark themes.
   A palette that needs a different frame sets `--color-frame` in its
   `themes/*.css` block. Never hardcode a frame colour in a component.
-- The frame pads the window `max(1rem, safe-area)` at the sides and `8px`
-  below the islands. Gaps between islands are `8px`.
+- The frame leaves a consistent `max(8px, safe-area)` gutter on every outer edge, including narrow screens. Sidebar-to-island and inter-island gaps are `8px`. No global header row reserves space above the islands.
 
 ### Island
 - `bg-background rounded-island overflow-hidden`, with
@@ -258,21 +255,15 @@ The workspace is a darker **frame** holding a slim **title bar** and rounded
   maximizes the island over the others; again restores the exact
   previous sizes. Nothing animates.
 
-### Title bar
-- `h-11` grid on the frame: logo, focused context, search (max 420px,
-  centred), then the avatar menu. No background, border or shadow.
-- Context names the **focused tab**: repo mark, `owner/repo` in mono
-  (owner muted), then the branch (`text-caption`, mono): the URL's branch,
-  else the repo's default. App-wide pages show their icon and label.
-- Search is `h-7 rounded-lg bg-muted` with the island edge, "Search or
-  jump to…" and `<Kbd>`; it shrinks to an icon below `md`.
-- Transient notices (Offline) sit left of the avatar as a quiet pill:
-  `h-6 rounded-full bg-muted px-2 text-caption text-muted-foreground`,
-  icon in its status colour. They appear only while the state lasts.
-- An expired sign-in floats a notice over the workspace (the floating
-  notice recipe) with "Sign in again"; it never replaces the workspace.
-  See `components/shell/SessionNotices.tsx`.
-
+### Global controls
+- Compact sidebar controls hold its toggle, command-search icon and account menu.
+  In the collapsed rail these controls stack vertically. There is no global title
+  bar or visible command-search field. Cmd/Ctrl+K still opens command search.
+- Repo identity and sections stay in island headers; focused context is reflected
+  by the focused island and browser URL.
+- Offline and rate-limit notices float at the workspace's bottom-right while
+  needed, without reserving space. An expired sign-in floats its recovery notice
+  above the workspace and never replaces tabs or drafts.
 ### Island header
 - `h-10 flex items-center gap-1 pl-1 pr-1.5`: the tab row takes the
   remaining width, then the section menu, then the island menu
@@ -339,11 +330,10 @@ sidebar with GitHub stars, recent pages, or expanded pull request queues.
 ### Narrow workspace
 
 Below 720px, or when the saved island sizes cannot each provide 320×200px,
-show only the focused island at full width. A compact menu above it lists
-every island and tab. Use the same tab labels as the tab strips, retain
+show only the focused island at full width. A compact icon in its existing tab strip lists every island and tab. Use the same tab labels as the tab strips, retain
 keyboard menu navigation, and return focus to the selected page.
 
-The logo and Cmd/Ctrl+B open the sidebar in a left Sheet. Reuse the desktop
+The sidebar toggle in the island strip and Cmd/Ctrl+B open the sidebar in a left Sheet. Reuse the desktop
 sidebar content, close it after a launch or when a drag begins, and keep
 docking targets available after the drawer closes. A resize never changes
 the saved layout or sidebar width: determine fit using the hypothetical
@@ -476,7 +466,7 @@ always shown on touch.
 - An in-page sidebar on a different surface from the page. (The workspace
   sidebar is chrome and sits on the frame.)
 - Navigation bars inside pages. Repo identity and sections belong to the
-  island header; search and account to the title bar.
+  island header; search and account to the sidebar.
 - `text-xs` / `text-sm`, arbitrary pixel sizes, or z-index values off the scale.
 - Hover reveals that shift layout, or skeletons that don't match the loaded rows.
 - Hand-rolled popovers, menus, checkboxes or tooltips.

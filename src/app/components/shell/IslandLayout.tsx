@@ -8,9 +8,10 @@ import {
   useRef,
   useState,
 } from "react";
-
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
+import { IslandSwitcher } from "@/app/components/shell/IslandSwitcher";
 import { SectionMenu } from "@/app/components/shell/SectionMenu";
+import { SidebarToggle } from "@/app/components/shell/SidebarControls";
 import { TabStrip } from "@/app/components/shell/TabStrip";
 import { Button } from "@/app/components/ui/button";
 import {
@@ -25,6 +26,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/too
 import { cn } from "@/app/lib/cn";
 import { focusIsland, splitIsland, toggleMaximize } from "@/app/lib/tabActions";
 import { getTabMeta } from "@/app/lib/tabMeta";
+import { useWorkspaceView } from "@/app/stores/workspaceView";
 import { type GapGeometry, layoutGeometry, type Rect } from "@/app/workspace/geometry";
 import {
   findSplit,
@@ -188,8 +190,12 @@ function IslandFrame({
       data-island={island.id}
       data-focused={focused || undefined}
       // Any press or keyboard focus inside an island makes it the focused one.
-      onPointerDownCapture={() => focusIsland(island.id)}
-      onFocusCapture={() => focusIsland(island.id)}
+      onPointerDownCapture={(event) => {
+        if (event.currentTarget.contains(event.target as Node)) focusIsland(island.id);
+      }}
+      onFocusCapture={(event) => {
+        if (event.currentTarget.contains(event.target as Node)) focusIsland(island.id);
+      }}
       style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
       className={cn(
         "@container absolute flex-col overflow-hidden rounded-island bg-background",
@@ -221,6 +227,7 @@ const IslandHeader = memo(function IslandHeader({
   canMaximize: boolean;
 }) {
   const href = selectedTab(island).href;
+  const narrow = useWorkspaceView((state) => state.narrow);
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: double-click maximize is a mouse shortcut; the island menu offers the same action
     <div
@@ -233,7 +240,9 @@ const IslandHeader = memo(function IslandHeader({
       }}
       className="flex h-10 shrink-0 touch-none items-center gap-1 pr-1.5 pl-1"
     >
+      {narrow && focused && <SidebarToggle />}
       <TabStrip island={island} focused={focused} />
+      {narrow && focused && <IslandSwitcher />}
       <SectionMenu href={href} />
       <IslandMenu islandId={island.id} maximized={maximized} canMaximize={canMaximize} />
     </div>
