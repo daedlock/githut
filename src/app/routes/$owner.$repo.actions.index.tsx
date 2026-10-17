@@ -103,9 +103,9 @@ function ActionsPage() {
 
   return (
     <Container className="py-6">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+      <div className="flex flex-col gap-6 @3xl/pane:flex-row @3xl/pane:items-start @3xl/pane:gap-8">
         {/* Sidebar — unframed, sticky, RepoAbout-style vocabulary */}
-        <div className="hidden w-56 shrink-0 self-start lg:block lg:sticky lg:top-28 lg:mt-12">
+        <div className="hidden w-56 shrink-0 self-start @3xl/pane:sticky @3xl/pane:top-28 @3xl/pane:mt-12 @3xl/pane:block">
           <WorkflowSidebar
             owner={owner}
             repo={repo}
@@ -149,7 +149,7 @@ function ActionsPage() {
                 search: { workflow: e.target.value ? Number(e.target.value) : undefined },
               })
             }
-            className="mt-4 h-9 w-full rounded-md border border-input bg-background px-2 text-ui lg:hidden"
+            className="mt-4 h-9 w-full rounded-md border border-input bg-background px-2 text-ui @3xl/pane:hidden"
           >
             <option value="">All workflows</option>
             {workflowsQuery.data?.map((workflow) => (
@@ -160,7 +160,7 @@ function ActionsPage() {
             ))}
           </select>
           {workflowsQuery.isError ? (
-            <div role="alert" className="mt-2 text-caption text-destructive lg:hidden">
+            <div role="alert" className="mt-2 text-caption text-destructive @3xl/pane:hidden">
               Could not load workflows.{" "}
               <button type="button" className="underline" onClick={() => workflowsQuery.refetch()}>
                 Retry

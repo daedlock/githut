@@ -47,7 +47,7 @@ function ProfileBento({ profile, repos, isLoading, membersCount }: ProfileBentoP
   return (
     <section
       aria-label="Profile statistics"
-      className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3"
+      className="grid grid-cols-2 gap-2 @xl/pane:grid-cols-4 @xl/pane:gap-3"
     >
       <Tile
         label="Repositories"
@@ -148,7 +148,7 @@ function Tile({
 
 function BentoSkeleton() {
   return (
-    <SkeletonGroup label="Loading profile statistics" className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+    <SkeletonGroup label="Loading profile statistics" className="grid grid-cols-2 gap-2 @xl/pane:grid-cols-4 @xl/pane:gap-3">
       {[0, 1, 2, 3].map((i) => (
         <Card key={i} variant="muted" className="flex flex-col gap-2 px-4 py-3.5">
           <Skeleton className="h-3 w-24" />

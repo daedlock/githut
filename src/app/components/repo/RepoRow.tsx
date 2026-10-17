@@ -81,18 +81,18 @@ export function RepoRow({ repo, showOwner = false, onClick }: RepoRowProps) {
 
         <div className="flex flex-shrink-0 items-center gap-3 pt-0.5 font-mono text-caption text-muted-foreground">
           {repo.language ? (
-            <span className="hidden items-center gap-1.5 sm:inline-flex">
+            <span className="hidden items-center gap-1.5 @xl/pane:inline-flex">
               <span aria-hidden className="size-1.5 rounded-full bg-[var(--chart-slot-1)]" />
               {repo.language}
             </span>
           ) : null}
           {repo.stars > 0 ? (
-            <span className="hidden items-center gap-1 sm:inline-flex tabular-nums">
+            <span className="hidden items-center gap-1 @xl/pane:inline-flex tabular-nums">
               <StarIcon className="size-3" />
               {formatStars(repo.stars)}
             </span>
           ) : null}
-          <span className="hidden text-[var(--color-fg-faint)] md:inline">
+          <span className="hidden text-[var(--color-fg-faint)] @2xl/pane:inline">
             {formatPushed(repo.pushedAt)}
           </span>
           <CaretRight className="size-4 text-[var(--color-fg-faint)] transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />

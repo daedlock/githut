@@ -30,7 +30,7 @@ export function ProfileReadme({ markdown, isLoading, login, isOrg }: ProfileRead
 
   if (isLoading) {
     return (
-      <Card variant="muted" className="flex flex-col gap-4 px-4 py-4 sm:px-5 sm:py-5">
+      <Card variant="muted" className="flex flex-col gap-4 px-4 py-4 @xl/pane:px-5 @xl/pane:py-5">
         <SectionEyebrow />
         <div className="flex flex-col gap-3">
           <Skeleton className="h-4 w-3/4" />
@@ -51,7 +51,7 @@ export function ProfileReadme({ markdown, isLoading, login, isOrg }: ProfileRead
   const isLong = markdown.length > 600;
 
   return (
-    <Card variant="muted" className="flex flex-col gap-4 px-4 py-4 sm:px-5 sm:py-5">
+    <Card variant="muted" className="flex flex-col gap-4 px-4 py-4 @xl/pane:px-5 @xl/pane:py-5">
       <SectionEyebrow />
 
       <div className="relative">
