@@ -78,6 +78,14 @@ const RULES: PatternRule[] = [
     }),
   },
   {
+    match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/review\/(?<number>\d+)$/,
+    meta: (g) => ({
+      label: `Review #${g.number}`,
+      sublabel: `${g.owner}/${g.repo}`,
+      icon: GitPullRequest,
+    }),
+  },
+  {
     match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/issues\/(?<number>\d+)$/,
     meta: (g) => ({
       label: `Issue #${g.number}`,
@@ -112,6 +120,10 @@ const RULES: PatternRule[] = [
       sublabel: `${g.owner}/${g.repo}`,
       icon: Play,
     }),
+  },
+  {
+    match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)$/,
+    meta: (g) => ({ label: g.repo!, sublabel: `${g.owner}/${g.repo}`, icon: Code2 }),
   },
   {
     match: /^\/(?<username>[^/]+)$/,
