@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { trackWorkspaceAction } from "@/app/lib/analytics";
 import { cn } from "@/app/lib/cn";
 import { getTabMeta } from "@/app/lib/tabMeta";
 import { applyDock, type DockSource, type DockTarget } from "@/app/workspace/docking";
@@ -103,7 +104,11 @@ export function useDocking(ref: RefObject<HTMLDivElement | null>) {
         window.addEventListener("click", suppress, { capture: true, once: true });
         setTimeout(() => window.removeEventListener("click", suppress, true), 0);
       }
-      if (commit && current?.drop) dispatch({ type: "dock", source, target: current.drop.target });
+      if (commit && current?.drop) {
+        const before = getWorkspace();
+        dispatch({ type: "dock", source, target: current.drop.target });
+        if (getWorkspace() !== before) trackWorkspaceAction("drag-dock");
+      }
     };
     const up = (event: globalThis.PointerEvent) => {
       if (event.pointerId !== e.pointerId) return;

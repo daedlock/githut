@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { trackWorkspaceAction } from "@/app/lib/analytics";
+import { retireTabHint } from "@/app/stores/tabHint";
 
 import {
   createWorkspace,
@@ -67,6 +69,12 @@ export function dispatch(cmd: WorkspaceCommand | { type: "undo" }) {
   } else {
     useWorkspaceStore.setState({ workspace: next });
   }
+  if (islands(next.layout).length > islands(prev.layout).length) {
+    retireTabHint();
+    trackWorkspaceAction("split");
+  }
+  if (cmd.type === "dock" && cmd.source.type === "island") trackWorkspaceAction("move-island");
+  if (cmd.type === "pinTab" && cmd.pinned) trackWorkspaceAction("pin");
 }
 
 function undoLabel(cmd: WorkspaceCommand): string | null {
@@ -144,6 +152,7 @@ export function useFocusedTab(): Tab {
  */
 export function initWorkspace(href: string): () => void {
   useWorkspaceStore.setState({ workspace: loadWorkspace(href), undo: [], notice: null });
+  if (islands(getWorkspace().layout).length > 1) retireTabHint();
   saveWorkspace(getWorkspace());
 
   const unsubscribe = useWorkspaceStore.subscribe((s, prev) => {
