@@ -419,8 +419,8 @@ export function CommandPalette() {
                   <span
                     className={cn(
                       "min-w-0 flex-1 truncate",
-                      // Repo names and paths are identifiers; issue and PR labels are titles.
-                      (item.kind === "repo" || item.kind === "file" || /^#\d+$/.test(item.label)) &&
+                      // Repo names, paths and bare numbers are identifiers; page, issue and PR labels are titles.
+                      (item.kind === "file" || /^[^\s/]+\/[^\s/]+$|^#\d+$/.test(item.label)) &&
                         "font-mono tabular-nums",
                     )}
                   >
