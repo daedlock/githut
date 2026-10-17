@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronDown, Pin, PinOff, X } from "lucide-react";
 import { type KeyboardEvent, memo, useEffect, useRef, useSyncExternalStore } from "react";
 
@@ -394,23 +393,71 @@ type TabDisplay = {
   status?: string;
 };
 
-function subscribeUnread(changed: () => void) {
-  const cleanups = [
-    useTabActivityStore.subscribe(changed),
-    useNotificationState.subscribe(changed),
-    workspaceQueryClient.getQueryCache().subscribe(changed),
-  ];
-  return () =>
-    cleanups.forEach((stop) => {
-      stop();
-    });
+// ─── Shared display sources ──
+//
+// Every tab label, overflow row and switcher row reads the same three sources.
+// They share one subscription to each (not one per label), bursts of cache
+// events collapse into one notification per microtask, and each derived
+// snapshot is computed once per change per page rather than once per reader.
+
+const listeners = new Set<() => void>();
+let version = 0;
+let stopSources: (() => void) | null = null;
+let scheduled = false;
+
+function bump() {
+  if (scheduled) return;
+  scheduled = true;
+  queueMicrotask(() => {
+    scheduled = false;
+    version++;
+    for (const listener of listeners) listener();
+  });
 }
+
+function subscribeDisplaySources(listener: () => void) {
+  listeners.add(listener);
+  if (!stopSources) {
+    version++;
+    const stops = [
+      useTabActivityStore.subscribe(bump),
+      useNotificationState.subscribe(bump),
+      workspaceQueryClient.getQueryCache().subscribe(bump),
+    ];
+    stopSources = () => {
+      for (const stop of stops) stop();
+    };
+  }
+  return () => {
+    listeners.delete(listener);
+    if (!listeners.size) {
+      stopSources?.();
+      stopSources = null;
+    }
+  };
+}
+
+/** Memoizes `compute` per key for the current source version. */
+function versioned<T>(compute: (key: string) => T) {
+  const cache = new Map<string, { version: number; value: T }>();
+  return (key: string): T => {
+    const hit = cache.get(key);
+    // Without a live subscription the version can't be trusted: recompute.
+    if (hit && hit.version === version && stopSources) return hit.value;
+    const value = compute(key);
+    cache.set(key, { version, value });
+    if (cache.size > 500) cache.clear();
+    return value;
+  };
+}
+
+const unreadSnapshot = versioned((href) => pageIsUnread(href));
 
 export function useTabDisplay(href: string): TabDisplay {
   const pathname = hrefPathname(href);
   const meta = getTabMeta(pathname);
   const entity = useCachedEntity(pathname);
-  const unread = useSyncExternalStore(subscribeUnread, () => pageIsUnread(href));
+  const unread = useSyncExternalStore(subscribeDisplaySources, () => unreadSnapshot(href));
   const base = { icon: meta.icon, tone: "none" as Tone, repo: meta.sublabel, unread };
 
   const num = /\/(?:pull|pr|review|issues)\/(\d+)/.exec(pathname)?.[1];
@@ -457,66 +504,15 @@ type EntityRow = {
  * reloads (see stores/tabTitles). Background status belongs to the lightweight
  * watcher, never an eager detail prefetch from a tab label.
  */
+const ENTITY_PATH = /^\/([^/]+)\/([^/]+)\/(pull|pr|review|issues)\/(\d+)/;
+
 function useCachedEntity(pathname: string): { title: string; tone: Tone } | null {
-  const queryClient = useQueryClient();
-  const m = /^\/([^/]+)\/([^/]+)\/(pull|pr|review|issues)\/(\d+)/.exec(pathname);
+  const m = ENTITY_PATH.exec(pathname);
   const key = m ? `${m[1]}/${m[2]}/${m[3] === "issues" ? "issue" : "pull"}/${m[4]}` : "";
   const remembered = useTabTitlesStore((s) => (key ? s.entries[key] : undefined));
-  const page = pageEntity(pathname);
 
   // Snapshot is a primitive so useSyncExternalStore can compare it cheaply.
-  const snapshot = useSyncExternalStore(
-    (cb) => {
-      const stops = [queryClient.getQueryCache().subscribe(cb), useTabActivityStore.subscribe(cb)];
-      return () =>
-        stops.forEach((stop) => {
-          stop();
-        });
-    },
-    () => {
-      if (!m) return "";
-      const [, owner, repo, kind, num] = m as unknown as [string, string, string, string, string];
-      const n = Number(num);
-      const isIssue = kind === "issues";
-      const detail = queryClient.getQueryState<EntityRow>(
-        isIssue ? issueKeys.detail(owner, repo, n) : pullsKeys.detail(owner, repo, n),
-      );
-      let row = detail?.data;
-      let updatedAt = detail?.dataUpdatedAt ?? 0;
-      if (!row?.title) {
-        const lists = queryClient.getQueryCache().findAll({
-          queryKey: isIssue ? issueKeys.all(owner, repo) : pullsKeys.lists(owner, repo),
-        });
-        for (const query of lists) {
-          const candidate = findByNumber(query.state.data, n);
-          if (candidate?.title && query.state.dataUpdatedAt >= updatedAt) {
-            row = candidate;
-            updatedAt = query.state.dataUpdatedAt;
-          }
-        }
-      }
-      const watched = page ? useTabActivityStore.getState().statuses[page.key] : undefined;
-      const useWatched = watched && (!row?.title || watched.observedAt >= updatedAt);
-      const title = useWatched ? watched.title : row?.title;
-      if (!title) return "";
-      let tone = useWatched ? watched.state : toneOf(row!, isIssue);
-      if (!isIssue && (tone === "open" || tone === "draft")) {
-        const rollup = queryClient.getQueryState<{ state: string } | null>(
-          pullsKeys.checkRollup(owner, repo, n),
-        );
-        const ci =
-          watched && watched.observedAt >= (rollup?.dataUpdatedAt ?? 0)
-            ? watched.ci
-            : rollup?.data?.state === "failure"
-              ? "failed"
-              : rollup?.data?.state === "pending"
-                ? "running"
-                : null;
-        if (ci === "failed" || ci === "running") tone = ci;
-      }
-      return `${tone}\u0000${title}`;
-    },
-  );
+  const snapshot = useSyncExternalStore(subscribeDisplaySources, () => entitySnapshot(pathname));
 
   const value = snapshot || remembered;
 
@@ -528,6 +524,53 @@ function useCachedEntity(pathname: string): { title: string; tone: Tone } | null
   const [tone, title] = value.split("\u0000") as [Tone, string];
   return { tone, title };
 }
+
+const entitySnapshot = versioned((pathname): string => {
+  const queryClient = workspaceQueryClient;
+  const m = ENTITY_PATH.exec(pathname);
+  const page = pageEntity(pathname);
+  if (!m) return "";
+  const [, owner, repo, kind, num] = m as unknown as [string, string, string, string, string];
+  const n = Number(num);
+  const isIssue = kind === "issues";
+  const detail = queryClient.getQueryState<EntityRow>(
+    isIssue ? issueKeys.detail(owner, repo, n) : pullsKeys.detail(owner, repo, n),
+  );
+  let row = detail?.data;
+  let updatedAt = detail?.dataUpdatedAt ?? 0;
+  if (!row?.title) {
+    const lists = queryClient.getQueryCache().findAll({
+      queryKey: isIssue ? issueKeys.all(owner, repo) : pullsKeys.lists(owner, repo),
+    });
+    for (const query of lists) {
+      const candidate = findByNumber(query.state.data, n);
+      if (candidate?.title && query.state.dataUpdatedAt >= updatedAt) {
+        row = candidate;
+        updatedAt = query.state.dataUpdatedAt;
+      }
+    }
+  }
+  const watched = page ? useTabActivityStore.getState().statuses[page.key] : undefined;
+  const useWatched = watched && (!row?.title || watched.observedAt >= updatedAt);
+  const title = useWatched ? watched.title : row?.title;
+  if (!title) return "";
+  let tone = useWatched ? watched.state : toneOf(row!, isIssue);
+  if (!isIssue && (tone === "open" || tone === "draft")) {
+    const rollup = queryClient.getQueryState<{ state: string } | null>(
+      pullsKeys.checkRollup(owner, repo, n),
+    );
+    const ci =
+      watched && watched.observedAt >= (rollup?.dataUpdatedAt ?? 0)
+        ? watched.ci
+        : rollup?.data?.state === "failure"
+          ? "failed"
+          : rollup?.data?.state === "pending"
+            ? "running"
+            : null;
+    if (ci === "failed" || ci === "running") tone = ci;
+  }
+  return `${tone}\u0000${title}`;
+});
 
 function toneOf(row: EntityRow, isIssue: boolean): Tone {
   if (isIssue) return row.state === "closed" ? "done" : "open";
