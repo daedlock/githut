@@ -19,8 +19,6 @@
 
 // ─── Shape ───────────────────────────────────────────────────────────────────
 
-import { applyDock, type DockingCommand } from "@/app/workspace/docking";
-
 export type Tab = {
   id: string;
   /** pathname + search + hash */
@@ -67,6 +65,18 @@ export type Workspace = {
 export type Side = "left" | "right" | "top" | "bottom";
 export type Direction = "left" | "right" | "up" | "down";
 
+/** What a dock moves: an open tab, a whole island, or a page not open yet. */
+export type DockSource =
+  | { type: "tab"; tabId: string }
+  | { type: "island"; islandId: string }
+  | { type: "href"; href: string };
+/** Where a dock lands: a gap in a tab strip, an island's edge, or the workspace's edge. */
+export type DockTarget =
+  | { type: "tabs"; islandId: string; index: number }
+  | { type: "island-edge"; islandId: string; side: Side }
+  | { type: "workspace-edge"; side: Exclude<Side, "top"> };
+export type DockingCommand = { type: "dock"; source: DockSource; target: DockTarget };
+
 /** Minimum island size in px (spec #24). */
 export const MIN_ISLAND_WIDTH = 320;
 export const MIN_ISLAND_HEIGHT = 200;
@@ -86,7 +96,11 @@ export type WorkspaceCommand =
   | { type: "closeIsland"; islandId: string }
   /** A tab's own router moved (in-page link, back/forward). */
   | { type: "navigate"; tabId: string; href: string }
-  /** Open `href` as a new tab after the selected tab of an island (default: the focused one). */
+  /**
+   * Open `href` as a new tab after the selected tab of an island (default:
+   * the focused one). A tab of that island already at exactly this href is
+   * selected instead.
+   */
   | {
       type: "openTab";
       href: string;
@@ -95,20 +109,24 @@ export type WorkspaceCommand =
       select?: boolean;
       /** Open a second tab even if the island already shows this page. */
       allowDuplicate?: boolean;
-      /** Exact href matching keeps different code files/search states as separate pages. */
-      match?: "pathname" | "href";
     }
-  /** Launchers and incoming URLs jump to a matching page, preferring recent islands. */
-  | { type: "openOrJump"; href: string }
-  | { type: "openUrl"; href: string }
-  /** Open a page in a new island to the right of the source (default: focused island). */
+  /**
+   * Launchers and incoming URLs jump to a tab already showing the page,
+   * preferring recently focused islands, else open it in the focused island.
+   * Launchers match by pathname, so a filtered list still counts as that
+   * list; incoming URLs match the exact href.
+   */
+  | { type: "openOrJump"; href: string; match?: "pathname" | "href" }
+  /**
+   * Open a page beside the source island (default: focused island): as a tab
+   * of the island to its right, else in a new island to its right.
+   */
   | { type: "openToSide"; href: string; islandId?: string }
   | { type: "selectTab"; tabId: string }
   /** Select the n-th tab of the focused island; -1 is the last. */
   | { type: "selectTabAt"; index: number }
   /** Select the next/previous tab of the focused island, wrapping. */
   | { type: "cycleTab"; delta: 1 | -1 }
-  | { type: "moveTab"; tabId: string; islandId: string; index: number }
   | { type: "pinTab"; tabId: string; pinned: boolean }
   | { type: "duplicateTab"; tabId: string }
   | { type: "closeTab"; tabId: string }
@@ -182,14 +200,15 @@ function apply(ws: Workspace, cmd: WorkspaceCommand): Workspace {
       return openTab(ws, cmd.href, cmd.islandId ?? ws.focusedIslandId, {
         select: cmd.select ?? true,
         allowDuplicate: cmd.allowDuplicate ?? false,
-        match: cmd.match,
       });
 
-    case "openOrJump":
-    case "openUrl": {
+    case "openOrJump": {
       const href = normalizeHref(cmd.href);
+      const path = hrefPathname(href);
+      const matches = (t: Tab) =>
+        cmd.match === "href" ? t.href === href : hrefPathname(t.href) === path;
       for (const id of ws.focusHistory) {
-        const match = findIsland(ws.layout, id)?.tabs.find((t) => t.href === href);
+        const match = findIsland(ws.layout, id)?.tabs.find(matches);
         if (match) return selectTab(ws, match.id);
       }
       return openTab(ws, href, ws.focusedIslandId, { select: true, allowDuplicate: true });
@@ -198,6 +217,10 @@ function apply(ws: Workspace, cmd: WorkspaceCommand): Workspace {
     case "openToSide": {
       const source = cmd.islandId ?? ws.focusedIslandId;
       if (!findIsland(ws.layout, source)) return ws;
+      // Reuse the island already to the right, so repeated side opens fill
+      // it rather than halving the source island each time.
+      const beside = neighbourIsland(ws.layout, source, "right");
+      if (beside) return openTab(ws, cmd.href, beside, { select: true, allowDuplicate: false });
       const island = newIsland([cmd.href]);
       return {
         ...ws,
@@ -223,9 +246,6 @@ function apply(ws: Workspace, cmd: WorkspaceCommand): Workspace {
       const n = island.tabs.length;
       return selectTab(ws, island.tabs[(idx + cmd.delta + n) % n]!.id);
     }
-
-    case "moveTab":
-      return moveTab(ws, cmd.tabId, cmd.islandId, cmd.index);
 
     case "pinTab": {
       const found = findTab(ws.layout, cmd.tabId);
@@ -277,7 +297,6 @@ function apply(ws: Workspace, cmd: WorkspaceCommand): Workspace {
       return openTab({ ...ws, closed: ws.closed.slice(0, -1) }, href, ws.focusedIslandId, {
         select: true,
         allowDuplicate: false,
-        match: "href",
       });
     }
 
@@ -620,22 +639,17 @@ function openTab(
   ws: Workspace,
   rawHref: string,
   islandId: string,
-  opts: { select: boolean; allowDuplicate: boolean; match?: "pathname" | "href" },
+  opts: { select: boolean; allowDuplicate: boolean },
 ): Workspace {
   const href = normalizeHref(rawHref);
   const island = findIsland(ws.layout, islandId) ?? focusedIsland(ws);
 
   // De-duplicated within the island only: the same page may be open in two
-  // islands (e.g. a PR's conversation beside its files).
+  // islands (e.g. a PR's conversation beside its files). Exact hrefs keep
+  // different code files and search states as separate pages.
   if (!opts.allowDuplicate) {
-    const path = hrefPathname(href);
-    const existing = island.tabs.find((t) =>
-      opts.match === "href" ? t.href === href : hrefPathname(t.href) === path,
-    );
-    if (existing) {
-      const updated = updateTab(ws, existing.id, (t) => (t.href === href ? t : { ...t, href }));
-      return opts.select ? selectTab(updated, existing.id) : updated;
-    }
+    const existing = island.tabs.find((t) => t.href === href);
+    if (existing) return opts.select ? selectTab(ws, existing.id) : ws;
   }
 
   const tab = newTab(href);
@@ -644,39 +658,6 @@ function openTab(
   tabs.splice(idx === -1 ? tabs.length : idx + 1, 0, tab);
   const next = { ...ws, layout: replaceNode(ws.layout, island.id, { ...island, tabs }) };
   return opts.select ? selectTab(next, tab.id) : next;
-}
-
-function moveTab(ws: Workspace, tabId: string, toIslandId: string, index: number): Workspace {
-  const found = findTab(ws.layout, tabId);
-  const dest = findIsland(ws.layout, toIslandId);
-  if (!found || !dest) return ws;
-  const from = found.island.tabs.findIndex((t) => t.id === tabId);
-
-  if (dest.id === found.island.id) {
-    const to = Math.min(Math.max(index, 0), dest.tabs.length - 1);
-    if (to === from) return ws;
-    const tabs = [...dest.tabs];
-    tabs.splice(from, 1);
-    tabs.splice(to, 0, found.tab);
-    return { ...ws, layout: replaceNode(ws.layout, dest.id, { ...dest, tabs }) };
-  }
-
-  const source = {
-    ...found.island,
-    tabs: found.island.tabs.filter((t) => t.id !== tabId),
-    pinned: found.island.pinned.filter((id) => id !== tabId),
-    selectedTabId: reselect(found.island, [tabId]),
-  };
-  const tabs = [...dest.tabs];
-  tabs.splice(Math.min(Math.max(index, 0), tabs.length), 0, found.tab);
-  let layout = replaceNode(ws.layout, source.id, source);
-  layout = replaceNode(layout, dest.id, {
-    ...dest,
-    tabs,
-    selectedTabId: tabId,
-    pinned: found.island.pinned.includes(tabId) ? [...dest.pinned, tabId] : dest.pinned,
-  });
-  return { ...ws, layout, focusedIslandId: dest.id };
 }
 
 /**
@@ -716,8 +697,19 @@ function closeTabs(ws: Workspace, tabIds: string[]): Workspace {
 
   const closed = [...ws.closed, ...closedHrefs].slice(-MAX_CLOSED);
 
-  // The workspace always shows a page: its last tab can't be closed.
-  if (islands(layout).every((i) => i.tabs.length === 0)) return ws;
+  // The workspace always shows a page: closing its last tab leaves a fresh
+  // Inbox tab, unless that last tab already is the Inbox.
+  if (islands(layout).every((i) => i.tabs.length === 0)) {
+    const all = islands(ws.layout).flatMap((i) => i.tabs);
+    if (all.length === 1 && hrefPathname(all[0]!.href) === HOME_HREF) return ws;
+    const home = newTab(HOME_HREF);
+    return {
+      ...ws,
+      layout: { ...focusedIsland(ws), tabs: [home], pinned: [], selectedTabId: home.id },
+      closed,
+      maximizedIslandId: null,
+    };
+  }
 
   // A focused island that empties hands focus to the island taking its space.
   let focusedIslandId = ws.focusedIslandId;
@@ -779,6 +771,108 @@ export function insertBeside(
     targetId,
     newSplit(direction, before ? [node, target] : [target, node]),
   );
+}
+
+// ─── Docking ─────────────────────────────────────────────────────────────────
+
+/** Move existing tabs, retaining their ids, router history, selection and pinned status. */
+export function applyDock(ws: Workspace, source: DockSource, target: DockTarget): Workspace {
+  if (source.type === "href") {
+    const dest =
+      target.type === "workspace-edge" ? undefined : findIsland(ws.layout, target.islandId);
+    if (target.type !== "workspace-edge" && !dest) return ws;
+    const added = newIsland([source.href]);
+    if (target.type === "tabs" && dest) {
+      const tabs = [...dest.tabs];
+      tabs.splice(
+        Math.max(dest.pinned.length, Math.min(target.index, tabs.length)),
+        0,
+        added.tabs[0]!,
+      );
+      return {
+        ...ws,
+        layout: replaceNode(ws.layout, dest.id, {
+          ...dest,
+          tabs,
+          selectedTabId: added.selectedTabId,
+        }),
+        focusedIslandId: dest.id,
+        maximizedIslandId: null,
+      };
+    }
+    if (target.type === "tabs") return ws;
+    return {
+      ...ws,
+      layout: insertBeside(ws.layout, dest?.id ?? ws.layout.id, target.side, added),
+      focusedIslandId: added.id,
+      maximizedIslandId: null,
+    };
+  }
+  const found = source.type === "tab" ? findTab(ws.layout, source.tabId) : undefined;
+  const from = source.type === "tab" ? found?.island : findIsland(ws.layout, source.islandId);
+  if (!from) return ws;
+  const dest =
+    target.type === "workspace-edge" ? undefined : findIsland(ws.layout, target.islandId);
+  if (target.type !== "workspace-edge" && !dest) return ws;
+  const tabs = found ? [found.tab] : from.tabs;
+  const ids = new Set(tabs.map((tab) => tab.id));
+  const movingAll = tabs.length === from.tabs.length;
+  if (dest?.id === from.id && (source.type === "island" || (movingAll && target.type !== "tabs")))
+    return ws;
+
+  if (target.type === "tabs") {
+    if (!dest) return ws;
+    // The drop index is a gap in the original strip, before removing the source.
+    const at = Math.max(0, Math.min(target.index, dest.tabs.length));
+    const insertion = at - dest.tabs.slice(0, at).filter((tab) => ids.has(tab.id)).length;
+    const remaining = dest.tabs.filter((tab) => !ids.has(tab.id));
+    remaining.splice(insertion, 0, ...tabs);
+    const pinned = [
+      ...dest.pinned,
+      ...from.pinned.filter((id) => ids.has(id) && !dest.pinned.includes(id)),
+    ];
+    // Pins always occupy the start of the strip, including after cross-island moves.
+    const ordered = [
+      ...remaining.filter((tab) => pinned.includes(tab.id)),
+      ...remaining.filter((tab) => !pinned.includes(tab.id)),
+    ];
+    if (dest.id === from.id && ordered.every((tab, index) => tab === dest.tabs[index])) return ws;
+    let layout =
+      dest.id === from.id ? ws.layout : replaceNode(ws.layout, from.id, withoutTabs(from, ids));
+    layout = replaceNode(layout, dest.id, {
+      ...dest,
+      tabs: ordered,
+      pinned,
+      selectedTabId: found?.tab.id ?? from.selectedTabId,
+    });
+    return { ...ws, layout, focusedIslandId: dest.id, maximizedIslandId: null };
+  }
+
+  // Moving a whole island retains its id and all mounted pages. A tab split
+  // gets a new island but keeps the tab id used by router and scroll memory.
+  const moved: Island = movingAll
+    ? from
+    : {
+        kind: "island",
+        id: newId("i"),
+        tabs,
+        selectedTabId: tabs[0]!.id,
+        pinned: from.pinned.filter((id) => ids.has(id)),
+      };
+  const remainder = normalizeLayout(replaceNode(ws.layout, from.id, withoutTabs(from, ids)));
+  if (!remainder) return ws;
+  const targetId = target.type === "workspace-edge" ? remainder.id : dest!.id;
+  const layout = insertBeside(remainder, targetId, target.side, moved);
+  return { ...ws, layout, focusedIslandId: moved.id, maximizedIslandId: null };
+}
+
+function withoutTabs(island: Island, ids: Set<string>): Island {
+  return {
+    ...island,
+    tabs: island.tabs.filter((tab) => !ids.has(tab.id)),
+    pinned: island.pinned.filter((id) => !ids.has(id)),
+    selectedTabId: reselect(island, [...ids]),
+  };
 }
 
 // ─── Normalisation ───────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { RecentVisits } from "@/app/components/shell/RecentVisits";
 import { Sidebar, SidebarContent } from "@/app/components/shell/Sidebar";
 import { SidebarControls } from "@/app/components/shell/SidebarControls";
@@ -18,8 +18,8 @@ import { useCommandPaletteStore } from "@/app/stores/commandPalette";
 import { useSettingsModal } from "@/app/stores/settingsModal";
 import { SIDEBAR_RAIL_WIDTH, useSidebarStore } from "@/app/stores/sidebar";
 import { useWorkspaceView } from "@/app/stores/workspaceView";
-import { useWorkspaceStore } from "@/app/workspace/store";
-import { isNarrowLayout } from "@/app/workspace/view";
+import { setWorkspaceSpace, useWorkspaceStore } from "@/app/workspace/store";
+import { desktopSpace, isNarrowLayout } from "@/app/workspace/view";
 
 /** Sidebar launchers and island headers share one drag interaction and target set. */
 export function WorkspaceArea({ children }: { children: ReactNode }) {
@@ -37,20 +37,41 @@ export function WorkspaceArea({ children }: { children: ReactNode }) {
       if (narrow) closeAfterLaunch();
     },
   });
-  useKeybindings({ "⌘b": toggleSidebar });
+  useKeybindings(useMemo(() => ({ "⌘b": toggleSidebar }), [toggleSidebar]));
   useEffect(startBackgroundWatcher, []);
+  // Commands that create or resize islands are fitted to this room (desktop
+  // mode only: narrow mode shows one island whatever the layout).
+  useEffect(() => {
+    setWorkspaceSpace(() => {
+      const element = ref.current;
+      if (!element || window.innerWidth < 720) return null;
+      const sidebar = useSidebarStore.getState();
+      return desktopSpace({
+        width: element.clientWidth,
+        height: element.clientHeight,
+        sidebarWidth: sidebar.collapsed ? SIDEBAR_RAIL_WIDTH : sidebar.width,
+      });
+    });
+    return () => setWorkspaceSpace(() => null);
+  }, []);
+  // The layout changes on every in-tab navigation (tab hrefs live in it), so
+  // the observers read it through a ref instead of being rebuilt each time.
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
+  const measureRef = useRef<() => void>(() => {});
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;
     const measure = () =>
       setNarrow(
-        isNarrowLayout(layout, {
+        isNarrowLayout(layoutRef.current, {
           width: element.clientWidth,
           height: element.clientHeight,
           viewportWidth: window.innerWidth,
           sidebarWidth: collapsed ? SIDEBAR_RAIL_WIDTH : width,
         }),
       );
+    measureRef.current = measure;
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
@@ -59,7 +80,9 @@ export function WorkspaceArea({ children }: { children: ReactNode }) {
       observer.disconnect();
       window.removeEventListener("resize", measure);
     };
-  }, [layout, width, collapsed, setNarrow]);
+  }, [width, collapsed, setNarrow]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-measure whenever the layout changes.
+  useLayoutEffect(() => measureRef.current(), [layout]);
   return (
     <div
       ref={ref}

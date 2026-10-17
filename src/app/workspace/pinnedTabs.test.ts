@@ -20,7 +20,11 @@ test("moving a pinned tab carries its pin and keeps it before ordinary tabs", ()
   ws = runCommand(ws, { type: "pinTab", tabId: pin.id, pinned: true });
   ws = runCommand(ws, { type: "splitIsland", side: "right" });
   const destination = focusedIsland(ws).id;
-  ws = runCommand(ws, { type: "moveTab", tabId: pin.id, islandId: destination, index: 1 });
+  ws = runCommand(ws, {
+    type: "dock",
+    source: { type: "tab", tabId: pin.id },
+    target: { type: "tabs", islandId: destination, index: 1 },
+  });
   expect(focusedIsland(ws).pinned).toEqual([pin.id]);
   expect(focusedIsland(ws).tabs[0]!.id).toBe(pin.id);
   expect(islands(ws.layout)[0]!.pinned).toEqual([]);
