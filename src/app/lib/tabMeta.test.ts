@@ -20,7 +20,7 @@ describe("tab metadata", () => {
   });
 
   test("describes top-level routes", () => {
-    expect(getDocumentTitle("/")).toBe("Dashboard · GitHut");
+    expect(getDocumentTitle("/")).toBe("Inbox · GitHut");
     expect(getDocumentTitle("/settings")).toBe("Settings · GitHut");
     expect(getDocumentTitle("/login")).toBe("Sign In · GitHut");
     expect(getDocumentTitle("/playground")).toBe("Playground · GitHut");

@@ -19,7 +19,8 @@ import { clearRateLimit, recordRateLimit } from "@/app/stores/rateLimit";
 const ETAG_CACHE_MAX = 500;
 
 type CachedResponse = {
-  etag: string;
+  etag?: string;
+  lastModified?: string;
   data: unknown;
   status: number;
   url: string;
@@ -42,13 +43,15 @@ function buildCacheKey(options: Record<string, unknown>): string {
 
 function rememberETag(key: string, response: OctokitResponse<unknown>): void {
   const etag = response.headers?.etag;
-  if (typeof etag !== "string") return;
+  const lastModified = response.headers?.["last-modified"];
+  if (typeof etag !== "string" && typeof lastModified !== "string") return;
   if (etagCache.size >= ETAG_CACHE_MAX) {
     const first = etagCache.keys().next().value;
     if (first !== undefined) etagCache.delete(first);
   }
   etagCache.set(key, {
-    etag,
+    etag: typeof etag === "string" ? etag : undefined,
+    lastModified: typeof lastModified === "string" ? lastModified : undefined,
     data: response.data,
     status: response.status,
     url: response.url,
@@ -133,12 +136,18 @@ export function getGitHubClient(): Octokit {
       const url = String(options.url ?? "");
       const match = url.match(/\/repos\/([^/]+)\/([^/]+)/);
       if (match?.[1] && match[2]) evictETagsForRepo(match[1], match[2]);
+      if (url.includes("/notifications")) {
+        for (const key of etagCache.keys()) {
+          if (key.includes("/notifications")) etagCache.delete(key);
+        }
+      }
       return response;
     }
 
     const key = buildCacheKey(options as Record<string, unknown>);
     const prev = etagCache.get(key);
-    if (prev) options.headers["if-none-match"] = prev.etag;
+    if (prev?.etag) options.headers["if-none-match"] = prev.etag;
+    else if (prev?.lastModified) options.headers["if-modified-since"] = prev.lastModified;
 
     try {
       const response = await request(options);

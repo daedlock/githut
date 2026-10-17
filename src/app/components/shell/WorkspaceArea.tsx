@@ -10,6 +10,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/app/components/ui/sheet";
+import { NotificationsSync } from "@/app/features/notifications/NotificationsSync";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { focusPaneOfFocusedTab } from "@/app/lib/tabActions";
 import { SIDEBAR_RAIL_WIDTH, useSidebarStore } from "@/app/stores/sidebar";
@@ -64,6 +65,7 @@ export function WorkspaceArea({ children }: { children: ReactNode }) {
       className="relative flex min-h-0 flex-1"
     >
       <RecentVisits />
+      <NotificationsSync />
       {narrow ? (
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent

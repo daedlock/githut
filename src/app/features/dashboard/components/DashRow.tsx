@@ -26,6 +26,7 @@ const REASON_DOT: Record<DashboardReason, string> = {
 };
 
 export type DashRowProps = {
+  liveKey?: string;
   item: DashboardItem;
   /** Date field to drive both the latency dot and the trailing timestamp. */
   date: string;
@@ -33,7 +34,7 @@ export type DashRowProps = {
   showReason: boolean;
 };
 
-export function DashRow({ item, date, showReason }: DashRowProps) {
+export function DashRow({ item, date, showReason, liveKey }: DashRowProps) {
   const owner = item.ownerRepo.owner;
   const repo = item.ownerRepo.repo;
 
@@ -51,6 +52,7 @@ export function DashRow({ item, date, showReason }: DashRowProps) {
     <Link
       {...linkProps}
       data-keyboard-list-item
+      data-live-item={liveKey ?? item.id}
       className="group block rounded-lg outline-none transition-colors hover:bg-muted focus-visible:bg-muted"
     >
       <div className="flex w-full items-start gap-3 px-4 py-2.5 text-left">

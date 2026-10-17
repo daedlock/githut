@@ -6,7 +6,7 @@ import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { cn } from "@/app/lib/cn";
 import { useKeyboardHelpStore } from "@/app/stores/keyboardHelp";
 
-type Scope = "global" | "tabs" | "repo" | "diff" | "list";
+type Scope = "global" | "tabs" | "repo" | "diff" | "list" | "inbox";
 
 type Shortcut = {
   chord: string;
@@ -52,6 +52,8 @@ const SHORTCUTS: readonly Shortcut[] = [
   { chord: "s", label: "Change status of selection", scope: "list" },
   { chord: "l", label: "Label selection", scope: "list" },
   { chord: "a", label: "Assign selection", scope: "list" },
+  { chord: "e", label: "Mark notification or selection done", scope: "inbox" },
+  { chord: "⇧ U", label: "Toggle read / unread (unread is device only)", scope: "inbox" },
 ];
 
 const SCOPE_TITLES: Record<Scope, string> = {
@@ -60,9 +62,10 @@ const SCOPE_TITLES: Record<Scope, string> = {
   repo: "Repo",
   diff: "Diff viewer",
   list: "List",
+  inbox: "Inbox",
 };
 
-const DEFAULT_ORDER: readonly Scope[] = ["global", "tabs", "repo", "diff", "list"];
+const DEFAULT_ORDER: readonly Scope[] = ["global", "tabs", "repo", "diff", "list", "inbox"];
 
 function promoteScope(scope: Scope): readonly Scope[] {
   if (scope === "global") return DEFAULT_ORDER;
@@ -70,6 +73,7 @@ function promoteScope(scope: Scope): readonly Scope[] {
 }
 
 function scopeForPath(pathname: string): Scope {
+  if (pathname === "/") return "inbox";
   if (/\/[^/]+\/[^/]+\/commit\/[^/]+/.test(pathname)) return "diff";
   if (/\/[^/]+\/[^/]+\/pr\/[^/]+/.test(pathname)) return "diff";
   if (pathname === "/" || /^\/[^/]+\/[^/]+\/(pulls|issues|commits|actions)\/?$/.test(pathname))
@@ -112,6 +116,7 @@ export function KeyboardHelp() {
       repo: [],
       diff: [],
       list: [],
+      inbox: [],
     };
     for (const s of SHORTCUTS) byScope[s.scope].push(s);
     return order
