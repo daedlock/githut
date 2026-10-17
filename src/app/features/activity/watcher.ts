@@ -179,13 +179,13 @@ export async function refreshBackgroundTabs(now = Date.now()): Promise<void> {
     return;
   }
   const due = backgroundPages().filter(
-    (page) => now - (active.attempts.get(page.key) ?? 0) >= 60_000 * getRateBackoff(now),
+    (page) => now - (active.attempts.get(page.key) ?? 0) >= 60_000 * getRateBackoff("graphql", now),
   );
   // A window containing only visible copies still needs a verified account
   // for local read history; this small identity read runs once, not every tick.
   const identify =
     !useTabActivityStore.getState().account &&
-    now - active.identityAt >= 60_000 * getRateBackoff(now) &&
+    now - active.identityAt >= 60_000 * getRateBackoff("graphql", now) &&
     islands(useWorkspaceStore.getState().workspace.layout).some((island) =>
       island.tabs.some((tab) => pageEntity(tab.href)),
     );
@@ -204,7 +204,7 @@ export async function refreshBackgroundTabs(now = Date.now()): Promise<void> {
         .filter(
           (page) =>
             eligible.has(page.key) &&
-            now - (active.attempts.get(page.key) ?? 0) >= 60_000 * getRateBackoff(now),
+            now - (active.attempts.get(page.key) ?? 0) >= 60_000 * getRateBackoff("graphql", now),
         );
       if (!batch.length && !identify) continue;
       active.identityAt = now;

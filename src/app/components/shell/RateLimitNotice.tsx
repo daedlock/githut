@@ -1,9 +1,9 @@
 import { Badge } from "@/app/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
-import { useRateLimitStore } from "@/app/stores/rateLimit";
+import { noticeUntil, useRateLimitStore } from "@/app/stores/rateLimit";
 
 export function RateLimitNotice() {
-  const until = useRateLimitStore((state) => state.slowUntil);
+  const until = useRateLimitStore((state) => noticeUntil(state.buckets));
   if (!until) return null;
   const reset = new Date(until).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const detail = `GitHub's rate limit is low. Automatic updates run four times less often until ${reset}.`;

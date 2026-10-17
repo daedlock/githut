@@ -1,4 +1,3 @@
-import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterContextProvider, RouterProvider } from "@tanstack/react-router";
 import { Activity, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -19,8 +18,7 @@ import { TabShortcuts } from "@/app/components/shell/TabShortcuts";
 import { WorkspaceArea } from "@/app/components/shell/WorkspaceArea";
 import { TooltipProvider } from "@/app/components/ui/tooltip";
 
-import { queryClientForTab, startWorkspaceFreshness } from "@/app/lib/freshness";
-import { queryClient } from "@/app/lib/query";
+import { IslandFocusRefresh } from "@/app/lib/freshness";
 import { getTabRouter, releaseTabRouter } from "@/app/lib/tabRouters";
 import { type TabScope, TabScopeContext } from "@/app/lib/tabScope";
 import { useAuthStore } from "@/app/stores/auth";
@@ -49,7 +47,6 @@ export function TabHost() {
   const focused = focusedTab(workspace);
   const signedIn = useAuthStore((s) => !!s.token);
   const narrow = useWorkspaceView((s) => s.narrow);
-  useEffect(() => (signedIn ? startWorkspaceFreshness(queryClient) : undefined), [signedIn]);
 
   // Most recently focused first, trimmed to the keep-alive budget; every
   // island's selected tab is mounted on top of that.
@@ -143,7 +140,6 @@ const TabPane = memo(
   function TabPane({ id, href }: { id: string; href: string }) {
     const ref = useRef<HTMLDivElement>(null);
     const [router] = useState(() => getTabRouter(id, href));
-    const queries = useMemo(() => queryClientForTab(queryClient, id), [id]);
     // Page shortcuts and key listeners only act while this is the focused tab.
     const scope = useMemo<TabScope>(
       () => ({ tabId: id, isFocused: () => getFocusedTab().id === id }),
@@ -185,10 +181,9 @@ const TabPane = memo(
         className="absolute inset-0 overflow-y-auto overscroll-contain outline-none [--app-header-height:0px]"
       >
         <TabScopeContext.Provider value={scope}>
-          <QueryClientProvider client={queries}>
-            <RouterProvider router={router} />
-            <PageScrollControls scrollerRef={ref} />
-          </QueryClientProvider>
+          <IslandFocusRefresh />
+          <RouterProvider router={router} />
+          <PageScrollControls scrollerRef={ref} />
         </TabScopeContext.Provider>
       </div>
     );

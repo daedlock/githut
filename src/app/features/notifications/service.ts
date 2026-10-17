@@ -65,7 +65,7 @@ export async function refreshNotifications(now = Date.now()): Promise<void> {
     await poll.promise;
     return;
   }
-  const interval = (existing?.data?.pollInterval ?? 60_000) * getRateBackoff(now);
+  const interval = (existing?.data?.pollInterval ?? 60_000) * getRateBackoff("core", now);
   const last = poll?.at ?? existing?.dataUpdatedAt ?? 0;
   if (last && now - last < interval) return;
   const attempt = { token, at: now, promise: undefined as Promise<unknown> | undefined };

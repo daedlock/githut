@@ -154,7 +154,7 @@ test("polling shares one request, obeys GitHub cadence and low-quota backoff, an
   expect(requests).toHaveLength(2);
   await refreshNotifications(now + 119_000);
   expect(requests).toHaveLength(2);
-  useRateLimitStore.setState({ slowUntil: now + 1_000_000 });
+  useRateLimitStore.setState({ buckets: { core: { slowUntil: now + 1_000_000, pausedUntil: 0 } } });
   await refreshNotifications(now + 121_000);
   expect(requests).toHaveLength(2);
   await refreshNotifications(now + 481_000);

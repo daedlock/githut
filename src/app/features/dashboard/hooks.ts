@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { PrListItemSchema } from "@/app/features/pulls/hooks";
+import { useLiveInterval } from "@/app/lib/freshness";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
 
@@ -118,12 +119,18 @@ export type YourTurnResult = {
   isError: boolean;
 };
 
+// Search allows 30 requests a minute and these lists also back the sidebar's
+// Your work: they refresh about once a minute even in the focused tab.
+const SEARCH_FLOOR = 60_000;
+
 export function useReviewRequestedPrs() {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval("search");
   return useQuery({
     queryKey: ["dashboard", "your-turn", "review-requested"] as const,
     enabled: !!token,
     staleTime: 30_000,
+    refetchInterval: live("changing", SEARCH_FLOOR),
     queryFn: () =>
       fetchSearch(
         "is:open is:pr review-requested:@me archived:false",
@@ -136,6 +143,7 @@ export function useReviewRequestedPrs() {
 
 export function useYourTurn(): YourTurnResult {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval("search");
   const enabled = !!token;
 
   // The horizon date changes once a day; cache key includes the day so we
@@ -149,6 +157,7 @@ export function useYourTurn(): YourTurnResult {
     queryKey: ["dashboard", "your-turn", "assigned", assignedSince] as const,
     enabled,
     staleTime: 30_000,
+    refetchInterval: live("changing", SEARCH_FLOOR),
     queryFn: () =>
       fetchSearch(
         `is:open assignee:@me archived:false updated:>=${assignedSince}`,
@@ -162,6 +171,7 @@ export function useYourTurn(): YourTurnResult {
     queryKey: ["dashboard", "your-turn", "mentioned", mentionedSince] as const,
     enabled,
     staleTime: 30_000,
+    refetchInterval: live("changing", SEARCH_FLOOR),
     queryFn: () =>
       fetchSearch(
         `is:open mentions:@me archived:false updated:>=${mentionedSince}`,
@@ -197,10 +207,12 @@ export function useYourTurn(): YourTurnResult {
 
 export function useMyOpenPrs() {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval("search");
   return useQuery({
     queryKey: ["dashboard", "my-open-prs"] as const,
     enabled: !!token,
     staleTime: 30_000,
+    refetchInterval: live("changing", SEARCH_FLOOR),
     queryFn: () => fetchSearch("is:open is:pr author:@me archived:false", null, "updated", "desc"),
   });
 }
