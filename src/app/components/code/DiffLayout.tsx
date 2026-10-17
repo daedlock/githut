@@ -13,6 +13,7 @@ import {
 import { type ChangedFile, ChangedFileTree } from "@/app/components/repo/ChangedFileTree";
 import { Container } from "@/app/components/ui/Container";
 import { cn } from "@/app/lib/cn";
+import { tabScrollContainer } from "@/app/lib/scrollContainer";
 import { useSettingsStore } from "@/app/stores/settings";
 import { ChangeStatsBadge } from "./ChangeStatsBadge";
 import { type DiffMode, DiffModeContext, type DiffReviewHooks } from "./DiffView";
@@ -132,7 +133,7 @@ export function DiffLayout({
           if (visible[0]) setActiveFile(visible[0].name);
         },
         {
-          root: null,
+          root: tabScrollContainer(layout),
           rootMargin: `-${toolbarHeight + headerHeight}px 0px -55% 0px`,
           threshold: [0, 0.25],
         },

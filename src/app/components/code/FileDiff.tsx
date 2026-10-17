@@ -13,6 +13,7 @@ import {
   proxyGitHubImage,
   rawFileUrl,
 } from "@/app/lib/github/media";
+import { tabScrollContainer } from "@/app/lib/scrollContainer";
 import { Button } from "../ui/button";
 import type { DiffReviewHooks } from "./DiffView";
 import { DiffView, useDiffMode } from "./DiffView";
@@ -84,7 +85,7 @@ export const FileDiff = memo(function FileDiff({
           io.disconnect();
         }
       },
-      { rootMargin: "600px 0px" },
+      { root: tabScrollContainer(el), rootMargin: "600px 0px" },
     );
     io.observe(el);
     return () => io.disconnect();
