@@ -262,9 +262,12 @@ const TabItem = memo(function TabItem({
               tabIndex={selected ? 0 : -1}
               data-tab-id={tab.id}
               data-pinned={pinned || undefined}
+              // Mouse activates on press; touch and pen wait for the tap so
+              // panning the strip doesn't switch tabs.
               onPointerDown={(e) => {
-                if (e.button === 0) selectTab(tab.id);
+                if (e.button === 0 && e.pointerType === "mouse") selectTab(tab.id);
               }}
+              onClick={() => selectTab(tab.id)}
               onMouseDown={(e) => e.button === 1 && e.preventDefault()}
               onAuxClick={(e) => e.button === 1 && closeTab(tab.id)}
               onKeyDown={(e) => {
