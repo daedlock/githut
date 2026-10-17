@@ -111,4 +111,4 @@ Use the five default Matt Pocock triage labels. See `docs/agents/triage-labels.m
 
 ### Domain docs
 
-This is a single-context repository. See `docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
