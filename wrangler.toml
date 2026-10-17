@@ -3,8 +3,14 @@ main = "src/worker/index.ts"
 compatibility_date = "2025-04-20"
 compatibility_flags = ["nodejs_compat"]
 
+# Production is served on githut.app. Worker Previews get <preview-name>.githut.app
+# through the custom domain below (Cloudflare manages the wildcard DNS and cert);
+# workers.dev serves neither.
+workers_dev = false
+preview_urls = false
+
 routes = [
-  { pattern = "githut.app", custom_domain = true },
+  { pattern = "githut.app", custom_domain = true, previews_enabled = true },
   { pattern = "www.githut.app", custom_domain = true }
 ]
 
@@ -16,8 +22,25 @@ run_worker_first = ["/api/*"]
 
 [vars]
 APP_URL = "https://githut.app"
+# Previews (<name>.githut.app) sign in through APP_URL; only they get the token back.
+PREVIEW_HOST_SUFFIX = "githut.app"
 
 
 [[r2_buckets]]
+bucket_name = "githut-uploads"
+binding = "UPLOADS"
+
+# ─── Worker Previews ──────────────────────────────────────────────────────
+# Workers Builds runs `npx wrangler preview` for every branch/PR and comments
+# the URL (<preview-name>.githut.app) on the PR. Previews do
+# not inherit the settings above, so everything they need is repeated here.
+# Secrets come from the Preview base config (`wrangler preview base-config secret put`).
+[previews.vars]
+# Previews sign in through production and link uploads to it.
+APP_URL = "https://githut.app"
+PREVIEW_HOST_SUFFIX = "githut.app"
+
+[[previews.r2_buckets]]
+# Shared with production so upload links (on githut.app) keep working.
 bucket_name = "githut-uploads"
 binding = "UPLOADS"
