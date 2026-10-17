@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { KeyRound, LogOut, Monitor, Moon, Settings, Sun, User2 } from "lucide-react";
+import { KeyRound, LogOut, Monitor, Moon, PanelsTopLeft, Settings, Sun, User2 } from "lucide-react";
 import { ThemePalettePicker } from "@/app/components/shell/ThemePalettePicker";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 import { Avatar } from "@/app/components/ui/avatar";
@@ -7,12 +7,15 @@ import { Button } from "@/app/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
 import { cn } from "@/app/lib/cn";
+import { openSettings } from "@/app/stores/settingsModal";
 import type { ThemePreference } from "@/app/stores/theme";
 import { useThemeStore } from "@/app/stores/theme";
+import { dispatch } from "@/app/workspace/store";
 
 export type UserMenuProps = {
   login?: string;
@@ -84,7 +87,7 @@ export function UserMenu({
             </div>
           </div>
 
-          <div className="my-2 flex flex-col gap-1">
+          <DropdownMenuGroup className="my-2 flex flex-col gap-1">
             {login ? (
               <DropdownMenuItem asChild className="h-8.5 gap-2 px-2.5 text-ui">
                 <Link to="/$username" params={{ username: login }}>
@@ -94,13 +97,21 @@ export function UserMenu({
               </DropdownMenuItem>
             ) : null}
 
-            <DropdownMenuItem asChild className="h-8.5 gap-2 px-2.5 text-ui">
-              <Link to="/settings">
-                <Settings />
-                Settings
-              </Link>
+            <DropdownMenuItem
+              onSelect={() => openSettings()}
+              className="h-8.5 gap-2 px-2.5 text-ui"
+            >
+              <Settings />
+              Settings
             </DropdownMenuItem>
-          </div>
+            <DropdownMenuItem
+              onSelect={() => dispatch({ type: "resetLayout" })}
+              className="h-8.5 gap-2 px-2.5 text-ui"
+            >
+              <PanelsTopLeft />
+              Reset layout
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
 
           <fieldset
             className="rounded-md bg-muted p-3"
@@ -137,7 +148,7 @@ export function UserMenu({
             <ThemePalettePicker />
           </fieldset>
 
-          <div className="mt-2 flex flex-col gap-1">
+          <DropdownMenuGroup className="mt-2 flex flex-col gap-1">
             {onReAuth ? (
               <DropdownMenuItem
                 className="h-8.5 gap-2 px-2.5 text-ui"
@@ -161,7 +172,7 @@ export function UserMenu({
               <LogOut />
               Sign out
             </DropdownMenuItem>
-          </div>
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -171,10 +182,14 @@ export function UserMenu({
     <>
       {avatarUrl ? <Avatar login={login ?? "User avatar"} avatarUrl={avatarUrl} size="lg" /> : null}
       <ThemeToggle />
-      <Button variant="ghost" size="icon" asChild aria-label="Settings" title="Settings">
-        <Link to="/settings">
-          <Settings />
-        </Link>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => openSettings()}
+        aria-label="Settings"
+        title="Settings"
+      >
+        <Settings />
       </Button>
       {onReAuth ? (
         <Button

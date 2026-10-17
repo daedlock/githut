@@ -82,6 +82,7 @@ const MAX_CLOSED = 10;
 
 export type WorkspaceCommand =
   | DockingCommand
+  | { type: "resetLayout" }
   | { type: "closeIsland"; islandId: string }
   /** A tab's own router moved (in-page link, back/forward). */
   | { type: "navigate"; tabId: string; href: string }
@@ -143,6 +144,22 @@ export function runCommand(ws: Workspace, cmd: WorkspaceCommand): Workspace {
 
 function apply(ws: Workspace, cmd: WorkspaceCommand): Workspace {
   switch (cmd.type) {
+    case "resetLayout": {
+      if (ws.layout.kind === "island") return ws;
+      const all = islands(ws.layout);
+      const focused = focusedIsland(ws);
+      return {
+        ...ws,
+        layout: {
+          ...focused,
+          tabs: all.flatMap((island) => island.tabs),
+          pinned: all.flatMap((island) => island.pinned),
+        },
+        focusedIslandId: focused.id,
+        maximizedIslandId: null,
+        focusHistory: [focused.id],
+      };
+    }
     case "dock":
       return applyDock(ws, cmd.source, cmd.target);
 
