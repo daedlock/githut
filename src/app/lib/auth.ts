@@ -1,3 +1,4 @@
+import { forgetRecentItems } from "@/app/lib/recentItems";
 import { useAuthStore } from "@/app/stores/auth";
 
 const OAUTH_TOKEN_KEY = "githut.oauth_token";
@@ -95,8 +96,15 @@ export function startReauth() {
 }
 
 export function logout() {
+  const { accountId } = useAuthStore.getState();
   useAuthStore.getState().clear();
-  window.location.href = "/login";
+  // Recent holds private page titles; don't leave them for the next account.
+  // Navigate regardless if IndexedDB is slow or unavailable.
+  const forget = forgetRecentItems(accountId).catch(() => {});
+  const timeout = new Promise((resolve) => setTimeout(resolve, 500));
+  void Promise.race([forget, timeout]).then(() => {
+    window.location.href = "/login";
+  });
 }
 
 // Opens GitHub's app management page where the user can grant/revoke per-org access.

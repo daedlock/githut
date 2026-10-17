@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { z } from "zod";
 import { getGitHubClient } from "@/app/lib/github/client";
 import {
@@ -9,6 +9,8 @@ import {
   subscribeRecentItems,
 } from "@/app/lib/recentItems";
 import { useAuthStore } from "@/app/stores/auth";
+import { islands, normalizeHref } from "@/app/workspace/model";
+import { useWorkspaceStore } from "@/app/workspace/store";
 import { useDebouncedValue } from "./useDebouncedValue";
 
 /**
@@ -26,7 +28,19 @@ export function useRecentItems(limit = 5): RecentItem[] {
     void hydrateRecentItems();
   }, []);
   const items = useSyncExternalStore(subscribeRecentItems, getRecentItemsSync, getRecentItemsSync);
-  return items.slice(0, limit);
+  // Recent is pages that are no longer open: an open tab is already one click away.
+  const layout = useWorkspaceStore((state) => state.workspace.layout);
+  const open = useMemo(
+    () =>
+      new Set(
+        islands(layout).flatMap((island) => island.tabs.map((tab) => normalizeHref(tab.href))),
+      ),
+    [layout],
+  );
+  return useMemo(
+    () => items.filter((item) => !open.has(normalizeHref(item.href))).slice(0, limit),
+    [items, open, limit],
+  );
 }
 
 // ─── Search ───────────────────────────────────────────────────────────────────
