@@ -120,7 +120,7 @@ export function DiffLayout({
     const observeFiles = () => {
       observer?.disconnect();
       const headerHeight =
-        Number.parseFloat(getComputedStyle(layout).getPropertyValue("--app-header-height")) || 40;
+        Number.parseFloat(getComputedStyle(layout).getPropertyValue("--app-header-height")) || 0;
       observer = new IntersectionObserver(
         (entries) => {
           const visible = entries
@@ -186,7 +186,10 @@ export function DiffLayout({
 
   return (
     <Container className={cn("bg-background", className)}>
-      <div ref={layoutRef} style={{ "--diff-toolbar-height": `${toolbarHeight}px` } as CSSProperties}>
+      <div
+        ref={layoutRef}
+        style={{ "--diff-toolbar-height": `${toolbarHeight}px` } as CSSProperties}
+      >
         <div
           ref={toolbarRef}
           className="sticky top-(--app-header-height) z-30 flex min-h-11 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-background py-2"
@@ -256,11 +259,14 @@ export function DiffLayout({
           aria-hidden
         />
 
-        <div className="flex min-h-[calc(100dvh-44px)] w-full">
+        <div className="flex min-h-[calc(var(--pane-height,100dvh)-44px)] w-full">
           {sidebarOpen && (
             <aside
               className="sticky z-10 hidden w-[320px] flex-shrink-0 self-stretch overflow-y-auto lg:block"
-              style={{ top: STICKY_TOP, maxHeight: `calc(100dvh - ${STICKY_TOP})` }}
+              style={{
+                top: STICKY_TOP,
+                maxHeight: `calc(var(--pane-height, 100dvh) - ${STICKY_TOP})`,
+              }}
             >
               <ChangedFileTree files={files} activeFile={activeFile} onFileClick={scrollToFile} />
             </aside>

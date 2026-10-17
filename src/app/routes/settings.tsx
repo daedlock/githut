@@ -3,8 +3,6 @@ import { useId } from "react";
 import { CodeFontPicker } from "@/app/components/settings/CodeFontPicker";
 import { ContainerWidthPicker } from "@/app/components/settings/ContainerWidthPicker";
 import { ThemePicker } from "@/app/components/settings/ThemePicker";
-import { AppShell } from "@/app/components/shell/AppShell";
-import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
 import { Container } from "@/app/components/ui/Container";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
 import { useMe } from "@/app/hooks/useMe";
@@ -24,7 +22,7 @@ function SettingsPage() {
   const { data: me } = useMe();
 
   return (
-    <AppShell header={<UnifiedNav />}>
+    <main className="flex min-h-full min-w-0 flex-col">
       <Container className="py-6 sm:py-8">
         <div className="flex w-full min-w-0 flex-col gap-5">
           <header className="flex flex-col gap-1">
@@ -58,7 +56,7 @@ function SettingsPage() {
           </section>
         </div>
       </Container>
-    </AppShell>
+    </main>
   );
 }
 

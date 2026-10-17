@@ -1,10 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { AppShell } from "@/app/components/shell/AppShell";
-import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
 import { repoQueryOptions } from "@/app/hooks/useRepo";
 import { useAuthStore } from "@/app/stores/auth";
-
-// Sticky content follows the header's second row on narrow screens.
 
 export const Route = createFileRoute("/$owner/$repo")({
   beforeLoad: () => {
@@ -21,16 +17,12 @@ export const Route = createFileRoute("/$owner/$repo")({
   component: RepoLayout,
 });
 
+// Repo identity and sections live in the island header and title bar (see
+// TabHost), so the layout itself is just the page.
 function RepoLayout() {
-  const { owner, repo } = Route.useParams();
-
   return (
-    <AppShell
-      header={<UnifiedNav repoContext={{ owner, repo }} />}
-      className="[--app-header-height:80px] md:[--app-header-height:40px]"
-      stickyHeader
-    >
+    <main className="flex min-h-full min-w-0 flex-col">
       <Outlet />
-    </AppShell>
+    </main>
   );
 }

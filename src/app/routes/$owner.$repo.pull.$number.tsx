@@ -85,7 +85,7 @@ function PrDetailLayout() {
 
           {/* Sticky sidebar */}
           <aside className="hidden lg:block w-[328px] flex-shrink-0">
-            <div className="sticky top-24">
+            <div className="sticky top-[calc(var(--app-header-height)+56px)]">
               {pr ? (
                 <PrSidebar owner={owner} repo={repo} pr={pr} reviews={reviews} />
               ) : <MetadataSkeleton />}

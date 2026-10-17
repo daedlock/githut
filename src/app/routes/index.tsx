@@ -1,8 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { CheckCircle2, Inbox } from "lucide-react";
 import { useMemo, useState } from "react";
-import { AppShell } from "@/app/components/shell/AppShell";
-import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
@@ -114,7 +112,7 @@ function IndexPage() {
   useListNavigation(!isPending && !isError);
 
   return (
-    <AppShell header={<UnifiedNav />}>
+    <main className="flex min-h-full min-w-0 flex-col">
       <Container className="py-6">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
           <DashboardSidebar
@@ -154,7 +152,7 @@ function IndexPage() {
           </div>
         </div>
       </Container>
-    </AppShell>
+    </main>
   );
 }
 

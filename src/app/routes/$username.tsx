@@ -1,6 +1,4 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { AppShell } from "@/app/components/shell/AppShell";
-import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
 import { profileQueryOptions } from "@/app/features/profile/hooks";
 import { ProfileView } from "@/app/features/profile/ProfileView";
 import { useAuthStore } from "@/app/stores/auth";
@@ -23,8 +21,8 @@ export const Route = createFileRoute("/$username")({
 function ProfilePage() {
   const { username } = Route.useParams();
   return (
-    <AppShell header={<UnifiedNav />}>
+    <main className="flex min-h-full min-w-0 flex-col">
       <ProfileView login={username} />
-    </AppShell>
+    </main>
   );
 }

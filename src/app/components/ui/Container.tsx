@@ -16,7 +16,11 @@ export function Container({ children, className, as: As = "div", ...rest }: Cont
   const width = useSettingsStore((state) => state.containerWidth);
   const widthClass = CONTAINER_WIDTH_OPTIONS.find((option) => option.id === width)?.className;
   return (
-    <As className={cn("mx-auto w-full min-w-0 px-4 sm:px-6", widthClass, className)} {...rest}>
+    <As
+      data-slot="container"
+      className={cn("mx-auto w-full min-w-0 px-4 sm:px-6", widthClass, className)}
+      {...rest}
+    >
       {children}
     </As>
   );

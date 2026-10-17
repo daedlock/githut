@@ -147,7 +147,7 @@ function ReviewPage() {
   }, [canReview, owner, repo, number]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-full flex-col bg-background">
       <div className="flex-1">
         {!Number.isSafeInteger(number) || number <= 0 || (prQuery.isError && !pr) ? (
           <Container className="py-20 text-center text-sm text-muted-foreground" role="alert">
