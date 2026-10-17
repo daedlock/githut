@@ -83,13 +83,16 @@ function sessionExpiredError(): Error {
  * the new token belongs to the same user (cheap 304 refetches); otherwise the
  * previous user's cached bodies are dropped.
  */
-export function adoptToken(token: string, { sameUser }: { sameUser: boolean }): void {
+export function adoptToken(
+  token: string,
+  { sameUser, accountId }: { sameUser: boolean; accountId?: number },
+): void {
   cached = null;
   if (!sameUser) {
     clearETagCache();
     clearRateLimit();
   }
-  useAuthStore.getState().setToken(token);
+  useAuthStore.getState().setToken(token, accountId);
 }
 
 export function getGitHubClient(): Octokit {

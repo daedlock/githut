@@ -1,12 +1,15 @@
 import { useCallback } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { accountStorage, followDraftAccount } from "@/app/stores/accountStorage";
+import { useAuthStore } from "@/app/stores/auth";
 import { normalizeHref } from "@/app/workspace/model";
 
 // ─── Drafts ──────────────────────────────────────────────────────────────────
 //
 // A draft is an unsent comment or review kept for a page until you send or
-// discard it, even if its tab is closed. Drafts are keyed by page, not by tab,
+// discard it, even if its tab is closed. Each verified account has its own
+// storage namespace. Drafts are keyed by page, not by tab,
 // so closing a tab, reopening it (or the same page anywhere else), reloading
 // and signing in again all bring the text back. Nothing here prompts.
 //
@@ -35,6 +38,7 @@ export const useDraftsStore = create<DraftsState>()(
     (set, get) => ({
       drafts: {},
       setDraft: (key, body) => {
+        if (useAuthStore.getState().accountId == null) return;
         if (!body.trim()) {
           get().clearDraft(key);
           return;
@@ -59,6 +63,7 @@ export const useDraftsStore = create<DraftsState>()(
     }),
     {
       name: "githut.drafts.v1",
+      storage: accountStorage<Pick<DraftsState, "drafts">>(),
       partialize: (s) => ({ drafts: s.drafts }),
       // Forget drafts nobody has touched in a month.
       merge: (persisted, current) => {
@@ -73,6 +78,8 @@ export const useDraftsStore = create<DraftsState>()(
     },
   ),
 );
+
+followDraftAccount(() => useDraftsStore.persist.rehydrate());
 
 /** Page key for a PR or issue. Matches the review store's PR key. */
 export function draftPage(owner: string, repo: string, number: number): string {
@@ -97,8 +104,17 @@ export function hasDraft(key: string): boolean {
 
 /** A composer's text, kept as a draft under `key`: `[body, setBody, discard]`. */
 export function useDraft(key: string): [string, (body: string) => void, () => void] {
+  const accountId = useAuthStore((s) => s.accountId);
   const body = useDraftsStore((s) => s.drafts[key]?.body ?? "");
-  const set = useCallback((next: string) => useDraftsStore.getState().setDraft(key, next), [key]);
-  const clear = useCallback(() => useDraftsStore.getState().clearDraft(key), [key]);
+  const set = useCallback(
+    (next: string) => {
+      if (useAuthStore.getState().accountId === accountId)
+        useDraftsStore.getState().setDraft(key, next);
+    },
+    [key, accountId],
+  );
+  const clear = useCallback(() => {
+    if (useAuthStore.getState().accountId === accountId) useDraftsStore.getState().clearDraft(key);
+  }, [key, accountId]);
   return [body, set, clear];
 }
