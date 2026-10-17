@@ -322,7 +322,7 @@ test("live Actions logs honor terminal response stops without stopping completed
   try {
     await observer.refetch();
     await refreshWorkspaceQueries(client, workspace, { now: Date.now() + 16_000 });
-    expect(client.getQueryData(metadata)).toBe("completed and refreshed");
+    expect(client.getQueryData<string>(metadata)).toBe("completed and refreshed");
     expect(send).toHaveBeenCalledTimes(1);
   } finally {
     cleanup.forEach((stop) => {
