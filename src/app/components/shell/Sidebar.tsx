@@ -25,6 +25,13 @@ import {
   useMyOpenPrs,
   useReviewRequestedPrs,
 } from "@/app/features/dashboard/hooks";
+import { notificationHref, notificationPageKey } from "@/app/features/notifications/api";
+import {
+  runNotificationAction,
+  useNotificationState,
+  useNotifications,
+  useNotificationUnreadCount,
+} from "@/app/features/notifications/service";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { useToggleStar } from "@/app/hooks/useRepoStarred";
 import { useStarredRepos } from "@/app/hooks/useStarredRepos";
@@ -49,6 +56,8 @@ type Row = {
   meta?: string;
   starred?: boolean;
   icon?: typeof Inbox;
+  count?: number;
+  notificationIds?: string[];
 };
 
 export function Sidebar({ beginDrag }: { beginDrag: BeginDrag }) {
@@ -145,6 +154,8 @@ export function SidebarContent({
   onLaunch?: () => void;
 }) {
   const [filter, setFilter] = useState("");
+  const unreadCount = useNotificationUnreadCount();
+  const notifications = useNotifications();
   const [showAll, setShowAll] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -224,7 +235,15 @@ export function SidebarContent({
   const renderRow = (row: Row) => (
     <SidebarRow
       key={row.href}
-      row={row}
+      row={{
+        ...row,
+        notificationIds: notifications.data?.items
+          .filter((item) => {
+            const href = notificationHref(item);
+            return href && notificationPageKey(href) === notificationPageKey(row.href);
+          })
+          .map((item) => item.id),
+      }}
       collapsed={collapsed}
       beginDrag={beginDrag}
       onLaunch={onLaunch}
@@ -272,7 +291,7 @@ export function SidebarContent({
             />
           )}
         </div>
-        {renderRow({ href: "/", label: "Inbox", icon: Inbox })}
+        {renderRow({ href: "/", label: "Inbox", icon: Inbox, count: unreadCount })}
       </div>
       {yourWork.length > 0 && (
         <SidebarSection title="Your work" icon={GitPullRequest} collapsed={collapsed}>
@@ -384,6 +403,9 @@ function SidebarRow({
   const [owner = "", repo = ""] = row.repo?.split("/") ?? [];
   const unstar = useToggleStar(owner, repo);
   const { canMutate, reason } = useCanMutate();
+  const notificationBusy = useNotificationState((state) =>
+    state.busy.some((id) => row.notificationIds?.includes(id)),
+  );
   const navigation = useRef(false);
   const Icon = row.icon ?? Star;
   const launch = (action: () => void) => {
@@ -401,7 +423,7 @@ function SidebarRow({
               type="button"
               data-sidebar-row
               data-sidebar-href={row.href}
-              aria-label={row.label}
+              aria-label={row.count ? `${row.label}, ${row.count} unread` : row.label}
               aria-current={active ? "page" : undefined}
               onPointerDown={(event) =>
                 beginDrag?.(event, { type: "href", href: row.href }, row.label)
@@ -422,6 +444,11 @@ function SidebarRow({
               {!collapsed && (
                 <>
                   <span className="min-w-0 flex-1 truncate">{row.label}</span>
+                  {!!row.count && (
+                    <span aria-hidden className="text-caption tabular-nums text-muted-foreground">
+                      {row.count}
+                    </span>
+                  )}
                   {row.starred !== undefined && open && (
                     <span
                       role="img"
@@ -465,6 +492,25 @@ function SidebarRow({
           </ContextMenuItem>
         </ContextMenuGroup>
         <DockingMenu source={{ type: "href", href: row.href }} />
+        {!!row.notificationIds?.length && (
+          <ContextMenuGroup>
+            <ContextMenuItem
+              disabled={!canMutate || notificationBusy}
+              title={reason}
+              onSelect={() => {
+                onMutationError(null);
+                void runNotificationAction(row.notificationIds!, "done")
+                  .then((result) => {
+                    if (result.failed.length)
+                      onMutationError(`Could not mark ${row.label} done. Try again.`);
+                  })
+                  .catch(() => onMutationError(`Could not mark ${row.label} done. Try again.`));
+              }}
+            >
+              Mark done
+            </ContextMenuItem>
+          </ContextMenuGroup>
+        )}
         {row.starred && (
           <ContextMenuGroup>
             <ContextMenuItem

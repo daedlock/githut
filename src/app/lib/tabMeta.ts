@@ -4,7 +4,7 @@ import {
   FileText,
   GitCommitHorizontal,
   GitPullRequest,
-  Home,
+  Inbox,
   type LucideIcon,
   Play,
   Settings,
@@ -35,7 +35,7 @@ type PatternRule = {
 const RULES: PatternRule[] = [
   {
     match: /^\/$/,
-    meta: () => ({ label: "Dashboard", icon: Home }),
+    meta: () => ({ label: "Inbox", icon: Inbox }),
   },
   {
     match: /^\/settings$/,
