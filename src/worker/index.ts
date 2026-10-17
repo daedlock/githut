@@ -10,11 +10,12 @@ const app = new Hono<{ Bindings: Env }>();
 app.get("/api/health", (c) => c.json({ ok: true, time: Date.now() }));
 
 app.get("/api/auth/login", async (c) => {
-  // PR previews can't receive GitHub's redirect, so they sign in through
-  // production, which hands the token back (see previewAuth.ts).
-  if (c.env.PRODUCTION_URL) {
-    const hop = new URL("/api/auth/login", c.env.PRODUCTION_URL);
-    hop.searchParams.set("return_to", c.env.APP_URL);
+  // Previews can't receive GitHub's redirect, so they sign in through
+  // production (APP_URL), which hands the token back (see previewAuth.ts).
+  const preview = previewOrigin(c.req.url, c.env.PREVIEW_HOST_SUFFIX);
+  if (preview) {
+    const hop = new URL("/api/auth/login", c.env.APP_URL);
+    hop.searchParams.set("return_to", preview);
     return c.redirect(hop.toString(), 302);
   }
   const returnTo = previewOrigin(c.req.query("return_to"), c.env.PREVIEW_HOST_SUFFIX);
@@ -112,9 +113,9 @@ app.post("/api/upload", async (c) => {
     httpMetadata: { contentType },
   });
 
-  // Previews share production's bucket; link uploads to production so images
-  // in comments posted from a preview outlive the preview.
-  const url = `${c.env.PRODUCTION_URL ?? c.env.APP_URL}/api/uploads/${key}`;
+  // APP_URL is production even on previews, so images in comments posted from
+  // a preview outlive the preview.
+  const url = `${c.env.APP_URL}/api/uploads/${key}`;
   return c.json({ url }, 201);
 });
 
@@ -297,7 +298,7 @@ app.get("/api/actions/jobs/:jobId/logs", async (c) => {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-store",
-        "Access-Control-Allow-Origin": c.env.APP_URL,
+        "Access-Control-Allow-Origin": allowedOrigin(c.req.header("Origin"), c.env),
       },
     });
   }
@@ -309,7 +310,7 @@ app.get("/api/actions/jobs/:jobId/logs", async (c) => {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-store",
-        "Access-Control-Allow-Origin": c.env.APP_URL,
+        "Access-Control-Allow-Origin": allowedOrigin(c.req.header("Origin"), c.env),
       },
     });
   }
@@ -353,6 +354,11 @@ function b64urlDecode(s: string): Uint8Array {
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
+}
+
+/** Production, or the preview the request came from. */
+function allowedOrigin(origin: string | undefined, env: Env): string {
+  return previewOrigin(origin, env.PREVIEW_HOST_SUFFIX) ?? env.APP_URL;
 }
 
 /** `nonce.issued.returnTo.sig` — returnTo is the preview origin, or empty. */

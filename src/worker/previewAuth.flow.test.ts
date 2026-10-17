@@ -2,22 +2,17 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import type { Env } from "./env";
 import app from "./index";
 
-const PREVIEW = "https://pr-12-githut.daedlock.workers.dev";
+const PREVIEW = "https://codex-pr-previews-githut.hossam-saraya.workers.dev";
 
-const production = {
+// Previews run the same version config as production; only the host differs.
+const env = {
   APP_URL: "https://githut.app",
-  PREVIEW_HOST_SUFFIX: "githut.daedlock.workers.dev",
+  PREVIEW_HOST_SUFFIX: "githut.hossam-saraya.workers.dev",
   GITHUB_CLIENT_ID: "client",
   GITHUB_CLIENT_SECRET: "secret",
   OAUTH_STATE_SECRET: "state-secret",
 } as unknown as Env;
-
-const preview = {
-  ...production,
-  APP_URL: PREVIEW,
-  PRODUCTION_URL: "https://githut.app",
-  PREVIEW_HOST_SUFFIX: undefined,
-} as unknown as Env;
+const production = env;
 
 let fetchSpy: ReturnType<typeof spyOn<typeof globalThis, "fetch">>;
 beforeEach(() => {
@@ -37,7 +32,7 @@ async function stateFor(returnTo?: string): Promise<string> {
 
 describe("PR preview sign-in", () => {
   test("a preview sends its login through production", async () => {
-    const res = await app.request("/api/auth/login", {}, preview);
+    const res = await app.request(`${PREVIEW}/api/auth/login`, {}, env);
     expect(res.status).toBe(302);
     const hop = new URL(res.headers.get("Location")!);
     expect(`${hop.origin}${hop.pathname}`).toBe("https://githut.app/api/auth/login");
@@ -62,10 +57,16 @@ describe("PR preview sign-in", () => {
   });
 
   test("a lookalike host never receives the token", async () => {
-    const state = await stateFor("https://pr-12-githut.attacker.workers.dev");
+    const state = await stateFor("https://main-githut.attacker.workers.dev");
     fetchSpy.mockResolvedValueOnce(Response.json({ access_token: "gho_test" }));
     const res = await app.request(`/api/auth/callback?state=${state}&code=abc`, {}, production);
     expect(res.headers.get("Location")).toBe("https://githut.app/#t=gho_test");
+  });
+
+  test("a localhost login is unaffected", async () => {
+    const local = { ...env, APP_URL: "http://localhost:5173" } as unknown as Env;
+    const res = await app.request("http://localhost:8787/api/auth/login", {}, local);
+    expect(new URL(res.headers.get("Location")!).origin).toBe("https://github.com");
   });
 
   test("a normal production login is unchanged", async () => {
