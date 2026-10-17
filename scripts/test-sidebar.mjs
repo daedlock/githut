@@ -204,6 +204,8 @@ try {
       "/demo/cat/code",
       "/demo/beta/code",
     ]);
+    // Incoming local-use ordering settles once the pointer leaves the section.
+    await page.mouse.move(0, 0);
     const starHrefs = await starSection
       .locator("[data-sidebar-href]")
       .evaluateAll((rows) => rows.map((row) => row.dataset.sidebarHref));

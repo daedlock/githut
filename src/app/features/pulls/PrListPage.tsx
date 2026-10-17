@@ -7,6 +7,7 @@ import {
   Search,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { LiveUpdates } from "@/app/components/LiveUpdates";
 import { Container } from "@/app/components/ui/Container";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/app/components/ui/command";
 import {
@@ -39,6 +40,7 @@ import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
 import { groupListItems } from "@/app/features/repo/listGrouping";
 import { useListNavigation } from "@/app/hooks/useListNavigation";
 import { useRepo } from "@/app/hooks/useRepo";
+import { holdListOrder, useStableList } from "@/app/hooks/useStableList";
 import { cn } from "@/app/lib/cn";
 import { useListGrouping } from "@/app/stores/listGrouping";
 
@@ -169,10 +171,18 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
   const repoData = useRepo(owner, repo);
   const defaultBranch = repoData.data?.default_branch;
 
-  const groups = useMemo(
+  const incomingGroups = useMemo(
     () => groupListItems(filtered, grouping.groupBy),
     [filtered, grouping.groupBy],
   );
+  const { items: groups, listProps } = useStableList(incomingGroups, {
+    key: (group) => group.key,
+    resetKey: JSON.stringify([owner, repo, searchText, search, grouping.groupBy]),
+    merge: (held, current) => ({
+      ...current,
+      items: holdListOrder(held.items, filtered, (pr) => pr.id),
+    }),
+  });
   const bulkItems = useMemo(() => filtered.map(toBulkItem), [filtered]);
   const visibleNumbers = useMemo(
     () =>
@@ -299,49 +309,51 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
         visible={visibleNumbers}
       >
         {/* List */}
-        <div className="mt-4 flex flex-col gap-1">
-          {pulls.isPending ? (
-            <PrListSkeleton />
-          ) : pulls.isError ? (
-            <div className="px-5 py-10 text-center">
-              <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
-              <p className="text-body text-muted-foreground">Could not load pull requests.</p>
-            </div>
-          ) : filtered.length === 0 ? (
-            <EmptyState hasSearch={!!searchText} state={currentState} />
-          ) : (
-            <>
-              <GroupedList
-                groups={groups}
-                groupBy={grouping.groupBy}
-                kind="pulls"
-                collapsedGroups={grouping.collapsedGroups}
-                onGroupsCollapsed={grouping.setGroupsCollapsed}
-                renderItems={(items) =>
-                  buildPrTree(items, branchRefs, defaultBranch).map((node) => (
-                    <PrRow
-                      key={node.pr.id}
-                      owner={owner}
-                      repo={repo}
-                      pr={node.pr}
-                      reviewDecision={reviewDecisions.get(node.pr.number) ?? null}
-                      checkRollup={checkRollups.get(node.pr.number)}
-                      depth={node.depth}
-                      treePosition={node.treePosition}
-                      ancestorContinuations={node.ancestorContinuations}
-                    />
-                  ))
-                }
-              />
-              {pulls.hasNextPage && !searchText ? (
-                <LoadMoreButton
-                  isFetching={pulls.isFetchingNextPage}
-                  onClick={() => pulls.fetchNextPage()}
+        <LiveUpdates ready={!pulls.isPending} announce={false}>
+          <div {...listProps} className="mt-4 flex flex-col gap-1">
+            {pulls.isPending ? (
+              <PrListSkeleton />
+            ) : pulls.isError ? (
+              <div className="px-5 py-10 text-center">
+                <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
+                <p className="text-body text-muted-foreground">Could not load pull requests.</p>
+              </div>
+            ) : filtered.length === 0 ? (
+              <EmptyState hasSearch={!!searchText} state={currentState} />
+            ) : (
+              <>
+                <GroupedList
+                  groups={groups}
+                  groupBy={grouping.groupBy}
+                  kind="pulls"
+                  collapsedGroups={grouping.collapsedGroups}
+                  onGroupsCollapsed={grouping.setGroupsCollapsed}
+                  renderItems={(items) =>
+                    buildPrTree(items, branchRefs, defaultBranch).map((node) => (
+                      <PrRow
+                        key={node.pr.id}
+                        owner={owner}
+                        repo={repo}
+                        pr={node.pr}
+                        reviewDecision={reviewDecisions.get(node.pr.number) ?? null}
+                        checkRollup={checkRollups.get(node.pr.number)}
+                        depth={node.depth}
+                        treePosition={node.treePosition}
+                        ancestorContinuations={node.ancestorContinuations}
+                      />
+                    ))
+                  }
                 />
-              ) : null}
-            </>
-          )}
-        </div>
+                {pulls.hasNextPage && !searchText ? (
+                  <LoadMoreButton
+                    isFetching={pulls.isFetchingNextPage}
+                    onClick={() => pulls.fetchNextPage()}
+                  />
+                ) : null}
+              </>
+            )}
+          </div>
+        </LiveUpdates>
       </BulkSelectionProvider>
     </Container>
   );
