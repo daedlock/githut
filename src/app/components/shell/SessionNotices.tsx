@@ -1,11 +1,12 @@
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { KeyRound, LogIn, WifiOff } from "lucide-react";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 import { RateLimitNotice } from "@/app/components/shell/RateLimitNotice";
+import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { startReauth } from "@/app/lib/auth";
-import { cn } from "@/app/lib/cn";
 import { useBrowserOnline } from "@/app/lib/connectivity";
 import { useAuthStore } from "@/app/stores/auth";
 
@@ -21,59 +22,62 @@ import { useAuthStore } from "@/app/stores/auth";
 export function OfflinePill() {
   const online = useBrowserOnline();
   if (online) return null;
+  const detail = "Showing cached pages. Changes are disabled until you reconnect.";
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span
+        <Badge
+          variant="secondary"
           role="status"
-          className={cn(
-            "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full bg-muted px-2",
-            "text-caption text-muted-foreground",
-          )}
+          tabIndex={0}
+          aria-label={`Offline. ${detail}`}
+          className="text-caption font-normal"
         >
-          <WifiOff aria-hidden className="size-3.5 text-(--color-warning)" />
+          <WifiOff aria-hidden data-icon="inline-start" className="text-(--color-warning)" />
           Offline
-        </span>
+        </Badge>
       </TooltipTrigger>
-      <TooltipContent side="bottom">
-        Showing cached pages. Changes are disabled until you reconnect.
-      </TooltipContent>
+      <TooltipContent>{detail}</TooltipContent>
     </Tooltip>
   );
 }
 
+const SIGN_IN_TOAST = "sign-in-expired";
+
+/** A persistent sonner toast while the token is rejected; never replaces tabs or drafts. */
 export function SignInBanner() {
   const expired = useAuthStore((s) => s.expired);
-  const reduced = useReducedMotion();
-  return (
-    <div className="pointer-events-none absolute inset-x-0 top-12 z-40 flex justify-center px-4">
-      <AnimatePresence>
-        {expired && (
-          <motion.div
-            role="alert"
-            initial={{ opacity: 0, y: reduced ? 0 : -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className={cn(
-              "pointer-events-auto flex min-w-0 max-w-full items-center gap-3 py-2 pr-2 pl-3",
-              "rounded-xl bg-popover shadow-lg ring-1 ring-foreground/10",
-            )}
-          >
-            <KeyRound aria-hidden className="size-4 shrink-0 text-(--color-warning)" />
-            <p className="min-w-0 text-ui">
-              <span className="font-medium text-foreground">Your GitHub sign-in expired.</span>{" "}
-              <span className="text-muted-foreground">Your tabs and drafts are kept.</span>
-            </p>
-            <Button size="sm" onClick={startReauth} className="shrink-0">
-              <LogIn data-icon="inline-start" />
-              Sign in again
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+  useEffect(() => {
+    if (!expired) return;
+    toast.custom(
+      () => (
+        <div
+          role="alert"
+          className="flex min-w-0 max-w-full items-center gap-3 rounded-xl bg-popover py-2 pr-2 pl-3 shadow-lg ring-1 ring-foreground/10"
+        >
+          <KeyRound aria-hidden className="size-4 shrink-0 text-(--color-warning)" />
+          <p className="min-w-0 text-ui">
+            <span className="font-medium text-foreground">Your GitHub sign-in expired.</span>{" "}
+            <span className="text-muted-foreground">Your tabs and drafts are kept.</span>
+          </p>
+          <Button size="sm" onClick={startReauth} className="shrink-0">
+            <LogIn data-icon="inline-start" />
+            Sign in again
+          </Button>
+        </div>
+      ),
+      {
+        id: SIGN_IN_TOAST,
+        duration: Number.POSITIVE_INFINITY,
+        dismissible: false,
+        position: "top-center",
+      },
+    );
+    return () => {
+      toast.dismiss(SIGN_IN_TOAST);
+    };
+  }, [expired]);
+  return null;
 }
 
 /** Transient connection status never reserves workspace space. */

@@ -263,8 +263,9 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
 - Repo identity and sections stay in island headers; focused context is reflected
   by the focused island and browser URL.
 - Offline and rate-limit notices float at the workspace's bottom-right while
-  needed, without reserving space. An expired sign-in floats its recovery notice
-  above the workspace and never replaces tabs or drafts.
+  needed, without reserving space (both are focusable `Badge`s with a tooltip).
+  An expired sign-in shows a persistent top-centre toast with its recovery
+  action and never replaces tabs or drafts.
 ### Island header
 - `h-10 flex items-center gap-1 pl-1 pr-1.5`: the tab row takes the
   remaining width, then the section menu, then the island menu
@@ -456,7 +457,10 @@ always shown on touch.
   hovers use `transition-colors`.
 - Radix primitives animate through `tw-animate-css` `data-[state]` classes.
   Never add keyframes.
-- App-owned enter and exit (floating bars, notices, sidebar lists) uses
+- Toasts (the layout undo notice, the expired sign-in alert) use shadcn
+  `sonner` (`components/ui/sonner.tsx`): it owns their motion, stacking,
+  and pauses auto-dismiss on hover and keyboard focus. Never hand-roll one.
+- Other app-owned enter and exit (floating bars, sidebar lists) uses
   framer-motion `AnimatePresence`: opacity plus at most 8px of translation.
   Under `useReducedMotion`, drop translation and scale; for CSS transitions
   use `motion-reduce:`.

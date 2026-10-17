@@ -15,8 +15,8 @@ import { LinkHoverMenu } from "@/app/components/shell/LinkHoverMenu";
 import { RepoMarkScope } from "@/app/components/shell/RepoMark";
 import { SignInBanner, WorkspaceNotices } from "@/app/components/shell/SessionNotices";
 import { TabShortcuts } from "@/app/components/shell/TabShortcuts";
-
 import { WorkspaceArea } from "@/app/components/shell/WorkspaceArea";
+import { Toaster } from "@/app/components/ui/sonner";
 import { TooltipProvider } from "@/app/components/ui/tooltip";
 
 import { queryClientForTab, startWorkspaceFreshness } from "@/app/lib/freshness";
@@ -111,6 +111,7 @@ export function TabHost() {
           <RouterContextProvider router={focusedRouter}>
             {overlays}
             <LayoutUndo />
+            <Toaster position="bottom-center" />
             <SettingsModal />
             <WorkspaceArea>
               <IslandLayout

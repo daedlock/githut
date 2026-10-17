@@ -13,6 +13,7 @@ export function RateLimitNotice() {
         <Badge
           variant="secondary"
           role="status"
+          tabIndex={0}
           aria-label={detail}
           className="text-caption font-normal"
         >
