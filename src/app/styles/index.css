@@ -27,7 +27,3 @@
   animation: none;
   mix-blend-mode: normal;
 }
-[data-live-new] {
-  background-color: color-mix(in oklab, var(--color-brand) 10%, transparent);
-  border-radius: var(--radius-lg);
-}

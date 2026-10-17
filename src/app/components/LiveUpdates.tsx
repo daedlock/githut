@@ -17,7 +17,6 @@ export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot
   override state = { unseen: [] as string[] };
   private root = createRef<HTMLDivElement>();
   private scroller: HTMLElement | null = null;
-  private timers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
   private resize: ResizeObserver | undefined;
   private readingAnchor: { node: HTMLElement; top: number; atTop: boolean } | undefined;
 
@@ -43,11 +42,6 @@ export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot
   override componentWillUnmount() {
     this.scroller?.removeEventListener("scroll", this.onScroll);
     this.resize?.disconnect();
-    for (const [node, timer] of this.timers) {
-      clearTimeout(timer);
-      node.removeAttribute("data-live-new");
-    }
-    this.timers.clear();
   }
 
   override getSnapshotBeforeUpdate(previous: Props): Snapshot | null {
@@ -79,7 +73,6 @@ export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot
       this.scroller.scrollTop += snapshot.anchor.getBoundingClientRect().top - snapshot.top;
     }
     const added = this.items().filter((node) => !snapshot.keys.has(node.dataset.liveItem!));
-    for (const node of added) this.highlight(node);
     const below = added.filter(
       (node) => node.getBoundingClientRect().top >= this.scroller!.getBoundingClientRect().bottom,
     );
@@ -115,18 +108,6 @@ export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot
     this.markVisible();
   };
 
-  private highlight(node: HTMLElement) {
-    clearTimeout(this.timers.get(node));
-    node.setAttribute("data-live-new", "");
-    this.timers.set(
-      node,
-      setTimeout(() => {
-        node.removeAttribute("data-live-new");
-        this.timers.delete(node);
-      }, 2000),
-    );
-  }
-
   private markVisible = () => {
     if (!this.scroller || !this.state.unseen.length) return;
     const viewport = this.scroller.getBoundingClientRect();
@@ -147,7 +128,6 @@ export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot
     first?.scrollIntoView({ block: "center", behavior: "instant" });
     first?.focus({ preventScroll: true });
     this.captureAnchor();
-    if (first) this.highlight(first);
     this.markVisible();
   };
 

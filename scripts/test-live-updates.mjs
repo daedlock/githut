@@ -256,10 +256,8 @@ try {
     incoming.evaluate(
       (element) => getComputedStyle(element.closest("[data-live-item]")).backgroundColor,
     );
-  assert.notEqual(await highlight(), "rgba(0, 0, 0, 0)", "A new item briefly highlights");
-  await page.clock.fastForward(2100);
-  assert.equal(await highlight(), "rgba(0, 0, 0, 0)");
-  console.log("PASS: incoming content highlights briefly");
+  assert.equal(await highlight(), "rgba(0, 0, 0, 0)", "Incoming items are not flashed");
+  console.log("PASS: incoming content is not highlighted");
 
   await reader.scrollIntoViewIfNeeded();
   const anchorTop = (await reader.boundingBox()).y;
