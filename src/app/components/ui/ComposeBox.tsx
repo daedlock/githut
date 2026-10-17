@@ -7,6 +7,7 @@ import { Skeleton } from "@/app/components/ui/skeleton";
 import { useDebouncedValue } from "@/app/hooks/useDebouncedValue";
 import { type MentionItem, type MentionUser, useMentionSearch } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 import { useAuthStore } from "@/app/stores/auth";
 
 // ─── Trigger detection ───────────────────────────────────────────────────────
@@ -190,6 +191,8 @@ export function ComposeBox({
   className,
   participants,
 }: ComposeBoxProps) {
+  // Offline or signed out: keep the draft, block sending it.
+  const { canMutate, reason: cannotMutateReason } = useCanMutate();
   const [mode, setMode] = useState<"write" | "preview">("write");
   const [focused, setFocused] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -329,7 +332,7 @@ export function ComposeBox({
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      onSubmit?.();
+      if (canMutate) onSubmit?.();
       return;
     }
     if (!trigger) {
@@ -378,7 +381,7 @@ export function ComposeBox({
   const showSkeleton = !!trigger && isFetching && dropdownItems.length === 0;
   const showEmpty = !!trigger && !isFetching && dropdownItems.length === 0;
   const hasContent = value.trim().length > 0;
-  const canSubmit = hasContent && !submitDisabled && !submitPending;
+  const canSubmit = hasContent && !submitDisabled && !submitPending && canMutate;
 
   return (
     <div
@@ -548,6 +551,7 @@ export function ComposeBox({
               type="button"
               disabled={!canSubmit}
               onClick={onSubmit}
+              title={cannotMutateReason}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-caption font-medium",
                 "outline-none transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",

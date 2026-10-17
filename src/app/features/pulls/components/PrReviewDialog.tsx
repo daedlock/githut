@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/pop
 import { type ReviewEvent, useSubmitPrReview } from "@/app/features/pulls/hooks";
 import type { PendingComment } from "@/app/features/pulls/stores/review";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 
 const VERDICTS: Array<{
   id: ReviewEvent;
@@ -58,6 +59,7 @@ export function PrReviewPopover({
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const submit = useSubmitPrReview(owner, repo, number);
+  const { canMutate, reason: cannotMutateReason } = useCanMutate();
 
   const verdict = VERDICTS.find((v) => v.id === event)!;
 
@@ -191,7 +193,8 @@ export function PrReviewPopover({
           <Button
             size="xs"
             onClick={handleSubmit}
-            disabled={submit.isPending}
+            disabled={submit.isPending || !canMutate}
+            title={cannotMutateReason}
             className="min-w-[6rem]"
             style={{
               backgroundColor: `color-mix(in oklab, var(${verdict.color}) 30%, var(--color-bg-subtle))`,
