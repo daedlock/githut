@@ -24,9 +24,11 @@ import { queryClient } from "@/app/lib/query";
 import { getTabRouter, releaseTabRouter } from "@/app/lib/tabRouters";
 import { type TabScope, TabScopeContext } from "@/app/lib/tabScope";
 import { useAuthStore } from "@/app/stores/auth";
+import { useWorkspaceView } from "@/app/stores/workspaceView";
 import { focusedIsland, focusedTab, type Island, islands } from "@/app/workspace/model";
 import { getFocusedTab, useWorkspaceStore } from "@/app/workspace/store";
 import { KEEP_ALIVE_BUDGET, keepAliveTabs } from "@/app/workspace/tabLifetime";
+import { visibleIslandIds } from "@/app/workspace/view";
 
 // ─── TabHost ───────────────────────────────────────────────────────────────
 //
@@ -55,6 +57,7 @@ export function TabHost() {
   const { layout, focusedIslandId, maximizedIslandId } = workspace;
   const focused = focusedTab(workspace);
   const signedIn = useAuthStore((s) => !!s.token);
+  const narrow = useWorkspaceView((s) => s.narrow);
   useEffect(() => (signedIn ? startWorkspaceFreshness(queryClient) : undefined), [signedIn]);
 
   // Most recently focused first, trimmed to the keep-alive budget; every
@@ -65,8 +68,8 @@ export function TabHost() {
     const open = new Set(all.flatMap((i) => i.tabs.map((t) => t.id)));
     const next = [focused.id, ...recent.current.filter((id) => id !== focused.id && open.has(id))];
     recent.current = next.slice(0, KEEP_ALIVE_BUDGET);
-    return keepAliveTabs(layout, recent.current);
-  }, [layout, focused.id]);
+    return keepAliveTabs(layout, recent.current, visibleIslandIds(workspace, narrow));
+  }, [layout, focused.id, workspace, narrow]);
 
   // React releases the pane; release its router too. Query data and scroll
   // memory remain available when the page is rebuilt on its next selection.
@@ -130,6 +133,7 @@ export function TabHost() {
               layout={layout}
               focusedIslandId={focusedIslandId}
               maximizedIslandId={maximizedIslandId}
+              narrow={narrow}
               renderPanes={renderPanes}
             />
           </WorkspaceArea>

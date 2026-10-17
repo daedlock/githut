@@ -364,7 +364,7 @@ type TabDisplay = {
   repo?: string;
 };
 
-function useTabDisplay(href: string): TabDisplay {
+export function useTabDisplay(href: string): TabDisplay {
   const pathname = hrefPathname(href);
   const meta = getTabMeta(pathname);
   const entity = useCachedEntity(pathname);
