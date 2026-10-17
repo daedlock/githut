@@ -1,7 +1,8 @@
 import { Octokit } from "@octokit/core";
 import type { OctokitResponse } from "@octokit/types";
-import { logout } from "@/app/lib/auth";
+import { assertCanMutate } from "@/app/lib/connectivity";
 import { useAuthStore } from "@/app/stores/auth";
+import { clearRateLimit, recordRateLimit } from "@/app/stores/rateLimit";
 
 // ─── ETag cache ────────────────────────────────────────────────────────────
 //
@@ -70,6 +71,24 @@ function evictETagsForRepo(owner: string, repo: string): void {
 
 let cached: { token: string; client: Octokit } | null = null;
 
+function sessionExpiredError(): Error {
+  return Object.assign(new Error("GitHub sign-in expired"), { status: 401 });
+}
+
+/**
+ * Switch to a fresh token after signing in again. The ETag cache is kept when
+ * the new token belongs to the same user (cheap 304 refetches); otherwise the
+ * previous user's cached bodies are dropped.
+ */
+export function adoptToken(token: string, { sameUser }: { sameUser: boolean }): void {
+  cached = null;
+  if (!sameUser) {
+    clearETagCache();
+    clearRateLimit();
+  }
+  useAuthStore.getState().setToken(token);
+}
+
 export function getGitHubClient(): Octokit {
   const token = useAuthStore.getState().token;
   if (!token) throw new Error("Not authenticated");
@@ -77,10 +96,16 @@ export function getGitHubClient(): Octokit {
 
   // Token changed — the new session may see different visibility, so drop
   // the ETag cache rather than serve a previous user's cached bodies.
-  if (cached && cached.token !== token) clearETagCache();
+  if (cached && cached.token !== token) {
+    clearETagCache();
+    clearRateLimit();
+  }
 
-  const noCacheFetch = ((input: RequestInfo | URL, init?: RequestInit) =>
-    globalThis.fetch(input, { ...init, cache: "no-store" })) as typeof fetch;
+  const noCacheFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const response = await globalThis.fetch(input, { ...init, cache: "no-store" });
+    if (useAuthStore.getState().token === token) recordRateLimit(response.headers);
+    return response;
+  }) as typeof fetch;
 
   const client = new Octokit({
     auth: token,
@@ -89,17 +114,20 @@ export function getGitHubClient(): Octokit {
   });
 
   client.hook.wrap("request", async (request, options) => {
+    // Known-dead token: fail like GitHub would without spending a request.
+    if (useAuthStore.getState().expired) throw sessionExpiredError();
+
     const method = String(options.method ?? "GET").toUpperCase();
-    const versionedOptions = {
-      ...options,
-      headers: {
-        ...options.headers,
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
+    // Earlier Octokit hooks hold this options object. Replacing it loses
+    // headers through that hook chain; update the shared options in place.
+    options.headers = {
+      ...options.headers,
+      "x-github-api-version": "2022-11-28",
     };
 
     if (method !== "GET") {
-      const response = await request(versionedOptions);
+      assertCanMutate();
+      const response = await request(options);
       // After any write, evict cached GET responses for the same repo so
       // subsequent refetches bypass the ETag 304 path and get fresh data.
       const url = String(options.url ?? "");
@@ -110,15 +138,10 @@ export function getGitHubClient(): Octokit {
 
     const key = buildCacheKey(options as Record<string, unknown>);
     const prev = etagCache.get(key);
-    const opts = prev
-      ? {
-          ...versionedOptions,
-          headers: { ...versionedOptions.headers, "if-none-match": prev.etag },
-        }
-      : versionedOptions;
+    if (prev) options.headers["if-none-match"] = prev.etag;
 
     try {
-      const response = await request(opts);
+      const response = await request(options);
       if (response.status === 304 && prev) {
         return {
           data: prev.data,
@@ -131,9 +154,10 @@ export function getGitHubClient(): Octokit {
       return response;
     } catch (err) {
       if (err && typeof err === "object" && "status" in err && err.status === 304 && prev) {
+        const response = (err as { response?: { headers?: CachedResponse["headers"] } }).response;
         return {
           data: prev.data,
-          headers: prev.headers,
+          headers: { ...prev.headers, ...response?.headers },
           status: 200,
           url: prev.url,
         } as OctokitResponse<unknown>;
@@ -142,13 +166,12 @@ export function getGitHubClient(): Octokit {
     }
   });
 
-  // If the token is revoked or expired GitHub returns 401.
-  // Clear the session immediately so the user is sent back to login.
+  // If the token is revoked or expired GitHub returns 401. Don't sign out:
+  // mark the session expired so the workspace (tabs, drafts, cached pages)
+  // stays put and a banner offers to sign in again (see lib/session.ts).
   client.hook.error("request", (error) => {
-    if ("status" in error && error.status === 401) {
-      cached = null;
-      clearETagCache();
-      logout();
+    if ("status" in error && error.status === 401 && useAuthStore.getState().token === token) {
+      useAuthStore.getState().markExpired();
     }
     throw error;
   });

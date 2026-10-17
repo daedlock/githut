@@ -18,6 +18,7 @@ import {
 } from "@/app/features/pulls/hooks";
 import { toUiState } from "@/app/features/pulls/lib/prStatus";
 import type { PullRequest } from "@/app/features/pulls/schemas";
+import { useCanMutate } from "@/app/lib/connectivity";
 
 export function PrActions({
   owner,
@@ -31,6 +32,7 @@ export function PrActions({
   const state = toUiState(pr);
   const toggleState = useTogglePrState(owner, repo, pr.number);
   const setDraft = useSetPrDraft(owner, repo, pr.number);
+  const { canMutate } = useCanMutate();
 
   if (state === "merged") return null;
 
@@ -44,7 +46,7 @@ export function PrActions({
       <DropdownMenuContent align="end" className="min-w-[180px]">
         {state === "open" && (
           <DropdownMenuItem
-            disabled={setDraft.isPending}
+            disabled={setDraft.isPending || !canMutate}
             onClick={() => setDraft.mutate({ draft: true, nodeId: pr.node_id })}
           >
             <GitPullRequestDraft className="text-muted-foreground" />
@@ -54,7 +56,7 @@ export function PrActions({
 
         {state === "draft" && (
           <DropdownMenuItem
-            disabled={setDraft.isPending}
+            disabled={setDraft.isPending || !canMutate}
             onClick={() => setDraft.mutate({ draft: false, nodeId: pr.node_id })}
           >
             <CheckCircle2 className="text-muted-foreground" />
@@ -65,7 +67,7 @@ export function PrActions({
         {(state === "open" || state === "draft") && (
           <DropdownMenuItem
             variant="destructive"
-            disabled={toggleState.isPending}
+            disabled={toggleState.isPending || !canMutate}
             onClick={() => toggleState.mutate({ state: "closed" })}
           >
             <GitPullRequestClosed />
@@ -75,7 +77,7 @@ export function PrActions({
 
         {state === "closed" && (
           <DropdownMenuItem
-            disabled={toggleState.isPending}
+            disabled={toggleState.isPending || !canMutate}
             onClick={() => toggleState.mutate({ state: "open" })}
           >
             <CircleDot className="text-[var(--color-success)]" />

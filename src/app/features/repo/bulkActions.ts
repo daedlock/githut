@@ -14,6 +14,7 @@ import {
   runBulkJobs,
   sameLogin,
 } from "@/app/features/repo/bulkSelection";
+import { assertCanMutate } from "@/app/lib/connectivity";
 import { githubAvatarUrl } from "@/app/lib/github/appActors";
 import { getGitHubClient } from "@/app/lib/github/client";
 
@@ -256,9 +257,22 @@ export function useBulkActions(target: BulkTarget, lookups: BulkLookups) {
     async (jobs: BulkJob[], { undoable = true } = {}) => {
       if (!jobs.length) return;
       const { target: current, lookups: currentLookups } = latest.current;
-      if (current.kind === "issues")
-        await qc.cancelQueries({ queryKey: issueKeys.all(current.owner, current.repo) });
-      else await qc.cancelQueries({ queryKey: pullsKeys.lists(current.owner, current.repo) });
+      try {
+        assertCanMutate();
+        if (current.kind === "issues")
+          await qc.cancelQueries({ queryKey: issueKeys.all(current.owner, current.repo) });
+        else await qc.cancelQueries({ queryKey: pullsKeys.lists(current.owner, current.repo) });
+        assertCanMutate();
+      } catch (error) {
+        setNotice({
+          id: nextNoticeId++,
+          tone: "error",
+          message: "Changes unavailable",
+          detail: error instanceof Error ? error.message : "Try again when connected.",
+          retry: jobs,
+        });
+        return;
+      }
       patchLists(qc, current, jobs, currentLookups);
       // The last result no longer describes the list; a new one follows shortly.
       setNotice((previous) => (previous?.tone === "success" ? null : previous));

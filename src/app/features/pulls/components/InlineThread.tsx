@@ -4,6 +4,7 @@ import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { Button } from "@/app/components/ui/button";
 import { CommentCardDisplay } from "@/app/components/ui/CommentCard";
 import { CommentComposeCard } from "@/app/components/ui/CommentComposeCard";
+import { EMPTY_MY_REACTIONS, type ReactionContent } from "@/app/features/issues/schemas";
 import {
   useDeleteReviewComment,
   useMyReviewCommentReactions,
@@ -14,9 +15,9 @@ import {
   useUpdateReviewComment,
 } from "@/app/features/pulls/hooks";
 import type { ReviewComment } from "@/app/features/pulls/schemas";
-import { EMPTY_MY_REACTIONS, type ReactionContent } from "@/app/features/issues/schemas";
-import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { useMe } from "@/app/hooks/useMe";
+import type { MentionUser } from "@/app/hooks/useMentionSearch";
+import { useCanMutate } from "@/app/lib/connectivity";
 import { draftKey, draftPage, hasDraft } from "@/app/stores/drafts";
 
 export type InlineThreadProps = {
@@ -27,13 +28,7 @@ export type InlineThreadProps = {
   replies: ReviewComment[];
 };
 
-export function InlineThread({
-  owner,
-  repo,
-  number,
-  root,
-  replies,
-}: InlineThreadProps) {
+export function InlineThread({ owner, repo, number, root, replies }: InlineThreadProps) {
   const replyDraftKey = draftKey(draftPage(owner, repo, number), `reply:${root.id}`);
   const [replyOpen, setReplyOpen] = useState(() => hasDraft(replyDraftKey));
   const [expanded, setExpanded] = useState(false);
@@ -45,6 +40,7 @@ export function InlineThread({
   const toggleReaction = useToggleReviewCommentReaction(owner, repo, number, meId);
   const resolutionQuery = useThreadResolution(owner, repo, number);
   const resolveMutation = useResolveThread(owner, repo, number);
+  const { canMutate, reason } = useCanMutate();
 
   const resolutionLoading = resolutionQuery.isLoading;
   const threadInfo = resolutionQuery.data?.get(root.id);
@@ -71,7 +67,7 @@ export function InlineThread({
   }, [allComments]);
 
   function handleReply(body: string) {
-    if (!body || replyMutation.isPending) return;
+    if (!body || replyMutation.isPending || !canMutate) return;
     // Fire-and-forget: optimistic insertion happens in onMutate, so close
     // the box immediately for instant feedback.
     replyMutation.mutate({ inReplyToId: root.id, body });
@@ -79,7 +75,7 @@ export function InlineThread({
   }
 
   function handleResolveToggle() {
-    if (!threadNodeId || resolveMutation.isPending) return;
+    if (!threadNodeId || resolveMutation.isPending || !canMutate) return;
     resolveMutation.mutate({ threadNodeId, resolve: !isResolved });
   }
 
@@ -108,8 +104,7 @@ export function InlineThread({
             <ChevronRight className="size-3.5" />
             <Check className="size-3 text-[var(--color-success)]" />
             <span>
-              Resolved by{" "}
-              <span className="font-medium">{lastComment.user?.login ?? "ghost"}</span>
+              Resolved by <span className="font-medium">{lastComment.user?.login ?? "ghost"}</span>
             </span>
             <span className="text-muted-foreground/50">
               — {root.body.length > 60 ? root.body.slice(0, 60) + "…" : root.body}
@@ -182,7 +177,8 @@ export function InlineThread({
                 variant="ghost"
                 size="xs"
                 onClick={handleResolveToggle}
-                disabled={resolveMutation.isPending}
+                disabled={resolveMutation.isPending || !canMutate}
+                title={reason}
               >
                 {isResolved ? (
                   <>

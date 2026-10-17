@@ -1,16 +1,36 @@
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryClient } from "@tanstack/react-query";
+// Wires TanStack's onlineManager to browser connectivity + session expiry.
+import { assertCanMutate } from "@/app/lib/connectivity";
+
+function isUnauthorized(error: unknown): boolean {
+  return !!error && typeof error === "object" && "status" in error && error.status === 401;
+}
+
+/** Keep a cached page mounted while its unauthorized retry waits for sign-in. */
+export function retrySessionExpiry(failureCount: number, error: unknown): boolean {
+  return isUnauthorized(error) && failureCount < 2;
+}
 
 export const queryClient = new QueryClient({
+  mutationCache: new MutationCache({ onMutate: () => assertCanMutate() }),
   defaultOptions: {
     queries: {
       staleTime: 30_000,
       gcTime: 24 * 60 * 60 * 1000,
       refetchOnWindowFocus: true,
       retry: (failureCount, error) => {
-        // Never retry auth failures — the token is gone, retrying just loops.
-        if ("status" in error && error.status === 401) return false;
+        // A 401 marks the session expired, which takes the onlineManager
+        // offline: the retry then pauses (keeping cached data on screen)
+        // until the user signs in again, instead of erroring the page.
+        if (isUnauthorized(error)) return failureCount < 2;
         return failureCount < 1;
       },
+    },
+    mutations: {
+      // Fail fast rather than queue: an action taken offline (or with an
+      // expired token) must not fire unexpectedly on reconnect. The main
+      // action buttons are disabled in those states anyway (useCanMutate).
+      networkMode: "always",
     },
   },
 });

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
-import { Card } from "@/app/components/ui/card";
 import { ComposeBox } from "@/app/components/ui/ComposeBox";
+import { Card } from "@/app/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,9 +11,15 @@ import {
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
 import { ReactionsBar } from "@/app/features/issues/components/ReactionsBar";
-import { EMPTY_MY_REACTIONS, type MyReactionsMap, type ReactionContent, type ReactionsMap } from "@/app/features/issues/schemas";
+import {
+  EMPTY_MY_REACTIONS,
+  type MyReactionsMap,
+  type ReactionContent,
+  type ReactionsMap,
+} from "@/app/features/issues/schemas";
 import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 import { formatRelativeTime } from "@/app/lib/time";
 
 // Re-export the self-contained compose card
@@ -196,7 +202,11 @@ export function CommentCardDisplay({
           <div className="p-4">
             {children}
             {showReactions && (
-              <ReactionsBar reactions={reactions} myReactions={myReactions ?? EMPTY_MY_REACTIONS} onToggle={onToggleReaction} />
+              <ReactionsBar
+                reactions={reactions}
+                myReactions={myReactions ?? EMPTY_MY_REACTIONS}
+                onToggle={onToggleReaction}
+              />
             )}
           </div>
         }
@@ -255,14 +265,18 @@ function CommentMenu({
   disabled?: boolean;
 }) {
   const confirmTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { canMutate, reason } = useCanMutate();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  useEffect(() => () => {
-    if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (confirmTimeoutRef.current) clearTimeout(confirmTimeoutRef.current);
+    },
+    [],
+  );
 
   function handleDelete(e: Event) {
-    if (!onDelete) return;
+    if (!onDelete || !canMutate) return;
     if (!confirmingDelete) {
       e.preventDefault();
       setConfirmingDelete(true);
@@ -279,7 +293,8 @@ function CommentMenu({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          disabled={disabled}
+          disabled={disabled || !canMutate}
+          title={reason}
           aria-label="Comment actions"
           className={cn(
             "inline-flex size-6 items-center justify-center rounded-md outline-none",
@@ -294,13 +309,14 @@ function CommentMenu({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" sideOffset={4} className="min-w-[140px]">
-        <DropdownMenuItem onSelect={onEdit}>
+        <DropdownMenuItem disabled={!canMutate} onSelect={onEdit}>
           <Pencil className="size-3.5" />
           Edit
         </DropdownMenuItem>
         {onDelete && (
           <DropdownMenuItem
             variant="destructive"
+            disabled={!canMutate}
             onSelect={handleDelete}
             onPointerLeave={() => {
               if (!confirmingDelete) return;
@@ -340,6 +356,7 @@ export function CommentCardReply({
   onCancel: () => void;
   isPending?: boolean;
 }) {
+  const { canMutate, reason } = useCanMutate();
   return (
     <div className={cn("flex gap-2.5", className)}>
       <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="flex-shrink-0 mt-1" />
@@ -361,7 +378,12 @@ export function CommentCardReply({
           <Button variant="ghost" size="sm" onClick={onCancel} disabled={isPending}>
             Cancel
           </Button>
-          <Button size="sm" disabled={!value.trim() || isPending} onClick={onSubmit}>
+          <Button
+            size="sm"
+            disabled={!value.trim() || isPending || !canMutate}
+            title={reason}
+            onClick={onSubmit}
+          >
             {isPending ? "Submitting…" : submitLabel}
           </Button>
         </div>
@@ -380,9 +402,5 @@ export function CommentThread({
   children: ReactNode;
   className?: string;
 }) {
-  return (
-    <div className={cn("flex flex-col divide-y divide-border", className)}>
-      {children}
-    </div>
-  );
+  return <div className={cn("flex flex-col divide-y divide-border", className)}>{children}</div>;
 }

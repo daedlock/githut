@@ -9,6 +9,7 @@ import {
 } from "@/app/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 
 const SKELETON_WIDTHS = ["50%", "67%", "84%", "66%"] as const;
 
@@ -61,8 +62,10 @@ export function SidebarPicker({
   side = "bottom",
   align = "end",
 }: SidebarPickerProps) {
+  const { canMutate, reason } = useCanMutate();
+  const unavailable = disabled || !canMutate;
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
-  const open = controlledOpen ?? uncontrolledOpen;
+  const open = (controlledOpen ?? uncontrolledOpen) && !unavailable;
   const [query, setQuery] = useState("");
 
   function updateQuery(next: string) {
@@ -71,6 +74,7 @@ export function SidebarPicker({
   }
 
   function updateOpen(next: boolean) {
+    if (next && unavailable) return;
     setUncontrolledOpen(next);
     onOpenChange?.(next);
     if (!next) updateQuery("");
@@ -92,7 +96,8 @@ export function SidebarPicker({
           <button
             type="button"
             aria-label={ariaLabel}
-            disabled={disabled}
+            disabled={unavailable}
+            title={reason}
             className={cn(
               "inline-flex size-5 items-center justify-center rounded-sm",
               "text-[var(--color-fg-faint)] outline-none transition-colors",
@@ -148,10 +153,12 @@ export function SidebarPicker({
                       value={item.id}
                       data-checked={isSelected ? "true" : isMixed ? "mixed" : "false"}
                       onSelect={() => {
+                        if (unavailable) return;
                         onToggle(item.id, !isSelected);
                         if (closeOnSelect) updateOpen(false);
                       }}
                       className="gap-2.5 px-2 py-1.5"
+                      disabled={unavailable}
                     >
                       {item.icon ? (
                         <span

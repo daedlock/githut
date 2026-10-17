@@ -5,15 +5,16 @@ import { createRoot } from "react-dom/client";
 import { TabHost } from "@/app/components/shell/TabHost";
 import { bootstrapAuthFromHash } from "@/app/lib/auth";
 import { queryClient } from "@/app/lib/query";
+import { listenForSignIn } from "@/app/lib/session";
 import { setTabRouterFactory, startBrowserSync } from "@/app/lib/tabRouters";
 import { bootstrapTheme } from "@/app/stores/theme";
 import { normalizeHref } from "@/app/workspace/model";
-import { dispatch, initWorkspace } from "@/app/workspace/store";
+import { dispatch, getFocusedTab, initWorkspace } from "@/app/workspace/store";
 import "./styles/index.css";
 import { routeTree } from "./routeTree.gen";
 
 bootstrapTheme();
-bootstrapAuthFromHash();
+const authStart = bootstrapAuthFromHash();
 
 /** Every tab runs its own router over an in-memory history (see TabHost). */
 function createAppRouter(href: string, history?: AnyRouter["history"]) {
@@ -33,15 +34,23 @@ declare module "@tanstack/react-router" {
 
 setTabRouterFactory(createAppRouter);
 
-// Restore this window's layout, then reconcile it with the URL we were
-// opened at: focus the tab already showing it, otherwise open it in the
-// focused island (ADR 0002).
-{
+// A sign-in popup only hands back its token; it must not save a workspace.
+// An OAuth redirect restores this window's focused page instead of opening
+// the callback's root URL as a new tab.
+if (authStart !== "handoff") {
   const href = normalizeHref(window.location.href);
   initWorkspace(href);
-  dispatch({ type: "openUrl", href });
+  if (authStart === "redirect") window.history.replaceState(null, "", getFocusedTab().href);
+  else dispatch({ type: "openUrl", href });
 }
-startBrowserSync();
+
+function SignedInHandoff() {
+  return (
+    <div className="flex h-full items-center justify-center bg-background p-6 text-body text-muted-foreground">
+      Signed in. You can close this window.
+    </div>
+  );
+}
 
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("Root element #root not found");
@@ -49,10 +58,19 @@ if (!rootEl) throw new Error("Root element #root not found");
 const shell = document.getElementById("shell");
 if (shell) shell.classList.add("hide");
 
-createRoot(rootEl).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <TabHost />
-    </QueryClientProvider>
-  </StrictMode>,
-);
+if (authStart === "handoff") {
+  // The sign-in popup: its token went to the workspace window. Close, or
+  // say so if the browser won't let a script close this window.
+  window.close();
+  createRoot(rootEl).render(<SignedInHandoff />);
+} else {
+  startBrowserSync();
+  listenForSignIn();
+  createRoot(rootEl).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <TabHost />
+      </QueryClientProvider>
+    </StrictMode>,
+  );
+}

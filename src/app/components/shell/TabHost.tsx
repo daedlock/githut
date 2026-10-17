@@ -1,3 +1,4 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterContextProvider, RouterProvider } from "@tanstack/react-router";
 import { Activity, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
@@ -11,11 +12,14 @@ import { IslandLayout } from "@/app/components/shell/IslandLayout";
 import { LayoutUndo } from "@/app/components/shell/LayoutUndo";
 import { LinkHoverMenu } from "@/app/components/shell/LinkHoverMenu";
 import { RepoMarkScope } from "@/app/components/shell/RepoMark";
+import { SignInBanner } from "@/app/components/shell/SessionNotices";
 import { TabShortcuts } from "@/app/components/shell/TabShortcuts";
 import { TitleBar } from "@/app/components/shell/TitleBar";
 import { WorkspaceArea } from "@/app/components/shell/WorkspaceArea";
 import { TooltipProvider } from "@/app/components/ui/tooltip";
 import { cn } from "@/app/lib/cn";
+import { queryClientForTab, startWorkspaceFreshness } from "@/app/lib/freshness";
+import { queryClient } from "@/app/lib/query";
 import { getTabRouter, releaseTabRouter } from "@/app/lib/tabRouters";
 import { type TabScope, TabScopeContext } from "@/app/lib/tabScope";
 import { useAuthStore } from "@/app/stores/auth";
@@ -52,6 +56,7 @@ export function TabHost() {
   const focused = focusedTab(workspace);
   const tabsEnabled = useSettingsStore((s) => s.tabsEnabled);
   const signedIn = useAuthStore((s) => !!s.token);
+  useEffect(() => (signedIn ? startWorkspaceFreshness(queryClient) : undefined), [signedIn]);
 
   // Most recently focused first, trimmed to the keep-alive budget; every
   // island's selected tab is mounted on top of that.
@@ -111,7 +116,7 @@ export function TabHost() {
       <RepoMarkScope>
         <div
           className={cn(
-            "flex h-full flex-col bg-(--color-frame)",
+            "relative flex h-full flex-col bg-(--color-frame)",
             "pr-[max(1rem,env(safe-area-inset-right))] pb-2 pl-[max(1rem,env(safe-area-inset-left))]",
           )}
         >
@@ -128,6 +133,7 @@ export function TabHost() {
               renderPanes={renderPanes}
             />
           </WorkspaceArea>
+          <SignInBanner />
         </div>
       </RepoMarkScope>
     </TooltipProvider>
@@ -147,6 +153,7 @@ const TabPane = memo(
   function TabPane({ id, href }: { id: string; href: string }) {
     const ref = useRef<HTMLDivElement>(null);
     const [router] = useState(() => getTabRouter(id, href));
+    const queries = useMemo(() => queryClientForTab(queryClient, id), [id]);
     // Page shortcuts and key listeners only act while this is the focused tab.
     const scope = useMemo<TabScope>(
       () => ({ tabId: id, isFocused: () => getFocusedTab().id === id }),
@@ -188,8 +195,10 @@ const TabPane = memo(
         className="absolute inset-0 overflow-y-auto overscroll-contain outline-none [--app-header-height:0px]"
       >
         <TabScopeContext.Provider value={scope}>
-          <RouterProvider router={router} />
-          <PageScrollControls scrollerRef={ref} />
+          <QueryClientProvider client={queries}>
+            <RouterProvider router={router} />
+            <PageScrollControls scrollerRef={ref} />
+          </QueryClientProvider>
         </TabScopeContext.Provider>
       </div>
     );
