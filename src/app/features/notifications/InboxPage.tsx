@@ -35,7 +35,6 @@ import { useListNavigation } from "@/app/hooks/useListNavigation";
 import { useStableList } from "@/app/hooks/useStableList";
 import { cn } from "@/app/lib/cn";
 import { useCanMutate } from "@/app/lib/connectivity";
-import { getRecentItemsSync, subscribeRecentItems } from "@/app/lib/recentItems";
 import { openInNewTab, openToSide } from "@/app/lib/tabActions";
 import { useTabScope } from "@/app/lib/tabScope";
 import { formatRelativeTime } from "@/app/lib/time";
@@ -100,11 +99,6 @@ function InboxList({
   const { canMutate, reason } = useCanMutate();
   const scope = useTabScope();
   const workspace = useWorkspaceStore((state) => state.workspace);
-  const recent = useSyncExternalStore(subscribeRecentItems, getRecentItemsSync);
-  const openHrefs = new Set(
-    islands(workspace.layout).flatMap((island) => island.tabs.map((tab) => tab.href)),
-  );
-  const hasRecent = recent.some((item) => !openHrefs.has(item.href));
   const isFocused = focusedTab(workspace).id === scope.tabId;
   const [selected, setSelected] = useState(new Set<string>());
   const [actionVersion, setActionVersion] = useState(0);
@@ -245,7 +239,7 @@ function InboxList({
             <CheckCircle2 className="size-8 text-muted-foreground" />
             <h2 className="text-heading font-medium">You're all caught up</h2>
             <p className="max-w-sm text-ui text-muted-foreground">
-              New notifications will appear here. Pick up your work or revisit a recent page.
+              New notifications will appear here. Pick up your work or browse your repos.
             </p>
             <div className="mt-2 flex gap-2">
               <Button variant="secondary" onClick={onYourWork}>
@@ -253,24 +247,22 @@ function InboxList({
               </Button>
               <Button
                 variant="ghost"
-                disabled={!hasRecent}
                 onClick={() => {
                   if (useWorkspaceView.getState().narrow)
                     useWorkspaceView.getState().setSidebarOpen(true);
                   else useSidebarStore.getState().resize(useSidebarStore.getState().width);
                   requestAnimationFrame(() => {
-                    const section = document.querySelector<HTMLElement>('[aria-label="Recent"]');
+                    const section = document.querySelector<HTMLElement>(
+                      '[aria-label="Your repos"]',
+                    );
                     section?.scrollIntoView({ block: "nearest" });
                     (section?.querySelector<HTMLElement>("button") ?? section)?.focus();
                   });
                 }}
               >
-                Recent
+                Your repos
               </Button>
             </div>
-            {!hasRecent && (
-              <p className="text-caption text-muted-foreground">No recent pages yet.</p>
-            )}
           </div>
         ) : (
           <LiveUpdates ready={!isPending} announce={false}>

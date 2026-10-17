@@ -399,14 +399,14 @@ try {
       await empty.page.getByRole("button", { name: "Your work", exact: true }).count(),
       1,
     );
-    assert.equal(await empty.page.getByRole("button", { name: "Recent", exact: true }).count(), 1);
-    await empty.page.setViewportSize({ width: 640, height: 900 });
     assert.equal(
-      await empty.page.getByRole("button", { name: "Recent", exact: true }).isDisabled(),
-      true,
+      await empty.page.getByRole("button", { name: "Your repos", exact: true }).count(),
+      1,
     );
-    await empty.page.getByText("No recent pages yet.", { exact: true }).waitFor();
-    console.log("PASS calm empty Inbox links to work and recent pages");
+    await empty.page.setViewportSize({ width: 640, height: 900 });
+    await empty.page.getByRole("button", { name: "Your repos", exact: true }).click();
+    await empty.page.getByRole("dialog", { name: "Sidebar" }).waitFor();
+    console.log("PASS calm empty Inbox links to work and opens repository drawer");
   } finally {
     await empty.close();
   }

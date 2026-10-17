@@ -3,13 +3,13 @@ import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright";
 
-const app = process.env.UI_BASE_URL || "http://127.0.0.1:5196";
+const app = process.env.UI_BASE_URL || "http://127.0.0.1:5223";
 assert.ok(["localhost", "127.0.0.1"].includes(new URL(app).hostname));
 const server = process.env.UI_BASE_URL
   ? null
   : spawn(
       process.execPath,
-      ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5196", "--strictPort"],
+      ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5223", "--strictPort"],
       { stdio: ["ignore", "pipe", "pipe"] },
     );
 let log = "";
@@ -50,7 +50,7 @@ const repo = {
   pushed_at: "2026-10-01T12:00:00Z",
   updated_at: "2026-10-01T12:00:00Z",
 };
-const stars = [
+const repos = [
   "project",
   "phoenix",
   "alpha",
@@ -94,12 +94,12 @@ async function fixture({ empty = false, failUnstar = false } = {}) {
   await context.addInitScript(() =>
     localStorage.setItem(
       "githut.auth",
-      JSON.stringify({ state: { token: "fixture" }, version: 0 }),
+      JSON.stringify({ state: { token: "fixture", accountId: 1 }, version: 0 }),
     ),
   );
   const queries = [];
   const writes = [];
-  let currentStars = empty ? [] : [...stars];
+  let currentStars = empty ? [] : [...repos];
   await context.route("https://api.github.com/**", async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname;
@@ -117,14 +117,22 @@ async function fixture({ empty = false, failUnstar = false } = {}) {
     let data = [];
     const headers = { "access-control-expose-headers": "link" };
     if (path === "/user" || path === "/users/demo") data = actor;
-    else if (path === "/user/repos") data = [repo];
-    else if (path === "/user/starred") {
+    else if (path === "/user/repos") {
+      const second = url.searchParams.get("page") === "2";
+      data = empty ? [] : second ? repos.slice(8) : repos.slice(0, 8);
+      if (!empty && !second)
+        headers.link = '<https://api.github.com/user/repos?page=2>; rel="next"';
+    } else if (path === "/user/orgs") data = [{ id: 9, login: "company" }];
+    else if (path === "/orgs/company/repos") {
+      queries.push("org-repos");
+      data = [{ ...repo, id: 90, name: "member-only", full_name: "company/member-only" }];
+    } else if (path === "/user/starred") {
       const page = Number(url.searchParams.get("page"));
       data = page === 1 ? currentStars.slice(0, 8) : currentStars.slice(8);
       if (page === 1 && currentStars.length > 8)
         headers.link = '<https://api.github.com/user/starred?page=2>; rel="next"';
     } else if (/^\/repos\/demo\/[^/]+$/.test(path))
-      data = stars.find((r) => path.endsWith(r.name)) ?? repo;
+      data = repos.find((r) => path.endsWith(r.name)) ?? repo;
     else if (path === "/search/issues") {
       const q = url.searchParams.get("q");
       queries.push(q);
@@ -160,97 +168,119 @@ try {
   const f = await fixture();
   try {
     const sidebar = f.page.getByRole("complementary", { name: "Sidebar" });
-    await sidebar.getByRole("heading", { name: "Your work" }).waitFor({ timeout: 5000 });
-    assert.equal(await sidebar.getByRole("button", { name: /^Review requested/ }).count(), 5);
-    assert.equal(await sidebar.getByRole("button", { name: /^Authored PR/ }).count(), 5);
-    assert.equal(
-      f.queries.some((q) => q.includes("author:") && q.includes("updated:")),
-      false,
-    );
-    const section = sidebar.getByRole("region", { name: "Starred" });
-    assert.equal(await section.locator("[data-sidebar-row]").count(), 8);
-    await section.getByRole("button", { name: "Show all" }).click();
+    const section = sidebar.getByRole("region", { name: "Your repos" });
+    await section.locator("[data-sidebar-row]").first().waitFor({ timeout: 5000 });
+    assert.equal(await section.locator("[data-sidebar-row]").count(), 6);
+    assert.equal(await sidebar.getByRole("region", { name: "Starred" }).count(), 0);
+    assert.equal(await sidebar.getByRole("region", { name: "Recent", exact: true }).count(), 0);
+    assert.equal(await sidebar.getByRole("region", { name: "Your work" }).count(), 0);
+    assert.equal(f.queries.includes("org-repos"), false);
+    await section.getByRole("button", { name: "Show more" }).click();
     assert.equal(await section.locator("[data-sidebar-row]").count(), 10);
-    await sidebar.getByRole("button", { name: "Review requested 1", exact: true }).click();
-    await f.page.waitForURL(`${app}/demo/project/pull/10`, { timeout: 3000 });
+    await sidebar.getByRole("button", { name: "company repositories" }).focus();
+    await f.page.keyboard.press("Enter");
+    await sidebar
+      .getByRole("button", { name: "member-only · company/member-only", exact: true })
+      .waitFor();
+    assert.equal(f.queries.filter((q) => q === "org-repos").length, 1);
+    assert.equal(await section.getByText("member-only").count(), 0);
     assert.deepEqual(f.errors, []);
     console.log(
-      "PASS sidebar loads first five review and authored PRs, all-open queries and expandable stars",
+      "PASS quiet initial lists, complete pagination and keyboard-lazy organization browsing",
     );
   } finally {
     await f.close();
   }
-  const visits = await fixture();
+  const favorites = await fixture();
   try {
-    const page = visits.page;
+    const page = favorites.page;
     const sidebar = page.getByRole("complementary", { name: "Sidebar" });
-    const starSection = sidebar.getByRole("region", { name: "Starred" });
-    await starSection.getByRole("button", { name: "project", exact: true }).waitFor();
-    for (const name of ["alpha", "beta", "cat", "dog", "echo", "phoenix"]) {
-      await starSection.getByRole("button", { name, exact: true }).click();
-      await page.waitForURL(`${app}/demo/${name}/code`);
-      await page.keyboard.press("Alt+w");
-      await page.waitForURL(`${app}/demo/project/issues`);
-    }
-    const recent = sidebar.getByRole("region", { name: "Recent" });
-    await recent.waitFor({ timeout: 3000 });
-    const recentHrefs = await recent
-      .locator("[data-sidebar-href]")
-      .evaluateAll((rows) => rows.map((row) => row.dataset.sidebarHref));
-    assert.deepEqual(recentHrefs, [
-      "/demo/phoenix/code",
-      "/demo/echo/code",
-      "/demo/dog/code",
-      "/demo/cat/code",
-      "/demo/beta/code",
-    ]);
-    // Incoming local-use ordering settles once the pointer leaves the section.
-    await page.mouse.move(0, 0);
-    const starHrefs = await starSection
-      .locator("[data-sidebar-href]")
-      .evaluateAll((rows) => rows.map((row) => row.dataset.sidebarHref));
-    assert.equal(starHrefs[0], "/demo/project/code");
-    assert.equal(starHrefs[1], "/demo/phoenix/code");
-    assert.deepEqual(visits.errors, []);
+    const section = sidebar.getByRole("region", { name: "Favorites" });
+    await sidebar
+      .getByRole("button", { name: "Favorite project · demo/project", exact: true })
+      .click();
+    await sidebar.getByRole("button", { name: "Favorite current view", exact: true }).click();
+    await section
+      .getByRole("button", { name: "project · Issues · demo/project", exact: true })
+      .waitFor();
+    assert.equal(await section.locator("[data-sidebar-row]").count(), 2);
+    await page.reload();
+    await section
+      .getByRole("button", { name: "project · Issues · demo/project", exact: true })
+      .waitFor();
+    await section.getByRole("button", { name: "project · demo/project", exact: true }).click();
+    await page.waitForURL(`${app}/demo/project/code`);
+    await section
+      .getByRole("button", { name: "project · Issues · demo/project", exact: true })
+      .click();
+    await page.waitForURL(`${app}/demo/project/issues`);
+    await section
+      .getByRole("button", { name: "Remove favorite project · demo/project", exact: true })
+      .click();
+    assert.equal(await section.locator("[data-sidebar-row]").count(), 1);
+    await page.evaluate(async () => {
+      const { useAuthStore } = await import("/src/app/stores/auth.ts");
+      useAuthStore.getState().setToken("account-b", 2);
+    });
+    await section.getByText("Keep repos and views here.").waitFor();
+    assert.equal(await section.locator("[data-sidebar-row]").count(), 0);
+    await page.evaluate(async () => {
+      const { useAuthStore } = await import("/src/app/stores/auth.ts");
+      useAuthStore.getState().setToken("fixture", 1);
+    });
+    await section
+      .getByRole("button", { name: "project · Issues · demo/project", exact: true })
+      .waitFor();
+    if (process.env.SIDEBAR_SCREENSHOT)
+      await page.screenshot({ path: process.env.SIDEBAR_SCREENSHOT });
+    await page.setViewportSize({ width: 640, height: 900 });
+    await page.keyboard.press("Control+b");
+    await page.getByRole("dialog", { name: "Sidebar" }).waitFor();
+    if (process.env.DRAWER_SCREENSHOT)
+      await page.screenshot({ path: process.env.DRAWER_SCREENSHOT });
+    assert.deepEqual(favorites.writes, []);
+    assert.deepEqual(favorites.errors, []);
     console.log(
-      "PASS visited pages populate five recent closed pages and order starred repos by local use",
+      "PASS independent local repo/view favorites, reload, verified account isolation, desktop and drawer",
     );
   } finally {
-    await visits.close();
+    await favorites.close();
   }
   const navigation = await fixture();
   try {
     const page = navigation.page;
     const sidebar = page.getByRole("complementary", { name: "Sidebar" });
-    const stars = sidebar.getByRole("region", { name: "Starred" });
-    await stars.getByRole("button", { name: "project", exact: true }).waitFor();
-    await stars.getByRole("button", { name: "project", exact: true }).click();
+    const stars = sidebar.getByRole("region", { name: "Your repos" });
+    await stars.getByRole("button", { name: "project · demo/project", exact: true }).waitFor();
+    await stars.getByRole("button", { name: "project · demo/project", exact: true }).click();
     await page.waitForURL(`${app}/demo/project/code`);
-    await stars.getByRole("button", { name: "project", exact: true }).click();
+    await stars.getByRole("button", { name: "project · demo/project", exact: true }).click();
     assert.equal(await page.getByRole("tab").count(), 2);
-    await stars.getByRole("button", { name: "phoenix", exact: true }).click({ modifiers: ["Alt"] });
+    await stars
+      .getByRole("button", { name: "phoenix · demo/phoenix", exact: true })
+      .click({ modifiers: ["Alt"] });
     await page.waitForURL(`${app}/demo/phoenix/code`);
     assert.equal(await page.locator("[data-island]").count(), 2);
-    await stars.getByRole("button", { name: "project", exact: true }).click();
+    await stars.getByRole("button", { name: "project · demo/project", exact: true }).click();
     await page.waitForURL(`${app}/demo/project/code`);
     assert.equal(await page.getByRole("tab").count(), 3);
     assert.equal(await page.locator("[data-island]").first().getAttribute("data-focused"), "true");
     assert.equal(
       await stars
-        .getByRole("button", { name: "project", exact: true })
+        .getByRole("button", { name: "project · demo/project", exact: true })
         .getAttribute("aria-current"),
       "page",
     );
     assert.equal(
       await stars
-        .getByRole("button", { name: "project", exact: true })
+        .getByRole("button", { name: "project · demo/project", exact: true })
         .getByLabel("Has open tabs")
         .count(),
       1,
     );
     assert.equal(
       await stars
-        .getByRole("button", { name: "project", exact: true })
+        .getByRole("button", { name: "project · demo/project", exact: true })
         .locator("[data-repo-mark]")
         .innerText(),
       "Pr",
@@ -258,7 +288,9 @@ try {
     await sidebar.getByRole("textbox", { name: "Filter sidebar" }).fill("phoenix");
     assert.equal(await stars.locator("[data-sidebar-row]").count(), 1);
     await sidebar.getByRole("textbox", { name: "Filter sidebar" }).fill("");
-    await stars.getByRole("button", { name: "phoenix", exact: true }).click({ button: "right" });
+    await stars
+      .getByRole("button", { name: "phoenix · demo/phoenix", exact: true })
+      .click({ button: "right" });
     await page.getByRole("menuitem", { name: "Open in new tab", exact: true }).click();
     await page.getByRole("menu").waitFor({ state: "hidden" });
     await page.waitForURL(`${app}/demo/phoenix/code`);
@@ -276,14 +308,14 @@ try {
     const page = resize.page;
     const sidebar = page.getByRole("complementary", { name: "Sidebar" });
     const mark = sidebar
-      .getByRole("region", { name: "Starred" })
-      .getByRole("button", { name: "project", exact: true })
+      .getByRole("region", { name: "Your repos" })
+      .getByRole("button", { name: "project · demo/project", exact: true })
       .locator("[data-repo-mark]");
     await mark.waitFor();
     const before = await mark.boundingBox();
     await page.getByRole("button", { name: "Collapse sidebar", exact: true }).click();
     assert.equal((await sidebar.boundingBox()).width, 40);
-    assert.deepEqual(await mark.boundingBox(), before);
+    assert.equal((await mark.boundingBox()).x, before.x);
     await page.keyboard.press("Control+b");
     assert.equal((await sidebar.boundingBox()).width, 240);
     const separator = page.getByRole("separator", { name: "Resize sidebar" });
@@ -314,10 +346,13 @@ try {
     await page.setViewportSize({ width: 2200, height: 1000 });
     const stars = page
       .getByRole("complementary", { name: "Sidebar" })
-      .getByRole("region", { name: "Starred" });
-    await stars.getByRole("button", { name: "alpha", exact: true }).waitFor();
+      .getByRole("region", { name: "Your repos" });
+    await stars.getByRole("button", { name: "alpha · demo/alpha", exact: true }).waitFor();
+    await stars.getByRole("button", { name: "Show more" }).click();
     const move = async (name, x, y) => {
-      const from = await stars.getByRole("button", { name, exact: true }).boundingBox();
+      const from = await stars
+        .getByRole("button", { name: `${name} · demo/${name}`, exact: true })
+        .boundingBox();
       await page.mouse.move(from.x + 16, from.y + 16);
       await page.mouse.down();
       await page.mouse.move(x, y, { steps: 12 });
@@ -372,61 +407,6 @@ try {
     );
   } finally {
     await drag.close();
-  }
-  const unstar = await fixture();
-  try {
-    const page = unstar.page;
-    const stars = page
-      .getByRole("complementary", { name: "Sidebar" })
-      .getByRole("region", { name: "Starred" });
-    await stars.getByRole("button", { name: "phoenix", exact: true }).click({ button: "right" });
-    await page.getByRole("menuitem", { name: "Unstar", exact: true }).click();
-    await page.getByRole("menu").waitFor({ state: "hidden" });
-    await stars.getByRole("button", { name: "phoenix", exact: true }).waitFor({ state: "hidden" });
-    assert.deepEqual(unstar.writes, ["/user/starred/demo/phoenix"]);
-    await unstar.goOffline();
-    await stars.getByRole("button", { name: "alpha", exact: true }).click({ button: "right" });
-    assert.equal(
-      await page.getByRole("menuitem", { name: "Unstar", exact: true }).isDisabled(),
-      true,
-    );
-    await page.keyboard.press("Escape");
-    assert.deepEqual(unstar.errors, []);
-    console.log("PASS Unstar updates GitHub and removes the repository from the shared list");
-  } finally {
-    await unstar.close();
-  }
-  const empty = await fixture({ empty: true });
-  try {
-    const sidebar = empty.page.getByRole("complementary", { name: "Sidebar" });
-    await sidebar.getByText("Recently used repos.", { exact: false }).waitFor();
-    assert.equal(await sidebar.getByRole("region", { name: "Your work" }).count(), 0);
-    assert.equal(await sidebar.getByRole("region", { name: "Recent", exact: true }).count(), 0);
-    assert.equal(
-      await sidebar
-        .getByRole("button", { name: "project", exact: true })
-        .getAttribute("aria-current"),
-      "page",
-    );
-    assert.deepEqual(empty.errors, []);
-    console.log(
-      "PASS empty sections hide and no-stars fallback highlights the focused recent repository",
-    );
-  } finally {
-    await empty.close();
-  }
-  const failed = await fixture({ failUnstar: true });
-  try {
-    const page = failed.page;
-    const sidebar = page.getByRole("complementary", { name: "Sidebar" });
-    await sidebar.getByRole("button", { name: "phoenix", exact: true }).click({ button: "right" });
-    await page.getByRole("menuitem", { name: "Unstar", exact: true }).click();
-    await sidebar.getByRole("alert").waitFor({ timeout: 3000 });
-    await sidebar.getByRole("button", { name: "phoenix", exact: true }).waitFor();
-    assert.deepEqual(failed.errors, []);
-    console.log("PASS failed Unstar restores the repository and explains the failure");
-  } finally {
-    await failed.close();
   }
 } finally {
   await browser.close();

@@ -1,16 +1,14 @@
-import { GitPullRequest, History, Inbox, Search, Star } from "lucide-react";
-import {
-  type PointerEvent,
-  type ReactNode,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { Building2, ChevronRight, FolderGit2, Inbox, Search, Star } from "lucide-react";
+import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { RepoMark } from "@/app/components/shell/RepoMark";
 import type { useDocking } from "@/app/components/shell/useDocking";
 import { Button } from "@/app/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/app/components/ui/collapsible";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -18,32 +16,21 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/app/components/ui/context-menu";
+import { Empty, EmptyDescription } from "@/app/components/ui/empty";
 import { Input } from "@/app/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
+import { useNotificationUnreadCount } from "@/app/features/notifications/service";
 import {
-  type DashboardItem,
-  useMyOpenPrs,
-  useReviewRequestedPrs,
-} from "@/app/features/dashboard/hooks";
-import { notificationHref, notificationPageKey } from "@/app/features/notifications/api";
-import {
-  runNotificationAction,
-  useNotificationState,
-  useNotifications,
-  useNotificationUnreadCount,
-} from "@/app/features/notifications/service";
-import { useToggleStar } from "@/app/hooks/useRepoStarred";
+  useOrganizationRepositories,
+  useSidebarOrganizations,
+  useYourRepositories,
+} from "@/app/hooks/sidebarRepositories";
 import { useStableList } from "@/app/hooks/useStableList";
-import { useStarredRepos } from "@/app/hooks/useStarredRepos";
 import { cn } from "@/app/lib/cn";
-import { useCanMutate } from "@/app/lib/connectivity";
-import {
-  getRecentItemsSync,
-  hydrateRecentItems,
-  subscribeRecentItems,
-} from "@/app/lib/recentItems";
 import { focusPaneOfFocusedTab, openInNewTab, openOrJump, openToSide } from "@/app/lib/tabActions";
 import { getTabMeta, tabRepo } from "@/app/lib/tabMeta";
+import { useAuthStore } from "@/app/stores/auth";
+import { type Favorite, favoriteId, useFavoritesStore } from "@/app/stores/favorites";
 import { SIDEBAR_RAIL_WIDTH, useSidebarStore } from "@/app/stores/sidebar";
 import { focusedTab, hrefPathname, islands } from "@/app/workspace/model";
 import { useWorkspaceStore } from "@/app/workspace/store";
@@ -54,10 +41,10 @@ type Row = {
   label: string;
   repo?: string;
   meta?: string;
-  starred?: boolean;
+  kind?: "repo" | "view";
+  favorite?: Favorite;
   icon?: typeof Inbox;
   count?: number;
-  notificationIds?: string[];
 };
 
 export function Sidebar({ beginDrag }: { beginDrag: BeginDrag }) {
@@ -153,111 +140,52 @@ export function SidebarContent({
   onLaunch?: () => void;
 }) {
   const [filter, setFilter] = useState("");
-  const unreadCount = useNotificationUnreadCount();
-  const notifications = useNotifications();
-  const [showAll, setShowAll] = useState(false);
-  const [mutationError, setMutationError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  const unreadCount = useNotificationUnreadCount();
   const workspace = useWorkspaceStore((state) => state.workspace);
-  const recent = useSyncExternalStore(subscribeRecentItems, getRecentItemsSync);
-  const stars = useStarredRepos();
-  const reviews = useReviewRequestedPrs();
-  const authored = useMyOpenPrs();
-  useEffect(() => {
-    void hydrateRecentItems().catch(() => {});
-  }, []);
-  const openTabs = islands(workspace.layout).flatMap((island) => island.tabs);
-  const openHrefs = new Set(openTabs.map((tab) => tab.href));
+  const accountId = useAuthStore((state) => state.accountId);
+  const favorites = useFavoritesStore((state) => state.forAccount(accountId));
+  const [orgLimit, setOrgLimit] = useState(6);
+  const repos = useYourRepositories();
+  const orgs = useSidebarOrganizations();
+  const current = focusedTab(workspace);
+  const focusedRepo = tabRepo(hrefPathname(current.href));
   const openRepos = new Set(
-    openTabs.map((tab) => tabRepo(hrefPathname(tab.href))?.toLowerCase()).filter(Boolean),
+    islands(workspace.layout)
+      .flatMap((island) => island.tabs)
+      .map((tab) => tabRepo(hrefPathname(tab.href))),
   );
-  const focusedRepo = tabRepo(hrefPathname(focusedTab(workspace).href))?.toLowerCase();
-  const lastUsed = new Map<string, number>();
-  for (const item of recent) {
-    const repo = tabRepo(hrefPathname(item.href));
-    if (repo)
-      lastUsed.set(
-        repo.toLowerCase(),
-        Math.max(lastUsed.get(repo.toLowerCase()) ?? 0, item.visitedAt),
-      );
-  }
-  const matches = (row: Row) =>
-    `${row.label} ${row.repo ?? ""} ${row.meta ?? ""}`
-      .toLowerCase()
-      .includes(filter.trim().toLowerCase());
-  const yourWork = [
-    ...(reviews.data ?? [])
-      .map((item) => prRow(item, "Review requested"))
-      .filter(matches)
-      .slice(0, 5),
-    ...(authored.data ?? [])
-      .filter((item) => !reviews.data?.some((review) => review.id === item.id))
-      .map((item) => prRow(item, "Your pull request"))
-      .filter(matches)
-      .slice(0, 5),
-  ];
-  const fallback = stars.isSuccess && stars.data.length === 0;
-  const starred: Row[] = fallback
-    ? [...lastUsed.keys()]
-        .sort((a, b) => (lastUsed.get(b) ?? 0) - (lastUsed.get(a) ?? 0))
-        .map((repo) => ({
-          href: `/${repo}/code`,
-          label: repo.split("/")[1]!,
-          repo,
-          starred: false,
-        }))
-    : [...(stars.data ?? [])]
-        .sort(
-          (a, b) =>
-            (lastUsed.get(b.full_name.toLowerCase()) ?? 0) -
-            (lastUsed.get(a.full_name.toLowerCase()) ?? 0),
-        )
-        .map((repo) => ({
-          href: `/${repo.full_name}/code`,
-          label: repo.name,
-          repo: repo.full_name,
-          starred: true,
-        }));
-  const filteredStars = starred.filter(matches);
-  const recentRows: Row[] = [...recent]
-    .sort((a, b) => b.visitedAt - a.visitedAt)
-    .filter((item) => !openHrefs.has(item.href))
-    .map((item) => ({
-      href: item.href,
-      label: item.label,
-      repo: tabRepo(hrefPathname(item.href)) ?? undefined,
-      meta: item.meta,
-      icon: getTabMeta(hrefPathname(item.href)).icon,
-    }))
-    .filter(matches)
-    .slice(0, 5);
   const renderRow = (row: Row) => (
     <SidebarRow
-      key={row.href}
-      row={{
-        ...row,
-        notificationIds: notifications.data?.items
-          .filter((item) => {
-            const href = notificationHref(item);
-            return href && notificationPageKey(href) === notificationPageKey(row.href);
-          })
-          .map((item) => item.id),
-      }}
+      key={row.favorite?.id ?? row.href}
+      row={row}
       collapsed={collapsed}
       beginDrag={beginDrag}
       onLaunch={onLaunch}
-      onMutationError={setMutationError}
-      active={
-        row.starred !== undefined
-          ? row.repo?.toLowerCase() === focusedRepo
-          : row.href === focusedTab(workspace).href
-      }
-      open={!!row.repo && openRepos.has(row.repo.toLowerCase())}
+      active={row.kind === "repo" ? row.repo === focusedRepo : row.href === current.href}
+      open={!!row.repo && openRepos.has(row.repo)}
     />
   );
-  const workList = useStableList(yourWork, { key: (row) => row.href, resetKey: filter });
-  const starList = useStableList(filteredStars, { key: (row) => row.href, resetKey: filter });
-  const recentList = useStableList(recentRows, { key: (row) => row.href, resetKey: filter });
+  const favoriteRows = favorites.map((item) => {
+    const pathname = hrefPathname(item.href);
+    const meta = getTabMeta(pathname);
+    const repo = tabRepo(pathname);
+    return {
+      href: item.href,
+      kind: item.kind,
+      favorite: item,
+      repo,
+      label:
+        item.kind === "repo"
+          ? (repo?.split("/")[1] ?? meta.label)
+          : repo
+            ? `${repo.split("/")[1]} · ${meta.label}`
+            : meta.label,
+      icon: meta.icon,
+    };
+  });
+  const currentFavorite = favoriteId({ kind: "view", href: current.href });
+  const isCurrentFavorite = favorites.some((item) => item.id === currentFavorite);
   return (
     <nav
       aria-label="Workspace navigation"
@@ -287,7 +215,7 @@ export function SidebarContent({
             <Input
               ref={input}
               aria-label="Filter sidebar"
-              placeholder="Filter repos and PRs…"
+              placeholder="Find repos and favorites…"
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
             />
@@ -295,93 +223,228 @@ export function SidebarContent({
         </div>
         {renderRow({ href: "/", label: "Inbox", icon: Inbox, count: unreadCount })}
       </div>
-      {workList.items.length > 0 && (
-        <SidebarSection
-          title="Your work"
-          icon={GitPullRequest}
-          collapsed={collapsed}
-          listProps={workList.listProps}
-        >
-          {workList.items.map(renderRow)}
-        </SidebarSection>
-      )}
-      {starList.items.length > 0 && (
-        <SidebarSection
-          title="Starred"
-          icon={Star}
-          collapsed={collapsed}
-          listProps={starList.listProps}
-        >
-          {starList.items.slice(0, showAll || filter.trim() ? undefined : 8).map(renderRow)}
-          {fallback && !collapsed && (
-            <p className="px-2 text-caption text-muted-foreground">
-              Recently used repos. Star repos on GitHub to keep them here.
-            </p>
-          )}
-          {filteredStars.length > 8 && !filter.trim() && (
+      <SidebarSection title="Favorites" icon={Star} collapsed={collapsed}>
+        <RowList rows={favoriteRows} filter={filter} collapsed={collapsed} renderRow={renderRow} />
+        {!collapsed && (
+          <>
+            {!favorites.length && (
+              <Empty className="p-2">
+                <EmptyDescription>Keep repos and views here.</EmptyDescription>
+              </Empty>
+            )}
             <Button
               variant="ghost"
               size="sm"
-              aria-expanded={showAll}
-              className={cn("justify-start", collapsed && "invisible")}
-              onClick={() => setShowAll(!showAll)}
+              disabled={!accountId}
+              className="justify-start"
+              onClick={() => {
+                const store = useFavoritesStore.getState();
+                if (isCurrentFavorite) store.remove(accountId, currentFavorite);
+                else store.add(accountId, { kind: "view", href: current.href });
+              }}
             >
-              {showAll ? "Show less" : "Show all"}
+              <Star data-icon="inline-start" />
+              {isCurrentFavorite ? "Unfavorite current view" : "Favorite current view"}
+            </Button>
+            <p className="px-2 text-caption text-muted-foreground">
+              {accountId
+                ? "Only for this account, on this device."
+                : "Sign in to save favorites on this device."}
+            </p>
+          </>
+        )}
+      </SidebarSection>
+      <SidebarSection title="Your repos" icon={FolderGit2} collapsed={collapsed}>
+        <RowList
+          rows={(repos.data ?? []).map((repo) => repoRow(repo.full_name))}
+          filter={filter}
+          collapsed={collapsed}
+          renderRow={renderRow}
+        />
+        {!collapsed && (
+          <ListStatus
+            pending={repos.isPending}
+            error={repos.isError}
+            empty={repos.isSuccess && !repos.data.length}
+            onRetry={() => void repos.refetch()}
+          />
+        )}
+      </SidebarSection>
+      {(!!orgs.data?.length || orgs.isPending || orgs.isError) && (
+        <SidebarSection title="Organizations" icon={Building2} collapsed={collapsed}>
+          {(orgs.data ?? []).slice(0, orgLimit).map((org) => (
+            <OrganizationRow
+              key={org.id}
+              org={org.login}
+              filter={filter}
+              collapsed={collapsed}
+              renderRow={renderRow}
+            />
+          ))}
+          {!collapsed && (orgs.data?.length ?? 0) > orgLimit && (
+            <Button variant="ghost" size="sm" onClick={() => setOrgLimit((n) => n + 12)}>
+              Show more organizations
             </Button>
           )}
+          {!collapsed && (
+            <ListStatus
+              pending={orgs.isPending}
+              error={orgs.isError}
+              onRetry={() => void orgs.refetch()}
+            />
+          )}
         </SidebarSection>
-      )}
-      {recentList.items.length > 0 && (
-        <SidebarSection
-          title="Recent"
-          icon={History}
-          collapsed={collapsed}
-          listProps={recentList.listProps}
-        >
-          {recentList.items.map(renderRow)}
-        </SidebarSection>
-      )}
-      {mutationError && (
-        <p
-          role="alert"
-          className={cn("px-2 text-caption text-destructive", collapsed && "sr-only")}
-        >
-          {mutationError}
-        </p>
-      )}
-      {!collapsed &&
-        filter.trim() &&
-        !yourWork.length &&
-        !filteredStars.length &&
-        !recentRows.length && (
-          <p role="status" className="px-2 text-caption text-muted-foreground">
-            No matching repos or pages.
-          </p>
-        )}
-      {!collapsed && (stars.isError || reviews.isError || authored.isError) && (
-        <p role="status" className="px-2 text-caption text-muted-foreground">
-          Some sidebar items could not be loaded.
-        </p>
       )}
     </nav>
   );
 }
 
+function repoRow(repo: string): Row {
+  return { href: `/${repo}/code`, label: repo.split("/")[1]!, repo, kind: "repo" };
+}
+function ListStatus({
+  pending,
+  error,
+  empty,
+  onRetry,
+}: {
+  pending: boolean;
+  error: boolean;
+  empty?: boolean;
+  onRetry: () => void;
+}) {
+  if (error)
+    return (
+      <div role="status" className="px-2 text-caption text-muted-foreground">
+        Could not load repositories. Check account access.
+        <Button variant="ghost" size="sm" onClick={onRetry}>
+          Retry
+        </Button>
+      </div>
+    );
+  if (pending || empty)
+    return (
+      <p role="status" className="px-2 text-caption text-muted-foreground">
+        {pending ? "Loading…" : "No accessible repositories."}
+      </p>
+    );
+  return null;
+}
+function RowList({
+  rows,
+  filter,
+  collapsed,
+  renderRow,
+}: {
+  rows: Row[];
+  filter: string;
+  collapsed: boolean;
+  renderRow: (row: Row) => ReactNode;
+}) {
+  const [limit, setLimit] = useState(6);
+  const filtered = rows.filter((row) =>
+    `${row.label} ${row.repo ?? ""}`.toLowerCase().includes(filter.trim().toLowerCase()),
+  );
+  const list = useStableList(filtered, {
+    key: (row) => row.favorite?.id ?? row.href,
+    resetKey: filter,
+  });
+  return (
+    <div {...list.listProps} className="flex flex-col">
+      {list.items.slice(0, limit).map(renderRow)}
+      {!collapsed && filtered.length > limit && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="justify-start"
+          onClick={() => setLimit((n) => n + 12)}
+        >
+          Show more
+        </Button>
+      )}
+      {!collapsed && limit > 6 && (
+        <Button variant="ghost" size="sm" className="justify-start" onClick={() => setLimit(6)}>
+          Show less
+        </Button>
+      )}
+      {!collapsed && filter.trim() && !filtered.length && (
+        <p className="px-2 text-caption text-muted-foreground">No matches.</p>
+      )}
+    </div>
+  );
+}
+function OrganizationRow({
+  org,
+  collapsed,
+  filter,
+  renderRow,
+}: {
+  org: string;
+  collapsed: boolean;
+  filter: string;
+  renderRow: (row: Row) => ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const repos = useOrganizationRepositories(org, expanded && !collapsed);
+  return (
+    <Collapsible
+      open={expanded && !collapsed}
+      onOpenChange={(open) => {
+        if (collapsed) useSidebarStore.getState().toggle();
+        setExpanded(open);
+      }}
+    >
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              size={collapsed ? "icon" : "sm"}
+              aria-label={`${org} repositories`}
+              className={cn("w-full justify-start", !collapsed && "gap-2")}
+            >
+              <Building2 data-icon="inline-start" />
+              {!collapsed && (
+                <>
+                  <span className="min-w-0 flex-1 truncate text-left">{org}</span>
+                  <ChevronRight data-icon="inline-end" className={cn(expanded && "rotate-90")} />
+                </>
+              )}
+            </Button>
+          </CollapsibleTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="right">{org} repositories</TooltipContent>
+      </Tooltip>
+      <CollapsibleContent className="pl-3">
+        <RowList
+          rows={(repos.data ?? []).map((repo) => repoRow(repo.full_name))}
+          filter={filter}
+          collapsed={collapsed}
+          renderRow={renderRow}
+        />
+        <ListStatus
+          pending={repos.isPending}
+          error={repos.isError}
+          empty={repos.isSuccess && !repos.data.length}
+          onRetry={() => void repos.refetch()}
+        />
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
 function SidebarSection({
   title,
   icon: Icon,
   collapsed,
   children,
-  listProps,
 }: {
   title: string;
   icon: typeof Inbox;
   collapsed: boolean;
   children: ReactNode;
-  listProps: ReturnType<typeof useStableList>["listProps"];
 }) {
   return (
-    <section {...listProps} aria-label={title} className="flex flex-col gap-0">
+    <section aria-label={title} className="flex flex-col gap-0">
       <h2 className="flex h-6 shrink-0 items-center gap-2 px-2 text-micro font-medium uppercase tracking-widest text-muted-foreground">
         <Icon className="size-4 shrink-0" aria-hidden />
         <span className={cn("truncate", collapsed && "sr-only")}>{title}</span>
@@ -391,23 +454,11 @@ function SidebarSection({
   );
 }
 
-function prRow(item: DashboardItem, reason: string): Row {
-  const repo = `${item.ownerRepo.owner}/${item.ownerRepo.repo}`;
-  return {
-    href: `/${repo}/pull/${item.number}`,
-    label: item.title,
-    repo,
-    meta: `${reason} · #${item.number}`,
-    icon: GitPullRequest,
-  };
-}
-
 function SidebarRow({
   row,
   collapsed,
   beginDrag,
   onLaunch,
-  onMutationError,
   active,
   open,
 }: {
@@ -415,15 +466,14 @@ function SidebarRow({
   collapsed: boolean;
   beginDrag?: BeginDrag;
   onLaunch?: () => void;
-  onMutationError: (message: string | null) => void;
   active: boolean;
   open: boolean;
 }) {
-  const [owner = "", repo = ""] = row.repo?.split("/") ?? [];
-  const unstar = useToggleStar(owner, repo);
-  const { canMutate, reason } = useCanMutate();
-  const notificationBusy = useNotificationState((state) =>
-    state.busy.some((id) => row.notificationIds?.includes(id)),
+  const accountId = useAuthStore((state) => state.accountId);
+  const entry = { kind: row.kind ?? ("view" as const), href: row.href };
+  const id = favoriteId(entry);
+  const isFavorite = useFavoritesStore((state) =>
+    state.forAccount(accountId).some((item) => item.id === id),
   );
   const navigation = useRef(false);
   const Icon = row.icon ?? Star;
@@ -435,57 +485,93 @@ function SidebarRow({
   };
   return (
     <ContextMenu>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <ContextMenuTrigger asChild>
-            <button
-              type="button"
-              data-sidebar-row
-              data-sidebar-href={row.href}
-              aria-label={row.count ? `${row.label}, ${row.count} unread` : row.label}
-              aria-current={active ? "page" : undefined}
-              onPointerDown={(event) =>
-                beginDrag?.(event, { type: "href", href: row.href }, row.label)
-              }
-              onClick={(event) =>
-                launch(() => (event.altKey ? openToSide(row.href) : openOrJump(row.href)))
-              }
-              className={cn(
-                "flex h-8 w-full shrink-0 items-center gap-2 rounded-lg px-2 text-left text-ui outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-foreground/15",
-                active && "bg-accent hover:bg-accent",
-              )}
-            >
-              {row.repo ? (
-                <RepoMark repo={row.repo} />
-              ) : (
-                <Icon aria-hidden className="size-4 shrink-0" />
-              )}
-              {!collapsed && (
-                <>
-                  <span className="min-w-0 flex-1 truncate">{row.label}</span>
-                  {!!row.count && (
-                    <span aria-hidden className="text-caption tabular-nums text-muted-foreground">
-                      {row.count}
-                    </span>
-                  )}
-                  {row.starred !== undefined && open && (
-                    <span
-                      role="img"
-                      aria-label="Has open tabs"
-                      className="size-1 shrink-0 rounded-full bg-muted-foreground/60"
-                    />
-                  )}
-                </>
-              )}
-            </button>
-          </ContextMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="right">
-          {row.label}
-          {row.repo && <span className="ml-2 font-mono">{row.repo}</span>}
-          {row.meta && <span className="ml-2">{row.meta}</span>}
-        </TooltipContent>
-      </Tooltip>
+      <div className="relative group">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ContextMenuTrigger asChild>
+              <button
+                type="button"
+                data-sidebar-row
+                data-sidebar-href={row.href}
+                aria-label={
+                  row.repo
+                    ? `${row.label} · ${row.repo}`
+                    : row.count
+                      ? `${row.label}, ${row.count} unread`
+                      : row.label
+                }
+                aria-current={active ? "page" : undefined}
+                onPointerDown={(event) =>
+                  beginDrag?.(event, { type: "href", href: row.href }, row.label)
+                }
+                onClick={(event) =>
+                  launch(() => (event.altKey ? openToSide(row.href) : openOrJump(row.href)))
+                }
+                className={cn(
+                  "flex h-8 w-full shrink-0 items-center gap-2 rounded-lg px-2 text-left text-ui outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-foreground/15",
+                  active && "bg-accent hover:bg-accent",
+                  !collapsed && "pr-8",
+                )}
+              >
+                {row.repo ? (
+                  <RepoMark repo={row.repo} />
+                ) : (
+                  <Icon aria-hidden className="size-4 shrink-0" />
+                )}
+                {!collapsed && (
+                  <>
+                    <span className="min-w-0 flex-1 truncate">{row.label}</span>
+                    {!!row.count && (
+                      <span aria-hidden className="text-caption tabular-nums text-muted-foreground">
+                        {row.count}
+                      </span>
+                    )}
+                    {row.kind === "repo" && open && (
+                      <span
+                        role="img"
+                        aria-label="Has open tabs"
+                        className="size-1 shrink-0 rounded-full bg-muted-foreground/60"
+                      />
+                    )}
+                  </>
+                )}
+              </button>
+            </ContextMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            {row.label}
+            {row.repo && <span className="ml-2 font-mono">{row.repo}</span>}
+            {row.meta && <span className="ml-2">{row.meta}</span>}
+          </TooltipContent>
+        </Tooltip>
+        {!collapsed && row.kind && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="absolute right-1 top-1"
+                aria-label={`${isFavorite ? "Remove favorite" : "Favorite"} ${row.label} · ${row.repo ?? row.href}`}
+                disabled={!accountId}
+                onClick={() => {
+                  const store = useFavoritesStore.getState();
+                  if (isFavorite) store.remove(accountId, id);
+                  else store.add(accountId, entry);
+                }}
+              >
+                <Star data-icon="inline-start" className={cn(isFavorite && "fill-current")} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isFavorite
+                ? "Remove favorite"
+                : row.kind === "repo"
+                  ? "Favorite repository"
+                  : "Favorite view"}
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
       <ContextMenuContent
         onCloseAutoFocus={(event) => {
           if (navigation.current) {
@@ -511,43 +597,22 @@ function SidebarRow({
           </ContextMenuItem>
         </ContextMenuGroup>
         <DockingMenu source={{ type: "href", href: row.href }} onDock={onLaunch} />
-        {!!row.notificationIds?.length && (
-          <ContextMenuGroup>
-            <ContextMenuItem
-              disabled={!canMutate || notificationBusy}
-              title={reason}
-              onSelect={() => {
-                onMutationError(null);
-                void runNotificationAction(row.notificationIds!, "done")
-                  .then((result) => {
-                    if (result.failed.length)
-                      onMutationError(`Could not mark ${row.label} done. Try again.`);
-                  })
-                  .catch(() => onMutationError(`Could not mark ${row.label} done. Try again.`));
-              }}
-            >
-              Mark done
-            </ContextMenuItem>
-          </ContextMenuGroup>
-        )}
-        {row.starred && (
-          <ContextMenuGroup>
-            <ContextMenuItem
-              disabled={!canMutate || unstar.isPending}
-              title={reason}
-              onSelect={() => {
-                onMutationError(null);
-                // Optimistic removal unmounts this row. The content owns the
-                // failure notice so it survives until GitHub responds.
-                void unstar
-                  .mutateAsync(false)
-                  .catch(() => onMutationError(`Could not unstar ${row.label}. Try again.`));
-              }}
-            >
-              Unstar
-            </ContextMenuItem>
-          </ContextMenuGroup>
-        )}
+        <ContextMenuGroup>
+          <ContextMenuItem
+            disabled={!accountId}
+            onSelect={() => {
+              const store = useFavoritesStore.getState();
+              if (isFavorite) store.remove(accountId, id);
+              else store.add(accountId, entry);
+            }}
+          >
+            {isFavorite
+              ? "Remove favorite"
+              : row.kind === "repo"
+                ? "Favorite repository"
+                : "Favorite view"}
+          </ContextMenuItem>
+        </ContextMenuGroup>
       </ContextMenuContent>
     </ContextMenu>
   );
