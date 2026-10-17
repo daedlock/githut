@@ -1,11 +1,12 @@
 import { beforeEach, expect, test } from "bun:test";
 import { createWorkspace, focusedIsland, islands } from "@/app/workspace/model";
-import { dispatch, getWorkspace, useWorkspaceStore } from "@/app/workspace/store";
+import { dispatch, getWorkspace, undoLayout, useWorkspaceStore } from "@/app/workspace/store";
 
 beforeEach(() =>
   useWorkspaceStore.setState({
     workspace: createWorkspace(["/"]),
     undo: [],
+    redo: [],
     notice: null,
     dockingRevision: 0,
   }),
@@ -25,7 +26,7 @@ test("merging islands offers undo that restores sizes and keeps a surviving tab'
   expect(islands(getWorkspace().layout)).toHaveLength(1);
   expect(useWorkspaceStore.getState().notice?.label).toBe("Islands merged");
   dispatch({ type: "navigate", tabId, href: "/two/deeper" });
-  dispatch({ type: "undo" });
+  undoLayout();
   expect(islands(getWorkspace().layout).map((island) => island.id)).toEqual([left!.id, right!.id]);
   expect(focusedIsland(getWorkspace()).tabs[0]?.href).toBe("/two/deeper");
   const restored = getWorkspace().layout;
@@ -41,41 +42,35 @@ test("undo restores an island with several tabs, its sizes and its selected tab"
   dispatch({ type: "closeIsland", islandId: before.focusedIslandId });
   expect(islands(getWorkspace().layout)).toHaveLength(1);
   expect(useWorkspaceStore.getState().notice?.label).toBe("Island closed");
-  dispatch({ type: "undo" });
+  undoLayout();
   expect(getWorkspace()).toEqual(before);
 });
 
-test("closing other tabs offers undo and later opened tabs are undone first", () => {
+test("closing other tabs offers undo that keeps tabs opened since", () => {
   dispatch({ type: "openTab", href: "/two" });
   dispatch({ type: "openTab", href: "/three" });
   const before = getWorkspace();
   dispatch({ type: "closeOtherTabs", tabId: focusedIsland(before).selectedTabId });
   expect(useWorkspaceStore.getState().notice?.label).toBe("Other tabs closed");
   dispatch({ type: "openTab", href: "/four" });
-  dispatch({ type: "undo" });
-  expect(focusedIsland(getWorkspace()).tabs.map((tab) => tab.href)).toEqual(["/three"]);
-  dispatch({ type: "undo" });
-  expect(getWorkspace()).toEqual(before);
+  expect(useWorkspaceStore.getState().notice?.label).toBe("Other tabs closed");
+  undoLayout();
+  expect(focusedIsland(getWorkspace()).tabs.map((tab) => tab.href)).toEqual([
+    "/",
+    "/two",
+    "/three",
+    "/four",
+  ]);
+  expect(getWorkspace().closed).toEqual([]);
 });
 
-test("undoing a pin preserves the tab opened before it", () => {
+test("pins, opens, jumps and side openings are not undoable", () => {
   dispatch({ type: "openTab", href: "/two" });
-  const before = getWorkspace();
-  dispatch({ type: "pinTab", tabId: focusedIsland(before).selectedTabId, pinned: true });
-  dispatch({ type: "undo" });
-  expect(getWorkspace()).toEqual(before);
-});
-
-test("launcher and side openings undo before earlier layout changes", () => {
-  dispatch({ type: "openTab", href: "/two" });
-  const before = getWorkspace();
+  dispatch({ type: "pinTab", tabId: focusedIsland(getWorkspace()).selectedTabId, pinned: true });
   dispatch({ type: "openOrJump", href: "/three" });
-  const launched = getWorkspace();
+  dispatch({ type: "openOrJump", href: "/two" });
   dispatch({ type: "openToSide", href: "/four" });
-  dispatch({ type: "undo" });
-  expect(getWorkspace()).toEqual(launched);
-  dispatch({ type: "undo" });
-  expect(getWorkspace()).toEqual(before);
+  expect(useWorkspaceStore.getState().undo).toEqual([]);
 });
 
 test("reset layout gathers every tab and pin into one island and can be undone", () => {
@@ -97,6 +92,6 @@ test("reset layout gathers every tab and pin into one island and can be undone",
   expect(focusedIsland(after).selectedTabId).toBe(selected);
   expect(focusedIsland(after).pinned).toContain(selected);
   expect(after.maximizedIslandId).toBeNull();
-  dispatch({ type: "undo" });
+  undoLayout();
   expect(getWorkspace()).toEqual(before);
 });
