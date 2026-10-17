@@ -113,6 +113,40 @@ export function applyDock(ws: Workspace, source: DockSource, target: DockTarget)
   return { ...ws, layout, focusedIslandId: moved.id, maximizedIslandId: null };
 }
 
+export type ReorderPosition = "left" | "right" | "start" | "end";
+
+/**
+ * The tab menu's and palette's reorder entries, from one place: each target is
+ * the strip gap to drop at (an index before removing the tab, hence `+ 2` for
+ * "right"), and an entry is disabled when the dock would change nothing,
+ * which also covers moves that pin normalization would undo.
+ */
+export function reorderTargets(
+  ws: Workspace,
+  tabId: string,
+): { position: ReorderPosition; target: DockTarget; disabled: boolean }[] {
+  const found = findTab(ws.layout, tabId);
+  if (!found) return [];
+  const { island } = found;
+  const index = island.tabs.findIndex((tab) => tab.id === tabId);
+  const source: DockSource = { type: "tab", tabId };
+  return (
+    [
+      ["left", index - 1],
+      ["right", index + 2],
+      ["start", 0],
+      ["end", island.tabs.length],
+    ] as const
+  ).map(([position, at]) => {
+    const target: DockTarget = { type: "tabs", islandId: island.id, index: Math.max(0, at) };
+    return {
+      position,
+      target,
+      disabled: applyDock(ws, source, target) === ws,
+    };
+  });
+}
+
 function withoutTabs(island: Island, ids: Set<string>): Island {
   return {
     ...island,

@@ -15,7 +15,7 @@ import {
   DropdownMenuSubTrigger,
 } from "@/app/components/ui/dropdown-menu";
 import { getTabMeta } from "@/app/lib/tabMeta";
-import type { DockSource, DockTarget } from "@/app/workspace/docking";
+import { type DockSource, type DockTarget, reorderTargets } from "@/app/workspace/docking";
 import {
   findIsland,
   findTab,
@@ -59,7 +59,7 @@ export function DockingMenu({
     onDock?.();
   };
   const isTab = source.type === "tab";
-  const index = found ? from.tabs.findIndex((tab) => tab.id === found.tab.id) : -1;
+  const reorder = found ? reorderTargets(workspace, found.tab.id) : [];
   return (
     <>
       <Group>
@@ -81,32 +81,11 @@ export function DockingMenu({
               <Trigger>Reorder tab</Trigger>
               <Content>
                 <Group>
-                  <Item
-                    disabled={index === 0}
-                    onSelect={() => dock({ type: "tabs", islandId: from.id, index: index - 1 })}
-                  >
-                    Move left
-                  </Item>
-                  <Item
-                    disabled={index === from.tabs.length - 1}
-                    onSelect={() => dock({ type: "tabs", islandId: from.id, index: index + 2 })}
-                  >
-                    Move right
-                  </Item>
-                  <Item
-                    disabled={index === 0}
-                    onSelect={() => dock({ type: "tabs", islandId: from.id, index: 0 })}
-                  >
-                    Move to start
-                  </Item>
-                  <Item
-                    disabled={index === from.tabs.length - 1}
-                    onSelect={() =>
-                      dock({ type: "tabs", islandId: from.id, index: from.tabs.length })
-                    }
-                  >
-                    Move to end
-                  </Item>
+                  {reorder.map(({ position, target, disabled }) => (
+                    <Item key={position} disabled={disabled} onSelect={() => dock(target)}>
+                      {REORDER_LABEL[position]}
+                    </Item>
+                  ))}
                 </Group>
               </Content>
             </Sub>
@@ -210,6 +189,13 @@ export function DockingMenu({
     </>
   );
 }
+
+const REORDER_LABEL = {
+  left: "Move left",
+  right: "Move right",
+  start: "Move to start",
+  end: "Move to end",
+} as const;
 
 function islandLabel(id: string, all: ReturnType<typeof islands>): string {
   const index = all.findIndex((island) => island.id === id);

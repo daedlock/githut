@@ -1,5 +1,5 @@
 import { getTabMeta } from "@/app/lib/tabMeta";
-import type { DockSource, DockTarget } from "@/app/workspace/docking";
+import { type DockSource, type DockTarget, reorderTargets } from "@/app/workspace/docking";
 import { layoutGeometry } from "@/app/workspace/geometry";
 import {
   focusedIsland,
@@ -112,20 +112,8 @@ export function buildWorkspaceCommands(
     );
   }
 
-  const index = from.tabs.findIndex((item) => item.id === tab.id);
-  for (const [position, at, disabled] of [
-    ["left", index - 1, index === 0],
-    ["right", index + 2, index === from.tabs.length - 1],
-    ["start", 0, index === 0],
-    ["end", from.tabs.length, index === from.tabs.length - 1],
-  ] as const) {
-    dock(
-      `reorder-${position}`,
-      `Move focused tab ${position}`,
-      tabSource,
-      { type: "tabs", islandId: from.id, index: at },
-      disabled,
-    );
+  for (const { position, target, disabled } of reorderTargets(workspace, tab.id)) {
+    dock(`reorder-${position}`, `Move focused tab ${position}`, tabSource, target, disabled);
   }
 
   all.forEach((island, i) => {
