@@ -3,6 +3,7 @@ import {
   hrefPathname,
   type Island,
   type LayoutNode,
+  newTab,
   normalizeHref,
   normalizeWorkspace,
   type Tab,
@@ -18,14 +19,20 @@ import {
 //   localStorage    githut.workspace         the last-used window's layout,
 //                                            which a new window starts from
 //
-// so two windows never fight over one layout. On first load the tab strip's
-// tabs (`githut.tabs.v3`) migrate into a single island in the same order.
-// `closed` is session state and isn't saved.
+// so two windows never fight over one layout. On first load the old tab
+// strip's tabs (`githut.tabs.v1`, or the `githut.tabs.v3` groundwork format)
+// migrate into a single island in the same order, keeping the selected tab
+// and pins; the old keys are then deleted. `closed` is session state and
+// isn't saved.
 
 export const WORKSPACE_SCHEMA_VERSION = 1;
 const WINDOW_KEY = "githut.workspace.window";
 const LAST_USED_KEY = "githut.workspace";
-const LEGACY_TABS_KEY = "githut.tabs.v3";
+/** Retired storage, newest first: the tab strip keys migrate, the rest are dropped. */
+const LEGACY_TABS_KEYS = ["githut.tabs.v3", "githut.tabs.v1"];
+const RETIRED_KEYS = ["githut.workspaces.v1", "githut.workspaces.v2"];
+/** Smallest relative size a saved split child keeps, so none loads as a 0px island. */
+const MIN_SAVED_SIZE = 0.05;
 
 type Saved = {
   version: number;
@@ -37,19 +44,22 @@ const MIGRATIONS: ((data: unknown) => unknown)[] = [];
 
 /** This window's layout, else the last-used one, else migrated tabs, else one island at `href`. */
 export function loadWorkspace(href: string): Workspace {
-  // The old repository workspace bar is retired; islands own persistence now.
+  const local = safeStorage("local");
+  const workspace =
+    read(safeStorage("session")?.getItem(WINDOW_KEY)) ??
+    read(local?.getItem(LAST_USED_KEY)) ??
+    LEGACY_TABS_KEYS.reduce<Workspace | null>(
+      (found, key) => found ?? migrateLegacyTabs(local?.getItem(key)),
+      null,
+    ) ??
+    createWorkspace([hrefPathname(href) === "/settings" ? "/" : href]);
+  // Islands own persistence now; the caller saves the result right away.
   try {
-    safeStorage("local")?.removeItem("githut.workspaces.v1");
-    safeStorage("local")?.removeItem("githut.workspaces.v2");
+    for (const key of [...LEGACY_TABS_KEYS, ...RETIRED_KEYS]) local?.removeItem(key);
   } catch {
     /* Storage may be disabled. */
   }
-  return (
-    read(safeStorage("session")?.getItem(WINDOW_KEY)) ??
-    read(safeStorage("local")?.getItem(LAST_USED_KEY)) ??
-    migrateLegacyTabs(safeStorage("local")?.getItem(LEGACY_TABS_KEY)) ??
-    createWorkspace([hrefPathname(href) === "/settings" ? "/" : href])
-  );
+  return workspace;
 }
 
 export function saveWorkspace(ws: Workspace, { lastUsed = true } = {}) {
@@ -85,7 +95,7 @@ function read(raw: string | null | undefined): Workspace | null {
     }
     const w = data.workspace as Partial<Saved["workspace"]> | undefined;
     const layout = parseNode(w?.layout);
-    if (!layout) return null;
+    if (!layout || !hasUniqueIds(layout)) return null;
     return normalizeWorkspace({
       layout,
       focusedIslandId: typeof w?.focusedIslandId === "string" ? w.focusedIslandId : "",
@@ -104,7 +114,7 @@ function read(raw: string | null | undefined): Workspace | null {
 function parseNode(value: unknown): LayoutNode | null {
   if (!value || typeof value !== "object") return null;
   const n = value as Record<string, unknown>;
-  if (typeof n.id !== "string") return null;
+  if (typeof n.id !== "string" || !n.id) return null;
   if (n.kind === "island") {
     if (!Array.isArray(n.tabs)) return null;
     const tabs = n.tabs
@@ -123,18 +133,45 @@ function parseNode(value: unknown): LayoutNode | null {
   if (n.kind === "split") {
     if (n.direction !== "row" && n.direction !== "column") return null;
     if (!Array.isArray(n.children) || !Array.isArray(n.sizes)) return null;
+    if (!n.children.length || n.children.length !== n.sizes.length) return null;
     const children = n.children.map(parseNode);
     if (children.some((c) => !c)) return null;
-    const sizes = n.sizes.map((s) => (typeof s === "number" && s > 0 ? s : 0));
     return {
       kind: "split",
       id: n.id,
       direction: n.direction,
       children: children as LayoutNode[],
-      sizes,
+      sizes: savedSizes(n.sizes),
     };
   }
   return null;
+}
+
+/** Relative sizes summing to 1, each at least `MIN_SAVED_SIZE`; junk becomes an even share. */
+function savedSizes(raw: unknown[]): number[] {
+  const even = 1 / raw.length;
+  const valid = raw.map((s) => (typeof s === "number" && Number.isFinite(s) && s > 0 ? s : even));
+  const total = valid.reduce((a, b) => a + b, 0);
+  const floored = valid.map((s) => Math.max(s / total, MIN_SAVED_SIZE));
+  const sum = floored.reduce((a, b) => a + b, 0);
+  return floored.map((s) => s / sum);
+}
+
+/** Node ids and tab ids must each be unique, or commands would edit several places at once. */
+function hasUniqueIds(layout: LayoutNode): boolean {
+  const nodes = new Set<string>();
+  const tabs = new Set<string>();
+  const walk = (node: LayoutNode): boolean => {
+    if (nodes.has(node.id)) return false;
+    nodes.add(node.id);
+    if (node.kind === "split") return node.children.every(walk);
+    for (const tab of node.tabs) {
+      if (tabs.has(tab.id)) return false;
+      tabs.add(tab.id);
+    }
+    return true;
+  };
+  return walk(layout);
 }
 
 function isTab(value: unknown): value is Tab {
@@ -142,23 +179,40 @@ function isTab(value: unknown): value is Tab {
   return !!t && typeof t.id === "string" && typeof t.href === "string";
 }
 
-/** The tab strip's `{ tabs, activeId }` (zustand persist format) → one island. */
+/**
+ * The old tab strip's zustand persist state → one island. `main` saved
+ * `{ tabs: [{ id, href, pinned, … }], activeTabId }` under `githut.tabs.v1`;
+ * the groundwork branch saved `{ tabs, activeId }` under `githut.tabs.v3`.
+ * Tabs get fresh ids, because v1 used the pathname as the id.
+ */
 function migrateLegacyTabs(raw: string | null | undefined): Workspace | null {
   if (!raw) return null;
   try {
-    const state = (JSON.parse(raw) as { state?: { tabs?: unknown; activeId?: unknown } }).state;
-    const tabs = Array.isArray(state?.tabs)
-      ? state.tabs.filter(isTab).filter((t) => hrefPathname(t.href) !== "/settings")
+    const state = (
+      JSON.parse(raw) as { state?: { tabs?: unknown; activeTabId?: unknown; activeId?: unknown } }
+    ).state;
+    const old = Array.isArray(state?.tabs)
+      ? state.tabs
+          .filter(isTab)
+          .filter((t) => hrefPathname(t.href) !== "/settings")
+          .filter((t, i, all) => all.findIndex((o) => o.id === t.id) === i)
       : [];
-    if (!tabs.length) return null;
-    const ws = createWorkspace(tabs.map((t) => t.href));
+    if (!old.length) return null;
+    const activeId = state?.activeTabId ?? state?.activeId;
+    const tabs = old.map((t) => newTab(t.href));
+    const selected = Math.max(
+      0,
+      old.findIndex((t) => t.id === activeId),
+    );
+    const pinned = old.flatMap((t, i) =>
+      (t as { pinned?: unknown }).pinned === true ? [tabs[i]!.id] : [],
+    );
+    const ws = createWorkspace([]);
     const island = ws.layout as Island;
-    const migrated = tabs.map((t) => ({ id: t.id, href: normalizeHref(t.href) }));
-    const selected = migrated.find((t) => t.id === state?.activeId) ?? migrated[0]!;
-    return {
+    return normalizeWorkspace({
       ...ws,
-      layout: { ...island, tabs: migrated, selectedTabId: selected.id },
-    };
+      layout: { ...island, tabs, pinned, selectedTabId: tabs[selected]!.id },
+    });
   } catch {
     return null;
   }
