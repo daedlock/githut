@@ -202,7 +202,7 @@ try {
     await trail.getByText("Navigation issue 1").waitFor();
 
     // A sibling picker opens on the current item; ↓ ↵ moves this tab.
-    await second.getByRole("button", { name: "Other issues", exact: true }).click();
+    await second.getByRole("button", { name: "Switch issue", exact: true }).click();
     await page.getByRole("option", { name: /#1 Navigation issue 1/, selected: true }).waitFor();
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
@@ -218,7 +218,7 @@ try {
     await tabCount(page, 3);
 
     // The section picker filters, and its chevron toggles it.
-    const sections = second.getByRole("button", { name: "project sections", exact: true });
+    const sections = second.getByRole("button", { name: "Switch section", exact: true });
     await sections.click();
     await page.getByRole("option", { name: "Code", selected: true }).waitFor();
     await sections.click();
@@ -285,7 +285,7 @@ try {
     // Offline an unloaded list's request pauses: the picker says so instead
     // of pulsing forever, and fills in by itself once back online.
     await page.context().setOffline(true);
-    await page.getByRole("button", { name: "Other pull requests", exact: true }).click();
+    await page.getByRole("button", { name: "Switch pull request", exact: true }).click();
     await page.getByRole("alert").getByText("Couldn't load this list.").waitFor();
     await page.context().setOffline(false);
     await page.getByRole("alert").waitFor({ state: "detached", timeout: 8000 });

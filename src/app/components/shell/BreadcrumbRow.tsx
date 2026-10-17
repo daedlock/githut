@@ -132,7 +132,7 @@ function RepoTrail({ tab, crumbs, open }: { tab: Tab; crumbs: Breadcrumbs; open:
           <span className="truncate">{section.label}</span>
         </Crumb>
         <SiblingPicker
-          label={`${name} sections`}
+          label="Switch section"
           placeholder="Go to section…"
           items={SECTIONS.map((s) => ({
             href: sectionHref(crumbs.repo, s.id),
@@ -311,7 +311,7 @@ function statusOf(q: QueryLike, count: number): PickerStatus {
 function RepoPicker({ tab, repo, open }: { tab: Tab; repo: string; open: Open }) {
   return (
     <SiblingPicker
-      label="Other repositories"
+      label="Switch repository"
       placeholder="Find a repository…"
       load={(render) => <RepoItems tab={tab} repo={repo} render={render} />}
       onPick={open}
@@ -393,7 +393,7 @@ function ItemPicker({
   const isPull = item.kind === "pull";
   return (
     <SiblingPicker
-      label={isPull ? "Other pull requests" : "Other issues"}
+      label={isPull ? "Switch pull request" : "Switch issue"}
       placeholder={isPull ? "Find a pull request…" : "Find an issue…"}
       load={(render) =>
         isPull ? (

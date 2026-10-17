@@ -54,7 +54,7 @@ export function SiblingPicker({
   load,
   onPick,
 }: {
-  /** Accessible name of the chevron, e.g. "Other sections". */
+  /** Accessible name of the chevron, e.g. "Switch section". */
   label: string;
   placeholder: string;
   /** Custom trigger (the branch chip); defaults to the crumb chevron. */
@@ -69,14 +69,35 @@ export function SiblingPicker({
   onPick: (href: string, mode: OpenMode) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [tip, setTip] = useState(false);
+  // Closing the picker returns focus to the trigger, which would open its
+  // tooltip and leave it stuck there. Ignore that one focus; hovering or
+  // tabbing back in shows the tooltip again.
+  const returningFocus = useRef(false);
+  const setPickerOpen = (next: boolean) => {
+    if (!next) returningFocus.current = true;
+    setTip(false);
+    setOpen(next);
+  };
   const pick = (href: string, mode: OpenMode) => {
-    setOpen(false);
+    setPickerOpen(false);
     onPick(href, mode);
   };
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <Tooltip>
-        <TooltipTrigger asChild>
+    <Popover open={open} onOpenChange={setPickerOpen}>
+      <Tooltip
+        open={tip && !open}
+        onOpenChange={(next) => setTip(next && !returningFocus.current)}
+      >
+        <TooltipTrigger
+          asChild
+          onPointerEnter={() => {
+            returningFocus.current = false;
+          }}
+          onBlur={() => {
+            returningFocus.current = false;
+          }}
+        >
           <PopoverTrigger asChild>
             {trigger ?? (
               <Button
@@ -90,7 +111,7 @@ export function SiblingPicker({
             )}
           </PopoverTrigger>
         </TooltipTrigger>
-        {!open && <TooltipContent side="bottom">{label}</TooltipContent>}
+        <TooltipContent side="bottom">{label}</TooltipContent>
       </Tooltip>
       <PopoverContent align="start" className="w-80 gap-0 p-0">
         {load ? (
