@@ -66,7 +66,7 @@ export function PageScrollControls({
         <div className="pointer-events-none sticky bottom-0 z-30 h-0">
           <div
             className={cn(
-              "absolute right-[max(1rem,env(safe-area-inset-right))] bottom-[calc(3.5rem+env(safe-area-inset-bottom))] flex flex-col gap-2 motion-safe:transition-opacity",
+              "absolute right-[max(1rem,env(safe-area-inset-right))] bottom-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col gap-2 motion-safe:transition-opacity",
               "max-sm:[body:has([data-bulk-bar])_&]:hidden",
               "[[data-tab-pane]:has([data-bulk-row]:focus-within)_&]:invisible [[data-tab-pane]:has([data-bulk-row]:focus-within)_&]:opacity-0 [[data-tab-pane]:has([data-bulk-row]:hover)_&]:invisible [[data-tab-pane]:has([data-bulk-row]:hover)_&]:opacity-0",
               "[@media(hover:none)]:[[data-tab-pane]:has([data-bulk-row])_&]:hidden",
