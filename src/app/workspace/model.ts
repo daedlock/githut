@@ -83,7 +83,7 @@ export type DockingCommand = { type: "dock"; source: DockSource; target: DockTar
 export const MIN_ISLAND_WIDTH = 320;
 export const MIN_ISLAND_HEIGHT = 200;
 /** Gap between islands in px (DESIGN.md → Islands). */
-export const ISLAND_GAP = 8;
+export const ISLAND_GAP = 12;
 
 /** The page a workspace opens to when it has nothing else to show. */
 export const HOME_HREF = "/";
@@ -512,7 +512,7 @@ export function neighbourIsland(
   fromId: string,
   direction: Direction,
 ): string | null {
-  // Pixel geometry on a large virtual canvas, so the 8px gaps are negligible
+  // Pixel geometry on a large virtual canvas, so the 12px gaps are negligible
   // and neighbours line up with what the workspace renders.
   const rects = new Map(
     [...layoutGeometry(layout, { left: 0, top: 0, width: VIRTUAL, height: VIRTUAL }).islands].map(

@@ -223,7 +223,7 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
   edge does most of the separating.
   A palette that needs a different frame sets `--color-frame` in its
   `themes/*.css` block. Never hardcode a frame colour in a component.
-- The frame leaves a consistent `max(8px, safe-area)` gutter on every outer edge, including narrow screens. Sidebar-to-island and inter-island gaps are `8px`. No global header row reserves space above the islands.
+- The frame leaves a consistent `max(8px, safe-area)` gutter on every outer edge, including narrow screens. The sidebar-to-island gap is `8px`; gaps between islands are `12px`. No global header row reserves space above the islands.
 
 ### Island
 - An island is its header (tabs, on the frame) above its **sheet**: the
