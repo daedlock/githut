@@ -224,7 +224,13 @@ export function SidebarContent({
         {renderRow({ href: "/", label: "Inbox", icon: Inbox, count: unreadCount })}
       </div>
       <SidebarSection title="Favorites" icon={Star} collapsed={collapsed}>
-        <RowList rows={favoriteRows} filter={filter} collapsed={collapsed} renderRow={renderRow} />
+        <RowList
+          key={accountId}
+          rows={favoriteRows}
+          filter={filter}
+          collapsed={collapsed}
+          renderRow={renderRow}
+        />
         {!collapsed && (
           <>
             {!favorites.length && (
@@ -256,6 +262,7 @@ export function SidebarContent({
       </SidebarSection>
       <SidebarSection title="Your repos" icon={FolderGit2} collapsed={collapsed}>
         <RowList
+          key={accountId}
           rows={(repos.data ?? []).map((repo) => repoRow(repo.full_name))}
           filter={filter}
           collapsed={collapsed}
@@ -274,7 +281,7 @@ export function SidebarContent({
         <SidebarSection title="Organizations" icon={Building2} collapsed={collapsed}>
           {(orgs.data ?? []).slice(0, orgLimit).map((org) => (
             <OrganizationRow
-              key={org.id}
+              key={`${accountId}:${org.id}`}
               org={org.login}
               filter={filter}
               collapsed={collapsed}
@@ -347,7 +354,7 @@ function RowList({
   );
   const list = useStableList(filtered, {
     key: (row) => row.favorite?.id ?? row.href,
-    resetKey: filter,
+    resetKey: `${filter}:${rows.map((row) => row.favorite?.id ?? "").join(",")}`,
   });
   return (
     <div {...list.listProps} className="flex flex-col">

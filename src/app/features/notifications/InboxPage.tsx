@@ -11,7 +11,7 @@ import {
   MoreHorizontal,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LiveUpdates } from "@/app/components/LiveUpdates";
 import { RepoMark } from "@/app/components/shell/RepoMark";
 import { Button } from "@/app/components/ui/button";
@@ -40,7 +40,7 @@ import { useTabScope } from "@/app/lib/tabScope";
 import { formatRelativeTime } from "@/app/lib/time";
 import { useSidebarStore } from "@/app/stores/sidebar";
 import { useWorkspaceView } from "@/app/stores/workspaceView";
-import { findTab, focusedTab, islands } from "@/app/workspace/model";
+import { findTab, focusedTab } from "@/app/workspace/model";
 import { getWorkspace, useWorkspaceStore } from "@/app/workspace/store";
 import { type Notification, notificationGitHubHref, notificationHref } from "./api";
 import {

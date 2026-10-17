@@ -3,13 +3,13 @@ import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { chromium } from "playwright";
 
-const app = process.env.UI_BASE_URL || "http://127.0.0.1:5223";
+const app = process.env.UI_BASE_URL || "http://127.0.0.1:5243";
 assert.ok(["localhost", "127.0.0.1"].includes(new URL(app).hostname));
 const server = process.env.UI_BASE_URL
   ? null
   : spawn(
       process.execPath,
-      ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5223", "--strictPort"],
+      ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5243", "--strictPort"],
       { stdio: ["ignore", "pipe", "pipe"] },
     );
 let log = "";
@@ -236,6 +236,9 @@ try {
     await page.setViewportSize({ width: 640, height: 900 });
     await page.keyboard.press("Control+b");
     await page.getByRole("dialog", { name: "Sidebar" }).waitFor();
+    await page.waitForFunction(
+      () => document.querySelector('[role="dialog"]')?.getBoundingClientRect().x >= 0,
+    );
     if (process.env.DRAWER_SCREENSHOT)
       await page.screenshot({ path: process.env.DRAWER_SCREENSHOT });
     assert.deepEqual(favorites.writes, []);
@@ -400,8 +403,6 @@ try {
     await page.mouse.up();
     assert.equal(await page.getByRole("tab").count(), 5);
     assert.deepEqual(drag.errors, []);
-    if (process.env.SIDEBAR_SCREENSHOT)
-      await page.screenshot({ path: process.env.SIDEBAR_SCREENSHOT });
     console.log(
       "PASS sidebar dragging inserts in strips, adds at island and window edges, and cancels with Escape",
     );
