@@ -12,7 +12,6 @@ import {
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { SectionMenu } from "@/app/components/shell/SectionMenu";
 import { TabStrip } from "@/app/components/shell/TabStrip";
-import { useDocking } from "@/app/components/shell/useDocking";
 import { Button } from "@/app/components/ui/button";
 import {
   DropdownMenu,
@@ -73,7 +72,6 @@ export function IslandLayout({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ width: number; height: number } | null>(null);
-  const docking = useDocking(ref);
   const [preview, setPreview] = useState<Preview>(null);
 
   useLayoutEffect(() => {
@@ -92,12 +90,7 @@ export function IslandLayout({
   const maximized = maximizedIslandId && pathTo(layout, maximizedIslandId).length > 0;
 
   return (
-    <div
-      ref={ref}
-      onPointerDownCapture={docking.onPointerDown}
-      data-workspace-layout
-      className="relative min-h-0 flex-1"
-    >
+    <div ref={ref} data-workspace-layout className="relative min-h-0 flex-1">
       {geometry &&
         all.map((island) => {
           const shown = !maximized || island.id === maximizedIslandId;
@@ -128,7 +121,6 @@ export function IslandLayout({
             onPreview={setPreview}
           />
         ))}
-      {docking.overlay}
     </div>
   );
 }

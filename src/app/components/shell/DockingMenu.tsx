@@ -16,7 +16,14 @@ import {
 } from "@/app/components/ui/dropdown-menu";
 import { getTabMeta } from "@/app/lib/tabMeta";
 import type { DockSource, DockTarget } from "@/app/workspace/docking";
-import { findIsland, findTab, hrefPathname, islands, selectedTab } from "@/app/workspace/model";
+import {
+  findIsland,
+  findTab,
+  focusedIsland,
+  hrefPathname,
+  islands,
+  selectedTab,
+} from "@/app/workspace/model";
 import { dispatch, useWorkspaceStore } from "@/app/workspace/store";
 
 /** Menus and pointer docking dispatch exactly the same command. */
@@ -27,12 +34,18 @@ export function DockingMenu({
   source: DockSource;
   dropdown?: boolean;
 }) {
-  const layout = useWorkspaceStore((s) => s.workspace.layout);
+  const workspace = useWorkspaceStore((s) => s.workspace);
+  const layout = workspace.layout;
   const found = source.type === "tab" ? findTab(layout, source.tabId) : undefined;
-  const from = source.type === "tab" ? found?.island : findIsland(layout, source.islandId);
+  const from =
+    source.type === "href"
+      ? focusedIsland(workspace)
+      : source.type === "tab"
+        ? found?.island
+        : findIsland(layout, source.islandId);
   if (!from) return null;
   const all = islands(layout);
-  const others = all.filter((island) => island.id !== from.id);
+  const others = all.filter((island) => source.type === "href" || island.id !== from.id);
   const Group = dropdown ? DropdownMenuGroup : ContextMenuGroup;
   const Item = dropdown ? DropdownMenuItem : ContextMenuItem;
   const Sub = dropdown ? DropdownMenuSub : ContextMenuSub;
@@ -96,7 +109,11 @@ export function DockingMenu({
         )}
         <Sub>
           <Trigger disabled={!others.length}>
-            {isTab ? "Move to island" : "Merge into island"}
+            {source.type === "href"
+              ? "Open in island"
+              : isTab
+                ? "Move to island"
+                : "Merge into island"}
           </Trigger>
           <Content>
             <Group>
@@ -133,7 +150,13 @@ export function DockingMenu({
             <Group>
               {all.map((island) => (
                 <Sub key={island.id}>
-                  <Trigger disabled={island.id === from.id && (!isTab || from.tabs.length < 2)}>
+                  <Trigger
+                    disabled={
+                      source.type !== "href" &&
+                      island.id === from.id &&
+                      (!isTab || from.tabs.length < 2)
+                    }
+                  >
                     {islandLabel(island.id, all)}
                   </Trigger>
                   <Content>
@@ -160,7 +183,11 @@ export function DockingMenu({
           </Content>
         </Sub>
         <Sub>
-          <Trigger disabled={all.length === 1 && (!isTab || from.tabs.length < 2)}>
+          <Trigger
+            disabled={
+              source.type !== "href" && all.length === 1 && (!isTab || from.tabs.length < 2)
+            }
+          >
             Dock at window edge
           </Trigger>
           <Content>

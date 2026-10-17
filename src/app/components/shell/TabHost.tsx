@@ -12,9 +12,11 @@ import { DocumentTitle } from "@/app/components/shell/DocumentTitle";
 import { IslandLayout } from "@/app/components/shell/IslandLayout";
 import { LayoutUndo } from "@/app/components/shell/LayoutUndo";
 import { LinkHoverMenu } from "@/app/components/shell/LinkHoverMenu";
+import { RepoMarkScope } from "@/app/components/shell/RepoMark";
 import { SignInBanner } from "@/app/components/shell/SessionNotices";
 import { TabShortcuts } from "@/app/components/shell/TabShortcuts";
 import { TitleBar } from "@/app/components/shell/TitleBar";
+import { WorkspaceArea } from "@/app/components/shell/WorkspaceArea";
 import { TooltipProvider } from "@/app/components/ui/tooltip";
 import { cn } from "@/app/lib/cn";
 import { queryClientForTab, startWorkspaceFreshness } from "@/app/lib/freshness";
@@ -110,26 +112,30 @@ export function TabHost() {
 
   return (
     <TooltipProvider delayDuration={500} skipDelayDuration={300}>
-      <div
-        className={cn(
-          "relative flex h-full flex-col bg-(--color-frame)",
-          "pr-[max(1rem,env(safe-area-inset-right))] pb-2 pl-[max(1rem,env(safe-area-inset-left))]",
-        )}
-      >
-        <RouterContextProvider router={focusedRouter}>
-          <TitleBar focusedHref={focused.href} />
-          {overlays}
-          <LayoutUndo />
-          <SettingsModal />
-        </RouterContextProvider>
-        <IslandLayout
-          layout={layout}
-          focusedIslandId={focusedIslandId}
-          maximizedIslandId={maximizedIslandId}
-          renderPanes={renderPanes}
-        />
-        <SignInBanner />
-      </div>
+      <RepoMarkScope>
+        <div
+          className={cn(
+            "relative flex h-full flex-col bg-(--color-frame)",
+            "pr-[max(1rem,env(safe-area-inset-right))] pb-2 pl-[max(1rem,env(safe-area-inset-left))]",
+          )}
+        >
+          <RouterContextProvider router={focusedRouter}>
+            <TitleBar focusedHref={focused.href} />
+            {overlays}
+            <LayoutUndo />
+            <SettingsModal />
+          </RouterContextProvider>
+          <WorkspaceArea>
+            <IslandLayout
+              layout={layout}
+              focusedIslandId={focusedIslandId}
+              maximizedIslandId={maximizedIslandId}
+              renderPanes={renderPanes}
+            />
+          </WorkspaceArea>
+          <SignInBanner />
+        </div>
+      </RepoMarkScope>
     </TooltipProvider>
   );
 }

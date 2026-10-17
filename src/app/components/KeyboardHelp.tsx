@@ -17,6 +17,7 @@ type Shortcut = {
 const SHORTCUTS: readonly Shortcut[] = [
   // Global
   { chord: "⌘ K", label: "Open command palette", scope: "global" },
+  { chord: "⌘ B", label: "Toggle sidebar", scope: "global" },
   { chord: "?", label: "Open keyboard help", scope: "global" },
   { chord: "g h", label: "Go to inbox", scope: "global" },
   { chord: "g i", label: "Go to issues", scope: "global" },
