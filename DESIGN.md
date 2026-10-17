@@ -244,6 +244,12 @@ The workspace is a darker **frame** holding a slim **title bar** and rounded
   else the repo's default. App-wide pages show their icon and label.
 - Search is `h-7 rounded-lg bg-muted` with the island edge, "Search or
   jump to…" and `<Kbd>`; it shrinks to an icon below `md`.
+- Transient notices (Offline) sit left of the avatar as a quiet pill:
+  `h-6 rounded-full bg-muted px-2 text-caption text-muted-foreground`,
+  icon in its status colour. They appear only while the state lasts.
+- An expired sign-in floats a notice over the workspace (the floating
+  notice recipe) with "Sign in again"; it never replaces the workspace.
+  See `components/shell/SessionNotices.tsx`.
 
 ### Island header
 - `h-10 flex items-center gap-1 pl-1 pr-1.5`: the tab row takes the
