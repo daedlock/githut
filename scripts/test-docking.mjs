@@ -137,8 +137,8 @@ try {
 
   await page.locator('[data-tab-id="pulls"]').click({ button: "right" });
   for (const name of [
-    "Split right",
-    "Split down",
+    "Move to new island right",
+    "Move to new island below",
     "Reorder tab",
     "Move to island",
     "Dock beside island",
@@ -146,7 +146,7 @@ try {
   ]) {
     assert.ok(await page.getByRole("menuitem", { name, exact: true }).isVisible());
   }
-  await page.getByRole("menuitem", { name: "Split down", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Move to new island below", exact: true }).click();
   await page.waitForFunction(() => document.querySelectorAll("[data-island]").length === 2);
   assert.ok(
     (await page.locator('[data-island]:has([data-tab-id="pulls"])').boundingBox()).y >

@@ -171,12 +171,12 @@ try {
     await issueLink(page, 1).click({ modifiers: ["Alt"] });
     await tabCount(page, 2);
     const source = page.locator("[data-island]").first();
-    await issueLink(page, 2).hover();
+    await issueLink(page, 2).locator("span").first().hover();
     await page.getByRole("button", { name: "Open in new tab", exact: false }).click();
     await tabCount(page, 3);
     assert.equal(await source.getByRole("tab").count(), 2);
     await source.getByRole("tab").first().click();
-    await issueLink(page, 1).hover();
+    await issueLink(page, 1).locator("span").first().hover();
     await page
       .getByRole("button", { name: "Open to the side", exact: false })
       .click({ timeout: 5000 });
