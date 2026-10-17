@@ -1,11 +1,12 @@
 import {
   type PointerEvent as ReactPointerEvent,
   type RefObject,
+  useCallback,
   useEffect,
   useRef,
-  useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { create } from "zustand";
 import { trackWorkspaceAction } from "@/app/lib/analytics";
 import { cn } from "@/app/lib/cn";
 import { getTabMeta } from "@/app/lib/tabMeta";
@@ -24,156 +25,182 @@ import { dispatch, getWorkspace } from "@/app/workspace/store";
 type Drop = { target: DockTarget; rect: Rect; line: boolean };
 type Drag = { source: DockSource; x: number; y: number; label: string; drop: Drop | null };
 
+/**
+ * Per-frame drag state lives outside React state of the workspace so only the
+ * overlay re-renders while the pointer moves — not the sidebar or the islands.
+ */
+const useDragStore = create<{ drag: Drag | null }>(() => ({ drag: null }));
+const setDrag = (drag: Drag | null) => useDragStore.setState({ drag });
+
 /** One pointer interaction spans every island; the layout changes only on drop. */
 export function useDocking(
   ref: RefObject<HTMLDivElement | null>,
   { onDragStart }: { onDragStart?: () => void } = {},
 ) {
-  const [drag, setDrag] = useState<Drag | null>(null);
   const cleanup = useRef<(() => void) | null>(null);
+  const onDragStartRef = useRef(onDragStart);
+  onDragStartRef.current = onDragStart;
   useEffect(() => () => cleanup.current?.(), []);
 
-  function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
-    if (e.button !== 0 || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-    const hit = e.target as Element;
-    if (hit.closest("button, a, input, [role=menu]")) return;
-    const header = hit.closest<HTMLElement>("[data-island-header]");
-    const islandId = header?.closest<HTMLElement>("[data-island]")?.dataset.island;
-    if (!islandId) return;
-    const tabId = hit.closest<HTMLElement>("[data-tab-id]")?.dataset.tabId;
-    const source: DockSource = tabId ? { type: "tab", tabId } : { type: "island", islandId };
-    const ws = getWorkspace();
-    const island = findIsland(ws.layout, islandId);
-    if (!island) return;
-    const tab = tabId ? findTab(ws.layout, tabId)?.tab : selectedTab(island);
-    if (!tab) return;
-    const label =
-      getTabMeta(hrefPathname(tab.href)).label + (tabId ? "" : ` · ${island.tabs.length} tabs`);
-    beginDrag(e, source, label);
-  }
-
   /** Adapters can start the same interaction without depending on island-header markup. */
-  function beginDrag(e: ReactPointerEvent, source: DockSource, label: string) {
-    if (e.button !== 0 || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-    const root = ref.current;
-    if (!root) return;
-    cleanup.current?.();
-    const start = { x: e.clientX, y: e.clientY };
-    let active = false;
-    let current: Drag | null = null;
-    let frame = 0;
-    let point = start;
-    const previousCursor = document.documentElement.style.cursor;
-    const previousSelection = document.documentElement.style.userSelect;
+  const beginDrag = useCallback(
+    (e: ReactPointerEvent, source: DockSource, label: string) => {
+      if (e.button !== 0 || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      const root = ref.current;
+      if (!root) return;
+      cleanup.current?.();
+      const start = { x: e.clientX, y: e.clientY };
+      let active = false;
+      let current: Drag | null = null;
+      let frame = 0;
+      let point = start;
+      const previousCursor = document.documentElement.style.cursor;
+      const previousSelection = document.documentElement.style.userSelect;
 
-    const update = () => {
-      frame = 0;
-      if (!active) return;
-      current = { source, ...point, label, drop: findDrop(root, source, point.x, point.y) };
-      setDrag(current);
-    };
-    const move = (event: globalThis.PointerEvent) => {
-      if (event.pointerId !== e.pointerId) return;
-      point = { x: event.clientX, y: event.clientY };
-      if (!active && Math.hypot(point.x - start.x, point.y - start.y) < 5) return;
-      if (!active) {
-        active = true;
-        root.setPointerCapture(e.pointerId);
-        onDragStart?.();
-        document.documentElement.style.cursor = "grabbing";
-        document.documentElement.style.userSelect = "none";
-      }
-      event.preventDefault();
-      if (!frame) frame = requestAnimationFrame(update);
-    };
-    const finish = (commit: boolean) => {
-      if (frame) cancelAnimationFrame(frame);
-      if (active && commit) update();
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      window.removeEventListener("pointercancel", cancel);
-      window.removeEventListener("keydown", key, true);
-      window.removeEventListener("blur", cancel);
-      if (root.hasPointerCapture(e.pointerId)) root.releasePointerCapture(e.pointerId);
-      document.documentElement.style.cursor = previousCursor;
-      document.documentElement.style.userSelect = previousSelection;
-      cleanup.current = null;
-      setDrag(null);
-      if (active) {
-        // A drag can start on a launcher button; its trailing click must not
-        // launch again after docking (or after Escape cancels the gesture).
-        const suppress = (event: MouseEvent) => {
-          event.preventDefault();
-          event.stopPropagation();
-        };
-        window.addEventListener("click", suppress, { capture: true, once: true });
-        setTimeout(() => window.removeEventListener("click", suppress, true), 0);
-      }
-      if (commit && current?.drop) {
-        const before = getWorkspace();
-        dispatch({ type: "dock", source, target: current.drop.target });
-        if (getWorkspace() !== before) trackWorkspaceAction("drag-dock");
-      }
-    };
-    const up = (event: globalThis.PointerEvent) => {
-      if (event.pointerId !== e.pointerId) return;
-      point = { x: event.clientX, y: event.clientY };
-      finish(true);
-    };
-    const cancel = () => finish(false);
-    const key = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      event.stopPropagation();
-      cancel();
-    };
-    cleanup.current = cancel;
-    window.addEventListener("pointermove", move, { passive: false });
-    window.addEventListener("pointerup", up);
-    window.addEventListener("pointercancel", cancel);
-    window.addEventListener("keydown", key, true);
-    window.addEventListener("blur", cancel);
-  }
+      const update = () => {
+        frame = 0;
+        if (!active) return;
+        current = { source, ...point, label, drop: findDrop(root, source, point.x, point.y) };
+        setDrag(current);
+      };
+      const move = (event: globalThis.PointerEvent) => {
+        if (event.pointerId !== e.pointerId) return;
+        point = { x: event.clientX, y: event.clientY };
+        if (!active && Math.hypot(point.x - start.x, point.y - start.y) < 5) return;
+        if (!active) {
+          active = true;
+          root.setPointerCapture(e.pointerId);
+          onDragStartRef.current?.();
+          document.documentElement.style.cursor = "grabbing";
+          document.documentElement.style.userSelect = "none";
+        }
+        event.preventDefault();
+        if (!frame) frame = requestAnimationFrame(update);
+      };
+      const finish = (commit: boolean, buttonStillDown = false) => {
+        if (frame) cancelAnimationFrame(frame);
+        if (active && commit) update();
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", cancel);
+        window.removeEventListener("keydown", key, true);
+        window.removeEventListener("blur", cancel);
+        if (root.hasPointerCapture(e.pointerId)) root.releasePointerCapture(e.pointerId);
+        document.documentElement.style.cursor = previousCursor;
+        document.documentElement.style.userSelect = previousSelection;
+        cleanup.current = null;
+        setDrag(null);
+        if (active) {
+          // A drag can start on a launcher button; its trailing click must not
+          // launch again after docking (or after Escape cancels the gesture).
+          const suppress = (event: MouseEvent) => {
+            event.preventDefault();
+            event.stopPropagation();
+          };
+          // The click (if any) is dispatched right after pointerup. An Escape
+          // cancel happens while the button is still down, so keep covering
+          // until the next pointerup has passed.
+          window.addEventListener("click", suppress, { capture: true, once: true });
+          const release = () =>
+            setTimeout(() => window.removeEventListener("click", suppress, true), 0);
+          if (!buttonStillDown) release();
+          else window.addEventListener("pointerup", release, { capture: true, once: true });
+        }
+        if (commit && current?.drop) {
+          const before = getWorkspace();
+          dispatch({ type: "dock", source, target: current.drop.target });
+          if (getWorkspace() !== before) trackWorkspaceAction("drag-dock");
+        }
+      };
+      const up = (event: globalThis.PointerEvent) => {
+        if (event.pointerId !== e.pointerId) return;
+        point = { x: event.clientX, y: event.clientY };
+        finish(true);
+      };
+      const cancel = () => finish(false);
+      const key = (event: KeyboardEvent) => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
+        finish(false, true);
+      };
+      cleanup.current = cancel;
+      window.addEventListener("pointermove", move, { passive: false });
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", cancel);
+      window.addEventListener("keydown", key, true);
+      window.addEventListener("blur", cancel);
+    },
+    [ref],
+  );
 
-  return {
-    beginDrag,
-    onPointerDown,
-    overlay:
-      drag &&
-      createPortal(
-        <>
-          {drag.drop && (
-            <div
-              data-dock-preview={drag.drop.line ? "insert" : drag.drop.target.type}
-              aria-hidden
-              style={drag.drop.rect}
-              className={cn(
-                "pointer-events-none fixed z-40",
-                drag.drop.line
-                  ? "rounded-full bg-primary"
-                  : "rounded-island bg-[color-mix(in_oklab,var(--color-brand)_12%,transparent)] ring-1 ring-primary/40",
-              )}
-            />
-          )}
+  const onPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0 || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      const hit = e.target as Element;
+      if (hit.closest("button, a, input, [role=menu]")) return;
+      const header = hit.closest<HTMLElement>("[data-island-header]");
+      const islandId = header?.closest<HTMLElement>("[data-island]")?.dataset.island;
+      if (!islandId) return;
+      const tabId = hit.closest<HTMLElement>("[data-tab-id]")?.dataset.tabId;
+      const source: DockSource = tabId ? { type: "tab", tabId } : { type: "island", islandId };
+      const ws = getWorkspace();
+      const island = findIsland(ws.layout, islandId);
+      if (!island) return;
+      const tab = tabId ? findTab(ws.layout, tabId)?.tab : selectedTab(island);
+      if (!tab) return;
+      const label =
+        getTabMeta(hrefPathname(tab.href)).label + (tabId ? "" : ` · ${island.tabs.length} tabs`);
+      beginDrag(e, source, label);
+    },
+    [beginDrag],
+  );
+
+  return { beginDrag, onPointerDown, overlay: <DockingOverlay /> };
+}
+
+function DockingOverlay() {
+  const drag = useDragStore((state) => state.drag);
+  return (
+    drag &&
+    createPortal(
+      <>
+        {drag.drop && (
           <div
-            data-dock-ghost
+            data-dock-preview={drag.drop.line ? "insert" : drag.drop.target.type}
             aria-hidden
-            style={{ left: drag.x + 14, top: drag.y + 14 }}
-            className="pointer-events-none fixed z-50 max-w-64 truncate rounded-lg bg-popover px-3 py-2 text-ui shadow-md ring-1 ring-foreground/10"
-          >
-            {drag.label}
-          </div>
-        </>,
-        document.body,
-      ),
-  };
+            style={drag.drop.rect}
+            className={cn(
+              "pointer-events-none fixed z-40",
+              drag.drop.line
+                ? "rounded-full bg-primary"
+                : "rounded-island bg-[color-mix(in_oklab,var(--color-brand)_12%,transparent)] ring-1 ring-primary/40",
+            )}
+          />
+        )}
+        <div
+          data-dock-ghost
+          aria-hidden
+          style={{ left: drag.x + 14, top: drag.y + 14 }}
+          className="pointer-events-none fixed z-50 max-w-64 truncate rounded-lg bg-popover px-3 py-2 text-ui shadow-md ring-1 ring-foreground/10"
+        >
+          {drag.label}
+        </div>
+      </>,
+      document.body,
+    )
+  );
 }
 
 function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): Drop | null {
   const ws = getWorkspace();
-  const bounds = root.getBoundingClientRect();
-  if (x < bounds.left - 16 || x > bounds.right + 16 || y < bounds.top || y > bounds.bottom + 8)
+  const outer = root.getBoundingClientRect();
+  if (x < outer.left - 16 || x > outer.right + 16 || y < outer.top || y > outer.bottom + 8)
     return null;
+  // Edge zones belong to the islands, not to the area that also hosts the
+  // sidebar: "window left" is the left edge of the leftmost island column.
+  const bounds = root.querySelector("[data-workspace-layout]")?.getBoundingClientRect() ?? outer;
+  if (x < bounds.left - 24) return null;
   let target: DockTarget | undefined;
   let line: Rect | undefined;
   // A compact pinned tab can sit inside the window-edge hit area. Keep
@@ -240,6 +267,12 @@ function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): 
           { side: "bottom" as const, distance: (rect.bottom - y) / Math.min(72, rect.height / 4) },
         ].sort((a, b) => a.distance - b.distance);
         const edge = edges[0]!;
+        const sameIsland =
+          source.type === "island"
+            ? source.islandId === islandId
+            : source.type === "tab" && findTab(ws.layout, source.tabId)?.island.id === islandId;
+        // Dropping on your own island body means "never mind", not "move to end".
+        if (edge.distance >= 1 && sameIsland) return null;
         target =
           edge.distance < 1
             ? { type: "island-edge", islandId, side: edge.side }
@@ -258,8 +291,7 @@ function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): 
   // Preview the actual command result: removing the source can collapse or
   // flatten splits, so a naive half of the old target would be misleading.
   const next = normalizeWorkspace(result);
-  const layoutBounds =
-    root.querySelector("[data-workspace-layout]")?.getBoundingClientRect() ?? bounds;
+  const layoutBounds = bounds;
   if (useWorkspaceView.getState().narrow) {
     return {
       target,
