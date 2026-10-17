@@ -1,3 +1,4 @@
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { KeyRound, LogIn, WifiOff } from "lucide-react";
 
 import { Button } from "@/app/components/ui/button";
@@ -42,27 +43,34 @@ export function OfflinePill() {
 
 export function SignInBanner() {
   const expired = useAuthStore((s) => s.expired);
-  if (!expired) return null;
+  const reduced = useReducedMotion();
   return (
     <div className="pointer-events-none absolute inset-x-0 top-12 z-40 flex justify-center px-4">
-      <div
-        role="alert"
-        className={cn(
-          "pointer-events-auto flex min-w-0 max-w-full items-center gap-3 py-2 pr-2 pl-3",
-          "rounded-xl bg-popover shadow-lg ring-1 ring-foreground/10",
-          "animate-in fade-in-0 slide-in-from-top-2",
+      <AnimatePresence>
+        {expired && (
+          <motion.div
+            role="alert"
+            initial={{ opacity: 0, y: reduced ? 0 : -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className={cn(
+              "pointer-events-auto flex min-w-0 max-w-full items-center gap-3 py-2 pr-2 pl-3",
+              "rounded-xl bg-popover shadow-lg ring-1 ring-foreground/10",
+            )}
+          >
+            <KeyRound aria-hidden className="size-4 shrink-0 text-(--color-warning)" />
+            <p className="min-w-0 text-ui">
+              <span className="font-medium text-foreground">Your GitHub sign-in expired.</span>{" "}
+              <span className="text-muted-foreground">Your tabs and drafts are kept.</span>
+            </p>
+            <Button size="sm" onClick={startReauth} className="shrink-0">
+              <LogIn data-icon="inline-start" />
+              Sign in again
+            </Button>
+          </motion.div>
         )}
-      >
-        <KeyRound aria-hidden className="size-4 shrink-0 text-(--color-warning)" />
-        <p className="min-w-0 text-ui">
-          <span className="font-medium text-foreground">Your GitHub sign-in expired.</span>{" "}
-          <span className="text-muted-foreground">Your tabs and drafts are kept.</span>
-        </p>
-        <Button size="sm" onClick={startReauth} className="shrink-0">
-          <LogIn data-icon="inline-start" />
-          Sign in again
-        </Button>
-      </div>
+      </AnimatePresence>
     </div>
   );
 }
