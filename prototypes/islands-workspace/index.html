@@ -1,0 +1,1705 @@
+<title>Githut Islands</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600&family=Fira+Code:wght@400;500&display=swap">
+<style>
+/* Layout: a darker window frame; the sidebar and every pane are rounded "islands" on it.
+   Islands are plain containers; every tab carries its own repo mark. */
+:root {
+  /* githut "main-light" */
+  --frame: #e4e4e6;
+  --bg: #f8f8f8;
+  --bg-subtle: #ededed;
+  --bg-sunken: #e0e0e0;
+  --border: #d4d4d4;
+  --border-strong: #b8b8b8;
+  --fg: #1a1a1a;
+  --fg-muted: #606060;
+  --fg-faint: #999999;
+  --brand: #2e7dd6;
+  --success: #1e8c42;
+  --danger: #d03030;
+  --merged: #6838b8;
+  --lift: 0 1px 2px rgb(0 0 0 / 0.06), 0 0 0 1px rgb(0 0 0 / 0.04);
+  --float: 0 10px 30px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.08);
+  --elev: 0 1px 2px rgb(0 0 0 / 0.05);
+  /* Repo hues share one lightness/chroma so no repo shouts louder than another. */
+  --repo-l: 0.56;
+  --repo-c: 0.12;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Island edges: idle is a whisper; focused is a touch firmer with a hint of brand. */
+  --ring-idle: color-mix(in oklab, var(--border) 70%, transparent);
+  --ring-focus: color-mix(in oklab, var(--brand) 14%, var(--border-strong));
+  --gap: 8px;
+  --radius: 10px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* githut "main-dark" */
+    --frame: #131419; --bg: #1c1d24; --bg-subtle: #24252e; --bg-sunken: #2c2d38;
+    --border: #33343f; --border-strong: #40424f;
+    --fg: #dfe1e8; --fg-muted: #8a8ea0; --fg-faint: #505468;
+    --brand: #68adf7; --success: #5cba6e; --danger: #e06060; --merged: #a080e0;
+    --lift: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 0 0 1px rgb(255 255 255 / 0.04);
+    --float: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 8px rgb(0 0 0 / 0.35);
+    --elev: 0 1px 3px rgb(0 0 0 / 0.3);
+    --repo-l: 0.76;
+    --repo-c: 0.11;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --frame: #131419; --bg: #1c1d24; --bg-subtle: #24252e; --bg-sunken: #2c2d38;
+  --border: #33343f; --border-strong: #40424f;
+  --fg: #dfe1e8; --fg-muted: #8a8ea0; --fg-faint: #505468;
+  --brand: #68adf7; --success: #5cba6e; --danger: #e06060; --merged: #a080e0;
+  --lift: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 0 0 1px rgb(255 255 255 / 0.04);
+  --float: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 8px rgb(0 0 0 / 0.35);
+  --elev: 0 1px 3px rgb(0 0 0 / 0.3);
+  --repo-l: 0.76;
+  --repo-c: 0.11;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--frame);
+  color: var(--fg);
+  font: 450 13px/1.45 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+* { box-sizing: border-box; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
+input { font: inherit; color: inherit; }
+svg { flex-shrink: 0; }
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0;
+  user-select: none;
+}
+
+/* ── Repo identity ──────────────────────────────────────────────────── */
+/* A repo mark is a rounded square with the repo's initial. Owners are circles. */
+.rmark {
+  --rc: oklch(var(--repo-l) var(--repo-c) var(--h, 250));
+  width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0;
+  display: inline-grid; place-items: center;
+  font: 650 9.5px/1 var(--font-sans); letter-spacing: 0;
+  color: var(--rc);
+  background: color-mix(in oklab, var(--rc) 20%, var(--bg-subtle));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--rc) 35%, transparent);
+}
+.rmark.sm { width: 14px; height: 14px; font-size: 8.5px; border-radius: 3.5px; }
+:root[data-repo-color="off"] .rmark {
+  color: var(--fg-muted); background: var(--bg-sunken); box-shadow: inset 0 0 0 1px var(--border);
+}
+.owner-av {
+  width: 16px; height: 16px; border-radius: 50%; display: inline-grid; place-items: center;
+  font: 600 8px var(--font-sans); color: var(--bg); background: var(--fg-muted);
+}
+
+/* ── Window title bar (frame, not an island) ───────────────────────── */
+.app { --sbw: 234px; }
+.app.sb-collapsed { --sbw: 46px; }
+/* Title bar columns mirror the body row below: the logo sits over the sidebar's
+   icon column and the context starts exactly at the islands' left edge. */
+.titlebar {
+  height: 44px; flex-shrink: 0;
+  display: grid; grid-template-columns: var(--sbw) minmax(0, 1fr) minmax(0, 420px) minmax(0, 1fr);
+  align-items: center; column-gap: var(--gap);
+  transition: grid-template-columns 240ms var(--ease);
+}
+.tb-logo { display: flex; align-items: center; margin-left: 6px; }
+.tb-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.tb-right { justify-content: flex-end; }
+.logo { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: var(--fg); }
+.logo svg { transition: transform 240ms var(--ease); }
+.logo:active svg { transform: scale(0.92); }
+.logo:hover { background: var(--bg-sunken); }
+.context { display: flex; align-items: center; gap: 7px; min-width: 0; padding-left: 4px; white-space: nowrap; }
+.context .path { font: 400 13px var(--font-mono); overflow: hidden; text-overflow: ellipsis; }
+.context .path .owner { color: var(--fg-muted); }
+.context .path .sep { color: var(--fg-faint); margin: 0 3px; }
+.context .branch { color: var(--fg-muted); font-size: 12px; display: inline-flex; gap: 4px; align-items: center; }
+.search {
+  height: 28px; width: 100%; border-radius: 7px; background: var(--bg-subtle);
+  box-shadow: var(--lift);
+  display: flex; align-items: center; gap: 8px; padding: 0 8px; color: var(--fg-muted); font-size: 12px;
+}
+.search:hover { color: var(--fg); }
+.search span { flex: 1; text-align: left; }
+kbd {
+  font: 500 11px var(--font-mono); color: var(--fg-muted);
+  padding: 1px 5px; border-radius: 4px; background: var(--bg); box-shadow: 0 0 0 1px var(--border);
+}
+.icon-btn { width: 28px; height: 28px; display: inline-grid; place-items: center; border-radius: 7px; color: var(--fg-muted); }
+.icon-btn:hover { background: var(--bg-sunken); color: var(--fg); }
+.icon-btn[aria-pressed="true"] { color: var(--fg); }
+.text-btn { height: 28px; padding: 0 10px; border-radius: 7px; color: var(--fg-muted); font-size: 12px; white-space: nowrap; }
+.text-btn:hover { background: var(--bg-sunken); color: var(--fg); }
+.seg { display: flex; align-items: center; gap: 2px; padding: 2px; border-radius: 8px; background: var(--bg-subtle); box-shadow: var(--lift); font-size: 12px; }
+.seg .seg-label { color: var(--fg-muted); padding: 0 6px 0 6px; white-space: nowrap; }
+.seg button { height: 22px; padding: 0 8px; border-radius: 6px; color: var(--fg-muted); }
+.seg button[aria-pressed="true"] { background: var(--bg); color: var(--fg); box-shadow: 0 0 0 1px var(--border); }
+.avatar {
+  width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center;
+  font: 600 10px var(--font-sans); color: var(--bg); background: color-mix(in oklab, var(--brand) 70%, var(--fg));
+}
+
+/* ── Body row: sidebar island + dock ───────────────────────────────── */
+.body-row { flex: 1; min-height: 0; display: flex; gap: var(--gap); }
+
+.sidebar {
+  /* Lives on the window frame, not an island: it's navigation, not content. */
+  --row-hover: color-mix(in oklab, var(--fg) 6%, transparent);
+  --row-current: color-mix(in oklab, var(--fg) 9%, transparent);
+  width: 240px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  margin-left: -6px;
+  overflow: hidden;
+  transition: width 240ms var(--ease);
+}
+.sidebar.collapsed { width: 52px; }
+/* Rhythm: 32px rows, 2px between rows, 20px between sections. Icons sit 12px in
+   from the content edge in both states, so the collapsed rail keeps their place. */
+.sb-top { padding: 4px 6px 0; display: flex; flex-direction: column; gap: 6px; }
+.sb-filter {
+  height: 32px; display: flex; align-items: center; gap: 10px; padding: 0 10px 0 13px; border-radius: 8px;
+  background: var(--bg); color: var(--fg-muted); overflow: hidden;
+  box-shadow: 0 0 0 1px var(--ring-idle);
+}
+.sb-filter input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: 12.5px; }
+.sb-filter input::placeholder { color: var(--fg-faint); }
+.sidebar.collapsed .sb-filter { background: none; box-shadow: none; }
+.sidebar.collapsed .sb-filter:hover { background: var(--row-hover); }
+.sb-scroll {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none;
+  padding: 18px 6px 12px; display: flex; flex-direction: column; gap: 20px;
+}
+.sb-section { display: flex; flex-direction: column; gap: 2px; }
+.sb-heading {
+  height: 22px; display: flex; align-items: flex-start; padding: 0 12px;
+  font-size: 11px; font-weight: 550; letter-spacing: 0.05em; text-transform: uppercase; color: var(--fg-faint);
+  white-space: nowrap; transition: opacity 160ms;
+}
+.sb-item {
+  position: relative;
+  height: 32px; display: flex; align-items: center; gap: 10px;
+  padding: 0 10px 0 12px; border-radius: 8px; color: var(--fg-muted); white-space: nowrap;
+  text-align: left; width: 100%;
+}
+.sb-item:hover { background: var(--row-hover); color: var(--fg); }
+.sb-item.current { background: var(--row-current); color: var(--fg); }
+.sb-item .sb-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; transition: opacity 160ms; }
+.sb-item .sb-label .ownr { color: var(--fg-faint); }
+/* Open tabs: a quiet dot; the count lives in the tooltip. */
+.sb-open { width: 6px; height: 6px; border-radius: 50%; background: var(--fg-faint); flex-shrink: 0; transition: opacity 160ms; }
+.sb-item.current .sb-open { background: var(--fg-muted); }
+.sb-dot { position: absolute; left: 25px; top: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--fg-muted); box-shadow: 0 0 0 2px var(--frame); opacity: 0; transition: opacity 160ms; }
+.sb-pr { height: 46px; align-items: flex-start; padding-top: 7px; }
+.sb-pr .rmark { margin-top: 1px; }
+.sb-pr .sb-label { display: flex; flex-direction: column; gap: 3px; line-height: 1.3; }
+.sb-pr .sb-label > span { overflow: hidden; text-overflow: ellipsis; }
+.sb-pr .sb-title { color: var(--fg); }
+.sb-pr .sb-sub { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--fg-faint); }
+.sb-pr .sb-sub .n { font-family: var(--font-mono); font-size: 11px; }
+.sb-tag {
+  height: 16px; padding: 0 6px; border-radius: 4px; display: inline-flex; align-items: center;
+  font-size: 10.5px; font-weight: 500; color: var(--brand); background: color-mix(in oklab, var(--brand) 13%, transparent);
+}
+.sidebar.collapsed .sb-label, .sidebar.collapsed .sb-open, .sidebar.collapsed .sb-heading { opacity: 0; }
+.sidebar.collapsed .sb-dot { opacity: 1; }
+.sidebar.collapsed .sb-collapsible { display: none; }
+.sidebar.collapsed .sb-heading { height: 0; }
+.sidebar.collapsed .sb-scroll { gap: 12px; padding-top: 12px; }
+.sb-foot { padding: 6px; display: flex; }
+.sb-foot .sb-item { flex: 1; }
+.badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: inline-grid; place-items: center; font: 600 11px var(--font-sans); color: var(--bg); background: var(--brand); transition: opacity 160ms; }
+.sidebar.collapsed .badge { opacity: 0; }
+
+/* ── Dock ───────────────────────────────────────────────────────────── */
+.dock { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; }
+.dock > .cell { flex: 1; }
+.split { display: flex; flex: 1; min-width: 0; min-height: 0; }
+.split[data-dir="col"] { flex-direction: column; }
+.cell { display: flex; min-width: 0; min-height: 0; flex-basis: 0; }
+
+.splitter { flex: 0 0 var(--gap); position: relative; z-index: 2; }
+.split[data-dir="row"] > .splitter { cursor: col-resize; }
+.split[data-dir="col"] > .splitter { cursor: row-resize; }
+.splitter::after {
+  content: ""; position: absolute; border-radius: 2px; background: var(--brand); opacity: 0;
+  transition: opacity 120ms;
+}
+.split[data-dir="row"] > .splitter::after { top: 12px; bottom: 12px; left: calc(50% - 1px); width: 2px; }
+.split[data-dir="col"] > .splitter::after { left: 12px; right: 12px; top: calc(50% - 1px); height: 2px; }
+.splitter:hover::after, .splitter.active::after { opacity: 0.9; transition-delay: 120ms; }
+.splitter.active::after { transition-delay: 0ms; }
+
+/* ── Island ─────────────────────────────────────────────────────────── */
+.island {
+  flex: 1; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+  background: var(--bg);
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 1px var(--ring-idle), var(--elev);
+  transition: box-shadow 160ms;
+  overflow: hidden;
+  container-type: inline-size;
+}
+.island.focused { box-shadow: 0 0 0 1px var(--ring-focus), var(--elev); }
+.island.moving { opacity: 0.45; }
+
+.tabbar {
+  height: 40px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 4px;
+  padding: 0 6px 0 4px;
+  cursor: grab;
+}
+.tabbar:active { cursor: grabbing; }
+.grip {
+  width: 12px; height: 24px; display: grid; place-items: center; color: var(--fg-faint);
+  opacity: 0; transition: opacity 120ms;
+}
+.island:hover .grip { opacity: 1; }
+
+.tabs {
+  position: relative;
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px;
+  overflow-x: auto; scrollbar-width: none; height: 100%;
+  /* Room for the active tab's outline, which a scroll container would clip. */
+  padding-inline: 2px;
+  scroll-padding-inline: 2px;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  position: relative;
+  height: 28px; max-width: 220px; min-width: 64px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 7px;
+  padding: 0 4px 0 9px;
+  border-radius: 7px;
+  color: var(--fg-muted);
+  cursor: default;
+}
+.tab:hover { background: color-mix(in oklab, var(--bg-sunken) 60%, transparent); color: var(--fg); }
+.tab[aria-selected="true"] {
+  background: var(--bg-subtle); color: var(--fg);
+  box-shadow: 0 0 0 1px var(--border), 0 1px 2px rgb(0 0 0 / 0.12);
+}
+.island.focused .tab[aria-selected="true"] {
+  background: color-mix(in oklab, var(--brand) 9%, var(--bg-subtle));
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--brand) 45%, var(--border)), 0 1px 2px rgb(0 0 0 / 0.14);
+}
+.tab.ghosted { opacity: 0.3; }
+.tab .num { font: 400 12px var(--font-mono); color: var(--fg-faint); }
+.tab .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab .x {
+  width: 18px; height: 18px; border-radius: 4px; display: grid; place-items: center;
+  color: var(--fg-muted); visibility: hidden;
+}
+.tab:hover .x, .tab[aria-selected="true"] .x { visibility: visible; }
+.tab .x:hover { background: var(--bg-sunken); color: var(--fg); }
+
+.tone-open { color: var(--success); }
+.tone-merged { color: var(--merged); }
+.tone-closed { color: var(--danger); }
+.tone-none { color: var(--fg-muted); }
+
+/* Section menu: icons at rest, labels slide out on hover. Active keeps its label. */
+.sections {
+  display: flex; align-items: center; gap: 1px; padding: 2px;
+  border-radius: 8px; flex-shrink: 0;
+}
+.sections:hover { background: color-mix(in oklab, var(--bg-sunken) 45%, transparent); }
+.sec {
+  height: 26px; display: flex; align-items: center; padding: 0 7px; border-radius: 6px;
+  color: var(--fg-muted);
+}
+.sec:hover { color: var(--fg); background: var(--bg-sunken); }
+.sec .sl {
+  max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0;
+  transition: max-width 220ms var(--ease), opacity 160ms, margin 220ms var(--ease);
+}
+.sections:hover .sec .sl, .sec.on .sl { max-width: 72px; opacity: 1; margin-left: 6px; }
+.sec.on { color: var(--fg); }
+.island-actions { display: flex; align-items: center; gap: 1px; flex-shrink: 0; }
+.island-actions .icon-btn { width: 26px; height: 26px; opacity: 0; transition: opacity 120ms; }
+.island:hover .island-actions .icon-btn, .island-actions .icon-btn:focus-visible { opacity: 1; }
+@container (max-width: 620px) { .sections .sl { display: none; } }
+@container (max-width: 480px) { .sections { display: none; } }
+
+/* Breadcrumb row: the island's "you are here" line, under the tabs.
+   Click a crumb to go there; click its chevron for its siblings. */
+.crumbs-bar {
+  height: 32px; flex-shrink: 0; display: flex; align-items: center; gap: 8px;
+  padding: 0 8px 0 10px; font-size: 12.5px; color: var(--fg-muted);
+  transition: opacity 160ms;
+}
+.island:not(.focused) .crumbs-bar { opacity: 0.66; }
+.crumb-trail { flex: 1; min-width: 0; display: flex; align-items: center; gap: 1px; overflow: hidden; font-family: var(--font-sans); }
+.crumb-group { display: inline-flex; align-items: center; min-width: 0; border-radius: 6px; flex-shrink: 0; }
+.crumb-group:hover { background: color-mix(in oklab, var(--bg-sunken) 55%, transparent); }
+.crumb {
+  height: 24px; display: inline-flex; align-items: center; gap: 6px; padding: 0 4px 0 6px;
+  border-radius: 6px; white-space: nowrap; min-width: 0; color: inherit;
+}
+.crumb:hover { color: var(--fg); }
+.crumb .ct { overflow: hidden; text-overflow: ellipsis; }
+.crumb .ownr { color: var(--fg-faint); }
+.crumb .num { font: 400 12px var(--font-mono); color: var(--fg-faint); }
+.crumb.current { color: var(--fg); font-weight: 500; }
+.crumb-more {
+  width: 18px; height: 22px; display: grid; place-items: center; border-radius: 5px;
+  color: var(--fg-faint); flex-shrink: 0; margin-right: 1px;
+}
+.crumb-more svg { transition: transform 160ms var(--ease); }
+.crumb-more:hover, .crumb-more[aria-expanded="true"] { color: var(--fg); background: var(--bg-sunken); }
+.crumb-more[aria-expanded="true"] svg { transform: rotate(180deg); }
+.crumb-sep { color: var(--fg-faint); padding: 0 3px; flex-shrink: 0; user-select: none; }
+.crumb-group.item { flex: 0 1 auto; flex-shrink: 1; min-width: 72px; }
+.crumb-tools { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.branch-chip {
+  height: 24px; display: inline-flex; align-items: center; gap: 5px; padding: 0 6px 0 7px; border-radius: 6px;
+  font: 400 12px var(--font-mono); color: var(--fg-muted);
+}
+.branch-chip:hover, .branch-chip[aria-expanded="true"] { background: var(--bg-sunken); color: var(--fg); }
+.crumb-tools .icon-btn { width: 24px; height: 24px; }
+@container (max-width: 480px) { .crumb .ownr, .crumb-group.item .ct { display: none; } .branch-chip .bn { display: none; } }
+
+/* Mirrors the app's Skeleton primitive (components/ui/skeleton.tsx):
+   bg-sunken, --radius-xs (2px), Tailwind animate-pulse, motion-safe only.
+   Shapes come from size alone; never restyle a skeleton locally. */
+.sk { display: inline-block; height: 10px; border-radius: 2px; background: var(--bg-sunken); vertical-align: middle; }
+@media (prefers-reduced-motion: no-preference) { .sk { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; } }
+@keyframes pulse { 50% { opacity: 0.5; } }
+.sk.sq { width: 14px; height: 14px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.crumb .sk { width: 140px; }
+.page-sk { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; padding-top: 12px; }
+.page-sk .row { display: flex; gap: 10px; align-items: center; }
+/* DESIGN.md empty/error state: centred size-5 icon in fg-faint, one text-body muted line, optional action. */
+.state-msg { max-width: 820px; margin: 56px auto 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--fg-muted); font-size: 14px; }
+.state-msg .si { color: var(--fg-faint); width: 20px; height: 20px; }
+.btn-quiet { height: 28px; padding: 0 12px; border-radius: 6px; background: var(--bg-subtle); box-shadow: 0 0 0 1px var(--border); color: var(--fg); font-size: 12.5px; }
+.btn-quiet:hover { background: var(--bg-sunken); }
+.picker .pi.sk-row { pointer-events: none; }
+.picker .pi.sk-row .sk { flex: none; }
+.picker .err { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; color: var(--fg-muted); font-size: 12px; }
+
+/* Sibling picker */
+.picker { min-width: 260px; max-width: 360px; padding: 4px; }
+.picker .pf {
+  height: 30px; display: flex; align-items: center; gap: 7px; padding: 0 8px; margin-bottom: 3px;
+  border-radius: 6px; background: var(--bg); box-shadow: 0 0 0 1px var(--border); color: var(--fg-muted);
+}
+.picker .pf input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: 12.5px; color: var(--fg); }
+.picker .pl { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; scrollbar-width: thin; }
+.picker .pi { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 6px; text-align: left; white-space: nowrap; width: 100%; }
+.picker .pi span { flex: none; }
+.picker .pi .pt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.picker .pi .num { font: 400 12px var(--font-mono); color: var(--fg-faint); }
+.picker .pi .chk { color: var(--brand); flex-shrink: 0; }
+.picker .pi.active { background: var(--bg-sunken); }
+.picker .pi[aria-current="true"] .pt { color: var(--fg); font-weight: 500; }
+.picker .hint { display: flex; gap: 10px; padding: 6px 8px 3px; margin-top: 3px; border-top: 1px solid var(--border); font-size: 11px; color: var(--fg-faint); }
+.picker .empty { padding: 10px 8px; color: var(--fg-faint); font-size: 12px; }
+
+.content {
+  flex: 1; min-height: 0; overflow: auto;
+  padding: 8px 20px 28px;
+  user-select: text;
+  scrollbar-width: thin; scrollbar-color: var(--fg-faint) transparent;
+}
+
+/* ── Page content (sample pages) ────────────────────────────────────── */
+.page { max-width: 820px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+.toolbar {
+  display: flex; align-items: center; gap: 14px; padding: 6px 10px; border-radius: 8px;
+  background: var(--bg-subtle); color: var(--fg-muted); font-size: 12px;
+}
+.toolbar b { color: var(--fg); font-weight: 550; }
+.rows { display: flex; flex-direction: column; }
+.row { display: flex; gap: 10px; padding: 9px 10px; border-radius: 8px; align-items: flex-start; }
+.row:hover { background: var(--bg-subtle); }
+.row .ri { margin-top: 2px; }
+.row .rt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.row .meta { font-size: 12px; color: var(--fg-muted); }
+.row .meta .m { font-family: var(--font-mono); }
+a.lnk { color: var(--fg); text-decoration: none; font-size: 14px; font-weight: 450; }
+a.lnk:hover { color: var(--brand); }
+a.lnk.inline { color: var(--brand); font-size: inherit; }
+a.lnk.xrepo { display: inline-flex; align-items: center; gap: 4px; vertical-align: -2px; }
+h1.pt { font-size: 22px; font-weight: 550; letter-spacing: -0.015em; line-height: 1.25; margin: 10px 0 0; text-wrap: balance; }
+.pill {
+  display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 99px;
+  font-size: 12px; font-weight: 500;
+}
+.pill.merged { color: var(--merged); background: color-mix(in oklab, var(--merged) 14%, var(--bg-subtle)); }
+.pill.open { color: var(--success); background: color-mix(in oklab, var(--success) 14%, var(--bg-subtle)); }
+.metaline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--fg-muted); font-size: 12px; }
+.metaline code { font: 400 12px var(--font-mono); color: var(--fg-muted); }
+.prose { font-size: 14px; line-height: 1.6; max-width: 68ch; display: flex; flex-direction: column; gap: 10px; }
+.prose p { margin: 0; }
+.prose code { font: 400 12.5px var(--font-mono); padding: 1px 5px; border-radius: 4px; background: var(--bg-subtle); }
+.subtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); }
+.subtabs span { padding: 7px 10px; color: var(--fg-muted); font-size: 13px; position: relative; }
+.subtabs span.on { color: var(--fg); }
+.subtabs span.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; background: var(--brand); border-radius: 2px; }
+.code {
+  font: 400 12.5px/1.65 var(--font-mono); background: var(--bg-subtle); border-radius: 8px;
+  padding: 10px 0; overflow-x: auto; box-shadow: 0 0 0 1px var(--border);
+}
+.code .ln { display: flex; white-space: pre; }
+.code .no { width: 44px; flex-shrink: 0; text-align: right; padding-right: 14px; color: var(--fg-faint); font-variant-numeric: tabular-nums; }
+.k { color: var(--merged); } .s { color: var(--success); } .c { color: var(--fg-faint); } .f { color: var(--brand); }
+.crumbs { font: 400 12px var(--font-mono); color: var(--fg-muted); display: flex; gap: 6px; align-items: center; }
+.crumbs b { color: var(--fg); font-weight: 500; }
+.steps { display: flex; flex-direction: column; gap: 2px; }
+.step { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 7px; font-size: 13px; }
+.step:hover { background: var(--bg-subtle); }
+.step .d { margin-left: auto; font: 400 12px var(--font-mono); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+
+/* ── Status bar ─────────────────────────────────────────────────────── */
+.statusbar {
+  height: 30px; flex-shrink: 0; display: flex; align-items: center; gap: 16px;
+  font-size: 12px; color: var(--fg-muted); white-space: nowrap; overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.statusbar .hints { display: flex; gap: 16px; margin-left: auto; overflow: hidden; }
+.statusbar .hint b { color: var(--fg); font-weight: 500; }
+
+/* ── Overlays ───────────────────────────────────────────────────────── */
+.ghost {
+  position: fixed; z-index: 50; pointer-events: none; left: 0; top: 0;
+  height: 28px; display: flex; align-items: center; gap: 7px; padding: 0 10px;
+  border-radius: 7px; background: var(--bg-subtle); color: var(--fg);
+  box-shadow: var(--float), 0 0 0 1px var(--border-strong); white-space: nowrap; max-width: 280px;
+}
+.ghost .label { overflow: hidden; text-overflow: ellipsis; }
+.ghost .num { font: 400 12px var(--font-mono); color: var(--fg-faint); }
+.ghost.island-ghost { height: 34px; padding: 0 12px; }
+.preview {
+  position: fixed; z-index: 40; pointer-events: none; border-radius: var(--radius);
+  background: color-mix(in oklab, var(--brand) 14%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--brand) 70%, transparent);
+  transition: left 110ms var(--ease), top 110ms var(--ease), width 110ms var(--ease), height 110ms var(--ease), opacity 90ms;
+  opacity: 0;
+}
+.preview.on { opacity: 1; }
+.preview.line { border-radius: 2px; background: var(--brand); box-shadow: none; }
+.preview .zone-label {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  font-size: 12px; font-weight: 500; color: var(--fg); padding: 4px 10px; border-radius: 6px;
+  background: var(--bg-subtle); box-shadow: var(--float); white-space: nowrap;
+}
+.preview.line .zone-label { display: none; }
+body.dragging, body.dragging * { cursor: grabbing !important; }
+body.resizing-row, body.resizing-row * { cursor: col-resize !important; }
+body.resizing-col, body.resizing-col * { cursor: row-resize !important; }
+
+.menu {
+  position: fixed; z-index: 60; min-width: 220px; padding: 4px; border-radius: 9px;
+  background: var(--bg-subtle); box-shadow: var(--float), 0 0 0 1px var(--border);
+  display: flex; flex-direction: column; gap: 1px;
+  transform-origin: top left; animation: pop 120ms var(--ease);
+}
+.menu button { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-radius: 6px; text-align: left; white-space: nowrap; }
+.menu button:hover { background: var(--bg-sunken); }
+.menu button span { flex: 1; }
+.menu button .ownr { color: var(--fg-faint); flex: none; }
+.menu .mh { padding: 4px 8px 2px; font-size: 11px; color: var(--fg-faint); font-weight: 550; letter-spacing: 0.04em; text-transform: uppercase; }
+@keyframes pop { from { opacity: 0; transform: scale(0.96); } }
+
+@media (max-width: 720px) {
+  .titlebar { grid-template-columns: var(--sbw) minmax(0, 1fr) auto; }
+  .titlebar .search { display: none; }
+  .context .branch, .tb-right .seg, .tb-right .text-btn, .statusbar .hints { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+
+<div class="app">
+  <header class="titlebar">
+    <div class="tb-logo">
+      <button class="logo" id="logoBtn" aria-label="Toggle sidebar" title="Toggle sidebar  ⌘B">
+        <svg width="20" height="20" viewBox="0 0 100 100" aria-hidden="true"><path fill-rule="evenodd" fill="currentColor" d="M50 4 A46 46 0 1 1 50 96 A46 46 0 1 1 50 4 Z M54 32 L67 43 Q71 47 71 52 L71 62 Q71 68 65 68 L35 68 Q29 68 29 62 L29 52 Q29 47 33 43 L46 32 Q50 28 54 32 Z"/></svg>
+      </button>
+    </div>
+    <div class="context" id="context" aria-live="polite"></div>
+    <button class="search" id="searchBtn"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><span>Search or jump to…</span><kbd>⌘K</kbd></button>
+    <div class="tb-right">
+      <div class="seg" role="group" aria-label="Repo color">
+        <span class="seg-label">Repo color</span>
+        <button id="rcOff" aria-pressed="false">Off</button>
+        <button id="rcOn" aria-pressed="true">Subtle</button>
+      </div>
+      <div class="seg" role="group" aria-label="Network (prototype)">
+        <span class="seg-label">Network</span>
+        <button data-net="fast" aria-pressed="true">Fast</button>
+        <button data-net="slow" aria-pressed="false">Slow</button>
+        <button data-net="offline" aria-pressed="false">Offline</button>
+      </div>
+      <button class="text-btn" id="resetBtn">Reset layout</button>
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle theme"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></svg></button>
+      <span class="avatar" aria-label="daedlock">DL</span>
+    </div>
+  </header>
+
+  <div class="body-row">
+    <aside class="sidebar" id="sidebar" aria-label="Navigation"></aside>
+    <main class="dock" id="dock" aria-label="Workspace"></main>
+  </div>
+
+  <footer class="statusbar">
+    <span id="counts"></span>
+    <div class="hints">
+      <span class="hint"><b>Drag</b> from the sidebar into any island</span>
+      <span class="hint"><b>Drag a tab</b> to an edge to split</span>
+      <span class="hint"><b>Drag a header</b> to move an island</span>
+      <span class="hint"><b>⇧ click</b> new tab · <b>⌥ click</b> to the side</span>
+    </div>
+  </footer>
+</div>
+
+<div class="preview" id="preview"><span class="zone-label" id="zoneLabel"></span></div>
+
+<script>
+(() => {
+  // ─── Icons ──────────────────────────────────────────────────────────
+  const I = {
+    pr: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="3.5" r="1.6"/><circle cx="4" cy="12.5" r="1.6"/><circle cx="12" cy="12.5" r="1.6"/><path d="M4 5.1v5.8M12 10.9V6.5a2 2 0 0 0-2-2H7.5"/><path d="m9 3 -1.5 1.5L9 6"/></svg>',
+    merged: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="3.5" r="1.6"/><circle cx="4" cy="12.5" r="1.6"/><circle cx="12" cy="8" r="1.6"/><path d="M4 5.1v5.8M5.3 4.6C6.5 7 8 8 10.4 8"/></svg>',
+    issue: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg>',
+    code: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m5.5 4.5-3.5 3.5 3.5 3.5M10.5 4.5 14 8l-3.5 3.5"/></svg>',
+    commit: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.6"/><path d="M1.5 8h3.9M10.6 8h3.9"/></svg>',
+    play: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M6.7 5.6v4.8L10.6 8z" fill="currentColor" stroke-linejoin="round"/></svg>',
+    file: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 1.8h5l3 3v9.4H4z"/><path d="M9 1.8v3h3"/></svg>',
+    x: '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 3 6 6M9 3 3 9"/></svg>',
+    grip: '<svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor"><circle cx="2" cy="3" r="1.1"/><circle cx="6" cy="3" r="1.1"/><circle cx="2" cy="7" r="1.1"/><circle cx="6" cy="7" r="1.1"/><circle cx="2" cy="11" r="1.1"/><circle cx="6" cy="11" r="1.1"/></svg>',
+    splitR: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M8 2.5v11"/></svg>',
+    max: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5 9 7M2.5 13.5 7 9"/></svg>',
+    restore: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 6.5h-4v-4M2.5 9.5h4v4M9.5 6.5 14 2M6.5 9.5 2 14"/></svg>',
+    tab: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M2 6h12"/></svg>',
+    chev: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4"><path d="m2.5 4 2.5 2.5L7.5 4"/></svg>',
+    inbox: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 9.5 3.6 3.2A1 1 0 0 1 4.6 2.5h6.8a1 1 0 0 1 1 .7L14 9.5V13a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 2 13z"/><path d="M2 9.5h3.5l1 1.5h3l1-1.5H14"/></svg>',
+    filter: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>',
+    gear: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg>',
+    chevDown: '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m2.5 3.8 2.5 2.5 2.5-2.5"/></svg>',
+    check: '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m2.5 6.2 2.2 2.2 4.8-5"/></svg>',
+    ext: '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.5 2.5h4v4M13.5 2.5 8 8M12 9.5V13a.5.5 0 0 1-.5.5h-8A.5.5 0 0 1 3 13V5a.5.5 0 0 1 .5-.5H7"/></svg>',
+    branch: '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="3.5" r="1.5"/><circle cx="4" cy="12.5" r="1.5"/><circle cx="12" cy="5.5" r="1.5"/><path d="M4 5v6M12 7c0 3-3 3.5-6.5 4.5"/></svg>',
+  };
+
+  // ─── Sample data: three active repos, two more starred ──────────────
+  // Hues avoid the status colors (green open, red closed, purple merged).
+  const REPOS = {
+    githut:   { owner: "daedlock",  name: "githut",        hue: 195, mark: "G", branch: "main" },
+    worker:   { owner: "daedlock",  name: "githut-worker", hue: 60,  mark: "W", branch: "main" },
+    nickai:   { owner: "getnickai", name: "nickai-app",    hue: 345, mark: "N", branch: "develop" },
+    dotfiles: { owner: "daedlock",  name: "dotfiles",      hue: 110, mark: "D", branch: "main" },
+    tokens:   { owner: "getnickai", name: "design-tokens", hue: 265, mark: "T", branch: "main" },
+  };
+  const PRS = {
+    githut: {
+      22: ["Add keep-alive workspace tabs", "open", "codex/workspace-tabs", "now"],
+      21: ["Make DESIGN.md the accurate single source for UI rules", "merged", "docs/design-system-cleanup", "7d ago"],
+      20: ["Rebuild bulk selection as a Linear-style action bar", "merged", "codex/bulk-bar", "7d ago"],
+      19: ["Add Linear-style bulk actions for issues and pull requests", "merged", "codex/bulk-actions", "7d ago"],
+    },
+    worker: {
+      7: ["Stream webhook deliveries to the edge cache", "open", "feat/webhook-stream", "3h ago"],
+      6: ["Retry GitHub API calls on secondary rate limits", "merged", "fix/rate-limit-retry", "2d ago"],
+      5: ["Sign R2 upload URLs per attachment", "merged", "feat/r2-signing", "5d ago"],
+    },
+    nickai: {
+      586: ["Fix flaky checkout test on Safari", "open", "fix/safari-checkout", "1h ago"],
+      581: ["Move pricing page to the new design tokens", "merged", "chore/pricing-tokens", "4d ago"],
+    },
+    dotfiles: {}, tokens: {},
+  };
+  const ISSUES = {
+    githut: { 24: ["Tab titles disappear after navigating in another tab", "open", "2h ago"], 23: ["Docking: drag tabs between islands and split panes", "open", "today"] },
+    worker: { 3: ["Webhook replay drops events over 1 MB", "open", "1d ago"] },
+    nickai: { 412: ["Checkout button loses its focus ring in dark mode", "open", "6h ago"] },
+    dotfiles: {}, tokens: {},
+  };
+  const FILES = {
+    githut: "src/app/stores/tabs.ts",
+    worker: "src/worker/webhooks.ts",
+    nickai: "app/checkout/page.tsx",
+    dotfiles: "fish/config.fish",
+    tokens: "tokens/color.json",
+  };
+  const SNIPPETS = {
+    githut: [
+      '<span class="c">// Every tab owns a router with its own in-memory history.</span>',
+      '<span class="k">export type</span> Tab = { id: <span class="f">string</span>; href: <span class="f">string</span> };',
+      '',
+      '<span class="k">export function</span> <span class="f">openTab</span>(s: TabsSnapshot, rawHref: <span class="f">string</span>) {',
+      '  <span class="k">const</span> href = <span class="f">normalizeHref</span>(rawHref);',
+      '  <span class="k">const</span> existing = s.tabs.<span class="f">find</span>((t) =&gt; t.href === href);',
+      '  <span class="k">if</span> (existing) <span class="k">return</span> { ...s, activeId: existing.id };',
+      '}',
+    ],
+    worker: [
+      '<span class="k">export async function</span> <span class="f">deliver</span>(event: WebhookEvent, env: Env) {',
+      '  <span class="k">const</span> key = <span class="s">`hook/${event.id}`</span>;',
+      '  <span class="k">await</span> env.CACHE.<span class="f">put</span>(key, event.body, { expirationTtl: <span class="f">3600</span> });',
+      '  <span class="k">return</span> <span class="f">stream</span>(event, { chunkSize: <span class="f">64</span> * <span class="f">1024</span> });',
+      '}',
+    ],
+    nickai: [
+      '<span class="k">export default function</span> <span class="f">CheckoutPage</span>() {',
+      '  <span class="k">const</span> { cart } = <span class="f">useCart</span>();',
+      '  <span class="k">return</span> &lt;<span class="f">Button</span> size=<span class="s">"lg"</span> onClick={<span class="f">pay</span>}&gt;Pay {cart.total}&lt;/<span class="f">Button</span>&gt;;',
+      '}',
+    ],
+  };
+  const SECTIONS = [
+    { id: "code", label: "Code", icon: "code" },
+    { id: "commits", label: "Commits", icon: "commit" },
+    { id: "pulls", label: "PRs", icon: "pr" },
+    { id: "issues", label: "Issues", icon: "issue" },
+    { id: "actions", label: "Actions", icon: "play" },
+  ];
+
+  // Page ids: "<repo>/<kind>[:<arg>]"
+  function parse(page) {
+    const slash = page.indexOf("/");
+    const repo = page.slice(0, slash);
+    const rest = page.slice(slash + 1);
+    const colon = rest.indexOf(":");
+    return colon < 0 ? { repo, kind: rest, arg: "" } : { repo, kind: rest.slice(0, colon), arg: rest.slice(colon + 1) };
+  }
+  function meta(page) {
+    const { repo, kind, arg } = parse(page);
+    switch (kind) {
+      case "pr": { const p = PRS[repo][arg]; return { repo, label: p[0], num: "#" + arg, icon: p[1] === "merged" ? "merged" : "pr", tone: p[1], section: "pulls" }; }
+      case "issue": { const p = ISSUES[repo][arg]; return { repo, label: p[0], num: "#" + arg, icon: "issue", tone: p[1] === "closed" ? "merged" : "open", section: "issues" }; }
+      case "file": return { repo, label: arg.split("/").pop(), icon: "file", tone: "none", section: "code" };
+      case "run": return { repo, label: "CI · run " + arg, icon: "play", tone: "open", section: "actions" };
+      default: { const s = SECTIONS.find((x) => x.id === kind); return { repo, label: s.id === "pulls" ? "Pull requests" : s.label, icon: s.icon, tone: "none", section: kind }; }
+    }
+  }
+  const mark = (repo, size = "") => `<span class="rmark ${size}" style="--h:${REPOS[repo].hue}" aria-hidden="true">${REPOS[repo].mark}</span>`;
+  const link = (page, text, cls = "lnk") => `<a class="${cls}" href="#" data-page="${page}">${text}</a>`;
+  /** Cross-repo references carry the target repo's mark, like tabs do. */
+  const xlink = (from, page, text) => {
+    const r = parse(page).repo;
+    return r === from ? link(page, text, "lnk inline") : `<a class="lnk inline xrepo" href="#" data-page="${page}">${mark(r, "sm")}${text}</a>`;
+  };
+
+  function pageHtml(page) {
+    const { repo, kind, arg } = parse(page);
+    const R = REPOS[repo];
+    if (kind === "pulls") {
+      const list = Object.entries(PRS[repo]).reverse();
+      const rows = list.map(([n, p]) => `
+        <div class="row"><span class="ri tone-${p[1]}">${p[1] === "merged" ? I.merged : I.pr}</span>
+        <div class="rt">${link(`${repo}/pr:${n}`, p[0])}<span class="meta"><span class="m">#${n}</span> · ${p[1] === "merged" ? "merged" : "opened"} ${p[3]} by ${R.owner === "daedlock" ? "daedlock" : "mira-k"}</span></div></div>`).join("");
+      return `<div class="page"><div class="toolbar"><b>${list.filter(([, p]) => p[1] === "open").length} Open</b><span>${list.filter(([, p]) => p[1] !== "open").length} Closed</span></div><div class="rows">${rows || '<div class="row"><span class="meta">No pull requests yet.</span></div>'}</div></div>`;
+    }
+    if (kind === "issues") {
+      const list = Object.entries(ISSUES[repo]).reverse();
+      const rows = list.map(([n, p]) => `
+        <div class="row"><span class="ri tone-open">${I.issue}</span>
+        <div class="rt">${link(`${repo}/issue:${n}`, p[0])}<span class="meta"><span class="m">#${n}</span> · opened ${p[2]}</span></div></div>`).join("");
+      return `<div class="page"><div class="toolbar"><b>${list.length} Open</b><span>0 Closed</span></div><div class="rows">${rows || '<div class="row"><span class="meta">No open issues.</span></div>'}</div></div>`;
+    }
+    if (kind === "commits") {
+      const rows = Object.entries(PRS[repo]).map(([n, p], i) => `
+        <div class="row"><span class="ri tone-none">${I.commit}</span>
+        <div class="rt"><span style="font-size:14px">${p[0]} (#${n})</span><span class="meta"><span class="m">${(0x9a3c1 + i * 7919 + n * 31).toString(16).slice(0, 7)}</span> · committed ${p[3]}</span></div></div>`).join("");
+      return `<div class="page"><div class="toolbar"><b>${R.branch}</b></div><div class="rows">${rows || '<div class="row"><span class="meta">No commits.</span></div>'}</div></div>`;
+    }
+    if (kind === "actions") {
+      return `<div class="page"><div class="toolbar"><b>All workflows</b><span>CI · Deploy</span></div><div class="rows">
+        <div class="row"><span class="ri tone-open">${I.play}</span><div class="rt">${link(`${repo}/run:4182`, "CI on " + R.branch)}<span class="meta">CI · <span class="m">${R.branch}</span> · 2m 14s</span></div></div>
+      </div></div>`;
+    }
+    if (kind === "run") {
+      const steps = [["Set up job", "2s"], ["Install dependencies", "18s"], ["Typecheck", "21s"], ["Test", "11s"], ["Build", "54s"]];
+      return `<div class="page"><h1 class="pt">CI on ${R.branch}</h1>
+        <div class="metaline"><span class="pill open">${I.play} Success</span><span>run ${arg}</span><code>${R.owner}/${R.name}</code></div>
+        <div class="steps">${steps.map(([s, d]) => `<div class="step"><span class="tone-open">${I.play}</span>${s}<span class="d">${d}</span></div>`).join("")}</div></div>`;
+    }
+    if (kind === "code" || kind === "file") {
+      const path = arg || FILES[repo];
+      const lines = SNIPPETS[repo] || ['<span class="c"># nothing interesting here</span>'];
+      return `<div class="page"><div class="crumbs">${R.name} / ${path.split("/").slice(0, -1).join(" / ")} / <b>${path.split("/").pop()}</b></div>
+        <div class="code">${lines.map((l, i) => `<div class="ln"><span class="no">${i + 1}</span><span>${l}</span></div>`).join("")}</div></div>`;
+    }
+    if (kind === "pr") {
+      const p = PRS[repo][arg];
+      const body = {
+        "githut/22": `Each tab runs its own router and stays mounted. The webhook cache this reads from lives in ${xlink(repo, "worker/pr:7", "githut-worker#7")}.`,
+        "worker/7": `Unblocks the live tab titles in ${xlink(repo, "githut/pr:22", "githut#22")}. Replay limits tracked in ${xlink(repo, "worker/issue:3", "#3")}.`,
+        "nickai/586": `Safari reports the checkout button as hidden mid-transition. Same focus-ring bug as ${xlink(repo, "nickai/issue:412", "#412")}.`,
+      }[`${repo}/${arg}`] || `See ${xlink(repo, `${repo}/file:${FILES[repo]}`, FILES[repo])} for the change.`;
+      return `<div class="page">
+        <h1 class="pt">${p[0]}</h1>
+        <div class="metaline"><span class="pill ${p[1]}">${p[1] === "merged" ? I.merged : I.pr} ${p[1] === "merged" ? "Merged" : "Open"}</span>
+          <code>${R.name}#${arg}</code><code>${p[2]} → ${R.branch}</code><span>${p[3]}</span></div>
+        <div class="subtabs"><span class="on">Conversation</span><span>Commits</span><span>Checks</span><span>Files changed</span></div>
+        <div class="prose"><p>${body}</p><p>Back to ${link(`${repo}/pulls`, "all pull requests", "lnk inline")}.</p></div></div>`;
+    }
+    if (kind === "issue") {
+      const p = ISSUES[repo][arg];
+      return `<div class="page"><h1 class="pt">${p[0]}</h1>
+        <div class="metaline"><span class="pill open">${I.issue} Open</span><code>${R.name}#${arg}</code><span>opened ${p[2]}</span></div>
+        <div class="prose"><p>Repro lives in ${xlink(repo, `${repo}/file:${FILES[repo]}`, FILES[repo])}.</p></div></div>`;
+    }
+    return "";
+  }
+
+  // ─── Layout model ───────────────────────────────────────────────────
+  //   group: { type: "group", id, tabs: [{ id, page }], active }
+  //   split: { type: "split", id, dir: "row" | "col", children, sizes }  (sizes sum to 1)
+  let uidN = 0;
+  const uid = (p) => `${p}${Date.now().toString(36)}${(uidN++).toString(36)}`;
+  const tab = (page) => ({ id: uid("t"), page });
+  const group = (pages, active = 0) => ({ type: "group", id: uid("g"), tabs: pages.map(tab), active });
+  const split = (dir, children, sizes) => ({ type: "split", id: uid("s"), dir, children, sizes: sizes || children.map(() => 1 / children.length) });
+
+  const KEY = "githut-islands-proto-v2";
+  const defaultState = () => {
+    const main = group(["githut/pulls", "githut/pr:22", "nickai/pr:586"], 1);
+    return {
+      root: split("row", [main, split("col", [group(["worker/pr:7", "worker/issues"]), group(["githut/file:src/app/stores/tabs.ts", "githut/run:4182"])], [0.55, 0.45])], [0.56, 0.44]),
+      focused: main.id,
+      maximized: null,
+      sidebar: "expanded",
+      repoColor: "subtle",
+    };
+  };
+  let state;
+  try { state = JSON.parse(localStorage.getItem(KEY)); } catch { state = null; }
+  if (!state || !state.root) state = defaultState();
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+
+  function walk(node, parent, fn) { fn(node, parent); if (node.type === "split") node.children.forEach((c) => walk(c, node, fn)); }
+  function locate(id) { let r = null; walk(state.root, null, (n, p) => { if (n.id === id) r = { node: n, parent: p }; }); return r; }
+  function allGroups() { const g = []; walk(state.root, null, (n) => n.type === "group" && g.push(n)); return g; }
+  /** Repo of the island's selected tab. Islands have no repo of their own. */
+  const activeRepo = (g) => parse(g.tabs[g.active].page).repo;
+
+  function normalize(node) {
+    if (node.type === "group") return node.tabs.length ? node : null;
+    const kids = [], sizes = [];
+    node.children.forEach((c, i) => {
+      const n = normalize(c);
+      if (!n) return;
+      if (n.type === "split" && n.dir === node.dir) n.children.forEach((cc, j) => { kids.push(cc); sizes.push(node.sizes[i] * n.sizes[j]); });
+      else { kids.push(n); sizes.push(node.sizes[i]); }
+    });
+    if (!kids.length) return null;
+    if (kids.length === 1) return kids[0];
+    const total = sizes.reduce((a, b) => a + b, 0);
+    node.children = kids; node.sizes = sizes.map((s) => s / total);
+    return node;
+  }
+  function tidy() {
+    state.root = normalize(state.root) || group(["githut/pulls"]);
+    const ids = new Set(allGroups().map((g) => g.id));
+    if (!ids.has(state.focused)) state.focused = allGroups()[0].id;
+    if (state.maximized && !ids.has(state.maximized)) state.maximized = null;
+  }
+
+  function replaceNode(oldNode, newNode, parent) {
+    if (!parent) state.root = newNode;
+    else parent.children[parent.children.indexOf(oldNode)] = newNode;
+  }
+  function insertBeside(targetId, side, newNode) {
+    const { node: target, parent } = locate(targetId);
+    const dir = side === "left" || side === "right" ? "row" : "col";
+    const before = side === "left" || side === "top";
+    if (parent && parent.dir === dir) {
+      const i = parent.children.indexOf(target);
+      const half = parent.sizes[i] / 2;
+      parent.sizes[i] = half;
+      parent.children.splice(before ? i : i + 1, 0, newNode);
+      parent.sizes.splice(before ? i : i + 1, 0, half);
+    } else {
+      replaceNode(target, split(dir, before ? [newNode, target] : [target, newNode]), parent);
+    }
+  }
+  function dockAtRoot(side, newNode) {
+    const dir = side === "left" || side === "right" ? "row" : "col";
+    const before = side === "left" || side === "top";
+    const r = state.root;
+    if (r.type === "split" && r.dir === dir) {
+      r.sizes = r.sizes.map((s) => s * 0.72);
+      r.children.splice(before ? 0 : r.children.length, 0, newNode);
+      r.sizes.splice(before ? 0 : r.sizes.length, 0, 0.28);
+    } else {
+      state.root = split(dir, before ? [newNode, r] : [r, newNode], before ? [0.28, 0.72] : [0.72, 0.28]);
+    }
+  }
+  function detachTab(g, tabId) {
+    const i = g.tabs.findIndex((t) => t.id === tabId);
+    const [t] = g.tabs.splice(i, 1);
+    if (g.active >= g.tabs.length) g.active = Math.max(0, g.tabs.length - 1);
+    else if (i < g.active) g.active -= 1;
+    return t;
+  }
+  function detachGroup(g) {
+    const { parent } = locate(g.id);
+    if (!parent) return false;
+    const i = parent.children.indexOf(g);
+    parent.children.splice(i, 1);
+    parent.sizes.splice(i, 1);
+    state.root = normalize(state.root);
+    return true;
+  }
+
+  // ─── Commands ───────────────────────────────────────────────────────
+  function activate(gid, index) { const g = locate(gid).node; g.active = index; state.focused = gid; commit(); }
+  function closeTab(gid, tabId) { detachTab(locate(gid).node, tabId); commit(true); }
+  function navigate(gid, page) { const g = locate(gid).node; g.tabs[g.active].page = page; state.focused = gid; commit(); }
+  function openInNewTab(gid, page) {
+    const g = locate(gid).node;
+    const existing = g.tabs.findIndex((t) => t.page === page);
+    if (existing >= 0) g.active = existing;
+    else { g.tabs.splice(g.active + 1, 0, tab(page)); g.active += 1; }
+    state.focused = gid; commit();
+  }
+  function openToSide(gid, page) {
+    const ng = group([page]);
+    insertBeside(gid, "right", ng);
+    state.focused = ng.id; state.maximized = null; commit(true);
+  }
+  function splitRight(gid) { const g = locate(gid).node; openToSide(gid, g.tabs[g.active].page); }
+  function toggleMax(gid) { state.maximized = state.maximized === gid ? null : gid; state.focused = gid; commit(true); }
+
+  /** Sidebar launch: jump to a tab already showing it, otherwise open a new tab in the focused island. */
+  function launch(page) {
+    const groups = allGroups();
+    const focus = (g, i) => { g.active = i; state.focused = g.id; state.maximized = null; commit(); };
+    if (page.includes("/")) {
+      // A page: jump to the tab already showing it.
+      for (const g of groups) {
+        const i = g.tabs.findIndex((t) => t.page === page);
+        if (i >= 0) return focus(g, i);
+      }
+      return openInNewTab(state.focused, page);
+    }
+    // A repo: prefer a selected tab already on it, then any tab of it, else open its code.
+    const showing = groups.find((g) => activeRepo(g) === page);
+    if (showing) return focus(showing, showing.active);
+    for (const g of groups) {
+      const i = g.tabs.findIndex((t) => parse(t.page).repo === page);
+      if (i >= 0) return focus(g, i);
+    }
+    openInNewTab(state.focused, `${page}/code`);
+  }
+
+  function drop(drag, target) {
+    if (!target) return;
+    const src = drag.gid ? locate(drag.gid).node : null;
+    // Tabs and sidebar items move one tab; islands move all of theirs.
+    if (drag.kind === "tab" || drag.kind === "item") {
+      const take = () => (drag.kind === "tab" ? detachTab(src, drag.tid) : tab(drag.page));
+      if (target.type === "insert") {
+        const dst = locate(target.gid).node;
+        let index = target.index;
+        if (dst === src) { const from = src.tabs.findIndex((t) => t.id === drag.tid); if (from < index) index -= 1; }
+        dst.tabs.splice(index, 0, take()); dst.active = index; state.focused = dst.id;
+      } else if (target.type === "center") {
+        if (src && target.gid === src.id) return;
+        const dst = locate(target.gid).node;
+        dst.tabs.push(take()); dst.active = dst.tabs.length - 1; state.focused = dst.id;
+      } else {
+        if (src && target.gid === src.id && src.tabs.length === 1) return;
+        const ng = { type: "group", id: uid("g"), tabs: [take()], active: 0 };
+        if (target.type === "root") dockAtRoot(target.side, ng); else insertBeside(target.gid, target.side, ng);
+        state.focused = ng.id;
+      }
+    } else {
+      if (target.gid === src.id) return;
+      if (target.type === "insert" || target.type === "center") {
+        const dst = locate(target.gid).node;
+        const at = target.type === "insert" ? target.index : dst.tabs.length;
+        dst.tabs.splice(at, 0, ...src.tabs);
+        dst.active = at + src.active;
+        src.tabs = [];
+        state.focused = dst.id;
+      } else {
+        if (!detachGroup(src)) return;
+        if (target.type === "root") dockAtRoot(target.side, src); else insertBeside(target.gid, target.side, src);
+        state.focused = src.id;
+      }
+    }
+    state.maximized = null;
+    commit(true);
+  }
+
+  // ─── Rendering ──────────────────────────────────────────────────────
+  const dock = document.getElementById("dock");
+  const sidebarEl = document.getElementById("sidebar");
+  const narrow = () => window.innerWidth < 720;
+
+  function commit(animate = false) {
+    tidy();
+    save();
+    const before = animate ? snapshotRects() : null;
+    render();
+    if (before) flip(before);
+  }
+
+  function render() {
+    const scrolls = {};
+    dock.querySelectorAll(".island").forEach((el) => { scrolls[el.dataset.gid + el.dataset.page] = el.querySelector(".content").scrollTop; });
+    dock.innerHTML = "";
+    const maxId = state.maximized || (narrow() ? state.focused : null);
+    const node = maxId ? locate(maxId)?.node || state.root : state.root;
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    cell.appendChild(renderNode(node));
+    dock.appendChild(cell);
+    dock.querySelectorAll(".island").forEach((el) => {
+      const s = scrolls[el.dataset.gid + el.dataset.page];
+      if (s) el.querySelector(".content").scrollTop = s;
+      // Keep the selected tab in view when the row overflows.
+      const strip = el.querySelector(".tabs");
+      const sel = strip.querySelector('.tab[aria-selected="true"]');
+      if (sel) {
+        const left = sel.offsetLeft - 2, right = sel.offsetLeft + sel.offsetWidth + 2;
+        if (left < strip.scrollLeft) strip.scrollLeft = left;
+        else if (right > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = right - strip.clientWidth;
+      }
+    });
+    renderSidebar();
+    renderChrome();
+  }
+
+  function renderChrome() {
+    const g = locate(state.focused)?.node;
+    if (g) {
+      const R = REPOS[activeRepo(g)];
+      document.getElementById("context").innerHTML =
+        `${mark(activeRepo(g))}<span class="path"><span class="owner">${R.owner}</span><span class="sep">/</span>${R.name}</span><span class="branch">${I.branch}${R.branch}</span>`;
+    }
+    const gs = allGroups();
+    const repos = new Set(gs.flatMap((x) => x.tabs.map((t) => parse(t.page).repo)));
+    document.getElementById("counts").textContent =
+      `${gs.length} island${gs.length === 1 ? "" : "s"} · ${gs.reduce((n, x) => n + x.tabs.length, 0)} tabs · ${repos.size} repo${repos.size === 1 ? "" : "s"}`;
+    const collapsed = state.sidebar === "collapsed" || narrow();
+    document.querySelector(".app").classList.toggle("sb-collapsed", collapsed);
+    document.getElementById("logoBtn").setAttribute("aria-expanded", String(!collapsed));
+    document.documentElement.dataset.repoColor = state.repoColor;
+    document.getElementById("rcOff").setAttribute("aria-pressed", String(state.repoColor === "off"));
+    document.getElementById("rcOn").setAttribute("aria-pressed", String(state.repoColor !== "off"));
+  }
+
+  function renderNode(node) {
+    if (node.type === "group") return renderIsland(node);
+    const el = document.createElement("div");
+    el.className = "split";
+    el.dataset.dir = node.dir;
+    node.children.forEach((child, i) => {
+      if (i > 0) {
+        const s = document.createElement("div");
+        s.className = "splitter";
+        s.dataset.sid = node.id;
+        s.dataset.i = String(i - 1);
+        s.setAttribute("role", "separator");
+        s.setAttribute("aria-orientation", node.dir === "row" ? "vertical" : "horizontal");
+        el.appendChild(s);
+      }
+      const c = document.createElement("div");
+      c.className = "cell";
+      c.style.flexGrow = String(node.sizes[i]);
+      c.appendChild(renderNode(child));
+      el.appendChild(c);
+    });
+    return el;
+  }
+
+  // ─── Remote data (simulated) ────────────────────────────────────────
+  // Lists and entities load once, then come from cache and refresh quietly.
+  // The Network switch in the title bar shows each state.
+  let network = "fast";
+  const LATENCY = { fast: 450, slow: 1600 };
+  const loaded = new Set();   // keys of lists/entities already in cache
+  const failed = new Set();   // keys whose last load failed
+  const inflight = new Map(); // key → promise
+  function load(key) {
+    if (inflight.has(key)) return inflight.get(key);
+    const pr = new Promise((resolve, reject) => {
+      setTimeout(() => {
+        inflight.delete(key);
+        if (network === "offline") { failed.add(key); reject(new Error("offline")); }
+        else { failed.delete(key); loaded.add(key); resolve(); }
+      }, network === "offline" ? 700 : LATENCY[network]);
+    });
+    inflight.set(key, pr);
+    pr.catch(() => {});
+    return pr;
+  }
+  const isRemoteItem = (kind) => kind === "pr" || kind === "issue" || kind === "run";
+  // Pages seeded as already loaded (the default layout's tabs).
+  ["githut/pr:22", "nickai/pr:586", "worker/pr:7", "githut/run:4182"].forEach((p) => loaded.add(`page:${p}`));
+
+  function skRows(n, widths = [62, 78, 55, 70, 48]) {
+    return Array.from({ length: n }, (_, i) => `<div class="pi sk-row" aria-hidden="true"><span class="sk sq"></span><span class="sk" style="width:28px"></span><span class="sk" style="width:${widths[i % widths.length]}%"></span></div>`).join("");
+  }
+  function pageSkeleton() {
+    return `<div class="page-sk" role="status" aria-label="Loading page"><span class="sr-only">Loading page</span>
+      <span class="sk" aria-hidden="true" style="width:62%;height:20px"></span>
+      <div class="row" aria-hidden="true"><span class="sk" style="width:64px;height:20px"></span><span class="sk" style="width:120px"></span><span class="sk" style="width:180px"></span></div>
+      <div class="row" aria-hidden="true" style="gap:18px;margin-top:6px"><span class="sk" style="width:84px"></span><span class="sk" style="width:60px"></span><span class="sk" style="width:56px"></span><span class="sk" style="width:90px"></span></div>
+      <span class="sk" aria-hidden="true" style="width:88%"></span><span class="sk" aria-hidden="true" style="width:94%"></span><span class="sk" aria-hidden="true" style="width:71%"></span>
+    </div>`;
+  }
+  function pageError(page) {
+    return `<div class="state-msg" role="alert"><svg class="si" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 10.8v.2"/></svg><span>Couldn't load this page. You're offline or GitHub didn't respond.</span><button class="btn-quiet" data-retry-page="${page}">Retry</button></div>`;
+  }
+
+  // ─── Breadcrumbs ────────────────────────────────────────────────────
+  // repo › section › item. Crumbs navigate this tab (like in-page links:
+  // ⇧ new tab, ⌥ to the side). A crumb's chevron lists its siblings.
+  const branchOverride = {}; // page → branch picked in the chip (prototype only)
+  const BRANCH_KINDS = new Set(["code", "file", "commits", "actions", "run"]);
+
+  function crumbsFor(page) {
+    const { repo, kind } = parse(page);
+    const m = meta(page);
+    const sec = SECTIONS.find((x) => x.id === m.section);
+    const list = [
+      { level: "repo", page: `${repo}/code`, html: `${mark(repo, "sm")}<span class="ct"><span class="ownr">${REPOS[repo].owner} / </span>${REPOS[repo].name}</span>` },
+      { level: "section", page: `${repo}/${sec.id}`, html: `<span class="ct">${sec.id === "pulls" ? "Pull requests" : sec.label}</span>` },
+    ];
+    if (!SECTIONS.some((x) => x.id === kind)) {
+      const pending = isRemoteItem(kind) && !loaded.has(`page:${page}`) && !failed.has(`page:${page}`);
+      list.push({ level: "item", page, html: `${m.num ? `<span class="num">${m.num}</span>` : ""}${pending ? '<span role="status" aria-label="Loading title"><span class="sk" aria-hidden="true"></span></span>' : isRemoteItem(kind) && !loaded.has(`page:${page}`) ? "" : `<span class="ct">${m.label}</span>`}` });
+    }
+    list[list.length - 1].current = true;
+    return list;
+  }
+
+  function crumbsHtml(page) {
+    const { repo, kind } = parse(page);
+    const R = REPOS[repo];
+    const crumbs = crumbsFor(page);
+    const branch = branchOverride[page] || R.branch;
+    return `<div class="crumbs-bar">
+      <nav class="crumb-trail" aria-label="Location">
+        ${crumbs.map((c, i) => `${i ? '<span class="crumb-sep" aria-hidden="true">›</span>' : ""}<span class="crumb-group ${c.level}">
+          <button class="crumb${c.current ? " current" : ""}" data-crumb="${c.page}" ${c.current ? 'aria-current="page"' : ""}>${c.html}</button>
+          <button class="crumb-more" data-siblings="${c.level}" data-page="${page}" aria-haspopup="listbox" aria-expanded="false" aria-label="Other ${c.level === "repo" ? "repositories" : c.level === "section" ? "sections" : "items"}">${I.chevDown}</button>
+        </span>`).join("")}
+      </nav>
+      <div class="crumb-tools">
+        ${BRANCH_KINDS.has(kind) ? `<button class="branch-chip" data-branch="${page}" aria-haspopup="listbox" aria-expanded="false" title="Switch branch">${I.branch}<span class="bn">${branch}</span>${I.chevDown}</button>` : ""}
+        <button class="icon-btn" title="Open on GitHub" aria-label="Open on GitHub">${I.ext}</button>
+      </div>
+    </div>`;
+  }
+
+  /** Cache key for a remote sibling list, or null for static ones (sections). */
+  function siblingsKey(level, page) {
+    const { repo, kind } = parse(page);
+    if (level === "section") return null;
+    if (level === "repo") return "list:repos";
+    return `list:${repo}:${kind}`;
+  }
+
+  function siblingsFor(level, page) {
+    const { repo, kind, arg } = parse(page);
+    const m = meta(page);
+    if (level === "repo") {
+      const owners = [...new Set(Object.values(REPOS).map((R) => R.owner))];
+      return owners.flatMap((o) => [{ header: o }, ...Object.entries(REPOS).filter(([, R]) => R.owner === o).map(([k, R]) => ({
+        page: `${k}/${m.section}`, html: `${mark(k, "sm")}<span class="pt">${R.name}</span>`, text: `${o}/${R.name}`, current: k === repo,
+      }))]);
+    }
+    if (level === "section") {
+      return SECTIONS.map((x) => ({ page: `${repo}/${x.id}`, html: `${I[x.icon]}<span class="pt">${x.id === "pulls" ? "Pull requests" : x.label}</span>`, text: x.label + (x.id === "pulls" ? " pull requests" : ""), current: x.id === m.section }));
+    }
+    if (kind === "pr") return Object.entries(PRS[repo]).reverse().map(([n, p]) => ({
+      page: `${repo}/pr:${n}`, html: `<span class="tone-${p[1]}">${p[1] === "merged" ? I.merged : I.pr}</span><span class="num">#${n}</span><span class="pt">${p[0]}</span>`, text: `#${n} ${p[0]}`, current: n === arg,
+    }));
+    if (kind === "issue") return Object.entries(ISSUES[repo]).reverse().map(([n, p]) => ({
+      page: `${repo}/issue:${n}`, html: `<span class="${p[1] === "closed" ? "tone-merged" : "tone-open"}">${I.issue}</span><span class="num">#${n}</span><span class="pt">${p[0]}</span>`, text: `#${n} ${p[0]}`, current: n === arg,
+    }));
+    if (kind === "file") return [{ page, html: `${I.file}<span class="pt">${arg}</span>`, text: arg, current: true }];
+    if (kind === "run") return [{ page, html: `<span class="tone-open">${I.play}</span><span class="pt">CI · run ${arg}</span>`, text: `run ${arg}`, current: true }];
+    return [];
+  }
+
+  function branchesFor(page) {
+    const { repo } = parse(page);
+    const R = REPOS[repo];
+    const names = [R.branch, ...Object.values(PRS[repo]).filter((p) => p[1] === "open").map((p) => p[2])];
+    const current = branchOverride[page] || R.branch;
+    return [...new Set(names)].map((b) => ({ branch: b, html: `${I.branch}<span class="pt" style="font-family:var(--font-mono);font-size:12px">${b}</span>`, text: b, current: b === current }));
+  }
+
+  /** Filterable, keyboard-driven picker anchored under `anchor`. */
+  /** `source` is an item list, or { key, items } for remote data loaded via the cache. */
+  function openPicker(anchor, source, placeholder, onPick) {
+    hideMenu();
+    const remote = !Array.isArray(source) && source.key;
+    let items = Array.isArray(source) ? source : source.items();
+    let status = !remote || loaded.has(source.key) ? "ready" : "loading";
+    menuEl = document.createElement("div");
+    menuEl.className = "menu picker";
+    menuEl.setAttribute("role", "dialog");
+    menuEl.innerHTML = `<label class="pf">${I.filter}<input placeholder="${placeholder}" aria-label="${placeholder}"></label>
+      <div class="pl" role="listbox"></div>
+      <div class="hint"><span>↵ open</span><span>⇧↵ new tab</span><span>⌥↵ to the side</span></div>`;
+    document.body.appendChild(menuEl);
+    anchor.setAttribute("aria-expanded", "true");
+    pickerAnchor = anchor;
+    const input = menuEl.querySelector("input");
+    const listEl = menuEl.querySelector(".pl");
+    let shown = [], active = 0;
+    const draw = () => {
+      if (status === "loading") { listEl.innerHTML = `<div role="status" aria-label="Loading"><span class="sr-only">Loading</span>${skRows(4)}</div>`; return; }
+      if (status === "error") {
+        listEl.innerHTML = `<div class="err" role="alert"><span>Couldn't load. You're offline or GitHub didn't respond.</span><button class="btn-quiet" data-retry>Retry</button></div>`;
+        return;
+      }
+      const q = input.value.trim().toLowerCase();
+      let lastHeader = null;
+      shown = [];
+      const parts = [];
+      for (const it of items) {
+        if (it.header) { lastHeader = it.header; continue; }
+        if (q && !it.text.toLowerCase().includes(q)) continue;
+        if (lastHeader) { parts.push(`<div class="mh">${lastHeader}</div>`); lastHeader = null; }
+        parts.push(`<button class="pi" role="option" data-i="${shown.length}" ${it.current ? 'aria-current="true"' : ""}>${it.html}${it.current ? `<span class="chk">${I.check}</span>` : ""}</button>`);
+        shown.push(it);
+      }
+      listEl.innerHTML = parts.join("") || '<div class="empty">No matches</div>';
+      active = Math.max(0, Math.min(active, shown.length - 1));
+      listEl.querySelectorAll(".pi").forEach((b, i) => b.classList.toggle("active", i === active));
+      listEl.querySelector(".pi.active")?.scrollIntoView({ block: "nearest" });
+    };
+    const pick = (i, mods) => { const it = shown[i]; if (!it) return; closePicker(); onPick(it, mods); };
+    const closePicker = () => hideMenu();
+    input.addEventListener("input", () => { active = 0; draw(); });
+    input.addEventListener("keydown", (e) => {
+      if (status !== "ready" && e.key !== "Escape") return;
+      if (e.key === "ArrowDown") { e.preventDefault(); active = Math.min(active + 1, shown.length - 1); draw(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); active = Math.max(active - 1, 0); draw(); }
+      else if (e.key === "Enter") { e.preventDefault(); pick(active, { shift: e.shiftKey, alt: e.altKey }); }
+      else if (e.key === "Escape") { e.preventDefault(); closePicker(); anchor.focus(); }
+    });
+    listEl.addEventListener("pointermove", (e) => { const b = e.target.closest(".pi"); if (b && Number(b.dataset.i) !== active) { active = Number(b.dataset.i); listEl.querySelectorAll(".pi").forEach((x, i) => x.classList.toggle("active", i === active)); } });
+    listEl.addEventListener("click", (e) => { const b = e.target.closest(".pi"); if (b) pick(Number(b.dataset.i), { shift: e.shiftKey, alt: e.altKey }); });
+    // Start on the current item so ↑/↓ moves to its neighbours.
+    const settle = () => { active = Math.max(0, items.filter((x) => !x.header).findIndex((x) => x.current)); };
+    settle();
+    draw();
+    const fetchList = () => {
+      const me = menuEl;
+      load(source.key).then(() => {
+        if (menuEl !== me) return;
+        items = source.items(); status = "ready"; bar?.remove(); settle(); draw();
+      }, () => {
+        if (menuEl !== me) return;
+        bar?.remove();
+        if (status === "loading") { status = "error"; draw(); }
+      });
+    };
+    let bar = null;
+    if (remote) {
+      if (status === "loading") fetchList();
+      else if (network !== "offline") fetchList(); // cached: show now, refresh silently
+    }
+    listEl.addEventListener("click", (e) => { if (e.target.closest("[data-retry]")) { status = "loading"; draw(); fetchList(); } });
+    const r = anchor.getBoundingClientRect();
+    placeMenu(r.left - 4, r.bottom + 6);
+    input.focus();
+  }
+
+  function goFromCrumb(gid, page, mods) {
+    if (mods.shift) return openInNewTab(gid, page);
+    if (mods.alt) return openToSide(gid, page);
+    navigate(gid, page);
+  }
+
+  function contentFor(page) {
+    const { kind } = parse(page);
+    if (!isRemoteItem(kind) || loaded.has(`page:${page}`)) return pageHtml(page);
+    if (failed.has(`page:${page}`) && !inflight.has(`page:${page}`)) return pageError(page);
+    load(`page:${page}`).then(() => commit(), () => commit());
+    return pageSkeleton();
+  }
+
+  function renderIsland(g) {
+    // Header controls act on the selected tab; the island itself has no repo.
+    const active = g.tabs[g.active];
+    const am = meta(active.page);
+    const R = REPOS[am.repo];
+    const el = document.createElement("section");
+    el.className = "island" + (state.focused === g.id ? " focused" : "");
+    el.dataset.gid = g.id;
+    el.dataset.page = active.page;
+    el.setAttribute("aria-label", `${am.label} · ${R.name}`);
+    const isMax = state.maximized === g.id;
+    el.innerHTML = `
+      <div class="tabbar" data-gid="${g.id}">
+        <span class="grip" aria-hidden="true">${I.grip}</span>
+        <div class="tabs" role="tablist">
+          ${g.tabs.map((t, i) => {
+            const m = meta(t.page);
+            return `<div class="tab" role="tab" tabindex="${i === g.active ? 0 : -1}" aria-selected="${i === g.active}" data-tid="${t.id}" data-i="${i}" title="${REPOS[m.repo].owner}/${REPOS[m.repo].name}${m.num ? " " + m.num : ""} · ${m.label}">
+              ${mark(m.repo, "sm")}<span class="tone-${m.tone}">${I[m.icon]}</span>
+              ${m.num ? `<span class="num">${m.num}</span>` : ""}<span class="label">${m.label}</span>
+              <button class="x" aria-label="Close ${m.label}" tabindex="-1">${I.x}</button></div>`;
+          }).join("")}
+        </div>
+        <div class="island-actions">
+          <button class="icon-btn" data-act="split" aria-label="Split right" title="Split right  ⌥\\">${I.splitR}</button>
+          <button class="icon-btn" data-act="max" aria-label="${isMax ? "Restore" : "Maximize"}" title="${isMax ? "Restore" : "Maximize"}">${isMax ? I.restore : I.max}</button>
+        </div>
+      </div>
+      ${crumbsHtml(active.page)}
+      <div class="content">${contentFor(active.page)}</div>`;
+    return el;
+  }
+
+  // ─── Sidebar ────────────────────────────────────────────────────────
+  let filter = "";
+  function renderSidebar() {
+    const collapsed = state.sidebar === "collapsed" || narrow();
+    sidebarEl.classList.toggle("collapsed", collapsed);
+    const focusedRepo = locate(state.focused) ? activeRepo(locate(state.focused).node) : null;
+    const openCount = {};
+    allGroups().forEach((g) => g.tabs.forEach((t) => { const r = parse(t.page).repo; openCount[r] = (openCount[r] || 0) + 1; }));
+    const q = filter.trim().toLowerCase();
+    const repoKeys = Object.keys(REPOS).filter((k) => !q || `${REPOS[k].owner}/${REPOS[k].name}`.includes(q));
+    const yourWork = [
+      ["githut/pr:22", false], ["worker/pr:7", false], ["nickai/pr:586", true],
+    ].filter(([p]) => !q || (meta(p).label + REPOS[parse(p).repo].name).toLowerCase().includes(q));
+    // Show the owner only when two starred repos share a name.
+    const nameCount = {};
+    Object.values(REPOS).forEach((R) => { nameCount[R.name] = (nameCount[R.name] || 0) + 1; });
+
+    const hadFocus = document.activeElement?.id === "sbFilter";
+    sidebarEl.innerHTML = `
+      <div class="sb-top">
+        <label class="sb-filter" title="Filter">${I.filter}<input id="sbFilter" placeholder="Filter repos and PRs" value="${filter.replace(/"/g, "&quot;")}" aria-label="Filter repos and PRs"></label>
+        <button class="sb-item" data-launch="githut/pulls" title="Inbox · 4 unread">${I.inbox}<span class="sb-label">Inbox</span><span class="badge">4</span><span class="sb-dot" style="background:var(--brand)"></span></button>
+      </div>
+      <div class="sb-scroll">
+        <div class="sb-section sb-collapsible">
+          <div class="sb-heading">Your work</div>
+          ${yourWork.map(([p, review]) => {
+            const m = meta(p);
+            const R = REPOS[m.repo];
+            return `<button class="sb-item sb-pr" data-launch="${p}" data-drag="${p}" title="${R.owner}/${R.name} ${m.num} · ${m.label}${review ? " · review requested" : ""}">
+              ${mark(m.repo)}<span class="sb-label"><span class="sb-title">${m.label}</span>
+              <span class="sb-sub">${R.name}<span class="n">${m.num}</span>${review ? '<span class="sb-tag">Review</span>' : ""}</span></span></button>`;
+          }).join("")}
+        </div>
+        <div class="sb-section">
+          <div class="sb-heading">Starred</div>
+          ${repoKeys.map((k) => {
+            const R = REPOS[k];
+            const n = openCount[k] || 0;
+            const name = nameCount[R.name] > 1 ? `<span class="ownr">${R.owner}/</span>${R.name}` : R.name;
+            return `<button class="sb-item${k === focusedRepo ? " current" : ""}" data-launch="${k}" data-drag="${k}/code" title="${R.owner}/${R.name}${n ? ` · ${n} open tab${n === 1 ? "" : "s"}` : ""}">
+              ${mark(k)}<span class="sb-label">${name}</span>${n ? '<span class="sb-open" aria-hidden="true"></span><span class="sb-dot"></span>' : ""}</button>`;
+          }).join("")}
+        </div>
+        <div class="sb-section sb-collapsible">
+          <div class="sb-heading">Recent</div>
+          ${["worker/issue:3", "githut/issue:24", "nickai/issue:412"].map((p) => {
+            const m = meta(p);
+            return `<button class="sb-item" data-launch="${p}" data-drag="${p}" title="${REPOS[m.repo].name}${m.num} · ${m.label}">${mark(m.repo)}<span class="sb-label">${m.label}</span></button>`;
+          }).join("")}
+        </div>
+      </div>
+      <div class="sb-foot"><button class="sb-item" title="Settings">${I.gear}<span class="sb-label">Settings</span></button></div>`;
+    const input = sidebarEl.querySelector("#sbFilter");
+    input.addEventListener("input", (e) => { filter = e.target.value; const pos = e.target.selectionStart; renderSidebar(); const i2 = sidebarEl.querySelector("#sbFilter"); i2.focus(); i2.setSelectionRange(pos, pos); });
+    if (hadFocus) input.focus();
+  }
+
+  sidebarEl.addEventListener("click", (e) => {
+    const item = e.target.closest("[data-launch]");
+    if (!item) {
+      if (e.target.closest(".sb-filter") && sidebarEl.classList.contains("collapsed") && !narrow()) {
+        state.sidebar = "expanded"; commit(); sidebarEl.querySelector("#sbFilter")?.focus();
+      }
+      return;
+    }
+    const page = item.dataset.launch;
+    if (e.altKey && page.includes("/")) return openToSide(state.focused, page);
+    launch(page);
+  });
+
+  // FLIP: islands glide to their new place after a layout change.
+  function snapshotRects() {
+    const m = new Map();
+    dock.querySelectorAll(".island").forEach((el) => m.set(el.dataset.gid, el.getBoundingClientRect()));
+    return m;
+  }
+  function flip(before) {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    dock.querySelectorAll(".island").forEach((el) => {
+      const a = before.get(el.dataset.gid);
+      const b = el.getBoundingClientRect();
+      if (!a) {
+        el.animate([{ opacity: 0, transform: "scale(0.97)" }, { opacity: 1, transform: "none" }], { duration: 200, easing: "cubic-bezier(0.16,1,0.3,1)" });
+        return;
+      }
+      const dx = a.left - b.left, dy = a.top - b.top, sx = a.width / b.width, sy = a.height / b.height;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(sx - 1) < 0.01 && Math.abs(sy - 1) < 0.01) return;
+      el.style.transformOrigin = "0 0";
+      el.animate(
+        [{ transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` }, { transform: "none" }],
+        { duration: 220, easing: "cubic-bezier(0.16,1,0.3,1)" },
+      );
+    });
+  }
+
+  // ─── Pointer: tabs, islands, sidebar items, splitters ───────────────
+  const preview = document.getElementById("preview");
+  const zoneLabel = document.getElementById("zoneLabel");
+  let pending = null;
+  let drag = null;
+
+  function setFocusClass(gid) {
+    if (state.focused === gid) return;
+    state.focused = gid;
+    dock.querySelectorAll(".island").forEach((el) => el.classList.toggle("focused", el.dataset.gid === gid));
+    renderChrome();
+    renderSidebar();
+    save();
+  }
+
+  dock.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    const islandEl = e.target.closest(".island");
+    if (islandEl && !e.target.closest(".tab")) setFocusClass(islandEl.dataset.gid);
+    const splitter = e.target.closest(".splitter");
+    if (splitter) return startResize(e, splitter);
+    if (e.target.closest(".x, .sec, .island-actions button, .crumbs-bar")) return;
+    const tabEl = e.target.closest(".tab");
+    const bar = e.target.closest(".tabbar");
+    if (tabEl) {
+      const gid = bar.dataset.gid;
+      const g = locate(gid).node;
+      const i = Number(tabEl.dataset.i);
+      if (g.active !== i || state.focused !== gid) activate(gid, i); // instant, on pointerdown
+      pending = { kind: "tab", gid, tid: tabEl.dataset.tid, x: e.clientX, y: e.clientY };
+    } else if (bar) {
+      pending = { kind: "island", gid: bar.dataset.gid, x: e.clientX, y: e.clientY };
+    }
+  });
+  sidebarEl.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    const item = e.target.closest("[data-drag]");
+    if (item) pending = { kind: "item", page: item.dataset.drag, x: e.clientX, y: e.clientY };
+  });
+
+  window.addEventListener("pointermove", (e) => {
+    if (pending && !drag && Math.hypot(e.clientX - pending.x, e.clientY - pending.y) > 4) startDrag(pending);
+    if (drag) moveDrag(e);
+  });
+  window.addEventListener("pointerup", () => {
+    pending = null;
+    if (!drag) return;
+    const d = drag;
+    endDrag();
+    suppressClick = true;
+    setTimeout(() => (suppressClick = false), 0);
+    drop(d, d.target);
+  });
+  let suppressClick = false;
+  window.addEventListener("click", (e) => { if (suppressClick) { e.stopPropagation(); e.preventDefault(); } }, true);
+  window.addEventListener("keydown", (e) => { if (e.key === "Escape" && drag) { endDrag(); render(); } });
+
+  function ghostHtml(page) {
+    const m = meta(page);
+    return `${mark(m.repo, "sm")}<span class="tone-${m.tone}">${I[m.icon]}</span>${m.num ? `<span class="num">${m.num}</span>` : ""}<span class="label">${m.label}</span>`;
+  }
+  function startDrag(p) {
+    hideMenu();
+    const ghost = document.createElement("div");
+    ghost.className = "ghost" + (p.kind === "island" ? " island-ghost" : "");
+    if (p.kind === "tab") {
+      const g = locate(p.gid).node;
+      ghost.innerHTML = ghostHtml(g.tabs.find((t) => t.id === p.tid).page);
+      dock.querySelector(`.tab[data-tid="${p.tid}"]`)?.classList.add("ghosted");
+    } else if (p.kind === "item") {
+      ghost.innerHTML = ghostHtml(p.page);
+    } else {
+      const g = locate(p.gid).node;
+      ghost.innerHTML = `${mark(activeRepo(g), "sm")}${I.tab}<span>${g.tabs.length} tab${g.tabs.length === 1 ? "" : "s"} · ${meta(g.tabs[g.active].page).label}</span>`;
+      dock.querySelector(`.island[data-gid="${p.gid}"]`)?.classList.add("moving");
+    }
+    document.body.appendChild(ghost);
+    document.body.classList.add("dragging");
+    drag = { ...p, ghost, target: null };
+  }
+  function moveDrag(e) {
+    drag.ghost.style.transform = `translate(${e.clientX + 12}px, ${e.clientY + 10}px)`;
+    drag.target = hitTest(e.clientX, e.clientY);
+    showPreview(drag.target);
+  }
+  function endDrag() {
+    drag.ghost.remove();
+    document.body.classList.remove("dragging");
+    preview.classList.remove("on");
+    dock.querySelectorAll(".ghosted, .moving").forEach((el) => el.classList.remove("ghosted", "moving"));
+    drag = null;
+  }
+
+  const SIDE_LABEL = { left: "Split left", right: "Split right", top: "Split up", bottom: "Split down" };
+  const ROOT_LABEL = { left: "Dock left", right: "Dock right", top: "Dock top", bottom: "Dock bottom" };
+
+  function hitTest(x, y) {
+    const d = dock.getBoundingClientRect();
+    if (x < d.left - 40 || x > d.right + 40 || y < d.top - 20 || y > d.bottom + 30) return null;
+    const EDGE = 14;
+    const multi = state.root.type === "split" || drag.kind !== "island";
+    if (multi && !state.maximized && !narrow()) {
+      const root = (side) => {
+        const r = { left: d.left, top: d.top, width: d.width, height: d.height };
+        if (side === "left") r.width = d.width * 0.28;
+        if (side === "right") { r.left = d.right - d.width * 0.28; r.width = d.width * 0.28; }
+        if (side === "bottom") { r.top = d.bottom - d.height * 0.3; r.height = d.height * 0.3; }
+        return { type: "root", side, rect: r, label: ROOT_LABEL[side] };
+      };
+      if (x < d.left + EDGE && x >= d.left - 4) return root("left");
+      if (x > d.right - EDGE) return root("right");
+      if (y > d.bottom - EDGE) return root("bottom");
+    }
+    const el = document.elementFromPoint(x, y)?.closest(".island");
+    if (!el) return null;
+    const gid = el.dataset.gid;
+    const r = el.getBoundingClientRect();
+    const bar = el.querySelector(".tabbar").getBoundingClientRect();
+
+    if (y <= bar.bottom) {
+      const tabs = [...el.querySelectorAll(".tab")];
+      let index = tabs.length;
+      for (let i = 0; i < tabs.length; i++) {
+        const tr = tabs[i].getBoundingClientRect();
+        if (x < tr.left + tr.width / 2) { index = i; break; }
+      }
+      const ref = tabs[index]?.getBoundingClientRect();
+      const last = tabs[tabs.length - 1]?.getBoundingClientRect();
+      const lx = ref ? ref.left - 2 : last ? last.right + 1 : bar.left + 24;
+      return { type: "insert", gid, index, rect: { left: lx, top: bar.top + 8, width: 2, height: bar.height - 16 }, line: true };
+    }
+
+    const cx = (x - r.left) / r.width, cy = (y - bar.bottom) / (r.bottom - bar.bottom);
+    const edges = [["left", cx], ["right", 1 - cx], ["top", cy], ["bottom", 1 - cy]].sort((a, b) => a[1] - b[1]);
+    const [side, dist] = edges[0];
+    if (dist < 0.28 && !(drag.kind === "island" && gid === drag.gid)) {
+      const pr = { left: r.left, top: r.top, width: r.width, height: r.height };
+      if (side === "left") pr.width = r.width / 2;
+      if (side === "right") { pr.left = r.left + r.width / 2; pr.width = r.width / 2; }
+      if (side === "top") pr.height = r.height / 2;
+      if (side === "bottom") { pr.top = r.top + r.height / 2; pr.height = r.height / 2; }
+      const g = locate(gid).node;
+      if (drag.kind === "tab" && gid === drag.gid && g.tabs.length === 1) return null;
+      return { type: "split", gid, side, rect: pr, label: SIDE_LABEL[side] };
+    }
+    if (gid === drag.gid) return null;
+    return { type: "center", gid, rect: { left: r.left, top: r.top, width: r.width, height: r.height }, label: drag.kind === "island" ? "Merge tabs" : drag.kind === "item" ? "Open here" : "Move here" };
+  }
+  function showPreview(t) {
+    if (!t) { preview.classList.remove("on"); return; }
+    preview.classList.toggle("line", !!t.line);
+    Object.assign(preview.style, { left: t.rect.left + "px", top: t.rect.top + "px", width: t.rect.width + "px", height: t.rect.height + "px" });
+    zoneLabel.textContent = t.label || "";
+    preview.classList.add("on");
+  }
+
+  function startResize(e, splitter) {
+    const node = locate(splitter.dataset.sid).node;
+    const i = Number(splitter.dataset.i);
+    const container = splitter.parentElement;
+    const row = node.dir === "row";
+    const gap = splitter.getBoundingClientRect()[row ? "width" : "height"];
+    const total = (row ? container.clientWidth : container.clientHeight) - (node.children.length - 1) * gap;
+    const start = row ? e.clientX : e.clientY;
+    const s0 = [...node.sizes];
+    const cells = [...container.children].filter((c) => c.classList.contains("cell"));
+    const min = 180 / total;
+    splitter.classList.add("active");
+    document.body.classList.add(row ? "resizing-row" : "resizing-col");
+    const move = (ev) => {
+      const delta = ((row ? ev.clientX : ev.clientY) - start) / total;
+      const pair = s0[i] + s0[i + 1];
+      const a = Math.min(Math.max(s0[i] + delta, min), pair - min);
+      node.sizes[i] = a; node.sizes[i + 1] = pair - a;
+      cells[i].style.flexGrow = String(node.sizes[i]);
+      cells[i + 1].style.flexGrow = String(node.sizes[i + 1]);
+    };
+    const up = () => {
+      splitter.classList.remove("active");
+      document.body.classList.remove("resizing-row", "resizing-col");
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      save();
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
+
+  dock.addEventListener("dblclick", (e) => {
+    const sp = e.target.closest(".splitter");
+    if (sp) { const n = locate(sp.dataset.sid).node; n.sizes = n.sizes.map(() => 1 / n.sizes.length); return commit(true); }
+    const bar = e.target.closest(".tabbar");
+    if (bar && !e.target.closest(".x, .sec, .island-actions")) toggleMax(bar.dataset.gid);
+  });
+
+  // ─── Clicks: close, sections, actions, links ────────────────────────
+  dock.addEventListener("click", (e) => {
+    const island = e.target.closest(".island");
+    if (!island) return;
+    const gid = island.dataset.gid;
+    const x = e.target.closest(".x");
+    if (x) { e.stopPropagation(); return closeTab(gid, x.closest(".tab").dataset.tid); }
+    const more = e.target.closest(".crumb-more");
+    if (more) {
+      if (pickerAnchor === more) return hideMenu();
+      const level = more.dataset.siblings;
+      const ph = level === "repo" ? "Switch repository…" : level === "section" ? "Go to section…" : "Find…";
+      const key = siblingsKey(level, more.dataset.page);
+      const src = key ? { key, items: () => siblingsFor(level, more.dataset.page) } : siblingsFor(level, more.dataset.page);
+      return openPicker(more, src, ph, (it, mods) => goFromCrumb(gid, it.page, mods));
+    }
+    const crumb = e.target.closest(".crumb");
+    if (crumb) {
+      if (crumb.classList.contains("current")) return;
+      return goFromCrumb(gid, crumb.dataset.crumb, { shift: e.shiftKey, alt: e.altKey });
+    }
+    const chip = e.target.closest(".branch-chip");
+    if (chip) {
+      if (pickerAnchor === chip) return hideMenu();
+      const page = chip.dataset.branch;
+      return openPicker(chip, { key: `branches:${parse(page).repo}`, items: () => branchesFor(page) }, "Switch branch…", (it) => { branchOverride[page] = it.branch; commit(); });
+    }
+    const act = e.target.closest("[data-act]");
+    if (act) return act.dataset.act === "split" ? splitRight(gid) : toggleMax(gid);
+    const a = e.target.closest("a[data-page]");
+    if (a) {
+      e.preventDefault();
+      hideMenu();
+      if (e.shiftKey) return openInNewTab(gid, a.dataset.page);
+      if (e.altKey) return openToSide(gid, a.dataset.page);
+      return navigate(gid, a.dataset.page);
+    }
+  });
+  dock.addEventListener("auxclick", (e) => {
+    const t = e.target.closest(".tab");
+    if (e.button === 1 && t) closeTab(t.closest(".island").dataset.gid, t.dataset.tid);
+  });
+  dock.addEventListener("mousedown", (e) => {
+    if (e.button === 1 && e.target.closest(".tab")) e.preventDefault();
+    if (e.shiftKey && e.target.closest("a[data-page]")) e.preventDefault();
+  });
+
+  // ─── Link hover menu ────────────────────────────────────────────────
+  let menuEl = null;
+  let pickerAnchor = null;
+  function hideMenu() { menuEl?.remove(); menuEl = null; pickerAnchor?.setAttribute("aria-expanded", "false"); pickerAnchor = null; }
+  function placeMenu(x, y) {
+    const w = menuEl.offsetWidth, h = menuEl.offsetHeight;
+    menuEl.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + "px";
+    menuEl.style.top = Math.min(y, window.innerHeight - h - 8) + "px";
+  }
+  let restTimer = 0, restLink = null, origin = null;
+  dock.addEventListener("pointermove", (e) => {
+    if (drag || e.pointerType !== "mouse") return;
+    const a = e.target.closest("a[data-page]");
+    if (a !== restLink) { clearTimeout(restTimer); restLink = a; if (!a) return; origin = [e.clientX, e.clientY]; arm(); return; }
+    if (a && !menuEl && Math.hypot(e.clientX - origin[0], e.clientY - origin[1]) > 6) { origin = [e.clientX, e.clientY]; arm(); }
+  });
+  dock.addEventListener("pointerleave", () => { clearTimeout(restTimer); restLink = null; });
+  dock.addEventListener("scroll", hideMenu, true);
+  function arm() {
+    clearTimeout(restTimer);
+    const a = restLink;
+    restTimer = setTimeout(() => { if (a === restLink && !drag) showLinkMenu(a, origin); }, 750);
+  }
+  function showLinkMenu(a, [x, y]) {
+    hideMenu();
+    const gid = a.closest(".island").dataset.gid;
+    const page = a.dataset.page;
+    menuEl = document.createElement("div");
+    menuEl.className = "menu";
+    menuEl.innerHTML = `
+      <button data-m="tab">${I.tab}<span>Open in new tab</span><kbd>⇧ Click</kbd></button>
+      <button data-m="side">${I.splitR}<span>Open to the side</span><kbd>⌥ Click</kbd></button>`;
+    document.body.appendChild(menuEl);
+    placeMenu(x + 6, y + 14);
+    menuEl.addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      hideMenu();
+      b.dataset.m === "tab" ? openInNewTab(gid, page) : openToSide(gid, page);
+    });
+    menuEl.addEventListener("pointerleave", (e) => { if (!e.relatedTarget || !a.contains(e.relatedTarget)) hideMenu(); });
+    a.addEventListener("pointerleave", (e) => { if (!menuEl?.contains(e.relatedTarget)) setTimeout(() => { if (menuEl && !menuEl.matches(":hover")) hideMenu(); }, 160); }, { once: true });
+  }
+  window.addEventListener("pointerdown", (e) => { if (menuEl && !menuEl.contains(e.target) && !(pickerAnchor && pickerAnchor.contains(e.target))) hideMenu(); }, true);
+
+  // ─── Keyboard ───────────────────────────────────────────────────────
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && menuEl) return hideMenu();
+    if ((e.metaKey || e.ctrlKey) && e.code === "KeyB") { e.preventDefault(); return toggleSidebar(); }
+    if (!e.altKey) return;
+    const g = locate(state.focused)?.node;
+    if (!g) return;
+    if (e.code === "Backslash") { e.preventDefault(); splitRight(g.id); }
+    else if (e.code === "KeyW") { e.preventDefault(); closeTab(g.id, g.tabs[g.active].id); }
+    else if (e.code === "BracketRight" || e.code === "BracketLeft") {
+      e.preventDefault();
+      activate(g.id, (g.active + (e.code === "BracketRight" ? 1 : -1) + g.tabs.length) % g.tabs.length);
+    }
+  });
+
+  // ─── Title bar ──────────────────────────────────────────────────────
+  function toggleSidebar() { state.sidebar = state.sidebar === "collapsed" ? "expanded" : "collapsed"; commit(); }
+  document.getElementById("logoBtn").addEventListener("click", toggleSidebar);
+  document.getElementById("rcOff").addEventListener("click", () => { state.repoColor = "off"; commit(); });
+  document.getElementById("rcOn").addEventListener("click", () => { state.repoColor = "subtle"; commit(); });
+  document.querySelectorAll("[data-net]").forEach((b) => b.addEventListener("click", () => {
+    network = b.dataset.net;
+    document.querySelectorAll("[data-net]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    // Slow replays loading states from scratch; offline keeps what's cached readable.
+    if (network === "slow") { loaded.clear(); failed.clear(); }
+    commit();
+  }));
+  dock.addEventListener("click", (e) => {
+    const r = e.target.closest("[data-retry-page]");
+    if (r) { failed.delete(`page:${r.dataset.retryPage}`); commit(); }
+  });
+  document.getElementById("resetBtn").addEventListener("click", () => { state = defaultState(); filter = ""; commit(true); });
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    const root = document.documentElement;
+    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+  });
+
+  let wasNarrow = narrow();
+  window.addEventListener("resize", () => { if (narrow() !== wasNarrow) { wasNarrow = narrow(); render(); } });
+
+  tidy();
+  render();
+})();
+</script>
