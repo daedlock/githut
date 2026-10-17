@@ -203,6 +203,9 @@ const TabPane = memo(
       <div
         ref={ref}
         data-tab-pane={id}
+        id={`tab-pane-${id}`}
+        role="tabpanel"
+        aria-labelledby={`tab-${id}`}
         // Focusable so keyboard focus can move into an island (Alt+Shift+arrows).
         tabIndex={-1}
         className="absolute inset-0 overflow-y-auto overscroll-contain outline-none [--app-header-height:0px]"

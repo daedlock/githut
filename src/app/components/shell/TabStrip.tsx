@@ -257,7 +257,9 @@ const TabItem = memo(function TabItem({
           <TooltipTrigger asChild>
             <div
               role="tab"
+              id={`tab-${tab.id}`}
               aria-selected={selected}
+              aria-controls={`tab-pane-${tab.id}`}
               aria-label={`${display.prefix ? `${display.prefix} ` : ""}${display.label}${display.status ? `, ${display.status}` : ""}${display.unread ? ", unread" : ""}${pinned ? ", pinned" : ""}${draft ? ", unsent draft" : ""}`}
               tabIndex={selected ? 0 : -1}
               data-tab-id={tab.id}
