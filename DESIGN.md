@@ -235,6 +235,26 @@ The workspace is a darker **frame** holding a slim **title bar** and rounded
   change is the only focus cue on the island itself.
 - An island is a `@container`, so its header adapts to the island's
   width, not the window's.
+- Islands are labelled regions (`<section aria-label>` naming the
+  selected tab's page and repo). A press or keyboard focus anywhere in an
+  island focuses it.
+
+### Layout and gaps
+- The layout is a tree of islands and row/column splits
+  (`src/app/workspace/model.ts`). Islands render as flat, absolutely
+  positioned siblings (`IslandLayout`), so splitting or resizing never
+  remounts a page.
+- Minimum island size is **320×200**. Resizing never goes past it.
+- A gap is a focusable `role="separator"` with `aria-orientation`. At rest
+  it is just frame; on hover (after 150ms), focus or drag a 2px
+  `bg-primary` line appears, inset 12px from its ends. Cursor
+  `col-resize` / `row-resize`.
+- Gaps resize by drag, or with arrow keys while focused (16px, Shift
+  64px, Home/End to the limits). Double-clicking a gap equalizes its
+  split.
+- Double-clicking an island header (outside buttons, links and sections)
+  maximizes the island over the others; again restores the exact
+  previous sizes. Nothing animates.
 
 ### Title bar
 - `h-11` grid on the frame: logo, focused context, search (max 420px,
@@ -247,7 +267,9 @@ The workspace is a darker **frame** holding a slim **title bar** and rounded
 
 ### Island header
 - `h-10 flex items-center gap-1 pl-1 pr-1.5`: the tab row takes the
-  remaining width, then the section menu.
+  remaining width, then the section menu, then the island menu
+  (`Button ghost icon-sm`, `Columns2`: Split right, Split down,
+  Maximize/Restore).
 - **Tabs:** `h-7 rounded-lg pl-2 pr-1 gap-1.5 text-ui`, 64–220px wide.
   Order: repo mark (`sm`) → state icon (16px box, `size-3.5`, coloured by
   open / merged / closed / draft) → mono `#number` in `--color-fg-faint` →
