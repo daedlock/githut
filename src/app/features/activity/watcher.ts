@@ -117,15 +117,33 @@ function recordView(active: Session, now: number) {
   acknowledgePage(page.key, now);
 }
 
+let notificationIndex:
+  | { items: NotificationFeed["items"]; unread: Record<string, true>; pages: Map<string, boolean> }
+  | undefined;
+
+/** Reuse one index across tab subscribers; unrelated cache updates need no feed scan. */
+function notificationPages(): Map<string, boolean> | undefined {
+  const feed = queryClient.getQueryData<NotificationFeed>(NOTIFICATIONS_KEY);
+  if (!feed) return undefined;
+  const unread = useNotificationState.getState().unread;
+  if (notificationIndex?.items === feed.items && notificationIndex.unread === unread)
+    return notificationIndex.pages;
+  const pages = new Map<string, boolean>();
+  for (const item of feed.items) {
+    const href = notificationHref(item);
+    if (!href) continue;
+    const key = notificationPageKey(href);
+    pages.set(key, !!pages.get(key) || notificationIsUnread(item));
+  }
+  notificationIndex = { items: feed.items, unread, pages };
+  return pages;
+}
+
 /** Shared notification read state wins over the local fallback, including device-only unread. */
 export function pageIsUnread(href: string): boolean {
   const key = notificationPageKey(href);
-  const feed = queryClient.getQueryData<NotificationFeed>(NOTIFICATIONS_KEY);
-  const matching = feed?.items.filter((item) => {
-    const href = notificationHref(item);
-    return href && notificationPageKey(href) === key;
-  });
-  if (matching?.length) return matching.some(notificationIsUnread);
+  const pages = notificationPages();
+  if (pages?.has(key)) return pages.get(key)!;
   const { account, statuses, seen } = useTabActivityStore.getState();
   return (
     !!account &&
@@ -135,15 +153,8 @@ export function pageIsUnread(href: string): boolean {
 }
 
 function reconcileNotifications(active: Session, now: number) {
-  const feed = queryClient.getQueryData<NotificationFeed>(NOTIFICATIONS_KEY);
-  if (!feed) return;
-  const pages = new Map<string, boolean>();
-  for (const item of feed.items) {
-    const href = notificationHref(item);
-    if (!href) continue;
-    const key = notificationPageKey(href);
-    pages.set(key, !!pages.get(key) || notificationIsUnread(item));
-  }
+  const pages = notificationPages();
+  if (!pages) return;
   for (const [key, unread] of pages) if (!unread) acknowledgePage(key, 0);
   // Done removes a thread from the feed. A local fallback must not resurrect its dot.
   for (const key of active.notifications)
