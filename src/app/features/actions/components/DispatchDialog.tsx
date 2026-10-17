@@ -17,6 +17,7 @@ import type {
   WorkflowDispatchSchema,
 } from "@/app/features/actions/lib/parseDispatchInputs";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 
 export type DispatchDialogProps = {
   open: boolean;
@@ -53,6 +54,7 @@ export function DispatchDialog({
   defaultRef,
   schema,
 }: DispatchDialogProps) {
+  const { canMutate, reason } = useCanMutate();
   const dispatch = useDispatchWorkflow(owner, repo);
 
   // Initial state from the schema defaults — recalculated each time the
@@ -73,6 +75,7 @@ export function DispatchDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canMutate) return;
     dispatch.mutate(
       { workflowId, ref, inputs: schema.inputs.length > 0 ? values : undefined },
       {
@@ -98,8 +101,8 @@ export function DispatchDialog({
         <DialogHeader>
           <DialogTitle className="font-mono text-body font-medium">Run workflow</DialogTitle>
           <DialogDescription>
-            Trigger <span className="font-mono text-foreground">{workflowName}</span> on a
-            chosen branch. Inputs come from the workflow's{" "}
+            Trigger <span className="font-mono text-foreground">{workflowName}</span> on a chosen
+            branch. Inputs come from the workflow's{" "}
             <span className="font-mono">workflow_dispatch</span> definition.
           </DialogDescription>
         </DialogHeader>
@@ -147,7 +150,8 @@ export function DispatchDialog({
             <Button
               type="submit"
               size="sm"
-              disabled={!ref.trim() || missingRequired || dispatch.isPending}
+              disabled={!ref.trim() || missingRequired || dispatch.isPending || !canMutate}
+              title={reason}
             >
               <Play data-icon="inline-start" />
               {dispatch.isPending ? "Dispatching…" : "Run workflow"}
@@ -224,9 +228,7 @@ function InputField({
             className="mt-0.5 size-4 rounded-sm border-input accent-(--color-brand)"
           />
           <span className="flex flex-col gap-0.5">
-            <span className="font-sans text-caption font-medium text-foreground">
-              {labelText}
-            </span>
+            <span className="font-sans text-caption font-medium text-foreground">{labelText}</span>
             {input.description ? (
               <span className="font-sans text-caption text-muted-foreground">
                 {input.description}
@@ -266,9 +268,7 @@ function InputField({
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function initialValues(
-  inputs: DispatchInput[],
-): Record<string, string | boolean | number> {
+function initialValues(inputs: DispatchInput[]): Record<string, string | boolean | number> {
   const out: Record<string, string | boolean | number> = {};
   for (const input of inputs) {
     if (input.default !== undefined) {

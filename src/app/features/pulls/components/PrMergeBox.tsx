@@ -39,6 +39,7 @@ import { toUiState } from "@/app/features/pulls/lib/prStatus";
 import type { PullRequest } from "@/app/features/pulls/schemas";
 import { useRepo } from "@/app/hooks/useRepo";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 import { formatRelativeTime } from "@/app/lib/time";
 
 export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; pr: PullRequest }) {
@@ -46,6 +47,7 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
   const repoQuery = useRepo(owner, repo);
   const merge = useMergePr(owner, repo, pr.number);
   const toggleState = useTogglePrState(owner, repo, pr.number);
+  const { canMutate, reason: cannotMutateReason } = useCanMutate();
   const checksQuery = usePrChecks(owner, repo, pr.head.sha);
   const mergeStatusQuery = usePrMergeStatus(owner, repo, pr.number);
   const updateBranch = useUpdatePrBranch(owner, repo, pr.number);
@@ -94,7 +96,8 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
           <Button
             size="sm"
             variant="outline"
-            disabled={toggleState.isPending}
+            disabled={toggleState.isPending || !canMutate}
+            title={cannotMutateReason}
             onClick={() => toggleState.mutate({ state: "open" })}
           >
             Reopen
@@ -118,7 +121,7 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
     hasConflicts,
     isBehind,
     onUpdateBranch: () => updateBranch.mutate({ expectedHeadSha: pr.head.sha }),
-    updateBranchPending: updateBranch.isPending,
+    updateBranchPending: updateBranch.isPending || !canMutate,
   });
   const blockedByRequirements = requirements.some((item) => item.blocksMerge);
   const canMergeNow =
@@ -179,7 +182,7 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
         <AutoMergeBanner
           request={mergeStatus.autoMergeRequest}
           canDisable={mergeStatus.viewerCanDisableAutoMerge}
-          disabled={autoMerge.isPending}
+          disabled={autoMerge.isPending || !canMutate}
           onDisable={() => autoMerge.mutate({ pullRequestId: pr.node_id, enabled: false })}
         />
       )}
@@ -219,7 +222,8 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
           <Button
             size="sm"
             variant="ghost"
-            disabled={toggleState.isPending}
+            disabled={toggleState.isPending || !canMutate}
+            title={cannotMutateReason}
             onClick={() => toggleState.mutate({ state: "closed" })}
           >
             Close
@@ -228,6 +232,8 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
             <Button
               size="sm"
               variant="outline"
+              disabled={!canMutate}
+              title={cannotMutateReason}
               onClick={() => {
                 autoMerge.reset();
                 setAutoMergeOpen(true);
@@ -240,7 +246,7 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
           {state !== "draft" && !hasConflicts && pr.mergeable && (
             <Button
               size="sm"
-              disabled={merge.isPending || !canOpenMergeDialog}
+              disabled={merge.isPending || !canOpenMergeDialog || !canMutate}
               onClick={() => {
                 merge.reset();
                 setMergeOpen(true);
@@ -252,9 +258,10 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
                   : "border-[color-mix(in_oklab,var(--color-success)_50%,var(--color-border))] bg-[color-mix(in_oklab,var(--color-success)_12%,var(--color-bg-subtle))] hover:bg-[color-mix(in_oklab,var(--color-success)_20%,var(--color-bg-subtle))]",
               )}
               title={
-                canOpenMergeDialog
+                cannotMutateReason ??
+                (canOpenMergeDialog
                   ? undefined
-                  : "Resolve merge requirements first, or use a GitHub account with bypass access"
+                  : "Resolve merge requirements first, or use a GitHub account with bypass access")
               }
             >
               <GitMerge data-icon="inline-start" />
@@ -363,6 +370,7 @@ function HeadBranchActions({
   onDelete: () => void;
   onRestore: () => void;
 }) {
+  const { canMutate, reason } = useCanMutate();
   if (!mergeStatus) return null;
   if (
     mergeStatus.headRefExists &&
@@ -370,7 +378,13 @@ function HeadBranchActions({
     pr.head.ref !== pr.base.ref
   ) {
     return (
-      <Button size="sm" variant="outline" disabled={deletePending} onClick={onDelete}>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={deletePending || !canMutate}
+        title={reason}
+        onClick={onDelete}
+      >
         <Trash2 data-icon="inline-start" />
         Delete branch
       </Button>
@@ -378,7 +392,13 @@ function HeadBranchActions({
   }
   if (!mergeStatus.headRefExists) {
     return (
-      <Button size="sm" variant="outline" disabled={restorePending} onClick={onRestore}>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={restorePending || !canMutate}
+        title={reason}
+        onClick={onRestore}
+      >
         <RotateCcw data-icon="inline-start" />
         Restore branch
       </Button>

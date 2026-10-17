@@ -1,4 +1,12 @@
-import { CheckCircle2, CircleDot, Eye, GitPullRequest, ImagePlus, Pencil, Send } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleDot,
+  Eye,
+  GitPullRequest,
+  ImagePlus,
+  Pencil,
+  Send,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { Avatar } from "@/app/components/ui/avatar";
@@ -7,6 +15,7 @@ import { Skeleton } from "@/app/components/ui/skeleton";
 import { useDebouncedValue } from "@/app/hooks/useDebouncedValue";
 import { type MentionItem, type MentionUser, useMentionSearch } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 import { useAuthStore } from "@/app/stores/auth";
 
 // ─── Trigger detection ───────────────────────────────────────────────────────
@@ -119,7 +128,9 @@ function Row({
       className={cn(
         "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left outline-hidden select-none",
         "transition-colors duration-75",
-        selected ? "bg-[var(--color-popover-active)] text-foreground" : "hover:bg-[var(--color-popover-active)]",
+        selected
+          ? "bg-[var(--color-popover-active)] text-foreground"
+          : "hover:bg-[var(--color-popover-active)]",
       )}
     >
       {item.kind === "@" ? (
@@ -190,6 +201,8 @@ export function ComposeBox({
   className,
   participants,
 }: ComposeBoxProps) {
+  // Offline or signed out: keep the draft, block sending it.
+  const { canMutate, reason: cannotMutateReason } = useCanMutate();
   const [mode, setMode] = useState<"write" | "preview">("write");
   const [focused, setFocused] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -223,7 +236,9 @@ export function ComposeBox({
     const api = items ?? [];
     if (!participants?.length || trigger?.type !== "@") return api;
     const q = debouncedQuery.toLowerCase();
-    const apiLogins = new Set(api.filter((i): i is MentionUser => i.kind === "@").map((i) => i.login));
+    const apiLogins = new Set(
+      api.filter((i): i is MentionUser => i.kind === "@").map((i) => i.login),
+    );
     const seed = participants.filter(
       (p) => !apiLogins.has(p.login) && (!q || p.login.toLowerCase().includes(q)),
     );
@@ -257,7 +272,7 @@ export function ComposeBox({
   const uploadFile = useCallback(
     async (file: File) => {
       const token = useAuthStore.getState().token;
-      if (!token || !file.type.startsWith("image/")) return;
+      if (!token || !canMutate || !file.type.startsWith("image/")) return;
 
       setUploading(true);
       const ta = textareaRef.current;
@@ -273,6 +288,8 @@ export function ComposeBox({
           headers: { Authorization: `Bearer ${token}`, "Content-Type": file.type },
           body: await file.arrayBuffer(),
         });
+        if (res.status === 401 && useAuthStore.getState().token === token)
+          useAuthStore.getState().markExpired();
         if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
         const { url } = (await res.json()) as { url: string };
         const markdown = `![${file.name}](${url})`;
@@ -283,7 +300,7 @@ export function ComposeBox({
         setUploading(false);
       }
     },
-    [onChange],
+    [onChange, canMutate],
   );
 
   function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
@@ -329,7 +346,7 @@ export function ComposeBox({
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      onSubmit?.();
+      if (canMutate) onSubmit?.();
       return;
     }
     if (!trigger) {
@@ -378,7 +395,7 @@ export function ComposeBox({
   const showSkeleton = !!trigger && isFetching && dropdownItems.length === 0;
   const showEmpty = !!trigger && !isFetching && dropdownItems.length === 0;
   const hasContent = value.trim().length > 0;
-  const canSubmit = hasContent && !submitDisabled && !submitPending;
+  const canSubmit = hasContent && !submitDisabled && !submitPending && canMutate;
 
   return (
     <div
@@ -409,20 +426,22 @@ export function ComposeBox({
           </TabPill>
         </div>
         <div className="flex-1" />
-        <div className={cn(
-          "flex items-center gap-2 pr-1 transition-opacity duration-200",
-          focused ? "opacity-100" : "opacity-0",
-        )}>
+        <div
+          className={cn(
+            "flex items-center gap-2 pr-1 transition-opacity duration-200",
+            focused ? "opacity-100" : "opacity-0",
+          )}
+        >
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
+            disabled={uploading || !canMutate}
             className={cn(
               "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[var(--color-fg-faint)]",
               "outline-none transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-foreground",
               uploading && "animate-pulse",
             )}
-            title="Attach an image"
+            title={cannotMutateReason ?? "Attach an image"}
           >
             <ImagePlus className="size-3" />
             <span className="font-mono text-micro">{uploading ? "Uploading…" : "Attach"}</span>
@@ -523,7 +542,6 @@ export function ComposeBox({
       {/* ── Footer ───────────────────────────────────────────────────── */}
       {onSubmit && (
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--color-border)] px-3 py-2">
-
           <span className="mr-auto hidden font-mono text-micro text-[var(--color-fg-faint)] select-none @min-[24rem]/compose:inline">
             {navigator.platform?.includes("Mac") ? "⌘" : "Ctrl"}+Enter to submit
           </span>
@@ -548,6 +566,7 @@ export function ComposeBox({
               type="button"
               disabled={!canSubmit}
               onClick={onSubmit}
+              title={cannotMutateReason}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-caption font-medium",
                 "outline-none transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]",
