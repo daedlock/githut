@@ -93,10 +93,7 @@ export function GroupedList<T>({
             data-list-group={group.key}
             aria-labelledby={`${contentId}-heading`}
           >
-            <h2
-              id={`${contentId}-heading`}
-              className="sticky top-(--app-header-height) z-30 bg-background"
-            >
+            <h2 id={`${contentId}-heading`} className="sticky top-0 z-30 bg-background">
               <button
                 type="button"
                 aria-expanded={expanded}

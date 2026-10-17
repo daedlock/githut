@@ -30,7 +30,7 @@ export function DiffLayoutSkeleton({
         </div>
         <div className="flex w-full">
           {sidebar && (
-            <div className="hidden w-[320px] shrink-0 space-y-4 p-4 lg:block">
+            <div className="hidden w-[320px] shrink-0 space-y-4 p-4 @4xl/pane:block">
               <Skeleton className="h-7 w-full" />
               {[72, 88, 60, 80, 68].map((width) => (
                 <Skeleton key={width} className="h-3.5" style={{ width: `${width}%` }} />

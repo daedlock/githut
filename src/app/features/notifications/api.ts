@@ -16,45 +16,97 @@ const NotificationSchema = z.object({
   repository: z.object({ full_name: z.string(), html_url: z.string() }),
 });
 export type Notification = z.infer<typeof NotificationSchema>;
+export type NotificationPage = {
+  items: Notification[];
+  hasMore: boolean;
+  pollInterval: number;
+};
 export type NotificationFeed = {
   items: Notification[];
-  participatingIds: string[];
+  /** Pages loaded so far. Polling refreshes only the first; older ones load on request. */
+  pages: number;
+  hasMore: boolean;
   pollInterval: number;
 };
 
-/** One feed for the workspace: membership comes from GitHub, not inferred reasons. */
-export async function fetchNotifications(signal?: AbortSignal): Promise<NotificationFeed> {
-  const client = getGitHubClient();
-  const list = async (participating: boolean) => {
-    const items: Notification[] = [];
-    let pollInterval = 0;
-    for (let page = 1; ; page++) {
-      const response = await client.request("GET /notifications", {
-        all: true,
-        participating,
-        per_page: 50,
-        page,
-        request: { signal },
-      });
-      items.push(...z.array(NotificationSchema).parse(response.data));
-      const seconds = Number(response.headers["x-poll-interval"]);
-      pollInterval = Math.max(
-        pollInterval,
-        Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 60_000,
-      );
-      if (!response.headers.link?.includes('rel="next"')) break;
-    }
-    return { items, pollInterval };
-  };
-  const [all, participating] = await Promise.all([list(false), list(true)]);
-  // Membership can change between the two requests: retain any participating
-  // thread absent from the All response rather than silently dropping it.
-  const byId = new Map(all.items.map((item) => [item.id, item]));
-  for (const item of participating.items) if (!byId.has(item.id)) byId.set(item.id, item);
+export const NOTIFICATIONS_PER_PAGE = 50;
+
+/**
+ * Reasons GitHub counts as "participating": you were involved directly, not
+ * through a watch, a team or CI. Deriving this from `reason` keeps a poll to
+ * one request instead of a second `participating=true` listing.
+ */
+const PARTICIPATING_REASONS = new Set([
+  "approval_requested",
+  "assign",
+  "author",
+  "comment",
+  "invitation",
+  "manual",
+  "member_feature_requested",
+  "mention",
+  "review_requested",
+  "security_advisory_credit",
+  "state_change",
+]);
+
+export function isParticipating(item: Notification): boolean {
+  return PARTICIPATING_REASONS.has(item.reason);
+}
+
+/**
+ * One page of the Inbox, read threads included. Page 1 is what polling asks
+ * for; the client sends it conditionally (If-None-Match / If-Modified-Since),
+ * so an unchanged Inbox costs one free 304.
+ */
+export async function fetchNotificationPage(
+  page: number,
+  signal?: AbortSignal,
+): Promise<NotificationPage> {
+  const response = await getGitHubClient().request("GET /notifications", {
+    all: true,
+    per_page: NOTIFICATIONS_PER_PAGE,
+    page,
+    request: { signal },
+  });
+  const seconds = Number(response.headers["x-poll-interval"]);
   return {
-    items: [...byId.values()],
-    participatingIds: participating.items.map((item) => item.id),
-    pollInterval: Math.max(all.pollInterval, participating.pollInterval),
+    items: z.array(NotificationSchema).parse(response.data),
+    hasMore: !!response.headers.link?.includes('rel="next"'),
+    pollInterval: Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 60_000,
+  };
+}
+
+/**
+ * Fold a fresh first page into what's loaded. Older pages stay, minus any
+ * thread the new page now holds; threads newer than the page's oldest row
+ * but missing from it were removed (Done elsewhere), so they go too.
+ */
+export function mergeFirstPage(
+  first: NotificationPage,
+  previous?: NotificationFeed,
+): NotificationFeed {
+  const fresh = { ...first, pages: 1 };
+  if (!previous || previous.pages <= 1 || !first.hasMore) return fresh;
+  const ids = new Set(first.items.map((item) => item.id));
+  const oldest = first.items.at(-1)?.updated_at ?? "";
+  const tail = previous.items.filter((item) => !ids.has(item.id) && item.updated_at <= oldest);
+  return {
+    items: [...first.items, ...tail],
+    pages: previous.pages,
+    hasMore: previous.hasMore,
+    pollInterval: first.pollInterval,
+  };
+}
+
+/** Append the next page; threads shift between pages as they update, so dedupe. */
+export function appendPage(feed: NotificationFeed, next: NotificationPage): NotificationFeed {
+  const ids = new Set(feed.items.map((item) => item.id));
+  return {
+    ...feed,
+    items: [...feed.items, ...next.items.filter((item) => !ids.has(item.id))],
+    pages: feed.pages + 1,
+    hasMore: next.hasMore,
   };
 }
 

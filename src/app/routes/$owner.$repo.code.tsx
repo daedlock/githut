@@ -101,13 +101,11 @@ function CodePage() {
   const branchReady = !!searchBranch || !!defaultBranch;
   const isBlob = view === "blob";
 
-  const { data: contents, isPending: contentsPending, isError: contentsError } = useRepoContents(
-    owner,
-    repo,
-    path,
-    dataRef,
-    { enabled: branchReady && !isBlob },
-  );
+  const {
+    data: contents,
+    isPending: contentsPending,
+    isError: contentsError,
+  } = useRepoContents(owner, repo, path, dataRef, { enabled: branchReady && !isBlob });
   const { data: commit, isPending: commitPending } = usePathCommit(owner, repo, path, dataRef, {
     enabled: branchReady && !isBlob,
   });
@@ -119,7 +117,11 @@ function CodePage() {
   const { data: contributors, isPending: contributorsPending } = useRepoContributors(owner, repo);
 
   // blob view
-  const { data: fileData, isPending: filePending, isError: fileError } = useRepoFile(owner, repo, path, dataRef, {
+  const {
+    data: fileData,
+    isPending: filePending,
+    isError: fileError,
+  } = useRepoFile(owner, repo, path, dataRef, {
     enabled: branchReady && isBlob && !!path,
   });
 
@@ -173,7 +175,7 @@ function CodePage() {
       <h1 className="sr-only">
         Code for {owner}/{repo}
       </h1>
-      <div className="flex flex-col gap-6 items-start lg:flex-row">
+      <div className="flex flex-col items-start gap-6 @3xl/pane:flex-row">
         {/* main column */}
         <div className="flex w-full min-w-0 flex-1 flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
@@ -228,7 +230,9 @@ function CodePage() {
                   });
                 }}
               />
-            ) : <StatusMessage tone="danger">This file is not available.</StatusMessage>
+            ) : (
+              <StatusMessage tone="danger">This file is not available.</StatusMessage>
+            )
           ) : (
             <>
               {contentsError && !contents ? (
@@ -247,7 +251,10 @@ function CodePage() {
                 />
               )}
               {!path && readmePending && (
-                <SkeletonGroup label="Loading README" className="space-y-3 rounded-md border border-border p-5">
+                <SkeletonGroup
+                  label="Loading README"
+                  className="space-y-3 rounded-md border border-border p-5"
+                >
                   <Skeleton className="mb-5 h-6 w-48" />
                   {[80, 100, 72, 60].map((width) => (
                     <Skeleton key={width} className="h-4" style={{ width: `${width}%` }} />
@@ -261,11 +268,10 @@ function CodePage() {
           )}
         </div>
 
-        {/* sidebar — sticky offset = navbar (h-10/40px) + container py-6
-            (24px) so the sidebar parks the same gap below the navbar
-            that the buttons originally have above the file list. */}
+        {/* sidebar — sticky offset = container py-6 (24px), so the sidebar
+            parks the same gap below the pane top as above the file list. */}
         {showSidebar && (
-          <div className="w-full shrink-0 flex flex-col gap-3 lg:sticky lg:top-[calc(var(--app-header-height)+24px)] lg:w-64">
+          <div className="flex w-full shrink-0 flex-col gap-3 @3xl/pane:sticky @3xl/pane:top-6 @3xl/pane:w-64">
             <div className="flex items-center justify-end gap-2">
               <StarButton owner={owner} repo={repo} starCount={repoData?.stargazers_count} />
               <CloneDropdown owner={owner} repo={repo} branch={branch} />

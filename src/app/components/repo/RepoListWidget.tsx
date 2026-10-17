@@ -123,8 +123,8 @@ function RepoRowsSkeleton({ rows }: { rows?: number } = {}) {
             <Skeleton className="h-3.5" style={{ width: `${titleW}%` }} />
             <Skeleton className="h-3" style={{ width: `${Math.min(90, titleW + 20)}%` }} />
           </div>
-          <Skeleton className="hidden h-3 w-10 sm:block" />
-          <Skeleton className="hidden h-3 w-16 md:block" />
+          <Skeleton className="hidden h-3 w-10 @xl/pane:block" />
+          <Skeleton className="hidden h-3 w-16 @2xl/pane:block" />
         </div>
       ))}
     </SkeletonGroup>

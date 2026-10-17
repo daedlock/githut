@@ -6,7 +6,7 @@ import { type ReviewEvent, useSubmitPrReview } from "@/app/features/pulls/hooks"
 import type { PendingComment } from "@/app/features/pulls/stores/review";
 import { cn } from "@/app/lib/cn";
 import { useCanMutate } from "@/app/lib/connectivity";
-import { useAuthStore } from "@/app/stores/auth";
+import { currentOwner } from "@/app/stores/accountStorage";
 import { draftKey, draftPage, useDraft } from "@/app/stores/drafts";
 
 const VERDICTS: Array<{
@@ -45,7 +45,6 @@ export type PrReviewPopoverProps = {
   number: number;
   isAuthor: boolean;
   pendingComments?: PendingComment[];
-  onReviewSubmitted?: () => void;
 };
 
 export function PrReviewPopover({
@@ -54,7 +53,6 @@ export function PrReviewPopover({
   number,
   isAuthor,
   pendingComments = [],
-  onReviewSubmitted,
 }: PrReviewPopoverProps) {
   const [open, setOpen] = useState(false);
   const [event, setEvent] = useState<ReviewEvent>("COMMENT");
@@ -66,7 +64,6 @@ export function PrReviewPopover({
   const verdict = VERDICTS.find((v) => v.id === event)!;
 
   function handleSubmit() {
-    const submittingAccount = useAuthStore.getState().accountId;
     setError(null);
     if (event === "REQUEST_CHANGES" && !body.trim()) {
       setError("A comment is required when requesting changes.");
@@ -78,15 +75,14 @@ export function PrReviewPopover({
       side: c.side,
       body: c.body,
     }));
+    // The mutation itself clears the submitter's pending review and drafts on
+    // success, so that happens even if this tab closes mid-request.
     submit.mutate(
-      { event, body, comments },
+      { event, body, comments, owner: currentOwner() },
       {
         onSuccess: () => {
-          if (useAuthStore.getState().accountId !== submittingAccount) return;
-          setBody("");
           setEvent("COMMENT");
           setOpen(false);
-          onReviewSubmitted?.();
         },
         onError: (err) => {
           setError(err instanceof Error ? err.message : "Failed to submit review.");

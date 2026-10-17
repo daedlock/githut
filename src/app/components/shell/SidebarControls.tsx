@@ -12,7 +12,12 @@ import { useWorkspaceView } from "@/app/stores/workspaceView";
 
 const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 
-/** Global controls stay in the sidebar; the islands own the entire adjacent area. */
+/**
+ * Global controls stay in the sidebar; the islands own the entire adjacent
+ * area. The top row is `h-10` in both states, so Inbox and every row below
+ * keep their position when the sidebar collapses: the rail keeps only the
+ * toggle on top and moves search and account to its foot (`SidebarRailFooter`).
+ */
 export function SidebarControls({
   collapsed = false,
   drawer = false,
@@ -20,21 +25,41 @@ export function SidebarControls({
   collapsed?: boolean;
   drawer?: boolean;
 }) {
-  const { data: me } = useMe();
-  const { open: openSearch } = useCommandPalette();
-  const setSidebarOpen = useWorkspaceView((state) => state.setSidebarOpen);
   return (
     <div
       data-link-menu="off"
       className={cn(
-        "flex shrink-0 items-center gap-1",
-        // pt-1.5 centres the first 28px control on the islands' 40px header row.
-        collapsed ? "flex-col gap-1.5 pt-1.5" : "h-10 px-1",
+        "flex h-10 shrink-0 items-center gap-1",
+        collapsed ? "justify-center" : "px-1",
         drawer && "pr-6",
       )}
     >
       {!drawer && <SidebarToggle />}
-      {!collapsed && <span className="min-w-0 flex-1 truncate text-ui font-medium">GitHut</span>}
+      {!collapsed && (
+        <>
+          <span className="min-w-0 flex-1 truncate text-ui font-medium">GitHut</span>
+          <GlobalControls drawer={drawer} />
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Search and account at the bottom of the collapsed rail. */
+export function SidebarRailFooter() {
+  return (
+    <div data-link-menu="off" className="flex shrink-0 flex-col items-center gap-1 py-2">
+      <GlobalControls />
+    </div>
+  );
+}
+
+function GlobalControls({ drawer = false }: { drawer?: boolean }) {
+  const { data: me } = useMe();
+  const { open: openSearch } = useCommandPalette();
+  const setSidebarOpen = useWorkspaceView((state) => state.setSidebarOpen);
+  return (
+    <>
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
@@ -61,7 +86,7 @@ export function SidebarControls({
         onReAuth={manageGitHubAccess}
         onNavigate={drawer ? () => setSidebarOpen(false) : undefined}
       />
-    </div>
+    </>
   );
 }
 
@@ -75,6 +100,8 @@ export function SidebarToggle() {
           variant="ghost"
           size="icon-sm"
           data-sidebar-toggle
+          // Open is the resting state here, not a pressed one.
+          className="aria-expanded:bg-transparent aria-expanded:text-muted-foreground aria-expanded:hover:bg-muted aria-expanded:hover:text-foreground"
           aria-label={narrow ? "Open sidebar" : collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-expanded={narrow ? sidebarOpen : !collapsed}
           aria-controls="workspace-sidebar"

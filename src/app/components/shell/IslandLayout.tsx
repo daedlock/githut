@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { OpenInGithubLink } from "@/app/components/OpenInGithubLink";
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { IslandSwitcher } from "@/app/components/shell/IslandSwitcher";
 import { SectionMenu } from "@/app/components/shell/SectionMenu";
@@ -276,6 +277,7 @@ const IslandHeader = memo(function IslandHeader({
           one menu, and the island menu (splits only make sense with room for
           two islands) gives way to the switcher. */}
       <SectionMenu href={href} compact={narrow} />
+      <OpenInGithubLink href={href} />
       {maximized && !narrow && (
         // The other islands are hidden, not closed: say so and offer the way back.
         <Tooltip>

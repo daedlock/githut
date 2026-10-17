@@ -39,7 +39,7 @@ export function ProfilePinned({ repos, isLoading }: ProfilePinnedProps) {
         icon={<PinIcon className="size-3 text-(--color-fg-faint)" />}
       />
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 @xl/pane:grid-cols-2 @xl/pane:gap-3 @4xl/pane:grid-cols-3">
         {top.map((r) => (
           <PinnedCard key={r.id} repo={r} />
         ))}
@@ -103,7 +103,7 @@ function PinnedSkeleton() {
   return (
     <SkeletonGroup label="Loading pinned repositories" className="flex flex-col gap-3">
       <Skeleton className="h-3 w-32" />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 @xl/pane:grid-cols-2 @4xl/pane:grid-cols-3">
         {[0, 1, 2].map((i) => (
           <Skeleton key={i} className="h-[112px] rounded-xl" />
         ))}

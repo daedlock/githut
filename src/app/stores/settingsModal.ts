@@ -32,7 +32,7 @@ export function openSettings({ replace = false } = {}) {
   setOpen(true);
   if (isSettingsHref(window.location.href)) return;
   window.history[replace ? "replaceState" : "pushState"](
-    { ...window.history.state, ghSettings: true },
+    { ...window.history.state, ghSettings: true, ghSettingsPushed: !replace },
     "",
     "/settings",
   );
@@ -40,8 +40,14 @@ export function openSettings({ replace = false } = {}) {
 
 export function closeSettings() {
   setOpen(false);
+  // Opened with a new history entry: step back over it so closing leaves no
+  // dead Back step behind.
+  if (window.history.state?.ghSettingsPushed && isSettingsHref(window.location.href)) {
+    window.history.back();
+    return;
+  }
   window.history.replaceState(
-    { ...window.history.state, ghSettings: false },
+    { ...window.history.state, ghSettings: false, ghSettingsPushed: false },
     "",
     getFocusedTab().href,
   );

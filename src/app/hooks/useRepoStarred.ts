@@ -1,5 +1,4 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { StarredRepo } from "@/app/hooks/useStarredRepos";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
 
@@ -53,12 +52,6 @@ export function useToggleStar(owner: string, repo: string) {
     onMutate: async (next: boolean) => {
       await queryClient.cancelQueries({ queryKey: starredKey });
       await queryClient.cancelQueries({ queryKey: repoKey });
-      await queryClient.cancelQueries({ queryKey: ["starred-repos"] });
-      const prevStars = queryClient.getQueryData<StarredRepo[]>(["starred-repos"]);
-      if (!next)
-        queryClient.setQueryData<StarredRepo[]>(["starred-repos"], (old) =>
-          old?.filter((item) => item.full_name.toLowerCase() !== `${owner}/${repo}`.toLowerCase()),
-        );
       const prevStarred = queryClient.getQueryData<boolean>(starredKey);
       const prevRepo = queryClient.getQueryData<{ stargazers_count: number } & object>(repoKey);
       queryClient.setQueryData<boolean>(starredKey, next);
@@ -69,17 +62,15 @@ export function useToggleStar(owner: string, repo: string) {
         const delta = next ? 1 : -1;
         return { ...r, stargazers_count: Math.max(0, r.stargazers_count + delta) };
       });
-      return { prevStarred, prevRepo, prevStars };
+      return { prevStarred, prevRepo };
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prevStarred !== undefined) queryClient.setQueryData(starredKey, ctx.prevStarred);
       if (ctx?.prevRepo !== undefined) queryClient.setQueryData(repoKey, ctx.prevRepo);
-      if (ctx?.prevStars !== undefined) queryClient.setQueryData(["starred-repos"], ctx.prevStars);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: starredKey });
       queryClient.invalidateQueries({ queryKey: repoKey });
-      queryClient.invalidateQueries({ queryKey: ["starred-repos"] });
     },
   });
 }

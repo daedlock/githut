@@ -21,8 +21,8 @@ export const Route = createFileRoute("/$owner/$repo")({
 // TabHost), so the layout itself is just the page.
 function RepoLayout() {
   return (
-    <main className="flex min-h-full min-w-0 flex-col">
+    <div className="flex min-h-full min-w-0 flex-col">
       <Outlet />
-    </main>
+    </div>
   );
 }

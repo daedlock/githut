@@ -70,6 +70,33 @@ function evictETagsForRepo(owner: string, repo: string): void {
   }
 }
 
+/**
+ * A thread write leaves the cached notification listings one step behind.
+ * Dropping their validators would make the next poll a full-cost request
+ * (and auto mark-read runs on every visit), so apply the write to the
+ * cached bodies instead: a later 304 then replays an up-to-date list.
+ * Writes we can't mirror (mark all read) still drop the snapshots.
+ */
+function patchNotificationSnapshots(method: string, options: Record<string, unknown>): void {
+  const url = String(options.url ?? "");
+  const match = /\/notifications\/threads\/([^/?]+)(\/subscription)?$/.exec(url);
+  const id = String(options.thread_id ?? decodeURIComponent(match?.[1] ?? ""));
+  // Subscription changes don't alter the listing.
+  if (match?.[2]) return;
+  const patch =
+    match && id && method === "DELETE"
+      ? (items: { id: string }[]) => items.filter((item) => item.id !== id)
+      : match && id && method === "PATCH"
+        ? (items: { id: string }[]) =>
+            items.map((item) => (item.id === id ? { ...item, unread: false } : item))
+        : null;
+  for (const [key, entry] of etagCache) {
+    if (!key.startsWith("GET /notifications")) continue;
+    if (patch && Array.isArray(entry.data)) entry.data = patch(entry.data as { id: string }[]);
+    else etagCache.delete(key);
+  }
+}
+
 // ─── Client singleton ──────────────────────────────────────────────────────
 
 let cached: { token: string; client: Octokit } | null = null;
@@ -139,11 +166,7 @@ export function getGitHubClient(): Octokit {
       const url = String(options.url ?? "");
       const match = url.match(/\/repos\/([^/]+)\/([^/]+)/);
       if (match?.[1] && match[2]) evictETagsForRepo(match[1], match[2]);
-      if (url.includes("/notifications")) {
-        for (const key of etagCache.keys()) {
-          if (key.includes("/notifications")) etagCache.delete(key);
-        }
-      }
+      if (url.includes("/notifications")) patchNotificationSnapshots(method, options);
       return response;
     }
 

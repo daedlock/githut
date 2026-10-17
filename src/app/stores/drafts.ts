@@ -1,7 +1,14 @@
 import { useCallback } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { accountStorage, followDraftAccount } from "@/app/stores/accountStorage";
+import {
+  accountStorage,
+  currentOwner,
+  followAccount,
+  ownsMemory,
+  type StorageOwner,
+  updateAccountRecord,
+} from "@/app/stores/accountStorage";
 import { useAuthStore } from "@/app/stores/auth";
 import { normalizeHref } from "@/app/workspace/model";
 
@@ -9,7 +16,7 @@ import { normalizeHref } from "@/app/workspace/model";
 //
 // A draft is an unsent comment or review kept for a page until you send or
 // discard it, even if its tab is closed. Each verified account has its own
-// storage namespace. Drafts are keyed by page, not by tab,
+// storage namespace (see stores/accountStorage). Drafts are keyed by page, not by tab,
 // so closing a tab, reopening it (or the same page anywhere else), reloading
 // and signing in again all bring the text back. Nothing here prompts.
 //
@@ -20,6 +27,7 @@ import { normalizeHref } from "@/app/workspace/model";
 // comments live in the review store (also persisted); `usePageHasDraft` looks
 // at both.
 
+const DRAFTS_NAME = "githut.drafts.v1";
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 type Draft = { body: string; at: number };
@@ -38,7 +46,6 @@ export const useDraftsStore = create<DraftsState>()(
     (set, get) => ({
       drafts: {},
       setDraft: (key, body) => {
-        if (useAuthStore.getState().accountId == null) return;
         if (!body.trim()) {
           get().clearDraft(key);
           return;
@@ -62,7 +69,7 @@ export const useDraftsStore = create<DraftsState>()(
       },
     }),
     {
-      name: "githut.drafts.v1",
+      name: DRAFTS_NAME,
       storage: accountStorage<Pick<DraftsState, "drafts">>(),
       partialize: (s) => ({ drafts: s.drafts }),
       // Forget drafts nobody has touched in a month.
@@ -79,11 +86,18 @@ export const useDraftsStore = create<DraftsState>()(
   ),
 );
 
-followDraftAccount(() => useDraftsStore.persist.rehydrate());
+followAccount(DRAFTS_NAME, {
+  rehydrate: () => useDraftsStore.persist.rehydrate(),
+  snapshot: () => useDraftsStore.getState().drafts,
+  adopt: (pending) => {
+    if (Object.keys(pending).length === 0) return;
+    useDraftsStore.setState({ drafts: { ...useDraftsStore.getState().drafts, ...pending } });
+  },
+});
 
 /** Page key for a PR or issue. Matches the review store's PR key. */
 export function draftPage(owner: string, repo: string, number: number): string {
-  return `${owner}/${repo}/${number}`;
+  return `${owner.toLowerCase()}/${repo.toLowerCase()}/${number}`;
 }
 
 export function draftKey(page: string, slot: string): string {
@@ -95,26 +109,75 @@ const PAGE_HREF = /^\/([^/]+)\/([^/]+)\/(?:pull|pr|review|issues)\/(\d+)(?:\/|$)
 /** The draft page an href shows, or null for pages that hold no drafts. */
 export function draftPageFromHref(href: string): string | null {
   const m = normalizeHref(href).split(/[?#]/)[0]!.match(PAGE_HREF);
-  return m ? `${m[1]}/${m[2]}/${m[3]}` : null;
+  return m ? draftPage(m[1]!, m[2]!, Number(m[3])) : null;
 }
 
 export function hasDraft(key: string): boolean {
   return key in useDraftsStore.getState().drafts;
 }
 
+// ─── Sending ─────────────────────────────────────────────────────────────────
+//
+// A draft stays stored while its request is in flight and is only cleared
+// when the request succeeds, from the mutation's own onSuccess so it still runs
+// after the composer or its tab is gone. A failed send leaves the text where it
+// was. The owner is captured at submit, so a late success clears the sender's
+// draft, never a draft of whoever is signed in now.
+
+export type SentDraft = { key: string; body: string; owner: StorageOwner };
+
+/** Capture a draft being sent: pass it with the mutation's variables. */
+export function sentDraft(key: string, body: string): SentDraft {
+  return { key, body: body.trim(), owner: currentOwner() };
+}
+
+/** The send succeeded: drop the draft unless it was edited since. */
+export function clearSentDraft(sent: SentDraft | undefined) {
+  if (!sent) return;
+  const matches = (d: Draft | undefined) => !!d && d.body.trim() === sent.body;
+  if (ownsMemory(sent.owner)) {
+    const store = useDraftsStore.getState();
+    if (matches(store.drafts[sent.key])) store.clearDraft(sent.key);
+    return;
+  }
+  if (sent.owner.accountId == null) return;
+  updateAccountRecord<Pick<DraftsState, "drafts">>(DRAFTS_NAME, sent.owner.accountId, (state) => {
+    const drafts = { ...state.drafts };
+    if (matches(drafts[sent.key])) delete drafts[sent.key];
+    return { ...state, drafts };
+  });
+}
+
+/** Clear drafts on `page` for `owner`, wherever that account's drafts live now. */
+export function clearDraftsFor(owner: StorageOwner, page: string, slotPrefixes: string[]) {
+  if (ownsMemory(owner)) {
+    for (const prefix of slotPrefixes) useDraftsStore.getState().clearDrafts(page, prefix);
+    return;
+  }
+  if (owner.accountId == null) return;
+  updateAccountRecord<Pick<DraftsState, "drafts">>(DRAFTS_NAME, owner.accountId, (state) => {
+    const drafts = { ...state.drafts };
+    for (const k of Object.keys(drafts)) {
+      if (slotPrefixes.some((prefix) => k.startsWith(`${page}#${prefix}`))) delete drafts[k];
+    }
+    return { ...state, drafts };
+  });
+}
+
 /** A composer's text, kept as a draft under `key`: `[body, setBody, discard]`. */
 export function useDraft(key: string): [string, (body: string) => void, () => void] {
   const accountId = useAuthStore((s) => s.accountId);
+  const token = useAuthStore((s) => s.token);
   const body = useDraftsStore((s) => s.drafts[key]?.body ?? "");
+  // A setter rendered for one account never writes into another's drafts.
   const set = useCallback(
     (next: string) => {
-      if (useAuthStore.getState().accountId === accountId)
-        useDraftsStore.getState().setDraft(key, next);
+      if (ownsMemory({ accountId, token })) useDraftsStore.getState().setDraft(key, next);
     },
-    [key, accountId],
+    [key, accountId, token],
   );
   const clear = useCallback(() => {
-    if (useAuthStore.getState().accountId === accountId) useDraftsStore.getState().clearDraft(key);
-  }, [key, accountId]);
+    if (ownsMemory({ accountId, token })) useDraftsStore.getState().clearDraft(key);
+  }, [key, accountId, token]);
   return [body, set, clear];
 }

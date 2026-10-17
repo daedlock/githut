@@ -99,7 +99,7 @@ export function IssueDetail({
   }, [issue, comments]);
 
   return (
-    <Container className="py-5 sm:py-6">
+    <Container className="py-5 @xl/pane:py-6">
       <div className="mb-4 flex items-center justify-between gap-3">
         <button
           type="button"
@@ -145,7 +145,7 @@ export function IssueDetail({
       ) : (
         <>
           <div className="mb-5">
-            <h1 className="text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">
+            <h1 className="text-xl font-semibold leading-snug tracking-tight text-foreground @xl/pane:text-2xl">
               {issue.title}{" "}
               <span className="font-mono text-title font-normal text-[var(--color-fg-faint)]">
                 #{issue.number}
@@ -167,7 +167,7 @@ export function IssueDetail({
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
+          <div className="flex flex-col gap-4 @4xl/pane:flex-row @4xl/pane:gap-6">
             {/* Main column */}
             <LiveUpdates
               key={`${owner}/${repo}/${issue.number}`}
@@ -257,8 +257,8 @@ export function IssueDetail({
             </LiveUpdates>
 
             {/* Sidebar */}
-            <aside className="w-full lg:w-[328px] lg:flex-shrink-0 self-stretch">
-              <div className="sticky top-[calc(var(--app-header-height)+16px)]">
+            <aside className="w-full self-stretch @4xl/pane:w-[328px] @4xl/pane:shrink-0">
+              <div className="@4xl/pane:sticky @4xl/pane:top-4">
                 <IssueSidebar owner={owner} repo={repo} issue={issue} />
               </div>
             </aside>
@@ -279,12 +279,12 @@ function IssueDetailSkeleton() {
           <Skeleton className="h-4 w-64" />
         </div>
       </SkeletonGroup>
-      <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
+      <div className="flex flex-col gap-4 @4xl/pane:flex-row @4xl/pane:gap-6">
         <div className="min-w-0 flex-1 space-y-3">
           <CommentSkeleton label="Loading issue description" />
           <CommentSkeleton label="Loading comments" />
         </div>
-        <div className="w-full lg:w-[328px] lg:shrink-0">
+        <div className="w-full @4xl/pane:w-[328px] @4xl/pane:shrink-0">
           <MetadataSkeleton />
         </div>
       </div>

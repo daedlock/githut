@@ -11,7 +11,17 @@ type FavoritesState = {
   remove: (accountId: number | null, id: string) => void;
 };
 const EMPTY: Favorite[] = [];
-export const favoriteId = (item: FavoriteInput) => `${item.kind}:${normalizeHref(item.href)}`;
+/** Owner and repo names are case-insensitive on GitHub; paths and queries are not. */
+const RESERVED = new Set(["settings", "login", "playground"]);
+export function canonicalHref(href: string): string {
+  const normalized = normalizeHref(href);
+  const match = /^\/([^/?#]+)\/([^/?#]+)(.*)$/.exec(normalized);
+  if (!match || RESERVED.has(match[1]!.toLowerCase())) return normalized;
+  return `/${match[1]!.toLowerCase()}/${match[2]!.toLowerCase()}${match[3]}`;
+}
+export const favoriteId = (item: FavoriteInput) => `${item.kind}:${canonicalHref(item.href)}`;
+/** The Inbox is always in the sidebar; it is never a favorite. */
+export const canFavorite = (href: string) => normalizeHref(href).split(/[?#]/)[0] !== "/";
 const validAccount = (id: number | null): id is number => Number.isSafeInteger(id) && (id ?? 0) > 0;
 
 /** Local navigation preferences. Callers supply identity verified by the auth store. */
@@ -24,11 +34,17 @@ export const createFavoritesStore = (storage?: StateStorage) =>
         add: (accountId, item) => {
           if (!validAccount(accountId) || !item.href.startsWith("/") || item.href.startsWith("//"))
             return;
-          const entry = { ...item, href: normalizeHref(item.href), id: favoriteId(item) };
+          if (!canFavorite(item.href)) return;
+          const href = canonicalHref(item.href);
+          const entry = { ...item, href, id: favoriteId(item) };
           set((state) => {
             const items = state.accounts[accountId] ?? [];
-            if (items.some((saved) => saved.id === entry.id)) return state;
-            return { accounts: { ...state.accounts, [accountId]: [...items, entry] } };
+            // One row per destination: a repo favorite and a view favorite of
+            // the repo's Code page are the same place, and the repo one wins.
+            const same = items.find((saved) => canonicalHref(saved.href) === href);
+            if (same && (same.kind === "repo" || entry.kind === "view")) return state;
+            const rest = items.filter((saved) => saved !== same);
+            return { accounts: { ...state.accounts, [accountId]: [...rest, entry] } };
           });
         },
         remove: (accountId, id) => {

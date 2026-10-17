@@ -27,7 +27,8 @@ export function NotificationsSync() {
   const { canMutate } = useCanMutate();
   const visible = useSyncExternalStore(subscribeVisibility, () => !document.hidden);
   const pageVisible = visible && visibleTabIds(workspace, narrow).has(tab.id);
-  const visited = useRef<string | null>(null);
+  /** Threads already marked during this visit; a later poll can bring new ones. */
+  const visited = useRef<{ key: string; ids: Set<string> } | null>(null);
   const [failed, setFailed] = useState<string[]>([]);
   const page = notificationPageKey(tab.href);
   const key = `${tab.id}:${page}`;
@@ -37,15 +38,22 @@ export function NotificationsSync() {
       visited.current = null;
       return;
     }
-    if (!canMutate || !feed.data || visited.current === key) return;
-    visited.current = key;
+    if (!canMutate || !feed.data) return;
+    if (visited.current?.key !== key) visited.current = { key, ids: new Set() };
     if (!/^\/[^/]+\/[^/]+\/(pull|issues)\/\d+$/.test(page)) return;
+    const marked = visited.current.ids;
     const ids = feed.data.items
       .filter((item) => {
         const href = notificationHref(item);
-        return href && notificationPageKey(href) === page && notificationIsUnread(item);
+        return (
+          href &&
+          !marked.has(item.id) &&
+          notificationPageKey(href) === page &&
+          notificationIsUnread(item)
+        );
       })
       .map((item) => item.id);
+    for (const id of ids) marked.add(id);
     if (ids.length)
       void runNotificationAction(ids, "read")
         .then((result) => setFailed(result.failed.map((item) => item.id)))

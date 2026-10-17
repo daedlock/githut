@@ -5,7 +5,6 @@ import { Activity, memo, useEffect, useLayoutEffect, useMemo, useRef, useState }
 import { CommandPalette } from "@/app/components/CommandPalette";
 import { FileHistorySheet } from "@/app/components/code/FileHistorySheet";
 import { KeyboardHelp } from "@/app/components/KeyboardHelp";
-import { OpenInGithubLink } from "@/app/components/OpenInGithubLink";
 import { PageScrollControls } from "@/app/components/PageScrollControls";
 import { SettingsModal } from "@/app/components/settings/SettingsModal";
 import { DocumentTitle } from "@/app/components/shell/DocumentTitle";
@@ -91,7 +90,6 @@ export function TabHost() {
       <CommandPalette />
       <KeyboardHelp />
       <FileHistorySheet />
-      <OpenInGithubLink />
     </>
   );
 
@@ -99,10 +97,10 @@ export function TabHost() {
   // owns the whole window.
   if (!signedIn) {
     return (
-      <div className="relative h-full">
+      <main className="relative h-full">
         {renderPanes(focusedIsland(workspace), true)}
         <RouterContextProvider router={focusedRouter}>{overlays}</RouterContextProvider>
-      </div>
+      </main>
     );
   }
 
@@ -208,7 +206,7 @@ const TabPane = memo(
         aria-labelledby={`tab-${id}`}
         // Focusable so keyboard focus can move into an island (Alt+Shift+arrows).
         tabIndex={-1}
-        className="absolute inset-0 overflow-y-auto overscroll-contain outline-none [--app-header-height:0px]"
+        className="@container/pane absolute inset-0 overflow-y-auto overscroll-contain outline-none"
       >
         <TabScopeContext.Provider value={scope}>
           <QueryClientProvider client={queries}>

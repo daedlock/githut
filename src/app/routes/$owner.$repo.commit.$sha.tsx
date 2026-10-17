@@ -48,8 +48,8 @@ function CommitDetailPage() {
   return (
     <div className="flex w-full flex-col">
       <header className="w-full border-b border-border bg-[var(--color-bg-subtle)]/35">
-        <Container className="grid lg:grid-cols-[320px_minmax(0,1fr)]">
-          <div className="border-b border-border px-4 py-4 lg:border-r lg:border-b-0">
+        <Container className="grid @4xl/pane:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="border-b border-border px-4 py-4 @4xl/pane:border-r @4xl/pane:border-b-0">
             <CommitBackLink owner={owner} repo={repo} />
             {commit ? <CommitManifest commit={commit} owner={owner} repo={repo} /> : null}
             {isPending && (
@@ -61,7 +61,7 @@ function CommitDetailPage() {
             )}
           </div>
 
-          <div className="min-w-0 px-5 py-5 lg:px-7 lg:py-6">
+          <div className="min-w-0 px-5 py-5 @4xl/pane:px-7 @4xl/pane:py-6">
             {isPending ? (
               <CommitHeaderSkeleton />
             ) : isError || !commit ? (
@@ -90,7 +90,7 @@ function CommitDetailPage() {
       )}
 
       {commit && diffFiles.length === 0 && (
-        <div className="border-t border-border px-4 py-8 sm:px-6">
+        <div className="border-t border-border px-4 py-8 @xl/pane:px-6">
           <StatusMessage>No file changes in this commit.</StatusMessage>
         </div>
       )}

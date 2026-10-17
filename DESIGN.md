@@ -171,9 +171,9 @@ Use only this z-index scale:
 ### Chrome
 - Pages have no navigation bar of their own. Global controls live in the sidebar; each island owns its header (`h-10`); see Islands. Rows inside
   chrome are `h-* flex items-center`. **Never use `py-*` on a chrome bar.**
-- Each tab scrolls in its own pane. Sticky page bars stick at
-  `top-(--app-header-height)`, which is `0px` inside a pane; keep using the
-  variable so offsets stay correct if chrome ever returns above a page.
+- Each tab scrolls in its own pane, with no chrome above the page inside it.
+  Sticky page bars stick at `top-0`; sticky sidebars offset only by the page's
+  own padding (`top-6` under a `py-6` container).
 - Full-height regions size against the pane, never the viewport:
   `var(--pane-height, 100dvh)`, not `100dvh` or `min-h-screen`.
 
@@ -270,13 +270,15 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
   bar or visible command-search field. Cmd/Ctrl+K still opens command search.
 - Repo identity and sections stay in island headers; focused context is reflected
   by the focused island and browser URL.
-- Offline and rate-limit notices float at the workspace's bottom-right while
-  needed, without reserving space (both are focusable `Badge`s with a tooltip).
+- Offline, rate-limit and storage-full notices float at the workspace's
+  bottom-right while needed, without reserving space (all focusable `Badge`s
+  with a tooltip).
   An expired sign-in shows a persistent top-centre toast with its recovery
   action and never replaces tabs or drafts.
 ### Island header
 - `h-10 flex items-center gap-1 pl-1 pr-1.5`: the tab row takes the
-  remaining width, then the section menu, then the island menu
+  remaining width, then the section menu, the Open in GitHub link
+  (`ExternalLink`, only where GitHub has the page), then the island menu
   (`Button ghost icon-sm`, `Columns2`: Split right, Split down,
   Maximize/Restore).
 - **Tabs:** `h-7 rounded-lg pl-2 pr-1 gap-1.5 text-ui`, 64–220px wide.
@@ -307,7 +309,8 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
   icons only up to 760px, and one "⋯" menu at 480px and below. The
   current section is `bg-muted text-foreground`. Pages without a repo
   show no sections. In narrow mode the header is sidebar toggle → tabs →
-  island switcher → "⋯" sections: no island menu, no tab chevron.
+  island switcher → "⋯" sections → Open in GitHub: no island menu, no tab
+  chevron.
 
 ### Sidebar
 
@@ -382,7 +385,7 @@ yourself.
 right. Toolbars recede; they never dominate.
 
 ### Group headers
-Sticky at `top-(--app-header-height)` with `z-30 bg-background`. The header
+Sticky at `top-0` with `z-30 bg-background`. The header
 button is `min-h-10 rounded-md bg-muted/60 px-3 text-ui font-medium`:
 chevron, icon, label, then the count in `text-caption tabular-nums
 text-muted-foreground`.
