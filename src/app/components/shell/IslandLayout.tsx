@@ -4,6 +4,7 @@ import {
   memo,
   type PointerEvent,
   type ReactNode,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -109,7 +110,7 @@ export function IslandLayout({
               focused={island.id === focusedIslandId}
               maximized={!!maximized && shown}
               canMaximize={layout.kind === "split"}
-              panes={renderPanes(island, shown)}
+              renderPanes={renderPanes}
             />
           );
         })}
@@ -134,86 +135,114 @@ export function IslandLayout({
 
 // ─── Island ────────────────────────────────────────────────────────────────
 
-function IslandFrame({
-  island,
-  rect,
-  shown,
-  focused,
-  maximized,
-  canMaximize,
-  panes,
-}: {
-  island: Island;
-  rect: Rect;
-  shown: boolean;
-  focused: boolean;
-  maximized: boolean;
-  canMaximize: boolean;
-  panes: ReactNode;
-}) {
-  const href = selectedTab(island).href;
-  const frame = useRef<HTMLElement>(null);
-  const revision = useWorkspaceStore((s) => s.dockingRevision);
-  const previous = useRef({ rect, revision });
-  useLayoutEffect(() => {
-    const before = previous.current;
-    previous.current = { rect, revision };
-    if (
-      before.revision === revision ||
-      !shown ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    )
-      return;
-    const animation = frame.current?.animate(
-      [
-        {
-          left: `${before.rect.left}px`,
-          top: `${before.rect.top}px`,
-          width: `${before.rect.width}px`,
-          height: `${before.rect.height}px`,
-        },
-        {
-          left: `${rect.left}px`,
-          top: `${rect.top}px`,
-          width: `${rect.width}px`,
-          height: `${rect.height}px`,
-        },
-      ],
-      { duration: 150, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+const sameRect = (a: Rect, b: Rect) =>
+  a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height;
+
+/**
+ * Memoized with a by-value rect comparison: a gap drag re-lays out only the
+ * islands whose rectangles actually change.
+ */
+const IslandFrame = memo(
+  function IslandFrame({
+    island,
+    rect,
+    shown,
+    focused,
+    maximized,
+    canMaximize,
+    renderPanes,
+  }: {
+    island: Island;
+    rect: Rect;
+    shown: boolean;
+    focused: boolean;
+    maximized: boolean;
+    canMaximize: boolean;
+    renderPanes: (island: Island, shown: boolean) => ReactNode;
+  }) {
+    const href = selectedTab(island).href;
+    const frame = useRef<HTMLElement>(null);
+    const revision = useWorkspaceStore((s) => s.dockingRevision);
+    // `previous` is the rectangle at the last commit; `latest` the one being
+    // committed now. Both are refs so the glide effect can key on the docking
+    // revision alone: unrelated re-renders mid-glide must not cancel it.
+    const previous = useRef(rect);
+    const latest = useRef({ rect, shown });
+    latest.current = { rect, shown };
+    // Glide to the new rectangle after a dock, transform-based (FLIP) so heavy
+    // pages aren't re-laid out every frame.
+    const lastRevision = useRef(revision);
+    useLayoutEffect(() => {
+      if (lastRevision.current === revision) return;
+      lastRevision.current = revision;
+      const before = previous.current;
+      const { rect: after, shown: visible } = latest.current;
+      const el = frame.current;
+      if (
+        !el ||
+        !visible ||
+        sameRect(before, after) ||
+        !after.width ||
+        !after.height ||
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      )
+        return;
+      const dx = before.left - after.left;
+      const dy = before.top - after.top;
+      const sx = before.width / after.width;
+      const sy = before.height / after.height;
+      const animation = el.animate(
+        [
+          { transformOrigin: "0 0", transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
+          { transformOrigin: "0 0", transform: "none" },
+        ],
+        { duration: 150, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+      );
+      return () => animation.cancel();
+    }, [revision]);
+    useLayoutEffect(() => {
+      previous.current = rect;
+    });
+    return (
+      <section
+        ref={frame}
+        aria-label={islandName(href)}
+        data-island={island.id}
+        data-focused={focused || undefined}
+        // Only DOM descendants focus this island: portaled menus can select another island.
+        onPointerDownCapture={(event) => {
+          if (event.currentTarget.contains(event.target as Node)) focusIsland(island.id);
+        }}
+        onFocusCapture={(event) => {
+          if (event.currentTarget.contains(event.target as Node)) focusIsland(island.id);
+        }}
+        style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
+        className={cn(
+          "@container absolute flex-col overflow-hidden rounded-island bg-background",
+          shown ? "flex" : "hidden",
+          "transition-shadow duration-150",
+          focused ? "shadow-(--island-shadow-focus)" : "shadow-(--island-shadow)",
+        )}
+      >
+        <IslandHeader
+          island={island}
+          focused={focused}
+          maximized={maximized}
+          canMaximize={canMaximize}
+        />
+        <div className="relative min-h-0 flex-1">{renderPanes(island, shown)}</div>
+      </section>
     );
-    return () => animation?.cancel();
-  }, [rect, revision, shown]);
-  return (
-    <section
-      ref={frame}
-      aria-label={islandName(href)}
-      data-island={island.id}
-      data-focused={focused || undefined}
-      // Only DOM descendants focus this island: portaled menus can select another island.
-      onPointerDownCapture={(event) => {
-        if (event.currentTarget.contains(event.target as Node)) focusIsland(island.id);
-      }}
-      onFocusCapture={(event) => {
-        if (event.currentTarget.contains(event.target as Node)) focusIsland(island.id);
-      }}
-      style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height }}
-      className={cn(
-        "@container absolute flex-col overflow-hidden rounded-island bg-background",
-        shown ? "flex" : "hidden",
-        "transition-shadow duration-150",
-        focused ? "shadow-(--island-shadow-focus)" : "shadow-(--island-shadow)",
-      )}
-    >
-      <IslandHeader
-        island={island}
-        focused={focused}
-        maximized={maximized}
-        canMaximize={canMaximize}
-      />
-      <div className="relative min-h-0 flex-1">{panes}</div>
-    </section>
-  );
-}
+  },
+  (a, b) =>
+    a.island === b.island &&
+    sameRect(a.rect, b.rect) &&
+    a.shown === b.shown &&
+    a.focused === b.focused &&
+    a.maximized === b.maximized &&
+    a.canMaximize === b.canMaximize &&
+    a.renderPanes === b.renderPanes,
+);
 
 const IslandHeader = memo(function IslandHeader({
   island,
@@ -244,6 +273,24 @@ const IslandHeader = memo(function IslandHeader({
       <TabStrip island={island} focused={focused} />
       {narrow && focused && <IslandSwitcher />}
       <SectionMenu href={href} />
+      {maximized && (
+        // The other islands are hidden, not closed: say so and offer the way back.
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              data-restore-layout
+              aria-label="Restore layout"
+              className="shrink-0 text-muted-foreground"
+              onClick={() => toggleMaximize(island.id)}
+            >
+              <Minimize2 />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Restore layout · other islands are hidden</TooltipContent>
+        </Tooltip>
+      )}
       <IslandMenu islandId={island.id} maximized={maximized} canMaximize={canMaximize} />
     </div>
   );
@@ -322,6 +369,9 @@ function Gap({
   onPreview: (preview: Preview) => void;
 }) {
   const [dragging, setDragging] = useState(false);
+  const stop = useRef<(() => void) | null>(null);
+  // A layout change by shortcut can unmount the gap mid-drag.
+  useEffect(() => () => stop.current?.(), []);
   const row = gap.direction === "row";
   const a = sizes[gap.index] ?? 0;
   const b = sizes[gap.index + 1] ?? 0;
@@ -351,27 +401,41 @@ function Gap({
     root.style.cursor = row ? "col-resize" : "row-resize";
     root.style.userSelect = "none";
     let delta = 0;
+    let frame = 0;
 
-    const move = (ev: globalThis.PointerEvent) => {
-      delta = (row ? ev.clientX : ev.clientY) - origin;
+    // One preview per animation frame, however fast pointer events arrive.
+    const preview = () => {
+      frame = 0;
       onPreview({
         splitId: gap.splitId,
         sizes: resizedGapSizes(start, gap.index, delta, gap.extent),
       });
     };
-    const up = () => {
+    const move = (ev: globalThis.PointerEvent) => {
+      delta = (row ? ev.clientX : ev.clientY) - origin;
+      if (!frame) frame = requestAnimationFrame(preview);
+    };
+    const end = (commit: boolean) => {
+      if (frame) cancelAnimationFrame(frame);
       el.removeEventListener("pointermove", move);
       el.removeEventListener("pointerup", up);
-      el.removeEventListener("pointercancel", up);
+      el.removeEventListener("pointercancel", cancel);
+      el.removeEventListener("lostpointercapture", up);
       root.style.cursor = "";
       root.style.userSelect = "";
+      stop.current = null;
+      if (!el.isConnected) return;
       setDragging(false);
       onPreview(null);
-      if (delta) resize(delta);
+      if (commit && delta) resize(delta);
     };
+    const up = () => end(true);
+    const cancel = () => end(false);
+    stop.current = cancel;
     el.addEventListener("pointermove", move);
     el.addEventListener("pointerup", up);
-    el.addEventListener("pointercancel", up);
+    el.addEventListener("pointercancel", cancel);
+    el.addEventListener("lostpointercapture", up);
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
