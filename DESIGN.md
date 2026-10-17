@@ -26,7 +26,8 @@ colors and every theme works for free.
 
 | Token | Class | Use |
 |---|---|---|
-| `--color-bg` | `bg-background` | Page canvas. Rows at rest, sidebars, cards. |
+| `--color-frame` | `bg-(--color-frame)` | Window frame behind the title bar and islands (see Islands). Nothing else. |
+| `--color-bg` | `bg-background` | Island and page canvas. Rows at rest, in-page sidebars, cards. |
 | `--color-bg-subtle` | `bg-muted` | Raised: toolbars, row hover, file and hunk headers, group headers (`/60`). |
 | `--color-bg-sunken` | `bg-accent` | Active: selected rows, pressed or open controls. |
 | `--color-popover` | `bg-popover` | Every overlay: popovers, menus, dialogs, floating bars, notices. |
@@ -48,7 +49,7 @@ color is shadcn's `primary`.
 
 | Token | Class | Use |
 |---|---|---|
-| `--color-brand` | `bg-primary`, `text-primary` | Primary button, checked controls, links, active tab indicator, focus. |
+| `--color-brand` | `bg-primary`, `text-primary` | Primary button, checked controls, links, sub-tab indicator, the focused island's tab tint (see Islands), focus. |
 | `--color-success` | `text-(--color-success)` | Open, additions, passing checks. |
 | `--color-danger` | `text-destructive`, `bg-destructive` | Closed (PRs), deletions, failures, errors. |
 | `--color-warning` | `text-(--color-warning)` | Pending, draft. |
@@ -66,7 +67,7 @@ Use them only for structure:
 | Use | Class |
 |---|---|
 | Form controls | `border-input` (primitives already apply it) |
-| Separators between unrelated regions (app header bottom, diff file cards) | `border-border` |
+| Separators between unrelated regions (sticky page bars, diff file cards) | `border-border` |
 | Code and diff containment | `border-border` |
 
 Never use borders to separate list rows, wrap cards, underline toolbars, or
@@ -121,13 +122,15 @@ The tokens override Tailwind's defaults; **`rounded-lg` is 6px here.**
 | `rounded-sm` | 3px | Kbd, tiny chips |
 | `rounded-md` | 4px | Items inside overlays, small icon buttons, group headers |
 | `rounded-lg` | 6px | Rows, toolbars, buttons, inputs, popovers, menus, code blocks |
+| `rounded-island` | 10px | Islands only |
 | `rounded-xl` | 12px | Dialogs, floating bars, notices |
 | `rounded-full` | — | Avatars, label pills, status dots |
 
 ## Elevation and layering
 
 In-flow surfaces never cast shadows: headers, toolbars, sidebars, rows,
-cards. Overlays use their primitive's recipe and nothing else:
+cards. Islands are the one exception, with a fixed recipe (see Islands).
+Overlays use their primitive's recipe and nothing else:
 
 | Overlay | Recipe |
 |---|---|
@@ -142,7 +145,7 @@ Use only this z-index scale:
 | `z-10` | Stretched row link (`after:` overlay) |
 | `z-20` | Interactive controls inside a row (label pills, author links, checkboxes) |
 | `z-30` | Sticky in-page bars (group headers, diff toolbar), fixed page affordances |
-| `z-40` | Sticky app header, floating action bar |
+| `z-40` | Floating action bar |
 | `z-50` | Radix overlays: popovers, menus, dialogs, tooltips |
 
 ## Interaction states
@@ -165,10 +168,14 @@ Use only this z-index scale:
 ## Layout
 
 ### Chrome
-- The app header is sticky; its height is `--app-header-height` (40px, or
-  80px where repo navigation wraps on narrow screens). Rows inside chrome
-  are `h-10 flex items-center`. **Never use `py-*` on a chrome bar.**
-- Secondary sticky bars stick at `top-(--app-header-height)`.
+- Pages have no navigation bar of their own. Global chrome is the title
+  bar (`h-11`) and each island's header (`h-10`); see Islands. Rows inside
+  chrome are `h-* flex items-center`. **Never use `py-*` on a chrome bar.**
+- Each tab scrolls in its own pane. Sticky page bars stick at
+  `top-(--app-header-height)`, which is `0px` inside a pane; keep using the
+  variable so offsets stay correct if chrome ever returns above a page.
+- Full-height regions size against the pane, never the viewport:
+  `var(--pane-height, 100dvh)`, not `100dvh` or `min-h-screen`.
 
 ### Containers
 Wrap every page in `<Container>`. It owns horizontal padding
@@ -203,6 +210,68 @@ Full viewport, no Container
   ├── File tree (same surface as the page)
   └── Diff cards (gap-3)
 ```
+
+## Islands
+
+The workspace is a darker **frame** holding a slim **title bar** and rounded
+**islands**. Every page renders inside an island. Vocabulary is in
+`GLOSSARY.md`; the shell lives in `components/shell/TabHost.tsx`.
+
+### Frame
+- `--color-frame` is derived from the theme's `--color-bg`: mixed 9% toward
+  `--color-fg` in light themes (deeper), 30% toward black in dark themes.
+  A palette that needs a different frame sets `--color-frame` in its
+  `themes/*.css` block. Never hardcode a frame colour in a component.
+- The frame pads the window `max(1rem, safe-area)` at the sides and `8px`
+  below the islands. Gaps between islands are `8px`.
+
+### Island
+- `bg-background rounded-island overflow-hidden`, with
+  `shadow-(--island-shadow)` at rest and `shadow-(--island-shadow-focus)`
+  for the focused island. The recipe is a 1px hairline edge plus a
+  barely-there drop (`--island-elev`); don't add others.
+- Idle edge: `--color-island-edge` (border at 70%). Focused edge:
+  `--color-island-edge-focus` (border-strong with 14% brand). The edge
+  change is the only focus cue on the island itself.
+- An island is a `@container`, so its header adapts to the island's
+  width, not the window's.
+
+### Title bar
+- `h-11` grid on the frame: logo, focused context, search (max 420px,
+  centred), then the avatar menu. No background, border or shadow.
+- Context names the **focused tab**: repo mark, `owner/repo` in mono
+  (owner muted), then the branch (`text-caption`, mono): the URL's branch,
+  else the repo's default. App-wide pages show their icon and label.
+- Search is `h-7 rounded-lg bg-muted` with the island edge, "Search or
+  jump to…" and `<Kbd>`; it shrinks to an icon below `md`.
+
+### Island header
+- `h-10 flex items-center gap-1 pl-1 pr-1.5`: the tab row takes the
+  remaining width, then the section menu.
+- **Tabs:** `h-7 rounded-lg pl-2 pr-1 gap-1.5 text-ui`, 64–220px wide.
+  Order: repo mark (`sm`) → state icon (16px box, `size-3.5`, coloured by
+  open / merged / closed / draft) → mono `#number` in `--color-fg-faint` →
+  title (truncates) → close `×` (shown on hover and on the selected tab).
+- Tab states: rest has no fill; hover `bg-sunken` at 60%; selected
+  `bg-muted` with a 1px `--color-border` ring; selected in the focused
+  island takes a brand tint instead (9% brand over `bg-muted`, ring 45%
+  brand into border). This is the one place brand tints a selection.
+- Tabs activate on pointer-down. Nothing animates on switch.
+- **Sections** (Code, Commits, PRs, Issues, Actions) act on the island's
+  selected tab's repo; their labels and tooltips name it ("githut · PRs").
+  Icons at rest, labels slide out while the group is hovered, and the
+  current section keeps its label. Below 620px of island width labels
+  go; below 480px the group folds into one "⋯" menu. Pages without a
+  repo show no sections.
+
+### Repo marks
+- `RepoMark` (`components/shell/RepoMark.tsx`): a 16px (`sm` 14px)
+  rounded square with the repo's initial, two letters when two repos in
+  view share one.
+- Colour hashes the repo's full name onto a curated hue set that skips
+  the status hues. Every hue shares `--repo-l` / `--repo-c`, so no repo
+  is louder than another. Fill is the colour at 20% over `bg-muted`, ring
+  35%. With `<html data-repo-color="off">` marks go neutral.
 
 ## Components
 
@@ -326,7 +395,10 @@ always shown on touch.
 - Card wrappers or borders around list rows.
 - `primary` as a fill for rows, selections or sections.
 - Shadows on in-flow surfaces.
-- A sidebar on a different surface from the page.
+- An in-page sidebar on a different surface from the page. (The workspace
+  sidebar is chrome and sits on the frame.)
+- Navigation bars inside pages. Repo identity and sections belong to the
+  island header; search and account to the title bar.
 - `text-xs` / `text-sm`, arbitrary pixel sizes, or z-index values off the scale.
 - Hover reveals that shift layout, or skeletons that don't match the loaded rows.
 - Hand-rolled popovers, menus, checkboxes or tooltips.
