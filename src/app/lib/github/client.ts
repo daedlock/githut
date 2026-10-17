@@ -1,6 +1,5 @@
 import { Octokit } from "@octokit/core";
 import type { OctokitResponse } from "@octokit/types";
-import { logout } from "@/app/lib/auth";
 import { useAuthStore } from "@/app/stores/auth";
 
 // ─── ETag cache ────────────────────────────────────────────────────────────
@@ -70,6 +69,21 @@ function evictETagsForRepo(owner: string, repo: string): void {
 
 let cached: { token: string; client: Octokit } | null = null;
 
+function sessionExpiredError(): Error {
+  return Object.assign(new Error("GitHub sign-in expired"), { status: 401 });
+}
+
+/**
+ * Switch to a fresh token after signing in again. The ETag cache is kept when
+ * the new token belongs to the same user (cheap 304 refetches); otherwise the
+ * previous user's cached bodies are dropped.
+ */
+export function adoptToken(token: string, { sameUser }: { sameUser: boolean }): void {
+  cached = null;
+  if (!sameUser) clearETagCache();
+  useAuthStore.getState().setToken(token);
+}
+
 export function getGitHubClient(): Octokit {
   const token = useAuthStore.getState().token;
   if (!token) throw new Error("Not authenticated");
@@ -89,6 +103,9 @@ export function getGitHubClient(): Octokit {
   });
 
   client.hook.wrap("request", async (request, options) => {
+    // Known-dead token: fail like GitHub would without spending a request.
+    if (useAuthStore.getState().expired) throw sessionExpiredError();
+
     const method = String(options.method ?? "GET").toUpperCase();
     const versionedOptions = {
       ...options,
@@ -142,14 +159,11 @@ export function getGitHubClient(): Octokit {
     }
   });
 
-  // If the token is revoked or expired GitHub returns 401.
-  // Clear the session immediately so the user is sent back to login.
+  // If the token is revoked or expired GitHub returns 401. Don't sign out:
+  // mark the session expired so the workspace (tabs, drafts, cached pages)
+  // stays put and a banner offers to sign in again (see lib/session.ts).
   client.hook.error("request", (error) => {
-    if ("status" in error && error.status === 401) {
-      cached = null;
-      clearETagCache();
-      logout();
-    }
+    if ("status" in error && error.status === 401) useAuthStore.getState().markExpired();
     throw error;
   });
 
