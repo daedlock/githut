@@ -84,7 +84,9 @@ test("background status batches deduplicate aliases, exclude visible duplicates,
   });
   await refreshBackgroundTabs(now + 59_000);
   expect(requests).toHaveLength(2);
-  useRateLimitStore.setState({ slowUntil: now + 1_000_000 });
+  useRateLimitStore.setState({
+    buckets: { graphql: { slowUntil: now + 1_000_000, pausedUntil: 0 } },
+  });
   await refreshBackgroundTabs(now + 61_000);
   expect(requests).toHaveLength(2);
   const viewed = runCommand(workspace, {

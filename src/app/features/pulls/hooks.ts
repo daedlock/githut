@@ -27,6 +27,7 @@ import {
   TimelineEventSchema,
 } from "@/app/features/pulls/schemas";
 import { finishReview } from "@/app/features/pulls/stores/review";
+import { useLiveInterval } from "@/app/lib/freshness";
 import { getGitHubClient } from "@/app/lib/github/client";
 import type { StorageOwner } from "@/app/stores/accountStorage";
 import { useAuthStore } from "@/app/stores/auth";
@@ -219,9 +220,14 @@ export const pullsQueryOptions = (owner: string, repo: string, filters: PullsFil
 
 export function usePulls(owner: string, repo: string, filters: PullsFilters = {}) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval("search");
   return useInfiniteQuery({
     ...pullsQueryOptions(owner, repo, filters),
     enabled: !!token && !!owner && !!repo,
+    // Refetching an infinite query re-reads every loaded page from the Search
+    // API (30 requests a minute). Only the first page polls; a list scrolled
+    // further refreshes on focus and after writes instead.
+    refetchInterval: (q) => live((q.state.data?.pages.length ?? 0) <= 1 && "changing"),
   });
 }
 
@@ -286,9 +292,11 @@ export const prDetailQueryOptions = (owner: string, repo: string, number: number
 
 export function useFullPr(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...prDetailQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: live("changing"),
   });
 }
 
@@ -356,9 +364,11 @@ export const prCommentsQueryOptions = (owner: string, repo: string, number: numb
 
 export function usePrComments(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...prCommentsQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: live("changing"),
   });
 }
 
@@ -384,9 +394,11 @@ export const prReviewsQueryOptions = (owner: string, repo: string, number: numbe
 
 export function usePrReviews(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...prReviewsQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: live("changing"),
   });
 }
 
@@ -444,9 +456,11 @@ export const prTimelineQueryOptions = (owner: string, repo: string, number: numb
 
 export function usePrTimeline(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...prTimelineQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: live("changing"),
   });
 }
 
@@ -734,19 +748,21 @@ export const prChecksQueryOptions = (owner: string, repo: string, sha: string) =
 
 export function usePrChecks(owner: string, repo: string, sha: string | undefined) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...prChecksQueryOptions(owner, repo, sha ?? ""),
     enabled: !!token && !!owner && !!repo && !!sha,
     refetchInterval: (q) => {
       const data = q.state.data;
       if (!data) return false;
+      // GitHub reports a combined state of "pending" when a commit has no
+      // statuses at all; only real pending statuses count as running.
       const anyLive =
         data.checkRuns.some(
           (r) => r.status === "queued" || r.status === "in_progress" || r.status === "pending",
-        ) || data.combined.state === "pending";
-      return anyLive ? 10_000 : false;
+        ) || data.combined.statuses.some((status) => status.state === "pending");
+      return live(anyLive && "ci", 10_000);
     },
-    refetchIntervalInBackground: false,
   });
 }
 
@@ -958,14 +974,16 @@ export function usePrCheckRollups(
   numbers: number[],
 ): Map<number, PrCheckRollup> {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval("graphql");
   const uniqueNumbers = Array.from(new Set(numbers)).filter(Number.isFinite);
   const results = useQueries({
     queries: uniqueNumbers.map((number) => ({
       ...prCheckRollupQueryOptions(owner, repo, number),
       enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-      // Keep ticking while a PR's checks are still running; stop once terminal.
+      // One GraphQL request per row: rows with running checks refresh about
+      // once a minute at most, terminal rows only on focus and after writes.
       refetchInterval: (q: { state: { data?: PrCheckRollup | null } }) =>
-        q.state.data?.state === "pending" ? 15_000 : false,
+        live(q.state.data?.state === "pending" && "changing", 60_000),
     })),
   });
 
@@ -1189,9 +1207,11 @@ export const prMergeStatusQueryOptions = (owner: string, repo: string, number: n
 
 export function usePrMergeStatus(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval("graphql");
   return useQuery({
     ...prMergeStatusQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: live("changing"),
   });
 }
 
@@ -1538,9 +1558,11 @@ export const prReviewCommentsQueryOptions = (owner: string, repo: string, number
 
 export function usePrReviewComments(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...prReviewCommentsQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: live("changing"),
   });
 }
 
@@ -1792,10 +1814,12 @@ type ThreadResolutionQueryResponse = {
 
 export function useThreadResolution(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval("graphql");
   return useQuery({
     queryKey: pullsKeys.threadResolution(owner, repo, number),
     staleTime: 15_000,
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: live("changing"),
     queryFn: async (): Promise<ThreadResolutionMap> => {
       const client = getGitHubClient();
       const map: ThreadResolutionMap = new Map();

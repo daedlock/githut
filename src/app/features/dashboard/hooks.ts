@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { PrListItemSchema } from "@/app/features/pulls/hooks";
+import { useLiveInterval } from "@/app/lib/freshness";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
 
@@ -87,12 +88,18 @@ function dateAgoIso(days: number): string {
 
 // ─── Your work: review requests, oldest waiting first ──────────────────────
 
+// Search allows 30 requests a minute and these lists also back the sidebar's
+// Your work: they refresh about once a minute even in the focused tab.
+const SEARCH_FLOOR = 60_000;
+
 export function useReviewRequestedPrs() {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval("search");
   return useQuery({
     queryKey: ["dashboard", "your-work", "review-requested"] as const,
     enabled: !!token,
     staleTime: 30_000,
+    refetchInterval: live("changing", SEARCH_FLOOR),
     queryFn: () =>
       fetchSearch(
         "is:open is:pr review-requested:@me archived:false",
@@ -107,12 +114,14 @@ export function useReviewRequestedPrs() {
 
 export function useMyOpenPrs() {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval("search");
   // The horizon changes once a day; keying on it drops yesterday's results.
   const since = dateAgoIso(90);
   return useQuery({
     queryKey: ["dashboard", "my-open-prs", since] as const,
     enabled: !!token,
     staleTime: 30_000,
+    refetchInterval: live("changing", SEARCH_FLOOR),
     queryFn: () =>
       fetchSearch(
         `is:open is:pr author:@me archived:false updated:>=${since}`,

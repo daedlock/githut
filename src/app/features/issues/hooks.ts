@@ -12,6 +12,7 @@ import {
   type RepoIssueComment,
 } from "@/app/features/issues/schemas";
 import { type RepoLabel, repoLabelsKey } from "@/app/features/pulls/pickers";
+import { useLiveInterval } from "@/app/lib/freshness";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
 import { clearSentDraft, type SentDraft } from "@/app/stores/drafts";
@@ -59,9 +60,11 @@ export const repoIssuesQueryOptions = (owner: string, repo: string) =>
 
 export function useRepoIssues(owner: string, repo: string) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...repoIssuesQueryOptions(owner, repo),
     enabled: !!token && !!owner && !!repo,
+    refetchInterval: live("changing"),
   });
 }
 
@@ -81,19 +84,23 @@ export const issueDetailQueryOptions = (owner: string, repo: string, issueNumber
 
 export function useRepoIssue(owner: string, repo: string, issueNumber: number | undefined) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     // enabled guard ensures issueNumber is defined before the query runs
     ...issueDetailQueryOptions(owner, repo, issueNumber ?? 0),
     queryKey: issueKeys.detail(owner, repo, issueNumber),
     enabled: !!token && !!owner && !!repo && !!issueNumber,
+    refetchInterval: live("changing"),
   });
 }
 
 export function useRepoIssueComments(owner: string, repo: string, issueNumber: number | undefined) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     queryKey: issueKeys.comments(owner, repo, issueNumber),
     enabled: !!token && !!owner && !!repo && !!issueNumber,
+    refetchInterval: live("changing"),
     queryFn: async (): Promise<RepoIssueComment[]> => {
       const client = getGitHubClient();
       const res = await client.request("GET /repos/{owner}/{repo}/issues/{issue_number}/comments", {

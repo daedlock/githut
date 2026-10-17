@@ -31,7 +31,7 @@ import { useNotificationState } from "@/app/features/notifications/service";
 import { pullsKeys } from "@/app/features/pulls/hooks";
 import { usePageHasDraft } from "@/app/hooks/usePageHasDraft";
 import { cn } from "@/app/lib/cn";
-import { queryClient as workspaceQueryClient } from "@/app/lib/query";
+import { subscribeQueryData, queryClient as workspaceQueryClient } from "@/app/lib/query";
 import {
   closeOtherTabs,
   closeTab,
@@ -46,6 +46,7 @@ import { useTabTitlesStore } from "@/app/stores/tabTitles";
 import { useWorkspaceView } from "@/app/stores/workspaceView";
 import { hrefPathname, type Island, type Tab } from "@/app/workspace/model";
 import { useWorkspaceStore } from "@/app/workspace/store";
+import { visibleTabIds } from "@/app/workspace/view";
 
 // ─── TabStrip ──────────────────────────────────────────────────────────────
 //
@@ -186,7 +187,7 @@ function TabOverflow({ island }: { island: Island }) {
 }
 
 function OverflowTab({ tab, selected, pinned }: { tab: Tab; selected: boolean; pinned: boolean }) {
-  const display = useTabDisplay(tab.href);
+  const display = useTabDisplay(tab.href, tab.id);
   const Icon = display.icon;
   return (
     <DropdownMenuItem
@@ -246,7 +247,7 @@ const TabItem = memo(function TabItem({
   pinned: boolean;
   isLast: boolean;
 }) {
-  const display = useTabDisplay(tab.href);
+  const display = useTabDisplay(tab.href, tab.id);
   const draft = usePageHasDraft(tab.href);
   const hasClosed = useWorkspaceStore((s) => s.workspace.closed.length > 0);
   const Icon = display.icon;
@@ -414,7 +415,8 @@ type TabDisplay = {
 
 // ─── Shared display sources ──
 //
-// Every tab label, overflow row and switcher row reads the same three sources.
+// Every tab label, overflow row and switcher row reads the same three sources
+// (activity, notifications, and query-cache *data* changes, not fetch-status ticks).
 // They share one subscription to each (not one per label), bursts of cache
 // events collapse into one notification per microtask, and each derived
 // snapshot is computed once per change per page rather than once per reader.
@@ -441,7 +443,7 @@ function subscribeDisplaySources(listener: () => void) {
     const stops = [
       useTabActivityStore.subscribe(bump),
       useNotificationState.subscribe(bump),
-      workspaceQueryClient.getQueryCache().subscribe(bump),
+      subscribeQueryData(bump),
     ];
     stopSources = () => {
       for (const stop of stops) stop();
@@ -472,14 +474,18 @@ function versioned<T>(compute: (key: string) => T) {
 
 const unreadSnapshot = versioned((href) => pageIsUnread(href));
 
-export function useTabDisplay(href: string): TabDisplay {
+/** Display metadata for a tab. A tab on screen never shows the unread dot: you are looking at it. */
+export function useTabDisplay(href: string, tabId: string): TabDisplay {
   const pathname = hrefPathname(href);
   const meta = getTabMeta(pathname);
   const entity = useCachedEntity(pathname);
   const runNumber = useSyncExternalStore(subscribeDisplaySources, () =>
     runNumberSnapshot(pathname),
   );
-  const unread = useSyncExternalStore(subscribeDisplaySources, () => unreadSnapshot(href));
+  const narrow = useWorkspaceView((s) => s.narrow);
+  const shown = useWorkspaceStore((s) => visibleTabIds(s.workspace, narrow).has(tabId));
+  const hasUnread = useSyncExternalStore(subscribeDisplaySources, () => unreadSnapshot(href));
+  const unread = hasUnread && !shown;
   const base = { icon: meta.icon, tone: "none" as Tone, repo: meta.sublabel, unread };
 
   const num = /\/(?:pull|pr|review|issues)\/(\d+)/.exec(pathname)?.[1];

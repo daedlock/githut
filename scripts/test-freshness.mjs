@@ -226,43 +226,43 @@ try {
   console.log("PASS: low quota slows updates fourfold and notice clears at reset");
 
   lowReset = 0;
-  await page.addInitScript(() =>
-    sessionStorage.setItem(
-      "githut.workspace.window",
-      JSON.stringify({
-        version: 1,
-        workspace: {
-          layout: {
-            kind: "split",
-            id: "split",
-            direction: "row",
-            sizes: [0.5, 0.5],
-            children: [
-              {
-                kind: "island",
-                id: "discussion",
-                tabs: [
-                  { id: "pr", href: "/demo/project/pull/1" },
-                  { id: "background", href: "/demo/project/pull/2" },
-                ],
-                selectedTabId: "pr",
-                pinned: [],
-              },
-              {
-                kind: "island",
-                id: "ci",
-                tabs: [{ id: "run", href: "/demo/project/actions/runs/100" }],
-                selectedTabId: "run",
-                pinned: [],
-              },
-            ],
-          },
-          focusedIslandId: "discussion",
-          maximizedIslandId: null,
+  await page.addInitScript(() => {
+    // Layouts are saved per verified account; seed both the unscoped and account copy.
+    const layout = JSON.stringify({
+      version: 1,
+      workspace: {
+        layout: {
+          kind: "split",
+          id: "split",
+          direction: "row",
+          sizes: [0.5, 0.5],
+          children: [
+            {
+              kind: "island",
+              id: "discussion",
+              tabs: [
+                { id: "pr", href: "/demo/project/pull/1" },
+                { id: "background", href: "/demo/project/pull/2" },
+              ],
+              selectedTabId: "pr",
+              pinned: [],
+            },
+            {
+              kind: "island",
+              id: "ci",
+              tabs: [{ id: "run", href: "/demo/project/actions/runs/100" }],
+              selectedTabId: "run",
+              pinned: [],
+            },
+          ],
         },
-      }),
-    ),
-  );
+        focusedIslandId: "discussion",
+        maximizedIslandId: null,
+      },
+    });
+    for (const key of ["githut.workspace.window", "githut.workspace.window.account.1"])
+      sessionStorage.setItem(key, layout);
+  });
   await page.reload();
   await page.getByRole("heading", { name: /Visible running workflow/ }).waitFor();
   await page.getByText("Original comment", { exact: true }).waitFor();

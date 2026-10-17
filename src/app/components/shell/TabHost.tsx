@@ -18,8 +18,8 @@ import { WorkspaceArea } from "@/app/components/shell/WorkspaceArea";
 import { Toaster } from "@/app/components/ui/sonner";
 import { TooltipProvider } from "@/app/components/ui/tooltip";
 
-import { queryClientForTab, startWorkspaceFreshness } from "@/app/lib/freshness";
-import { queryClient } from "@/app/lib/query";
+import { IslandFocusRefresh } from "@/app/lib/freshness";
+import { tabQueryClient } from "@/app/lib/query";
 import { getTabRouter, releaseTabRouter } from "@/app/lib/tabRouters";
 import { type TabScope, TabScopeContext } from "@/app/lib/tabScope";
 import { useAuthStore } from "@/app/stores/auth";
@@ -48,7 +48,6 @@ export function TabHost() {
   const focused = focusedTab(workspace);
   const signedIn = useAuthStore((s) => !!s.token);
   const narrow = useWorkspaceView((s) => s.narrow);
-  useEffect(() => (signedIn ? startWorkspaceFreshness(queryClient) : undefined), [signedIn]);
 
   // Open tabs, most recently focused first; keepAliveTabs trims them to the
   // keep-alive budget and adds every island's selected tab and every pin.
@@ -144,7 +143,7 @@ const TabPane = memo(
   function TabPane({ id, href }: { id: string; href: string }) {
     const ref = useRef<HTMLDivElement>(null);
     const [router] = useState(() => getTabRouter(id, href));
-    const queries = useMemo(() => queryClientForTab(queryClient, id), [id]);
+    const [queries] = useState(() => tabQueryClient(id));
     // Page shortcuts and key listeners only act while this is the focused tab.
     const scope = useMemo<TabScope>(
       () => ({ tabId: id, isFocused: () => getFocusedTab().id === id }),
@@ -210,6 +209,7 @@ const TabPane = memo(
       >
         <TabScopeContext.Provider value={scope}>
           <QueryClientProvider client={queries}>
+            <IslandFocusRefresh />
             <RouterProvider router={router} />
             <PageScrollControls scrollerRef={ref} />
           </QueryClientProvider>

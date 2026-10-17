@@ -1,160 +1,100 @@
-import { onlineManager, type QueryClient, type QueryObserverOptions } from "@tanstack/react-query";
-import { expireRateLimit, getRateBackoff, useRateLimitStore } from "@/app/stores/rateLimit";
+import { useCallback, useEffect, useRef } from "react";
+import { refreshTabOnFocus } from "@/app/lib/query";
+import { useTabScope } from "@/app/lib/tabScope";
+import { bucketBackoff, type RateResource, useRateLimitStore } from "@/app/stores/rateLimit";
 import { useWorkspaceView } from "@/app/stores/workspaceView";
 import { focusedTab, type Workspace } from "@/app/workspace/model";
-import { getWorkspace, useWorkspaceStore } from "@/app/workspace/store";
+import { useWorkspaceStore } from "@/app/workspace/store";
 import { visibleTabIds } from "@/app/workspace/view";
 
-type FreshnessMeta = {
-  tabId: string;
-  interval: QueryObserverOptions["refetchInterval"];
-};
+// ─── Freshness (ADR 0003, spec #24 → Freshness) ──────────────────────────────
+//
+// TanStack Query stays in charge of freshness: stale data refetches on mount,
+// on window focus, on reconnect and after invalidation, exactly as it would
+// without islands. On top of that:
+//
+//   - Background tabs make no requests: <Activity mode="hidden"> tears down
+//     their observers, and an unobserved query never polls.
+//   - A hidden window pauses polling (TanStack's refetchIntervalInBackground
+//     is false by default).
+//   - Only queries that opt in poll on a timer, through `useLiveInterval`,
+//     at a cadence set by where their tab is: about 15s in the focused tab,
+//     about a minute in a visible one, and about 3s for running CI anywhere.
+//     The hook's own floor always wins, so no query polls faster than its
+//     author chose.
+//   - Each live query names the GitHub rate-limit bucket it draws from. A low
+//     bucket slows only its own queries 4×; an exhausted one pauses them.
+//   - Focusing an island refreshes stale data the same way returning to the
+//     window does (`IslandFocusRefresh`).
+
+export type FreshnessLevel = "focused" | "visible" | "background";
+
+/** What kind of live data a query holds right now; `false` means it doesn't poll. */
+export type LiveKind = "changing" | "ci" | false;
+
+export const CADENCE = { focused: 15_000, visible: 60_000, ci: 3_000 } as const;
+
+export function freshnessLevel(
+  workspace: Workspace,
+  narrow: boolean,
+  tabId: string,
+): FreshnessLevel {
+  if (!visibleTabIds(workspace, narrow).has(tabId)) return "background";
+  return focusedTab(workspace).id === tabId ? "focused" : "visible";
+}
+
+/** The level of the tab this component renders in; null outside tabs (sidebar, title bar). */
+export function useFreshnessLevel(): FreshnessLevel | null {
+  const { tabId } = useTabScope();
+  const narrow = useWorkspaceView((state) => state.narrow);
+  return useWorkspaceStore((state) =>
+    tabId ? freshnessLevel(state.workspace, narrow, tabId) : null,
+  );
+}
+
+/** A `refetchInterval` value: the level's cadence, never faster than `floor`, times the backoff. */
+export function liveInterval(
+  level: FreshnessLevel,
+  kind: LiveKind,
+  { floor = 0, backoff = 1 }: { floor?: number; backoff?: number } = {},
+): number | false {
+  if (!kind || level === "background" || !Number.isFinite(backoff)) return false;
+  const cadence =
+    kind === "ci" ? CADENCE.ci : level === "focused" ? CADENCE.focused : CADENCE.visible;
+  return Math.max(cadence, floor) * backoff;
+}
 
 /**
- * A view of the one shared client, with observer ownership added to its defaults.
- * All other operations, caches, subscriptions and mutations use the real client.
+ * Opt a query in to live polling. Returns `(kind, floor?) => refetchInterval`
+ * for use inside a `refetchInterval` callback or as a plain value:
+ *
+ *   const live = useLiveInterval("graphql");
+ *   useQuery({ ..., refetchInterval: (q) => live(isRunning(q) ? "ci" : "changing") });
+ *
+ * Outside a tab (sidebar, title bar) the visible cadence applies.
  */
-export function queryClientForTab(
-  client: QueryClient,
-  tabId: string,
-  workspace = getWorkspace,
-): QueryClient {
-  const defaults: QueryClient["defaultQueryOptions"] = (options) => {
-    const result = client.defaultQueryOptions(options);
-    const previous = result.meta?.workspaceFreshness as FreshnessMeta | undefined;
-    if (previous?.tabId === tabId) return result;
-    return {
-      ...result,
-      meta: {
-        ...result.meta,
-        workspaceFreshness: previous ?? { tabId, interval: result.refetchInterval },
-      },
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      enabled: (query) =>
-        windowVisible() &&
-        onlineManager.isOnline() &&
-        visibleTabs(workspace()).has(tabId) &&
-        (typeof result.enabled === "function"
-          ? result.enabled(query) !== false
-          : result.enabled !== false),
-    };
-  };
-  return new Proxy(client, {
-    get(target, key) {
-      if (key === "defaultQueryOptions") return defaults;
-      const value = Reflect.get(target, key, target);
-      return typeof value === "function" ? value.bind(target) : value;
-    },
-  });
+export function useLiveInterval(resource: RateResource = "core") {
+  const level = useFreshnessLevel() ?? "visible";
+  const backoff = useRateLimitStore((state) => bucketBackoff(state.buckets[resource]));
+  return useCallback(
+    (kind: LiveKind, floor?: number) => liveInterval(level, kind, { floor, backoff }),
+    [level, backoff],
+  );
 }
 
-/** One pass over the shared cache: even duplicate pages fetch each query once. */
-export async function refreshWorkspaceQueries(
-  client: QueryClient,
-  workspace: Workspace,
-  { now = Date.now(), visible = true }: { now?: number; visible?: boolean } = {},
-): Promise<void> {
-  if (!visible || !onlineManager.isOnline()) return;
-  const focused = focusedTab(workspace).id;
-  const shown = visibleTabs(workspace);
-  const requests: Promise<unknown>[] = [];
-  for (const query of client.getQueryCache().getAll()) {
-    if (query.state.fetchStatus !== "idle") continue;
-    let observer = query.observers[0];
-    let interval = Infinity;
-    for (const candidate of query.observers) {
-      const meta = candidate.options.meta?.workspaceFreshness as FreshnessMeta | undefined;
-      const enabled =
-        typeof candidate.options.enabled === "function"
-          ? candidate.options.enabled(query)
-          : candidate.options.enabled;
-      if (!meta || !shown.has(meta.tabId) || enabled === false) continue;
-      const previousInterval =
-        typeof meta.interval === "function" ? meta.interval(query) : meta.interval;
-      // Some resources (Actions logs) define a terminal polling policy. Ordinary
-      // CI metadata still refreshes at the workspace cadence when its fast interval ends.
-      if (
-        candidate.options.meta?.workspacePolling === "interval" &&
-        previousInterval === false &&
-        query.state.status !== "pending"
-      )
-        continue;
-      const staleTime =
-        typeof candidate.options.staleTime === "function"
-          ? candidate.options.staleTime(query)
-          : (candidate.options.staleTime ?? 30_000);
-      const running =
-        typeof previousInterval === "number" && previousInterval > 0 && previousInterval <= 15_000;
-      // Attempted immutable files never poll without an explicit interval.
-      // An initially disabled observer still needs its first fetch on reveal.
-      if (
-        !running &&
-        (staleTime === "static" || staleTime === Infinity) &&
-        query.state.status !== "pending"
-      )
-        continue;
-      const normal =
-        typeof staleTime === "number" && Number.isFinite(staleTime) && staleTime > 60_000
-          ? staleTime
-          : meta.tabId === focused
-            ? 15_000
-            : 60_000;
-      const cadence = (running ? 3_000 : normal) * getRateBackoff(now);
-      if (cadence < interval) {
-        observer = candidate;
-        interval = cadence;
-      }
-    }
-    if (!observer || interval === Infinity) continue;
-    const last = Math.max(query.state.dataUpdatedAt, query.state.errorUpdatedAt);
-    if (last + interval <= now) requests.push(observer.refetch({ cancelRefetch: false }));
-  }
-  await Promise.all(requests);
-}
-
-function windowVisible() {
-  return typeof document === "undefined" || document.visibilityState !== "hidden";
-}
-
-function visibleTabs(workspace: Workspace) {
-  return visibleTabIds(workspace, useWorkspaceView.getState().narrow);
-}
-
-/** Lifecycle owned once by the workspace; query hooks never install competing polling timers. */
-export function startWorkspaceFreshness(client: QueryClient): () => void {
-  let queued = false;
-  let stopped = false;
-  const refresh = () => {
-    if (queued || stopped) return;
-    queued = true;
-    queueMicrotask(() => {
-      queued = false;
-      if (stopped) return;
-      expireRateLimit();
-      void refreshWorkspaceQueries(client, getWorkspace(), { visible: windowVisible() });
-    });
-  };
-  const timer = setInterval(refresh, 1000);
-  const cleanups = [
-    client.getQueryCache().subscribe(refresh),
-    useWorkspaceStore.subscribe(refresh),
-    useWorkspaceView.subscribe(refresh),
-    useRateLimitStore.subscribe(refresh),
-    onlineManager.subscribe(refresh),
-  ];
-  document.addEventListener("visibilitychange", refresh);
-  window.addEventListener("focus", refresh);
-  refresh();
-  return () => {
-    stopped = true;
-    clearInterval(timer);
-    cleanups.forEach((stop) => {
-      stop();
-    });
-    document.removeEventListener("visibilitychange", refresh);
-    window.removeEventListener("focus", refresh);
-  };
+/**
+ * Focusing an island refreshes that tab's stale data, just like returning to
+ * the window: the same per-query rules (staleTime, refetchOnWindowFocus)
+ * decide what refetches. Other islands on screen are left alone. Rendered
+ * once per tab, beside the page so the page never re-renders on focus changes.
+ */
+export function IslandFocusRefresh() {
+  const { tabId } = useTabScope();
+  const level = useFreshnessLevel();
+  const previous = useRef(level);
+  useEffect(() => {
+    if (tabId && previous.current === "visible" && level === "focused") refreshTabOnFocus(tabId);
+    previous.current = level;
+  }, [tabId, level]);
+  return null;
 }
