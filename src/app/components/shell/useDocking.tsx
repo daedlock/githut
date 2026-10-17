@@ -156,8 +156,11 @@ function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): 
     return null;
   let target: DockTarget | undefined;
   let line: Rect | undefined;
-  if (x < bounds.left + 24) target = { type: "workspace-edge", side: "left" };
-  else if (x > bounds.right - 24) target = { type: "workspace-edge", side: "right" };
+  // A compact pinned tab can sit inside the window-edge hit area. Keep
+  // insertion reachable across the entire tab strip, including those pins.
+  const overStrip = document.elementFromPoint(x, y)?.closest("[data-tab-strip]");
+  if (!overStrip && x < bounds.left + 24) target = { type: "workspace-edge", side: "left" };
+  else if (!overStrip && x > bounds.right - 24) target = { type: "workspace-edge", side: "right" };
   else if (y > bounds.bottom - 24) target = { type: "workspace-edge", side: "bottom" };
   else
     for (const el of root.querySelectorAll<HTMLElement>("[data-island]")) {

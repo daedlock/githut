@@ -6,6 +6,7 @@ import {
   PlayIcon,
 } from "@primer/octicons-react";
 import { MoreHorizontal } from "lucide-react";
+import { useRef } from "react";
 
 import { Button } from "@/app/components/ui/button";
 import {
@@ -17,7 +18,7 @@ import {
 } from "@/app/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { cn } from "@/app/lib/cn";
-import { openInNewTab } from "@/app/lib/tabActions";
+import { focusPaneOfFocusedTab, openOrJump } from "@/app/lib/tabActions";
 import { type RepoSection, tabRepo, tabSection } from "@/app/lib/tabMeta";
 import { hrefPathname } from "@/app/workspace/model";
 
@@ -47,6 +48,7 @@ const SECTIONS: readonly {
 ];
 
 export function SectionMenu({ href }: { href: string }) {
+  const launched = useRef(false);
   const pathname = hrefPathname(href);
   const repo = tabRepo(pathname);
   if (!repo) return null;
@@ -72,7 +74,7 @@ export function SectionMenu({ href }: { href: string }) {
                   type="button"
                   aria-label={`${name} ${s.label}`}
                   aria-current={on ? "page" : undefined}
-                  onClick={() => openInNewTab(`/${repo}${s.suffix}`)}
+                  onClick={() => openOrJump(`/${repo}${s.suffix}`)}
                   className={cn(
                     "flex h-6.5 items-center rounded-lg px-2 text-ui outline-none transition-colors",
                     "hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-(--color-focus)",
@@ -119,7 +121,16 @@ export function SectionMenu({ href }: { href: string }) {
             <span className="font-mono">{name}</span> sections
           </TooltipContent>
         </Tooltip>
-        <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuContent
+          align="end"
+          className="w-44"
+          onCloseAutoFocus={(event) => {
+            if (!launched.current) return;
+            launched.current = false;
+            event.preventDefault();
+            focusPaneOfFocusedTab();
+          }}
+        >
           <DropdownMenuLabel className="truncate font-mono text-caption text-muted-foreground">
             {name}
           </DropdownMenuLabel>
@@ -129,7 +140,10 @@ export function SectionMenu({ href }: { href: string }) {
               <DropdownMenuItem
                 key={s.id}
                 aria-current={s.id === current ? "page" : undefined}
-                onSelect={() => openInNewTab(`/${repo}${s.suffix}`)}
+                onSelect={() => {
+                  launched.current = true;
+                  openOrJump(`/${repo}${s.suffix}`);
+                }}
                 className={cn("text-ui", s.id === current && "text-foreground")}
               >
                 <Icon aria-hidden size={14} />

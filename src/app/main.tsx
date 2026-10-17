@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createMemoryHistory, createRouter } from "@tanstack/react-router";
+import { type AnyRouter, createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { TabHost } from "@/app/components/shell/TabHost";
@@ -17,12 +17,12 @@ bootstrapTheme();
 const authStart = bootstrapAuthFromHash();
 
 /** Every tab runs its own router over an in-memory history (see TabHost). */
-function createAppRouter(href: string) {
+function createAppRouter(href: string, history?: AnyRouter["history"]) {
   return createRouter({
     routeTree,
     context: { queryClient },
     defaultPreload: "intent",
-    history: createMemoryHistory({ initialEntries: [href] }),
+    history: history ?? createMemoryHistory({ initialEntries: [href] }),
   });
 }
 

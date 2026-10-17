@@ -53,6 +53,8 @@ export type LayoutNode = Island | Split;
 export type Workspace = {
   layout: LayoutNode;
   focusedIslandId: string;
+  /** Island ids in most recently focused order, focused island first. */
+  focusHistory: string[];
   /**
    * Island shown alone, filling the workspace. Only rendering changes: the
    * layout keeps every size, so restoring returns to exactly where it was.
@@ -92,15 +94,21 @@ export type WorkspaceCommand =
       select?: boolean;
       /** Open a second tab even if the island already shows this page. */
       allowDuplicate?: boolean;
+      /** Exact href matching keeps different code files/search states as separate pages. */
+      match?: "pathname" | "href";
     }
-  /** Show the tab already showing `href`, else open it in the focused island (incoming URLs). */
+  /** Launchers and incoming URLs jump to a matching page, preferring recent islands. */
+  | { type: "openOrJump"; href: string }
   | { type: "openUrl"; href: string }
+  /** Open a page in a new island to the right of the source (default: focused island). */
+  | { type: "openToSide"; href: string; islandId?: string }
   | { type: "selectTab"; tabId: string }
   /** Select the n-th tab of the focused island; -1 is the last. */
   | { type: "selectTabAt"; index: number }
   /** Select the next/previous tab of the focused island, wrapping. */
   | { type: "cycleTab"; delta: 1 | -1 }
   | { type: "moveTab"; tabId: string; islandId: string; index: number }
+  | { type: "pinTab"; tabId: string; pinned: boolean }
   | { type: "duplicateTab"; tabId: string }
   | { type: "closeTab"; tabId: string }
   | { type: "closeOtherTabs"; tabId: string }
@@ -157,18 +165,29 @@ function apply(ws: Workspace, cmd: WorkspaceCommand): Workspace {
       return openTab(ws, cmd.href, cmd.islandId ?? ws.focusedIslandId, {
         select: cmd.select ?? true,
         allowDuplicate: cmd.allowDuplicate ?? false,
+        match: cmd.match,
       });
 
+    case "openOrJump":
     case "openUrl": {
       const href = normalizeHref(cmd.href);
-      const focused = findIsland(ws.layout, ws.focusedIslandId);
-      const match =
-        focused?.tabs.find((t) => t.href === href) ??
-        islands(ws.layout)
-          .flatMap((i) => i.tabs)
-          .find((t) => t.href === href);
-      if (match) return selectTab(ws, match.id);
+      for (const id of ws.focusHistory) {
+        const match = findIsland(ws.layout, id)?.tabs.find((t) => t.href === href);
+        if (match) return selectTab(ws, match.id);
+      }
       return openTab(ws, href, ws.focusedIslandId, { select: true, allowDuplicate: true });
+    }
+
+    case "openToSide": {
+      const source = cmd.islandId ?? ws.focusedIslandId;
+      if (!findIsland(ws.layout, source)) return ws;
+      const island = newIsland([cmd.href]);
+      return {
+        ...ws,
+        layout: insertBeside(ws.layout, source, "right", island),
+        focusedIslandId: island.id,
+        maximizedIslandId: null,
+      };
     }
 
     case "selectTab":
@@ -191,6 +210,16 @@ function apply(ws: Workspace, cmd: WorkspaceCommand): Workspace {
     case "moveTab":
       return moveTab(ws, cmd.tabId, cmd.islandId, cmd.index);
 
+    case "pinTab": {
+      const found = findTab(ws.layout, cmd.tabId);
+      if (!found || found.island.pinned.includes(cmd.tabId) === cmd.pinned) return ws;
+      const pinned = cmd.pinned
+        ? [...found.island.pinned, cmd.tabId]
+        : found.island.pinned.filter((id) => id !== cmd.tabId);
+      const island = { ...found.island, pinned };
+      return { ...ws, layout: replaceNode(ws.layout, island.id, island) };
+    }
+
     case "duplicateTab": {
       const found = findTab(ws.layout, cmd.tabId);
       if (!found) return ws;
@@ -208,7 +237,9 @@ function apply(ws: Workspace, cmd: WorkspaceCommand): Workspace {
     case "closeOtherTabs": {
       const found = findTab(ws.layout, cmd.tabId);
       if (!found) return ws;
-      const gone = found.island.tabs.filter((t) => t.id !== cmd.tabId).map((t) => t.id);
+      const gone = found.island.tabs
+        .filter((t) => t.id !== cmd.tabId && !found.island.pinned.includes(t.id))
+        .map((t) => t.id);
       return selectTab(closeTabs(ws, gone), cmd.tabId);
     }
 
@@ -216,7 +247,10 @@ function apply(ws: Workspace, cmd: WorkspaceCommand): Workspace {
       const found = findTab(ws.layout, cmd.tabId);
       if (!found) return ws;
       const idx = found.island.tabs.findIndex((t) => t.id === cmd.tabId);
-      const gone = found.island.tabs.slice(idx + 1).map((t) => t.id);
+      const gone = found.island.tabs
+        .slice(idx + 1)
+        .filter((t) => !found.island.pinned.includes(t.id))
+        .map((t) => t.id);
       return closeTabs(ws, gone);
     }
 
@@ -318,7 +352,13 @@ export function newSplit(
 /** A workspace of one island with these tabs. */
 export function createWorkspace(hrefs: string[], selectedIndex = 0): Workspace {
   const island = newIsland(hrefs, selectedIndex);
-  return { layout: island, focusedIslandId: island.id, maximizedIslandId: null, closed: [] };
+  return {
+    layout: island,
+    focusedIslandId: island.id,
+    focusHistory: [island.id],
+    maximizedIslandId: null,
+    closed: [],
+  };
 }
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
@@ -562,7 +602,7 @@ function openTab(
   ws: Workspace,
   rawHref: string,
   islandId: string,
-  opts: { select: boolean; allowDuplicate: boolean },
+  opts: { select: boolean; allowDuplicate: boolean; match?: "pathname" | "href" },
 ): Workspace {
   const href = normalizeHref(rawHref);
   const island = findIsland(ws.layout, islandId) ?? focusedIsland(ws);
@@ -571,7 +611,9 @@ function openTab(
   // islands (e.g. a PR's conversation beside its files).
   if (!opts.allowDuplicate) {
     const path = hrefPathname(href);
-    const existing = island.tabs.find((t) => hrefPathname(t.href) === path);
+    const existing = island.tabs.find((t) =>
+      opts.match === "href" ? t.href === href : hrefPathname(t.href) === path,
+    );
     if (existing) {
       const updated = updateTab(ws, existing.id, (t) => (t.href === href ? t : { ...t, href }));
       return opts.select ? selectTab(updated, existing.id) : updated;
@@ -610,7 +652,12 @@ function moveTab(ws: Workspace, tabId: string, toIslandId: string, index: number
   const tabs = [...dest.tabs];
   tabs.splice(Math.min(Math.max(index, 0), tabs.length), 0, found.tab);
   let layout = replaceNode(ws.layout, source.id, source);
-  layout = replaceNode(layout, dest.id, { ...dest, tabs, selectedTabId: tabId });
+  layout = replaceNode(layout, dest.id, {
+    ...dest,
+    tabs,
+    selectedTabId: tabId,
+    pinned: found.island.pinned.includes(tabId) ? [...dest.pinned, tabId] : dest.pinned,
+  });
   return { ...ws, layout, focusedIslandId: dest.id };
 }
 
@@ -725,8 +772,18 @@ export function normalizeLayout(node: LayoutNode): LayoutNode | null {
     const ids = new Set(node.tabs.map((t) => t.id));
     const selectedTabId = ids.has(node.selectedTabId) ? node.selectedTabId : node.tabs[0]!.id;
     const pinned = node.pinned.filter((id) => ids.has(id));
-    if (selectedTabId === node.selectedTabId && pinned.length === node.pinned.length) return node;
-    return { ...node, selectedTabId, pinned };
+    const pinnedIds = new Set(pinned);
+    const tabs = [
+      ...node.tabs.filter((tab) => pinnedIds.has(tab.id)),
+      ...node.tabs.filter((tab) => !pinnedIds.has(tab.id)),
+    ];
+    if (
+      selectedTabId === node.selectedTabId &&
+      pinned.length === node.pinned.length &&
+      tabs.every((tab, index) => tab === node.tabs[index])
+    )
+      return node;
+    return { ...node, tabs, selectedTabId, pinned };
   }
 
   const children: LayoutNode[] = [];
@@ -769,6 +826,13 @@ export function normalizeWorkspace(ws: Workspace): Workspace {
   const focusedIslandId = all.some((i) => i.id === ws.focusedIslandId)
     ? ws.focusedIslandId
     : all[0]!.id;
+  const ids = new Set(all.map((i) => i.id));
+  const focusHistory = [...new Set([focusedIslandId, ...ws.focusHistory, ...ids])].filter((id) =>
+    ids.has(id),
+  );
+  const sameHistory =
+    focusHistory.length === ws.focusHistory.length &&
+    focusHistory.every((id, i) => id === ws.focusHistory[i]);
   const maximizedIslandId =
     ws.maximizedIslandId &&
     layout.kind === "split" &&
@@ -778,9 +842,16 @@ export function normalizeWorkspace(ws: Workspace): Workspace {
   if (
     layout === ws.layout &&
     focusedIslandId === ws.focusedIslandId &&
-    maximizedIslandId === ws.maximizedIslandId
+    maximizedIslandId === ws.maximizedIslandId &&
+    sameHistory
   ) {
     return ws;
   }
-  return { ...ws, layout, focusedIslandId, maximizedIslandId };
+  return {
+    ...ws,
+    layout,
+    focusedIslandId,
+    maximizedIslandId,
+    focusHistory: sameHistory ? ws.focusHistory : focusHistory,
+  };
 }
