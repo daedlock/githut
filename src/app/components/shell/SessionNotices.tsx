@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { KeyRound, LogIn, WifiOff } from "lucide-react";
+import { HardDrive, KeyRound, LogIn, WifiOff } from "lucide-react";
 
 import { RateLimitNotice } from "@/app/components/shell/RateLimitNotice";
 import { Button } from "@/app/components/ui/button";
@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/too
 import { startReauth } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
 import { useBrowserOnline } from "@/app/lib/connectivity";
+import { useStorageHealth } from "@/app/stores/accountStorage";
 import { useAuthStore } from "@/app/stores/auth";
 
 // ─── Session notices ───────────────────────────────────────────────────────
@@ -76,11 +77,37 @@ export function SignInBanner() {
   );
 }
 
+/** Browser storage refused a write: drafts typed now won't survive a reload. */
+export function StorageFullPill() {
+  const failed = useStorageHealth((s) => s.writeFailed);
+  if (!failed) return null;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          role="status"
+          className={cn(
+            "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full bg-muted px-2",
+            "text-caption text-muted-foreground",
+          )}
+        >
+          <HardDrive aria-hidden className="size-3.5 text-(--color-warning)" />
+          Drafts not saved
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        Browser storage is full or blocked. Drafts are kept until this window closes.
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 /** Transient connection status never reserves workspace space. */
 export function WorkspaceNotices() {
   return (
     <div className="pointer-events-none absolute right-3 bottom-3 z-40 flex max-w-[calc(100%-1.5rem)] flex-wrap justify-end gap-2 [&>*]:pointer-events-auto">
       <RateLimitNotice />
+      <StorageFullPill />
       <OfflinePill />
     </div>
   );
