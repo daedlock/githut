@@ -75,6 +75,7 @@ export function PrRow({
 
   return (
     <div
+      data-live-item={`pr-${pr.id}`}
       {...bulk?.rowProps}
       className={bulk?.className ?? "group relative rounded-lg transition-colors hover:bg-muted"}
     >

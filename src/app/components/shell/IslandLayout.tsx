@@ -62,11 +62,13 @@ export function IslandLayout({
   layout,
   focusedIslandId,
   maximizedIslandId,
+  narrow = false,
   renderPanes,
 }: {
   layout: LayoutNode;
   focusedIslandId: string;
   maximizedIslandId: string | null;
+  narrow?: boolean;
   /** The island's mounted tab panes; `shown` is false while it's hidden. */
   renderPanes: (island: Island, shown: boolean) => ReactNode;
 }) {
@@ -93,12 +95,14 @@ export function IslandLayout({
     <div ref={ref} data-workspace-layout className="relative min-h-0 flex-1">
       {geometry &&
         all.map((island) => {
-          const shown = !maximized || island.id === maximizedIslandId;
+          const shown = narrow
+            ? island.id === focusedIslandId
+            : !maximized || island.id === maximizedIslandId;
           return (
             <IslandFrame
               key={island.id}
               island={island}
-              rect={maximized && shown ? full : geometry.islands.get(island.id)!}
+              rect={(narrow || maximized) && shown ? full : geometry.islands.get(island.id)!}
               shown={shown}
               focused={island.id === focusedIslandId}
               maximized={!!maximized && shown}
@@ -109,6 +113,7 @@ export function IslandLayout({
         })}
       {geometry &&
         !maximized &&
+        !narrow &&
         geometry.gaps.map((gap) => (
           <Gap
             key={`${gap.splitId}:${gap.index}`}

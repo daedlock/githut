@@ -32,8 +32,8 @@ import {
   useNotifications,
   useNotificationUnreadCount,
 } from "@/app/features/notifications/service";
-import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { useToggleStar } from "@/app/hooks/useRepoStarred";
+import { useStableList } from "@/app/hooks/useStableList";
 import { useStarredRepos } from "@/app/hooks/useStarredRepos";
 import { cn } from "@/app/lib/cn";
 import { useCanMutate } from "@/app/lib/connectivity";
@@ -61,9 +61,8 @@ type Row = {
 };
 
 export function Sidebar({ beginDrag }: { beginDrag: BeginDrag }) {
-  const { width, collapsed, toggle, resize, reset } = useSidebarStore();
+  const { width, collapsed, resize, reset } = useSidebarStore();
   const cleanup = useRef<(() => void) | null>(null);
-  useKeybindings({ "⌘b": toggle });
   useEffect(() => () => cleanup.current?.(), []);
 
   function startResize(event: PointerEvent<HTMLDivElement>) {
@@ -256,6 +255,9 @@ export function SidebarContent({
       open={!!row.repo && openRepos.has(row.repo.toLowerCase())}
     />
   );
+  const workList = useStableList(yourWork, { key: (row) => row.href, resetKey: filter });
+  const starList = useStableList(filteredStars, { key: (row) => row.href, resetKey: filter });
+  const recentList = useStableList(recentRows, { key: (row) => row.href, resetKey: filter });
   return (
     <nav
       aria-label="Workspace navigation"
@@ -293,14 +295,24 @@ export function SidebarContent({
         </div>
         {renderRow({ href: "/", label: "Inbox", icon: Inbox, count: unreadCount })}
       </div>
-      {yourWork.length > 0 && (
-        <SidebarSection title="Your work" icon={GitPullRequest} collapsed={collapsed}>
-          {yourWork.map(renderRow)}
+      {workList.items.length > 0 && (
+        <SidebarSection
+          title="Your work"
+          icon={GitPullRequest}
+          collapsed={collapsed}
+          listProps={workList.listProps}
+        >
+          {workList.items.map(renderRow)}
         </SidebarSection>
       )}
-      {filteredStars.length > 0 && (
-        <SidebarSection title="Starred" icon={Star} collapsed={collapsed}>
-          {filteredStars.slice(0, showAll || filter.trim() ? undefined : 8).map(renderRow)}
+      {starList.items.length > 0 && (
+        <SidebarSection
+          title="Starred"
+          icon={Star}
+          collapsed={collapsed}
+          listProps={starList.listProps}
+        >
+          {starList.items.slice(0, showAll || filter.trim() ? undefined : 8).map(renderRow)}
           {fallback && !collapsed && (
             <p className="px-2 text-caption text-muted-foreground">
               Recently used repos. Star repos on GitHub to keep them here.
@@ -319,9 +331,14 @@ export function SidebarContent({
           )}
         </SidebarSection>
       )}
-      {recentRows.length > 0 && (
-        <SidebarSection title="Recent" icon={History} collapsed={collapsed}>
-          {recentRows.map(renderRow)}
+      {recentList.items.length > 0 && (
+        <SidebarSection
+          title="Recent"
+          icon={History}
+          collapsed={collapsed}
+          listProps={recentList.listProps}
+        >
+          {recentList.items.map(renderRow)}
         </SidebarSection>
       )}
       {mutationError && (
@@ -355,14 +372,16 @@ function SidebarSection({
   icon: Icon,
   collapsed,
   children,
+  listProps,
 }: {
   title: string;
   icon: typeof Inbox;
   collapsed: boolean;
   children: ReactNode;
+  listProps: ReturnType<typeof useStableList>["listProps"];
 }) {
   return (
-    <section aria-label={title} className="flex flex-col gap-0">
+    <section {...listProps} aria-label={title} className="flex flex-col gap-0">
       <h2 className="flex h-6 shrink-0 items-center gap-2 px-2 text-micro font-medium uppercase tracking-widest text-muted-foreground">
         <Icon className="size-4 shrink-0" aria-hidden />
         <span className={cn("truncate", collapsed && "sr-only")}>{title}</span>
@@ -491,7 +510,7 @@ function SidebarRow({
             Copy link
           </ContextMenuItem>
         </ContextMenuGroup>
-        <DockingMenu source={{ type: "href", href: row.href }} />
+        <DockingMenu source={{ type: "href", href: row.href }} onDock={onLaunch} />
         {!!row.notificationIds?.length && (
           <ContextMenuGroup>
             <ContextMenuItem

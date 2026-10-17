@@ -1,7 +1,9 @@
 import { onlineManager, type QueryClient, type QueryObserverOptions } from "@tanstack/react-query";
 import { expireRateLimit, getRateBackoff, useRateLimitStore } from "@/app/stores/rateLimit";
-import { focusedTab, islands, type Workspace } from "@/app/workspace/model";
+import { useWorkspaceView } from "@/app/stores/workspaceView";
+import { focusedTab, type Workspace } from "@/app/workspace/model";
 import { getWorkspace, useWorkspaceStore } from "@/app/workspace/store";
+import { visibleTabIds } from "@/app/workspace/view";
 
 type FreshnessMeta = {
   tabId: string;
@@ -110,11 +112,7 @@ function windowVisible() {
 }
 
 function visibleTabs(workspace: Workspace) {
-  return new Set(
-    islands(workspace.layout)
-      .filter((island) => !workspace.maximizedIslandId || island.id === workspace.maximizedIslandId)
-      .map((island) => island.selectedTabId),
-  );
+  return visibleTabIds(workspace, useWorkspaceView.getState().narrow);
 }
 
 /** Lifecycle owned once by the workspace; query hooks never install competing polling timers. */
@@ -135,6 +133,7 @@ export function startWorkspaceFreshness(client: QueryClient): () => void {
   const cleanups = [
     client.getQueryCache().subscribe(refresh),
     useWorkspaceStore.subscribe(refresh),
+    useWorkspaceView.subscribe(refresh),
     useRateLimitStore.subscribe(refresh),
     onlineManager.subscribe(refresh),
   ];

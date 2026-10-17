@@ -311,6 +311,32 @@ The workspace is a darker **frame** holding a slim **title bar** and rounded
   is louder than another. Fill is the colour at 20% over `bg-muted`, ring
   35%. With `<html data-repo-color="off">` marks go neutral.
 
+### Settings
+- Settings is a scrollable shadcn Dialog over the workspace, including direct
+  `/settings` visits. Opening and closing it preserves tabs, focus and layout;
+  closing restores the focused tab's URL. It has a visible title and close
+  button, traps keyboard focus, and dismisses with Escape.
+- Repository colours default on and can be turned off in Settings. Preferences
+  remain local to the browser. There is no tabs on/off mode.
+- The avatar menu contains Settings, theme controls, Reset layout and Sign out.
+  Reset layout gathers all open tabs and pins into one island, keeps the
+  focused tab selected, and offers Undo.
+
+### Narrow workspace
+
+Below 720px, or when the saved island sizes cannot each provide 320×200px,
+show only the focused island at full width. A compact menu above it lists
+every island and tab. Use the same tab labels as the tab strips, retain
+keyboard menu navigation, and return focus to the selected page.
+
+The logo and Cmd/Ctrl+B open the sidebar in a left Sheet. Reuse the desktop
+sidebar content, close it after a launch or when a drag begins, and keep
+docking targets available after the drawer closes. A resize never changes
+the saved layout or sidebar width: determine fit using the hypothetical
+desktop sidebar space, and restore the exact layout when it fits again.
+Hidden selections pause their page queries and share the eight recent-tab
+memory budget; pinned tabs remain mounted.
+
 ## Components
 
 Use the shadcn primitives in `src/app/components/ui/` for every popover,

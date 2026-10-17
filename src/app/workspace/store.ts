@@ -52,6 +52,7 @@ export function dispatch(cmd: WorkspaceCommand | { type: "undo" }) {
   if (label) {
     const entry = { id: ++undoId, workspace: prev, label };
     const show =
+      cmd.type === "resetLayout" ||
       cmd.type === "closeOtherTabs" ||
       cmd.type === "closeTabsToRight" ||
       (cmd.type === "closeIsland" &&
@@ -70,6 +71,8 @@ export function dispatch(cmd: WorkspaceCommand | { type: "undo" }) {
 
 function undoLabel(cmd: WorkspaceCommand): string | null {
   switch (cmd.type) {
+    case "resetLayout":
+      return "Layout reset";
     case "dock":
       return cmd.source.type === "island" && cmd.target.type === "tabs"
         ? "Islands merged"

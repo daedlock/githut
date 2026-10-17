@@ -2,7 +2,38 @@ import { expect, test } from "bun:test";
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import { queryClientForTab, refreshWorkspaceQueries } from "@/app/lib/freshness";
 import { clearRateLimit, recordRateLimit } from "@/app/stores/rateLimit";
+import { useWorkspaceView } from "@/app/stores/workspaceView";
 import { createWorkspace, focusedTab, islands, runCommand } from "@/app/workspace/model";
+
+test("narrow mode pauses hidden island queries and refetches stale data when that island is shown", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  let workspace = runCommand(createWorkspace(["/one"]), { type: "splitIsland", side: "right" });
+  const hidden = islands(workspace.layout)[0]!;
+  const key = ["narrow-comments", hidden.id];
+  client.setQueryData(key, "cached", { updatedAt: 1000 });
+  useWorkspaceView.getState().setNarrow(true);
+  const observer = new QueryObserver(
+    queryClientForTab(client, hidden.selectedTabId, () => workspace),
+    {
+      queryKey: key,
+      queryFn: async () => "updated",
+      staleTime: 30_000,
+    },
+  );
+  const stop = observer.subscribe(() => {});
+  try {
+    await refreshWorkspaceQueries(client, workspace, { now: 61_000 });
+    await client.invalidateQueries({ queryKey: key });
+    expect(client.getQueryData<string>(key)).toBe("cached");
+    workspace = runCommand(workspace, { type: "focusIsland", islandId: hidden.id });
+    await refreshWorkspaceQueries(client, workspace, { now: 61_000 });
+    expect(client.getQueryData<string>(key)).toBe("updated");
+  } finally {
+    stop();
+    client.clear();
+    useWorkspaceView.getState().setNarrow(false);
+  }
+});
 
 test("focused changing data refreshes at 15 seconds through its existing cached query", async () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
