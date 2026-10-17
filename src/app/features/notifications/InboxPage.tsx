@@ -11,7 +11,8 @@ import {
   MoreHorizontal,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { LiveUpdates } from "@/app/components/LiveUpdates";
 import { RepoMark } from "@/app/components/shell/RepoMark";
 import { Button } from "@/app/components/ui/button";
 import { Container } from "@/app/components/ui/Container";
@@ -31,14 +32,17 @@ import { DashboardView } from "@/app/features/dashboard/DashboardView";
 import { toggleSelection } from "@/app/features/repo/bulkSelection";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { useListNavigation } from "@/app/hooks/useListNavigation";
+import { useStableList } from "@/app/hooks/useStableList";
 import { cn } from "@/app/lib/cn";
 import { useCanMutate } from "@/app/lib/connectivity";
+import { getRecentItemsSync, subscribeRecentItems } from "@/app/lib/recentItems";
 import { openInNewTab, openToSide } from "@/app/lib/tabActions";
 import { useTabScope } from "@/app/lib/tabScope";
 import { formatRelativeTime } from "@/app/lib/time";
 import { useSidebarStore } from "@/app/stores/sidebar";
-import { findTab } from "@/app/workspace/model";
-import { getWorkspace } from "@/app/workspace/store";
+import { useWorkspaceView } from "@/app/stores/workspaceView";
+import { findTab, focusedTab, islands } from "@/app/workspace/model";
+import { getWorkspace, useWorkspaceStore } from "@/app/workspace/store";
 import { type Notification, notificationGitHubHref, notificationHref } from "./api";
 import {
   type NotificationAction,
@@ -94,7 +98,16 @@ function InboxList({
   const localUnread = useNotificationState((state) => state.unread);
   const busy = useNotificationState((state) => state.busy);
   const { canMutate, reason } = useCanMutate();
+  const scope = useTabScope();
+  const workspace = useWorkspaceStore((state) => state.workspace);
+  const recent = useSyncExternalStore(subscribeRecentItems, getRecentItemsSync);
+  const openHrefs = new Set(
+    islands(workspace.layout).flatMap((island) => island.tabs.map((tab) => tab.href)),
+  );
+  const hasRecent = recent.some((item) => !openHrefs.has(item.href));
+  const isFocused = focusedTab(workspace).id === scope.tabId;
   const [selected, setSelected] = useState(new Set<string>());
+  const [actionVersion, setActionVersion] = useState(0);
   const [notice, setNotice] = useState<{
     text: string;
     failed?: string[];
@@ -104,7 +117,10 @@ function InboxList({
   const root = useRef<HTMLDivElement>(null);
   const incoming =
     data?.items.filter((item) => filter === "all" || data.participatingIds.includes(item.id)) ?? [];
-  const rows = incoming;
+  const { items: rows, listProps } = useStableList(incoming, {
+    key: (item) => item.id,
+    resetKey: `${filter}:${actionVersion}`,
+  });
   const ids = rows.map((item) => item.id);
   useListNavigation(!isPending);
   useEffect(() => {
@@ -126,6 +142,7 @@ function InboxList({
     setNotice(null);
     try {
       const result = await runNotificationAction(targets, action);
+      setActionVersion((version) => version + 1);
       const failed = result.failed.map((item) => item.id);
       if (failed.length) {
         setSelected(new Set(failed));
@@ -236,38 +253,46 @@ function InboxList({
               </Button>
               <Button
                 variant="ghost"
+                disabled={!hasRecent}
                 onClick={() => {
-                  useSidebarStore.getState().resize(240);
+                  if (useWorkspaceView.getState().narrow)
+                    useWorkspaceView.getState().setSidebarOpen(true);
+                  else useSidebarStore.getState().resize(useSidebarStore.getState().width);
                   requestAnimationFrame(() => {
                     const section = document.querySelector<HTMLElement>('[aria-label="Recent"]');
                     section?.scrollIntoView({ block: "nearest" });
-                    section?.querySelector<HTMLElement>("button")?.focus();
+                    (section?.querySelector<HTMLElement>("button") ?? section)?.focus();
                   });
                 }}
               >
                 Recent
               </Button>
             </div>
+            {!hasRecent && (
+              <p className="text-caption text-muted-foreground">No recent pages yet.</p>
+            )}
           </div>
         ) : (
-          <section aria-label="Notifications">
-            {rows.map((item, index) => (
-              <NotificationRow
-                key={item.id}
-                item={item}
-                unread={item.unread || !!localUnread[item.id]}
-                deviceOnly={!!localUnread[item.id] && !item.unread}
-                selected={selected.has(item.id)}
-                busy={busy.includes(item.id)}
-                canMutate={canMutate}
-                unavailableReason={reason}
-                onSelect={(range) => choose(index, range)}
-                onAction={(action) => {
-                  void act([item.id], action);
-                }}
-              />
-            ))}
-          </section>
+          <LiveUpdates ready={!isPending} announce={false}>
+            <section aria-label="Notifications" {...listProps}>
+              {rows.map((item, index) => (
+                <NotificationRow
+                  key={item.id}
+                  item={item}
+                  unread={item.unread || !!localUnread[item.id]}
+                  deviceOnly={!!localUnread[item.id] && !item.unread}
+                  selected={selected.has(item.id)}
+                  busy={busy.includes(item.id)}
+                  canMutate={canMutate}
+                  unavailableReason={reason}
+                  onSelect={(range) => choose(index, range)}
+                  onAction={(action) => {
+                    void act([item.id], action);
+                  }}
+                />
+              ))}
+            </section>
+          </LiveUpdates>
         )}
         {notice && (
           <div
@@ -298,7 +323,7 @@ function InboxList({
           </div>
         )}
       </div>
-      {selected.size > 0 && (
+      {selected.size > 0 && isFocused && (
         <div className="pointer-events-none fixed inset-x-0 bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-40 flex justify-center px-4">
           <div
             role="toolbar"

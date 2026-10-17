@@ -38,6 +38,44 @@ afterEach(() => {
   useNotificationState.setState({ unread: {}, busy: [] });
 });
 
+test("a due poll waits for pending writes and queued writes stop if the session changes", async () => {
+  useAuthStore.getState().setToken("notification-original-account");
+  queryClient.setQueryData(NOTIFICATIONS_KEY, {
+    ...feed(),
+    items: Array.from({ length: 8 }, (_, index) => item(String(index + 1))),
+  });
+  let finish!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  const writes: string[] = [];
+  let reads = 0;
+  spyOn(globalThis, "fetch").mockImplementation((async (
+    input: string | URL | Request,
+    init?: RequestInit,
+  ) => {
+    if (init?.method === "DELETE") {
+      writes.push(String(input));
+      await gate;
+      return new Response(null, { status: 204 });
+    }
+    reads++;
+    return new Response("[]", { headers: { "content-type": "application/json" } });
+  }) as typeof fetch);
+  const pending = runNotificationAction(
+    Array.from({ length: 8 }, (_, index) => String(index + 1)),
+    "done",
+  );
+  while (writes.length < 4) await new Promise((resolve) => setTimeout(resolve, 0));
+  await refreshNotifications(Date.now() + 1_000_000);
+  expect(reads).toBe(0);
+  useAuthStore.getState().setToken("notification-different-account");
+  finish();
+  const result = await pending;
+  expect(writes).toHaveLength(4);
+  expect(result.failed).toHaveLength(4);
+});
+
 test("device-only unread survives refresh and only explicit read clears it; GitHub writes use real thread endpoints", async () => {
   useAuthStore.getState().setToken("notification-actions");
   queryClient.setQueryData(NOTIFICATIONS_KEY, feed());
@@ -124,4 +162,30 @@ test("polling shares one request, obeys GitHub cadence and low-quota backoff, an
   useAuthStore.getState().markExpired();
   await refreshNotifications(now + 1_000_000);
   expect(requests).toHaveLength(4);
+});
+
+test("hidden and offline windows do not poll", async () => {
+  useAuthStore.getState().setToken("notification-visibility");
+  const documentDescriptor = Object.getOwnPropertyDescriptor(globalThis, "document");
+  const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  const request = spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response("[]", { headers: { "content-type": "application/json" } }),
+  );
+  try {
+    Object.defineProperty(globalThis, "document", { configurable: true, value: { hidden: true } });
+    await refreshNotifications();
+    expect(request).not.toHaveBeenCalled();
+    Object.defineProperty(globalThis, "document", { configurable: true, value: { hidden: false } });
+    Object.defineProperty(globalThis, "navigator", {
+      configurable: true,
+      value: { onLine: false },
+    });
+    await refreshNotifications();
+    expect(request).not.toHaveBeenCalled();
+  } finally {
+    if (documentDescriptor) Object.defineProperty(globalThis, "document", documentDescriptor);
+    else Reflect.deleteProperty(globalThis, "document");
+    if (navigatorDescriptor) Object.defineProperty(globalThis, "navigator", navigatorDescriptor);
+    else Reflect.deleteProperty(globalThis, "navigator");
+  }
 });

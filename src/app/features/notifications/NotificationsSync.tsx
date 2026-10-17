@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "@/app/components/ui/button";
 import { useCanMutate } from "@/app/lib/connectivity";
-import { useFocusedTab } from "@/app/workspace/store";
+import { useWorkspaceView } from "@/app/stores/workspaceView";
+import { focusedTab } from "@/app/workspace/model";
+import { useWorkspaceStore } from "@/app/workspace/store";
+import { visibleTabIds } from "@/app/workspace/view";
 import { notificationHref, notificationPageKey } from "./api";
 import {
   notificationIsUnread,
@@ -17,17 +20,20 @@ const subscribeVisibility = (changed: () => void) => {
 
 /** Only actual focused-page visits mark a thread read, never cache rerenders. */
 export function NotificationsSync() {
-  const tab = useFocusedTab();
+  const workspace = useWorkspaceStore((state) => state.workspace);
+  const tab = focusedTab(workspace);
+  const narrow = useWorkspaceView((state) => state.narrow);
   const feed = useNotifications();
   const { canMutate } = useCanMutate();
   const visible = useSyncExternalStore(subscribeVisibility, () => !document.hidden);
+  const pageVisible = visible && visibleTabIds(workspace, narrow).has(tab.id);
   const visited = useRef<string | null>(null);
   const [failed, setFailed] = useState<string[]>([]);
   const page = notificationPageKey(tab.href);
   const key = `${tab.id}:${page}`;
   useEffect(startNotificationPolling, []);
   useEffect(() => {
-    if (!visible) {
+    if (!pageVisible) {
       visited.current = null;
       return;
     }
@@ -44,7 +50,7 @@ export function NotificationsSync() {
       void runNotificationAction(ids, "read")
         .then((result) => setFailed(result.failed.map((item) => item.id)))
         .catch(() => setFailed(ids));
-  }, [visible, canMutate, feed.data, key, page]);
+  }, [pageVisible, canMutate, feed.data, key, page]);
   if (!failed.length) return null;
   return (
     <div

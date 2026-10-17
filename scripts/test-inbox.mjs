@@ -64,7 +64,35 @@ const notification = (id, unread = true) => ({
   },
   repository: repo,
 });
-async function fixture({ fail = [], empty = false } = {}) {
+const workItem = (number, title = `Review work ${number}`) => ({
+  id: number,
+  number,
+  title,
+  state: "open",
+  user: actor,
+  body: "Fixture",
+  labels: [],
+  assignees: [],
+  comments: 0,
+  created_at: "2026-01-01T12:00:00Z",
+  updated_at: "2026-01-01T12:00:00Z",
+  closed_at: null,
+  html_url: `https://github.com/demo/project/pull/${number}`,
+  repository_url: "https://api.github.com/repos/demo/project",
+  pull_request: {
+    url: `https://api.github.com/repos/demo/project/pulls/${number}`,
+    html_url: `https://github.com/demo/project/pull/${number}`,
+    diff_url: "",
+    patch_url: "",
+  },
+});
+async function fixture({
+  fail = [],
+  empty = false,
+  pollInterval = "60",
+  work = [],
+  clock = false,
+} = {}) {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
     reducedMotion: "reduce",
@@ -107,9 +135,10 @@ async function fixture({ fail = [], empty = false } = {}) {
     } else if (path === "/user" || path === "/users/demo") data = actor;
     else if (path === "/user/repos" || path === "/user/starred") data = [repo];
     else if (path === "/repos/demo/project") data = repo;
-    else if (path === "/search/issues")
-      data = { total_count: 0, incomplete_results: false, items: [] };
-    else if (/^\/repos\/demo\/project\/issues\/\d+$/.test(path))
+    else if (path === "/search/issues") {
+      const rows = url.searchParams.get("q")?.includes("review-requested:") ? work : [];
+      data = { total_count: rows.length, incomplete_results: false, items: rows };
+    } else if (/^\/repos\/demo\/project\/issues\/\d+$/.test(path))
       data = {
         id: Number(path.split("/").at(-1)),
         number: Number(path.split("/").at(-1)),
@@ -139,7 +168,10 @@ async function fixture({ fail = [], empty = false } = {}) {
       };
     await route.fulfill({
       contentType: "application/json",
-      headers: { "x-poll-interval": "60", "access-control-expose-headers": "x-poll-interval" },
+      headers: {
+        "x-poll-interval": pollInterval,
+        "access-control-expose-headers": "x-poll-interval",
+      },
       body: JSON.stringify(data),
     });
   });
@@ -147,9 +179,23 @@ async function fixture({ fail = [], empty = false } = {}) {
     route.fulfill({ contentType: "application/json", body: "{}" }),
   );
   const page = await context.newPage();
+  if (clock) await page.clock.install({ time: new Date() });
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(app);
-  return { page, writes, reads, errors, context, close: () => context.close() };
+  return {
+    page,
+    writes,
+    reads,
+    errors,
+    context,
+    replaceWork: (next) => {
+      work = next;
+    },
+    replaceItems: (next) => {
+      items = next;
+    },
+    close: () => context.close(),
+  };
 }
 try {
   const f = await fixture();
@@ -159,6 +205,7 @@ try {
     await page.locator("[data-notification-row]").nth(1).waitFor({ timeout: 5000 });
     await page.getByRole("radio", { name: "All", exact: true }).click();
     assert.equal(await page.locator("[data-notification-row]").count(), 3);
+    if (process.env.INBOX_SCREENSHOT) await page.screenshot({ path: process.env.INBOX_SCREENSHOT });
     await page
       .locator('[data-notification-row="2"]')
       .getByRole("link", { name: "Inbox thread 2" })
@@ -166,6 +213,9 @@ try {
     await page.keyboard.press("Shift+u");
     await page.getByText("Unread on this device", { exact: true }).waitFor();
     assert.equal(f.writes.length, 0);
+    await page.reload();
+    await page.locator('[data-notification-row="2"]').getByText("Unread on this device").waitFor();
+    await page.getByRole("radio", { name: "All", exact: true }).click();
     await page.getByRole("button", { name: "Your turn", exact: true }).click();
     await page
       .getByRole("button", { name: "Inbox", exact: true })
@@ -239,7 +289,6 @@ try {
     await page.getByRole("menuitem", { name: "Mark done", exact: true }).click({ timeout: 3000 });
     await page.waitForFunction(() => !document.querySelector('[data-notification-row="1"]'));
     assert.deepEqual(viewing.errors, []);
-    if (process.env.INBOX_SCREENSHOT) await page.screenshot({ path: process.env.INBOX_SCREENSHOT });
     console.log(
       "PASS viewing marks read once; local unread persists while another island is focused",
     );
@@ -293,6 +342,56 @@ try {
   } finally {
     await subscription.close();
   }
+  const live = await fixture({ pollInterval: "1" });
+  try {
+    const page = live.page;
+    await page.locator('[data-notification-row="1"]').hover();
+    const edited = notification("2", false);
+    edited.subject.title = "Updated while hovering";
+    live.replaceItems([edited, notification("4")]);
+    await page.getByRole("link", { name: "Updated while hovering" }).waitFor({ timeout: 5000 });
+    assert.deepEqual(
+      await page
+        .locator("[data-notification-row]")
+        .evaluateAll((rows) => rows.map((row) => row.dataset.notificationRow)),
+      ["1", "2"],
+    );
+    live.replaceItems([]);
+    await delay(1600);
+    assert.equal(await page.locator("[data-notification-row]").count(), 2);
+    await page.getByRole("heading", { name: "Inbox", exact: true }).hover();
+    await page.getByRole("heading", { name: "You're all caught up" }).waitFor({ timeout: 3000 });
+    assert.deepEqual(live.errors, []);
+    console.log(
+      "PASS live Inbox holds row order and removals while hovering, updates fields, then releases to empty",
+    );
+  } finally {
+    await live.close();
+  }
+  const dashboard = await fixture({ work: [workItem(10), workItem(11)], clock: true });
+  try {
+    const page = dashboard.page;
+    await page.getByRole("button", { name: "Your turn", exact: true }).click();
+    await page.getByRole("link", { name: /Review work 10/ }).hover();
+    const updated = {
+      ...workItem(10, "Updated review work"),
+      created_at: new Date().toISOString(),
+    };
+    dashboard.replaceWork([updated, workItem(12)]);
+    await page.clock.fastForward(16_000);
+    await page.getByRole("link", { name: /Updated review work/ }).waitFor({ timeout: 5000 });
+    assert.equal(await page.getByRole("link", { name: /Review work 11/ }).count(), 1);
+    assert.equal(await page.getByRole("link", { name: /Review work 12/ }).count(), 0);
+    await page.getByRole("heading", { name: "Your turn", exact: true }).hover();
+    await page.getByRole("link", { name: /Review work 12/ }).waitFor();
+    assert.equal(await page.getByRole("link", { name: /Review work 11/ }).count(), 0);
+    assert.deepEqual(dashboard.errors, []);
+    console.log(
+      "PASS Your turn preserves grouped row positions while fields and group membership update",
+    );
+  } finally {
+    await dashboard.close();
+  }
   const empty = await fixture({ empty: true });
   try {
     await empty.page.getByRole("heading", { name: "You're all caught up" }).waitFor();
@@ -301,6 +400,12 @@ try {
       1,
     );
     assert.equal(await empty.page.getByRole("button", { name: "Recent", exact: true }).count(), 1);
+    await empty.page.setViewportSize({ width: 640, height: 900 });
+    assert.equal(
+      await empty.page.getByRole("button", { name: "Recent", exact: true }).isDisabled(),
+      true,
+    );
+    await empty.page.getByText("No recent pages yet.", { exact: true }).waitFor();
     console.log("PASS calm empty Inbox links to work and recent pages");
   } finally {
     await empty.close();

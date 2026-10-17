@@ -51,6 +51,7 @@ let poll: { token: string; at: number; promise?: Promise<unknown> } | undefined;
 /** Shared by the visible-window owner and future notification watchers. */
 export async function refreshNotifications(now = Date.now()): Promise<void> {
   const { token, expired } = useAuthStore.getState();
+  if (useNotificationState.getState().busy.length) return;
   if (
     !token ||
     expired ||
@@ -109,8 +110,10 @@ export async function runNotificationAction(
   action: NotificationAction,
 ): Promise<NotificationResult> {
   if (action !== "unread") assertCanMutate();
-  await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_KEY });
   const token = useAuthStore.getState().token;
+  await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_KEY });
+  if (useAuthStore.getState().token !== token)
+    throw new Error("Session changed. Try again in the current account.");
   const before = queryClient.getQueryData<NotificationFeed>(NOTIFICATIONS_KEY);
   const previousUnread = useNotificationState.getState().unread;
   const busy = new Set(useNotificationState.getState().busy);
@@ -145,6 +148,8 @@ export async function runNotificationAction(
     while (cursor < targets.length) {
       const id = targets[cursor++]!;
       try {
+        if (useAuthStore.getState().token !== token)
+          throw new Error("Session changed. Try again in the current account.");
         if (action !== "unread") {
           const client = getGitHubClient();
           const path = `/notifications/threads/${encodeURIComponent(id)}`;

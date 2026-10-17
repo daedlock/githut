@@ -1,5 +1,6 @@
 import { CheckCircle2, Inbox } from "lucide-react";
 import { useMemo, useState } from "react";
+import { LiveUpdates } from "@/app/components/LiveUpdates";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
@@ -19,6 +20,7 @@ import {
   sortEntries,
 } from "@/app/features/dashboard/lib/filter";
 import { useListNavigation } from "@/app/hooks/useListNavigation";
+import { holdListOrder, useStableList } from "@/app/hooks/useStableList";
 import { cn } from "@/app/lib/cn";
 
 const CATEGORY_TITLES: Record<DashboardCategory, string> = {
@@ -96,6 +98,14 @@ export function DashboardView() {
 
   const isPending = yourTurn.isPending || myPrs.isPending;
   const isError = yourTurn.isError || myPrs.isError;
+  const { items: shownSections, listProps } = useStableList(sections, {
+    key: (section) => section.key,
+    resetKey: `${category}:${repo}:${groupBy}`,
+    merge: (held, current) => ({
+      ...current,
+      entries: holdListOrder(held.entries, filtered, (entry) => `${entry.kind}:${entry.item.id}`),
+    }),
+  });
   useListNavigation(!isPending && !isError);
 
   return (
@@ -115,7 +125,7 @@ export function DashboardView() {
           <div className="min-w-0 flex-1">
             <MainHeader
               title={CATEGORY_TITLES[category]}
-              shown={filtered.length}
+              shown={shownSections.reduce((count, section) => count + section.entries.length, 0)}
               total={counts[category] ?? null}
               groupBy={groupBy}
               onGroupByChange={setGroupBy}
@@ -127,14 +137,16 @@ export function DashboardView() {
               <RowsSkeleton />
             ) : isError ? (
               <ErrorState />
-            ) : sections.length === 0 ? (
+            ) : shownSections.length === 0 ? (
               <EmptyState category={category} repo={repo} />
             ) : (
-              <div className="flex flex-col gap-7">
-                {sections.map((section) => (
-                  <DashboardSection key={section.key} section={section} />
-                ))}
-              </div>
+              <LiveUpdates ready={!isPending} announce={false}>
+                <div className="flex flex-col gap-7" {...listProps}>
+                  {shownSections.map((section) => (
+                    <DashboardSection key={section.key} section={section} />
+                  ))}
+                </div>
+              </LiveUpdates>
             )}
           </div>
         </div>
@@ -341,6 +353,7 @@ function DashboardSection({ section }: { section: DashboardSectionData }) {
         {section.entries.map((entry) => (
           <DashRow
             key={`${entry.kind}-${entry.item.id}`}
+            liveKey={`${entry.kind}:${entry.item.id}`}
             item={entry.item}
             date={pickDate(entry)}
             showReason={section.showReason && entry.kind === "turn"}

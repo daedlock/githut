@@ -3,7 +3,6 @@ import { IslandSwitcher } from "@/app/components/shell/IslandSwitcher";
 import { RecentVisits } from "@/app/components/shell/RecentVisits";
 import { Sidebar, SidebarContent } from "@/app/components/shell/Sidebar";
 import { useDocking } from "@/app/components/shell/useDocking";
-import { NotificationsSync } from "@/app/features/notifications/NotificationsSync";
 import {
   Sheet,
   SheetContent,
@@ -11,6 +10,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/app/components/ui/sheet";
+import { NotificationsSync } from "@/app/features/notifications/NotificationsSync";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { focusPaneOfFocusedTab } from "@/app/lib/tabActions";
 import { SIDEBAR_RAIL_WIDTH, useSidebarStore } from "@/app/stores/sidebar";
