@@ -41,7 +41,15 @@ function dropLabel(source: DockSource, target: DockTarget): string | undefined {
       ? "Open here"
       : "Move here";
 }
-type Drag = { source: DockSource; x: number; y: number; label: string; drop: Drop | null };
+type Drag = {
+  source: DockSource;
+  x: number;
+  y: number;
+  label: string;
+  drop: Drop | null;
+  /** A tab drags a copy of itself; other sources show the label pill. */
+  lifted: boolean;
+};
 
 /**
  * Per-frame drag state lives outside React state of the workspace so only the
@@ -71,6 +79,15 @@ export function useDocking(
       let active = false;
       let current: Drag | null = null;
       let frame = 0;
+      // The dragged element stays in place, dimmed; a copy of a tab follows
+      // the pointer, held where it was grabbed.
+      const origin =
+        source.type === "tab"
+          ? root.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(source.tabId)}"]`)
+          : source.type === "island"
+            ? root.querySelector<HTMLElement>(`[data-island="${CSS.escape(source.islandId)}"]`)
+            : null;
+      let lifted: { el: HTMLElement; dx: number; dy: number } | null = null;
       let point = start;
       const previousCursor = document.documentElement.style.cursor;
       const previousSelection = document.documentElement.style.userSelect;
@@ -79,7 +96,17 @@ export function useDocking(
         frame = 0;
         if (!active) return;
         stripScroll.active = false;
-        current = { source, ...point, label, drop: findDrop(root, source, point.x, point.y) };
+        current = {
+          source,
+          ...point,
+          label,
+          lifted: !!lifted,
+          drop: findDrop(root, source, point.x, point.y),
+        };
+        if (lifted) {
+          const x = Math.min(point.x - lifted.dx, window.innerWidth - lifted.el.offsetWidth);
+          lifted.el.style.transform = `translate(${x}px, ${point.y - lifted.dy}px)`;
+        }
         // Holding still at a strip end keeps scrolling it, not only on move.
         if (stripScroll.active) frame = requestAnimationFrame(update);
         setDrag(current);
@@ -94,6 +121,8 @@ export function useDocking(
           onDragStartRef.current?.();
           document.documentElement.style.cursor = "grabbing";
           document.documentElement.style.userSelect = "none";
+          origin?.setAttribute("data-drag-source", "");
+          if (source.type === "tab" && origin) lifted = liftCopy(origin, start);
         }
         event.preventDefault();
         if (!frame) frame = requestAnimationFrame(update);
@@ -111,6 +140,8 @@ export function useDocking(
         if (root.hasPointerCapture(e.pointerId)) root.releasePointerCapture(e.pointerId);
         document.documentElement.style.cursor = previousCursor;
         document.documentElement.style.userSelect = previousSelection;
+        origin?.removeAttribute("data-drag-source");
+        lifted?.el.remove();
         cleanup.current = null;
         setDrag(null);
         if (active) {
@@ -182,45 +213,95 @@ export function useDocking(
   return { beginDrag, onPointerDown, overlay: <DockingOverlay /> };
 }
 
+/**
+ * A pixel copy of the tab, fixed to the viewport and lifted off the strip. It
+ * lives outside React: it only follows the pointer and is gone on drop.
+ */
+function liftCopy(tab: HTMLElement, grab: { x: number; y: number }) {
+  const rect = tab.getBoundingClientRect();
+  const el = tab.cloneNode(true) as HTMLElement;
+  for (const node of [el, ...el.querySelectorAll("*")]) {
+    for (const attr of [
+      "id",
+      "role",
+      "tabindex",
+      "aria-controls",
+      "aria-selected",
+      "data-tab-id",
+      "data-drag-source",
+    ])
+      node.removeAttribute(attr);
+  }
+  el.setAttribute("aria-hidden", "true");
+  el.setAttribute("data-dock-ghost", "");
+  Object.assign(el.style, {
+    position: "fixed",
+    left: "0",
+    top: "0",
+    zIndex: "50",
+    width: `${rect.width}px`,
+    pointerEvents: "none",
+    transform: `translate(${rect.left}px, ${rect.top}px)`,
+  });
+  el.classList.add("shadow-md");
+  document.body.appendChild(el);
+  return { el, dx: grab.x - rect.left, dy: grab.y - rect.top };
+}
+
+/** Glides between drop targets the way the prototype does, and fades in and out. */
+const PREVIEW_MOTION =
+  "transition-[left,top,width,height,opacity] duration-[110ms,110ms,110ms,110ms,90ms] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none";
+
 function DockingOverlay() {
   const drag = useDragStore((state) => state.drag);
+  // Keep the last target so the preview fades out where it was, instead of
+  // vanishing, when the pointer leaves every drop zone.
+  const last = useRef<Drop | null>(null);
+  if (!drag) last.current = null;
+  else if (drag.drop) last.current = drag.drop;
+  const shown = last.current;
   return (
     drag &&
     createPortal(
       <>
-        {drag.drop && (
+        {shown && (
           <div
-            data-dock-preview={drag.drop.line ? "insert" : drag.drop.target.type}
+            data-dock-preview={shown.line ? "insert" : shown.target.type}
             aria-hidden
-            style={drag.drop.rect}
+            style={shown.rect}
             className={cn(
-              "pointer-events-none fixed z-40",
-              drag.drop.line
-                ? "rounded-full bg-primary"
+              "pointer-events-none fixed z-40 animate-in fade-in-0 duration-[90ms]",
+              PREVIEW_MOTION,
+              !drag.drop && "opacity-0",
+              shown.line
+                ? // Above the lifted tab, which would otherwise cover the gap it marks.
+                  "z-[60] rounded-full bg-primary"
                 : "grid place-items-center rounded-island bg-[color-mix(in_oklab,var(--color-brand)_12%,transparent)] ring-1 ring-primary/40",
             )}
           >
-            {!drag.drop.line && drag.drop.label && (
+            {!shown.line && shown.label && (
               <span
                 data-dock-label
                 className="rounded-full bg-popover px-2.5 py-1 font-medium text-caption text-foreground shadow-md ring-1 ring-foreground/10"
               >
-                {drag.drop.label}
+                {shown.label}
               </span>
             )}
           </div>
         )}
-        <div
-          data-dock-ghost
-          aria-hidden
-          style={{
-            left: Math.min(drag.x + 12, window.innerWidth - 264),
-            top: Math.min(drag.y + 10, window.innerHeight - 44),
-          }}
-          className="pointer-events-none fixed z-50 max-w-64 truncate rounded-lg bg-popover px-3 py-2 text-ui shadow-md ring-1 ring-foreground/10"
-        >
-          {drag.label}
-        </div>
+        {!drag.lifted && (
+          <div
+            data-dock-ghost
+            aria-hidden
+            style={{
+              left: Math.min(drag.x + 12, window.innerWidth - 264),
+              top: Math.min(drag.y + 10, window.innerHeight - 44),
+            }}
+            className="pointer-events-none fixed z-50 max-w-64 truncate rounded-lg bg-popover px-3 py-2 text-ui shadow-md ring-1 ring-foreground/10"
+          >
+            {drag.label}
+          </div>
+        )}
       </>,
       document.body,
     )

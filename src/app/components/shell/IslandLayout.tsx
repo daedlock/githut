@@ -135,6 +135,12 @@ export function IslandLayout({
 
 // ─── Island ────────────────────────────────────────────────────────────────
 
+/** When the last dock committed; islands mounting right after it animate in. */
+let dockedAt = Number.NEGATIVE_INFINITY;
+useWorkspaceStore.subscribe((state, prev) => {
+  if (state.dockingRevision !== prev.dockingRevision) dockedAt = performance.now();
+});
+
 const sameRect = (a: Rect, b: Rect) =>
   a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height;
 
@@ -196,13 +202,29 @@ const IslandFrame = memo(
           { transformOrigin: "0 0", transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
           { transformOrigin: "0 0", transform: "none" },
         ],
-        { duration: 150, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+        { duration: 220, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
       );
       return () => animation.cancel();
     }, [revision]);
     useLayoutEffect(() => {
       previous.current = rect;
     });
+    // An island a dock just created grows in from its slot rather than popping.
+    useLayoutEffect(() => {
+      const el = frame.current;
+      if (!el || performance.now() - dockedAt > 300) return;
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      el.animate(
+        [
+          { opacity: 0, transform: "scale(0.97)" },
+          { opacity: 1, transform: "none" },
+        ],
+        {
+          duration: 200,
+          easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+        },
+      );
+    }, []);
     return (
       <section
         ref={frame}
@@ -220,7 +242,7 @@ const IslandFrame = memo(
         className={cn(
           "@container absolute flex-col overflow-hidden rounded-island bg-background",
           shown ? "flex" : "hidden",
-          "transition-shadow duration-150",
+          "transition-shadow duration-150 data-drag-source:opacity-45",
           focused ? "shadow-(--island-shadow-focus)" : "shadow-(--island-shadow)",
         )}
       >

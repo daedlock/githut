@@ -309,6 +309,7 @@ const TabItem = memo(function TabItem({
                 "group relative flex h-7 shrink-0 cursor-default items-center gap-1.5 rounded-lg",
                 pinned ? "px-2" : "min-w-16 max-w-[220px] pl-2 pr-1",
                 "text-ui outline-none focus-visible:ring-1 focus-visible:ring-(--color-focus)",
+                "data-drag-source:opacity-30",
                 !selected && "text-muted-foreground hover:bg-accent hover:text-foreground",
                 selected && !focused && "bg-muted text-foreground ring-1 ring-border",
                 selected &&
