@@ -32,7 +32,7 @@ import { visibleIslandIds } from "@/app/workspace/view";
 // ─── TabHost ───────────────────────────────────────────────────────────────
 //
 // Sidebar controls sit beside the full-height islands, inside a consistent frame gutter.
-// Repo sections and contextual controls live in each island header.
+// Each island has a header (tabs, island actions) and a breadcrumb row.
 // The layout itself is drawn by IslandLayout.
 //
 // Recently used tabs stay mounted inside <Activity>: hidden panes keep their

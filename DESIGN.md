@@ -268,8 +268,8 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
 - Compact sidebar controls hold its toggle, command-search icon and account menu.
   In the collapsed rail these controls stack vertically. There is no global title
   bar or visible command-search field. Cmd/Ctrl+K still opens command search.
-- Repo identity and sections stay in island headers; focused context is reflected
-  by the focused island and browser URL.
+- Repo identity and sections live in each island's breadcrumb row; focused
+  context is reflected by the focused island and browser URL.
 - Offline, rate-limit and storage-full notices float at the workspace's
   bottom-right while needed, without reserving space (all focusable `Badge`s
   with a tooltip).
@@ -277,10 +277,9 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
   action and never replaces tabs or drafts.
 ### Island header
 - `h-10 flex items-center gap-1 pl-1 pr-1.5`: the tab row takes the
-  remaining width, then the section menu, the Open in GitHub link
-  (`ExternalLink`, only where GitHub has the page), then the island menu
-  (`Button ghost icon-sm`, `Columns2`: Split right, Split down,
-  Maximize/Restore).
+  remaining width, then the island menu (`Button ghost icon-sm`,
+  `Columns2`: Split right, Split down, Maximize/Restore). The header holds
+  only tabs and island actions; location lives in the breadcrumb row below.
 - **Tabs:** `h-7 rounded-lg pl-2 pr-1 gap-1.5 text-ui`, 64–220px wide.
   Order: repo mark (`sm`) → state icon (16px box, `size-3.5`, coloured by
   open / merged / closed / draft) → mono `#number` in `--color-fg-faint` →
@@ -302,15 +301,40 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
   second menu with the same list.
 - A maximized island shows a Restore button (`Minimize2`) before the
   island menu, so hidden islands never look closed.
-- **Sections** (Code, Commits, PRs, Issues, Actions) act on the island's
-  selected tab's repo; their labels and tooltips name it ("githut · PRs").
-  Tiers are static and decided by island width only (container queries),
-  never by hover: icon plus label while the island is wider than 760px,
-  icons only up to 760px, and one "⋯" menu at 480px and below. The
-  current section is `bg-muted text-foreground`. Pages without a repo
-  show no sections. In narrow mode the header is sidebar toggle → tabs →
-  island switcher → "⋯" sections → Open in GitHub: no island menu, no tab
-  chevron.
+- In narrow mode the header is sidebar toggle → tabs → island switcher:
+  no island menu, no tab chevron.
+
+### Breadcrumb row
+`BreadcrumbRow` (`components/shell/BreadcrumbRow.tsx`), directly under every
+island's tabs, for its selected tab:
+
+```
+[mark] owner / repo ⌄  ›  Section ⌄  ›  #n Title ⌄          ⎇ branch ⌄  ↗
+```
+
+- `h-8 flex items-center gap-2 pl-2 pr-1.5 text-ui text-muted-foreground`.
+  Crumbs are `h-6` links; a crumb and its chevron share one hover surface
+  (`bg-accent/60`). Separators are `›` in `--color-fg-faint`. The current
+  crumb is `font-medium text-foreground` and goes nowhere.
+- Crumbs are links that navigate the island's tab: ⇧-click opens a new tab,
+  ⌥-click opens to the side, ⌘/Ctrl-click goes to the browser.
+- Each chevron opens a `SiblingPicker` (shadcn Popover + Command) listing
+  the crumb's siblings: repos grouped by owner (picking one keeps the
+  section), the five sections, or the repo's other PRs/issues with state
+  icons and mono numbers. It opens on the current item; ↵ opens here, ⇧↵ in
+  a new tab, ⌥↵ to the side, Esc closes, and the chevron toggles it.
+- Remote lists share their queries with the sidebar and list pages and load
+  only while a picker is open: `Skeleton` rows on first load, cached rows at
+  once with a silent refresh, and the empty-state pattern with Retry when
+  loading fails with nothing cached.
+- Branch-aware pages (Code, Commits, Actions) add a mono branch chip with
+  the same picker; choosing a branch switches the page (`?branch=`).
+  Actions also offers All branches. Then Open in GitHub (`ExternalLink`,
+  only where GitHub has the page) ends the row.
+- An unknown PR or issue title shows a `Skeleton` (`h-3 w-36`).
+- Unfocused islands dim the row (`opacity-65`). Islands at 480px and
+  narrower drop the owner, the item title and the branch name.
+- App-wide pages (Inbox, profiles) show one crumb naming the page.
 
 ### Sidebar
 

@@ -1,4 +1,4 @@
-import { getFocusedTabRouter } from "@/app/lib/tabRouters";
+import { getFocusedTabRouter, getTabRouter } from "@/app/lib/tabRouters";
 import { isSettingsHref, openSettings } from "@/app/stores/settingsModal";
 import { type Direction, focusedTab, type Side } from "@/app/workspace/model";
 import { dispatch, getWorkspace } from "@/app/workspace/store";
@@ -30,6 +30,12 @@ export function openToSide(href: string, islandId?: string) {
 export function replaceFocusedTab(href: string) {
   if (isSettingsHref(href)) return openSettings();
   void getFocusedTabRouter()?.navigate({ href });
+}
+
+/** Navigate one tab through its own history, like an in-page link click. */
+export function navigateTab(tab: { id: string; href: string }, href: string) {
+  if (isSettingsHref(href)) return openSettings();
+  void getTabRouter(tab.id, tab.href).navigate({ href });
 }
 
 /** Keep link actions in the source island even when a hover menu is portalled. */

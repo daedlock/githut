@@ -9,10 +9,9 @@ import {
   useRef,
   useState,
 } from "react";
-import { OpenInGithubLink } from "@/app/components/OpenInGithubLink";
+import { BreadcrumbRow } from "@/app/components/shell/BreadcrumbRow";
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { IslandSwitcher } from "@/app/components/shell/IslandSwitcher";
-import { SectionMenu } from "@/app/components/shell/SectionMenu";
 import { SidebarToggle } from "@/app/components/shell/SidebarControls";
 import { TabStrip } from "@/app/components/shell/TabStrip";
 import { Button } from "@/app/components/ui/button";
@@ -231,6 +230,7 @@ const IslandFrame = memo(
           maximized={maximized}
           canMaximize={canMaximize}
         />
+        <BreadcrumbRow island={island} focused={focused} />
         <div className="relative min-h-0 flex-1">{renderPanes(island, shown)}</div>
       </section>
     );
@@ -256,7 +256,6 @@ const IslandHeader = memo(function IslandHeader({
   maximized: boolean;
   canMaximize: boolean;
 }) {
-  const href = selectedTab(island).href;
   const narrow = useWorkspaceView((state) => state.narrow);
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: double-click maximize is a mouse shortcut; the island menu offers the same action
@@ -273,11 +272,10 @@ const IslandHeader = memo(function IslandHeader({
       {narrow && focused && <SidebarToggle />}
       <TabStrip island={island} focused={focused} />
       {narrow && focused && <IslandSwitcher />}
-      {/* Narrow mode keeps most of the header for tabs: sections fold into
-          one menu, and the island menu (splits only make sense with room for
-          two islands) gives way to the switcher. */}
-      <SectionMenu href={href} compact={narrow} />
-      <OpenInGithubLink href={href} />
+      {/* The header holds only tabs and island actions; where you are, and
+          the way around the repo, is the breadcrumb row below. Narrow mode
+          drops the island menu (splits need room for two islands) for the
+          switcher. */}
       {maximized && !narrow && (
         // The other islands are hidden, not closed: say so and offer the way back.
         <Tooltip>

@@ -189,37 +189,94 @@ try {
   } finally {
     await hover.close();
   }
-  const launchers = await fixture();
+  const crumbs = await fixture();
   try {
-    const page = launchers.page;
+    const page = crumbs.page;
     await issueLink(page, 1).click({ modifiers: ["Alt"] });
     await tabCount(page, 2);
     const first = page.locator("[data-island]").first();
     const second = page.locator("[data-island]").nth(1);
-    await first.getByRole("button", { name: "project PRs", exact: true }).click();
+    const trail = second.getByRole("navigation", { name: "Location" });
+    // The header no longer carries sections; the breadcrumb row does.
+    assert.equal(await page.getByRole("navigation", { name: "project sections" }).count(), 0);
+    await trail.getByText("Navigation issue 1").waitFor();
+
+    // A sibling picker opens on the current item; ↓ ↵ moves this tab.
+    await second.getByRole("button", { name: "Other issues", exact: true }).click();
+    await page.getByRole("option", { name: /#1 Navigation issue 1/, selected: true }).waitFor();
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    await page.waitForURL(`${app}/demo/project/issues/2`);
+    await tabCount(page, 2);
+
+    // Crumbs are links: plain click navigates the tab, ⇧-click opens a new one.
+    await trail.getByRole("link", { name: "Issues", exact: true }).click();
+    await page.waitForURL(`${app}/demo/project/issues`);
+    await tabCount(page, 2);
+    await trail.getByRole("link", { name: "demo / project" }).click({ modifiers: ["Shift"] });
+    await page.waitForURL(`${app}/demo/project/code`);
     await tabCount(page, 3);
-    await second.getByRole("button", { name: "project PRs", exact: true }).click();
-    await page.waitForFunction(
-      () => document.querySelector("[data-island]")?.hasAttribute("data-focused"),
-      null,
-      { timeout: 5000 },
-    );
+
+    // The section picker filters, and its chevron toggles it.
+    const sections = second.getByRole("button", { name: "project sections", exact: true });
+    await sections.click();
+    await page.getByRole("option", { name: "Code", selected: true }).waitFor();
+    await sections.click();
+    await page.getByRole("listbox").waitFor({ state: "hidden" });
+    await sections.click();
+    await page.keyboard.type("pull");
+    await page.keyboard.press("Enter");
+    await page.waitForURL(`${app}/demo/project/pulls`);
     await tabCount(page, 3);
-    assert.equal(await second.getByRole("tab").count(), 1);
-    await page.setViewportSize({ width: 1000, height: 900 });
-    await second.getByRole("button", { name: "project sections", exact: true }).click();
-    await page.getByRole("menuitem", { name: "PRs", exact: true }).click();
-    await page.getByRole("menu").waitFor({ state: "hidden" });
-    await page.waitForFunction(
-      () => document.querySelector("[data-island]")?.hasAttribute("data-focused"),
-      null,
-      { timeout: 5000 },
-    );
-    await tabCount(page, 3);
-    assert.deepEqual(launchers.errors, []);
-    console.log("PASS section launchers jump across islands without replacing tabs");
+    await page.getByRole("listbox").waitFor({ state: "hidden" });
+    await sections.click();
+    await page.keyboard.type("act");
+    await page.keyboard.press("Shift+Enter");
+    await page.waitForURL(`${app}/demo/project/actions`);
+    await tabCount(page, 4);
+
+    // Only the focused island's row is at full strength.
+    const opacity = (island) =>
+      island.locator("[data-breadcrumbs]").evaluate((el) => Number(getComputedStyle(el).opacity));
+    assert.equal(await opacity(second), 1);
+    assert.ok((await opacity(first)) < 1);
+    assert.deepEqual(crumbs.errors, []);
+    console.log("PASS breadcrumbs navigate the tab and pickers open siblings with link modifiers");
   } finally {
-    await launchers.close();
+    await crumbs.close();
+  }
+  const branches = await fixture();
+  try {
+    const page = branches.page;
+    let failing = true;
+    await page.route("https://api.github.com/repos/demo/project/branches**", (route) =>
+      failing
+        ? route.fulfill({ status: 500, contentType: "application/json", body: "{}" })
+        : route.fulfill({
+            contentType: "application/json",
+            body: JSON.stringify(
+              ["main", "dev"].map((name) => ({
+                name,
+                commit: { sha: "a", url: "" },
+                protected: false,
+              })),
+            ),
+          }),
+    );
+    await palette(page, "> Code");
+    await page.waitForURL(`${app}/demo/project/code`);
+    const island = page.locator("[data-island][data-focused]");
+    assert.equal(await page.getByRole("button", { name: /Switch branch/ }).count(), 1);
+    await island.getByRole("button", { name: /Switch branch/ }).click();
+    await page.getByRole("alert").getByText("Couldn't load this list.").waitFor({ timeout: 8000 });
+    failing = false;
+    await page.getByRole("button", { name: "Retry", exact: true }).click();
+    await page.getByRole("option", { name: "dev" }).click();
+    await page.waitForURL(`${app}/demo/project/code?branch=dev`);
+    assert.deepEqual(branches.errors, []);
+    console.log("PASS branch chip shows the error pattern, retries, and switches branch");
+  } finally {
+    await branches.close();
   }
   const modifiers = await fixture();
   try {
