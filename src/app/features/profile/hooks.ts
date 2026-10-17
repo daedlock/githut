@@ -1,6 +1,7 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { getGitHubClient } from "@/app/lib/github/client";
+import { retrySessionExpiry } from "@/app/lib/query";
 import { useAuthStore } from "@/app/stores/auth";
 import type { RepoSummary } from "@/shared/types";
 import {
@@ -107,7 +108,7 @@ export const profileReadmeQueryOptions = (login: string, isOrg: boolean) =>
   queryOptions({
     queryKey: profileKeys.readme(login, isOrg),
     staleTime: 5 * 60 * 1000,
-    retry: false,
+    retry: retrySessionExpiry,
     queryFn: async (): Promise<string | null> => {
       const client = getGitHubClient();
       try {
@@ -144,7 +145,7 @@ export const userEventsQueryOptions = (login: string, isOrg: boolean) =>
   queryOptions({
     queryKey: profileKeys.events(login, isOrg),
     staleTime: 5 * 60 * 1000,
-    retry: false,
+    retry: retrySessionExpiry,
     queryFn: async (): Promise<GitHubEvent[]> => {
       const client = getGitHubClient();
       try {
@@ -169,7 +170,7 @@ export const orgMembersQueryOptions = (org: string) =>
   queryOptions({
     queryKey: profileKeys.members(org),
     staleTime: 5 * 60 * 1000,
-    retry: false,
+    retry: retrySessionExpiry,
     queryFn: async (): Promise<OrgMember[]> => {
       const client = getGitHubClient();
       const res = await client.request("GET /orgs/{org}/members", {

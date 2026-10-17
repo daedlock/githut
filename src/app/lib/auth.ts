@@ -1,7 +1,7 @@
 import { useAuthStore } from "@/app/stores/auth";
 
 const OAUTH_TOKEN_KEY = "githut.oauth_token";
-/** Set while a sign-in popup is open: the time it was opened. */
+/** Stored only in the sign-in popup's sessionStorage, never shared across windows. */
 const REAUTH_PENDING_KEY = "githut.reauth_pending";
 const REAUTH_TTL_MS = 15 * 60 * 1000;
 /** Same-origin channel the sign-in popup hands its token over on. */
@@ -57,8 +57,8 @@ export function bootstrapAuthFromHash(): AuthBootstrap {
 
 function takeReauthPending(): boolean {
   try {
-    const at = Number(localStorage.getItem(REAUTH_PENDING_KEY));
-    localStorage.removeItem(REAUTH_PENDING_KEY);
+    const at = Number(sessionStorage.getItem(REAUTH_PENDING_KEY));
+    sessionStorage.removeItem(REAUTH_PENDING_KEY);
     return at > 0 && Date.now() - at < REAUTH_TTL_MS;
   } catch {
     return false;
@@ -77,18 +77,19 @@ export function startLogin() {
  * from storage, but cached pages reload.
  */
 export function startReauth() {
-  try {
-    localStorage.setItem(REAUTH_PENDING_KEY, String(Date.now()));
-  } catch {
+  if (typeof BroadcastChannel === "undefined") {
     startLogin();
     return;
   }
-  const popup = window.open("/api/auth/login", "githut-sign-in", "popup,width=520,height=720");
-  if (popup) return;
+  const popup = window.open("about:blank", "githut-sign-in", "popup,width=520,height=720");
   try {
-    localStorage.removeItem(REAUTH_PENDING_KEY);
+    if (popup) {
+      popup.sessionStorage.setItem(REAUTH_PENDING_KEY, String(Date.now()));
+      popup.location.href = "/api/auth/login";
+      return;
+    }
   } catch {
-    // ignore
+    popup?.close();
   }
   startLogin();
 }

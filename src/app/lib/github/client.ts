@@ -1,5 +1,6 @@
 import { Octokit } from "@octokit/core";
 import type { OctokitResponse } from "@octokit/types";
+import { assertCanMutate } from "@/app/lib/connectivity";
 import { useAuthStore } from "@/app/stores/auth";
 
 // ─── ETag cache ────────────────────────────────────────────────────────────
@@ -116,6 +117,7 @@ export function getGitHubClient(): Octokit {
     };
 
     if (method !== "GET") {
+      assertCanMutate();
       const response = await request(versionedOptions);
       // After any write, evict cached GET responses for the same repo so
       // subsequent refetches bypass the ETag 304 path and get fresh data.
@@ -163,7 +165,9 @@ export function getGitHubClient(): Octokit {
   // mark the session expired so the workspace (tabs, drafts, cached pages)
   // stays put and a banner offers to sign in again (see lib/session.ts).
   client.hook.error("request", (error) => {
-    if ("status" in error && error.status === 401) useAuthStore.getState().markExpired();
+    if ("status" in error && error.status === 401 && useAuthStore.getState().token === token) {
+      useAuthStore.getState().markExpired();
+    }
     throw error;
   });
 

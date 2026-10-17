@@ -1,4 +1,12 @@
-import { CheckCircle2, CircleDot, Eye, GitPullRequest, ImagePlus, Pencil, Send } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleDot,
+  Eye,
+  GitPullRequest,
+  ImagePlus,
+  Pencil,
+  Send,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
 import { Avatar } from "@/app/components/ui/avatar";
@@ -120,7 +128,9 @@ function Row({
       className={cn(
         "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left outline-hidden select-none",
         "transition-colors duration-75",
-        selected ? "bg-[var(--color-popover-active)] text-foreground" : "hover:bg-[var(--color-popover-active)]",
+        selected
+          ? "bg-[var(--color-popover-active)] text-foreground"
+          : "hover:bg-[var(--color-popover-active)]",
       )}
     >
       {item.kind === "@" ? (
@@ -226,7 +236,9 @@ export function ComposeBox({
     const api = items ?? [];
     if (!participants?.length || trigger?.type !== "@") return api;
     const q = debouncedQuery.toLowerCase();
-    const apiLogins = new Set(api.filter((i): i is MentionUser => i.kind === "@").map((i) => i.login));
+    const apiLogins = new Set(
+      api.filter((i): i is MentionUser => i.kind === "@").map((i) => i.login),
+    );
     const seed = participants.filter(
       (p) => !apiLogins.has(p.login) && (!q || p.login.toLowerCase().includes(q)),
     );
@@ -260,7 +272,7 @@ export function ComposeBox({
   const uploadFile = useCallback(
     async (file: File) => {
       const token = useAuthStore.getState().token;
-      if (!token || !file.type.startsWith("image/")) return;
+      if (!token || !canMutate || !file.type.startsWith("image/")) return;
 
       setUploading(true);
       const ta = textareaRef.current;
@@ -276,6 +288,8 @@ export function ComposeBox({
           headers: { Authorization: `Bearer ${token}`, "Content-Type": file.type },
           body: await file.arrayBuffer(),
         });
+        if (res.status === 401 && useAuthStore.getState().token === token)
+          useAuthStore.getState().markExpired();
         if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
         const { url } = (await res.json()) as { url: string };
         const markdown = `![${file.name}](${url})`;
@@ -286,7 +300,7 @@ export function ComposeBox({
         setUploading(false);
       }
     },
-    [onChange],
+    [onChange, canMutate],
   );
 
   function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
@@ -412,20 +426,22 @@ export function ComposeBox({
           </TabPill>
         </div>
         <div className="flex-1" />
-        <div className={cn(
-          "flex items-center gap-2 pr-1 transition-opacity duration-200",
-          focused ? "opacity-100" : "opacity-0",
-        )}>
+        <div
+          className={cn(
+            "flex items-center gap-2 pr-1 transition-opacity duration-200",
+            focused ? "opacity-100" : "opacity-0",
+          )}
+        >
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
+            disabled={uploading || !canMutate}
             className={cn(
               "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[var(--color-fg-faint)]",
               "outline-none transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-foreground",
               uploading && "animate-pulse",
             )}
-            title="Attach an image"
+            title={cannotMutateReason ?? "Attach an image"}
           >
             <ImagePlus className="size-3" />
             <span className="font-mono text-micro">{uploading ? "Uploading…" : "Attach"}</span>
@@ -526,7 +542,6 @@ export function ComposeBox({
       {/* ── Footer ───────────────────────────────────────────────────── */}
       {onSubmit && (
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--color-border)] px-3 py-2">
-
           <span className="mr-auto hidden font-mono text-micro text-[var(--color-fg-faint)] select-none @min-[24rem]/compose:inline">
             {navigator.platform?.includes("Mac") ? "⌘" : "Ctrl"}+Enter to submit
           </span>

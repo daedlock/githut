@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { MyReactionsMap, ReactionContent, ReactionsMap } from "@/app/features/issues/schemas";
 import { REACTION_CONTENTS, REACTION_EMOJIS, reactionsHaveAny } from "@/app/features/issues/utils";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 
 const POP = { type: "spring" as const, stiffness: 600, damping: 22, mass: 0.5 };
 const HOVER = { type: "spring" as const, stiffness: 400, damping: 10, mass: 0.3 };
@@ -41,6 +42,7 @@ export function ReactionsBar({
   onToggle?: (content: ReactionContent, existingReactionId?: number) => void;
   className?: string;
 }) {
+  const { canMutate, reason } = useCanMutate();
   const [open, setOpen] = useState(false);
   const barRef = useRef<HTMLDivElement>(null);
   const hasAny = reactionsHaveAny(reactions);
@@ -79,8 +81,9 @@ export function ReactionsBar({
               transition={{ layout: BADGE }}
               type="button"
               onClick={() => onToggle?.(k, mineId)}
+              disabled={!canMutate || !onToggle}
               aria-pressed={mine}
-              title={mine ? "Remove your reaction" : `React with ${k}`}
+              title={reason ?? (mine ? "Remove your reaction" : `React with ${k}`)}
               className={cn(
                 "inline-flex h-6 items-center gap-1.5 rounded-full border px-2.5 leading-none",
                 "outline-none transition-colors",
@@ -118,7 +121,8 @@ export function ReactionsBar({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        title="Add reaction"
+        title={reason ?? "Add reaction"}
+        disabled={!canMutate || !onToggle}
         aria-label="Add reaction"
         aria-expanded={open}
         className={cn(
@@ -136,6 +140,7 @@ export function ReactionsBar({
 
       <AnimatePresence>
         {open &&
+          canMutate &&
           REACTION_CONTENTS.map((k, i) => {
             const mineId = myReactions.get(k);
             const mine = mineId != null;

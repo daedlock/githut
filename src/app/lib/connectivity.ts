@@ -11,7 +11,7 @@ import { useAuthStore } from "@/app/stores/auth";
 // turning them into error states, and both recover the same way.
 
 function browserOnline(): boolean {
-  return typeof navigator === "undefined" ? true : navigator.onLine;
+  return typeof navigator === "undefined" || navigator.onLine !== false;
 }
 
 function subscribeBrowserOnline(onChange: () => void): () => void {
@@ -49,7 +49,19 @@ export function useBrowserOnline(): boolean {
 export function useCanMutate(): { canMutate: boolean; reason: string | undefined } {
   const online = useBrowserOnline();
   const expired = useAuthStore((s) => s.expired);
-  if (!online) return { canMutate: false, reason: "You're offline. Reconnect to make changes." };
-  if (expired) return { canMutate: false, reason: "Sign in again to make changes." };
-  return { canMutate: true, reason: undefined };
+  const token = useAuthStore((s) => s.token);
+  const reason = unavailableReason(online, expired || !token);
+  return { canMutate: !reason, reason };
+}
+
+function unavailableReason(online: boolean, signedOut: boolean): string | undefined {
+  if (!online) return "You're offline. Reconnect to make changes.";
+  if (signedOut) return "Sign in again to make changes.";
+}
+
+/** Reject before optimistic work starts; no write is queued for reconnect. */
+export function assertCanMutate(): void {
+  const { token, expired } = useAuthStore.getState();
+  const reason = unavailableReason(browserOnline(), expired || !token);
+  if (reason) throw new Error(reason);
 }

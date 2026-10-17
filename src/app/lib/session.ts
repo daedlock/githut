@@ -34,8 +34,10 @@ export async function resumeSession(token: string): Promise<void> {
   if (!current.token) return;
   if (token === current.token && !current.expired) return;
   const previous = queryClient.getQueryData<{ login?: string }>(["me"])?.login;
-  const login = previous ? await fetchLogin(token) : undefined;
-  const sameUser = !previous || login === previous;
+  const login = await fetchLogin(token);
+  if (!login || useAuthStore.getState().token !== current.token) return;
+  const sameUser = login === previous;
+  if (!sameUser) queryClient.clear();
   adoptToken(token, { sameUser });
   if (!sameUser) {
     window.location.reload();

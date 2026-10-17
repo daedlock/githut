@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Check,
@@ -10,11 +9,13 @@ import {
   RotateCcw,
   X,
 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
+import { Button } from "@/app/components/ui/button";
 import { CommentCardDisplay } from "@/app/components/ui/CommentCard";
 import { CommentComposeCard } from "@/app/components/ui/CommentComposeCard";
-import { Button } from "@/app/components/ui/button";
 import { ProfileLink } from "@/app/components/user/ProfileLink";
+import { EMPTY_MY_REACTIONS, type ReactionContent } from "@/app/features/issues/schemas";
 import {
   useDeleteReviewComment,
   useMyReviewCommentReactions,
@@ -25,10 +26,10 @@ import {
   useUpdateReviewComment,
 } from "@/app/features/pulls/hooks";
 import type { Review, ReviewComment, ReviewState } from "@/app/features/pulls/schemas";
-import { EMPTY_MY_REACTIONS, type ReactionContent } from "@/app/features/issues/schemas";
-import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { useMe } from "@/app/hooks/useMe";
+import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 import { formatRelativeTime } from "@/app/lib/time";
 import { draftKey, draftPage, hasDraft } from "@/app/stores/drafts";
 
@@ -48,8 +49,7 @@ function tone(state: ReviewState): Tone {
     case "APPROVED":
       return {
         rail: "before:bg-[var(--color-success)]",
-        headerTint:
-          "bg-[color-mix(in_oklab,var(--color-success)_10%,var(--color-muted))]",
+        headerTint: "bg-[color-mix(in_oklab,var(--color-success)_10%,var(--color-muted))]",
         iconRing: "ring-[color-mix(in_oklab,var(--color-success)_40%,transparent)]",
         iconColor: "text-[var(--color-success)]",
         label: "Approved",
@@ -58,8 +58,7 @@ function tone(state: ReviewState): Tone {
     case "CHANGES_REQUESTED":
       return {
         rail: "before:bg-[var(--color-danger)]",
-        headerTint:
-          "bg-[color-mix(in_oklab,var(--color-danger)_10%,var(--color-muted))]",
+        headerTint: "bg-[color-mix(in_oklab,var(--color-danger)_10%,var(--color-muted))]",
         iconRing: "ring-[color-mix(in_oklab,var(--color-danger)_40%,transparent)]",
         iconColor: "text-[var(--color-danger)]",
         label: "Requested changes",
@@ -77,8 +76,7 @@ function tone(state: ReviewState): Tone {
     case "PENDING":
       return {
         rail: "before:bg-[var(--color-warning)]",
-        headerTint:
-          "bg-[color-mix(in_oklab,var(--color-warning)_10%,var(--color-muted))]",
+        headerTint: "bg-[color-mix(in_oklab,var(--color-warning)_10%,var(--color-muted))]",
         iconRing: "ring-[color-mix(in_oklab,var(--color-warning)_40%,transparent)]",
         iconColor: "text-[var(--color-warning)]",
         label: "Pending review",
@@ -118,9 +116,9 @@ function groupByFile(comments: ReviewComment[]): FileGroup[] {
 
   const byPath = new Map<string, Thread[]>();
   for (const root of roots) {
-    const replies = (repliesByRoot.get(root.id) ?? []).slice().sort(
-      (a, b) => (a.created_at < b.created_at ? -1 : 1),
-    );
+    const replies = (repliesByRoot.get(root.id) ?? [])
+      .slice()
+      .sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
     const arr = byPath.get(root.path) ?? [];
     arr.push({ root, replies });
     byPath.set(root.path, arr);
@@ -143,9 +141,7 @@ function groupByFile(comments: ReviewComment[]): FileGroup[] {
 function HunkExcerpt({ hunk }: { hunk: string }) {
   const lines = hunk.split("\n").filter((l) => l.length > 0);
   // Drop the @@ header, show last 4 lines (the comment is anchored at the tail).
-  const tail = lines
-    .filter((l) => !l.startsWith("@@"))
-    .slice(-4);
+  const tail = lines.filter((l) => !l.startsWith("@@")).slice(-4);
 
   return (
     <div className="overflow-hidden rounded-md border border-border/60 bg-[var(--color-code-bg)] font-mono text-code leading-[1.55]">
@@ -262,6 +258,7 @@ function ThreadBlock({
 
   const resolutionQuery = useThreadResolution(owner, repo, number);
   const resolveMutation = useResolveThread(owner, repo, number);
+  const { canMutate, reason } = useCanMutate();
   const threadInfo = resolutionQuery.data?.get(thread.root.id);
   const isResolved = threadInfo?.isResolved ?? false;
   const threadNodeId = threadInfo?.threadNodeId;
@@ -288,7 +285,7 @@ function ThreadBlock({
   }, [allComments]);
 
   function handleReply(body: string) {
-    if (!body || replyMutation.isPending) return;
+    if (!body || replyMutation.isPending || !canMutate) return;
     // Fire-and-forget: optimistic insertion happens in onMutate, so close
     // the box immediately for instant feedback.
     replyMutation.mutate({ inReplyToId: thread.root.id, body });
@@ -296,7 +293,7 @@ function ThreadBlock({
   }
 
   function handleResolveToggle() {
-    if (!threadNodeId || resolveMutation.isPending) return;
+    if (!threadNodeId || resolveMutation.isPending || !canMutate) return;
     resolveMutation.mutate({ threadNodeId, resolve: !isResolved });
   }
 
@@ -322,16 +319,11 @@ function ThreadBlock({
           <span className="text-foreground">Resolved</span>
           <span className="text-[var(--color-fg-faint)]">
             {" "}
-            by{" "}
-            <span className="text-muted-foreground">
-              {lastComment.user?.login ?? "ghost"}
-            </span>
+            by <span className="text-muted-foreground">{lastComment.user?.login ?? "ghost"}</span>
             {" — "}
           </span>
           <span className="text-muted-foreground">
-            {thread.root.body.length > 60
-              ? `${thread.root.body.slice(0, 60)}…`
-              : thread.root.body}
+            {thread.root.body.length > 60 ? `${thread.root.body.slice(0, 60)}…` : thread.root.body}
           </span>
         </span>
       </button>
@@ -411,10 +403,9 @@ function ThreadBlock({
                 variant="ghost"
                 size="xs"
                 onClick={handleResolveToggle}
-                disabled={resolveMutation.isPending}
-                className={cn(
-                  isResolved && "text-[var(--color-fg-faint)] hover:text-foreground",
-                )}
+                disabled={resolveMutation.isPending || !canMutate}
+                title={reason}
+                className={cn(isResolved && "text-[var(--color-fg-faint)] hover:text-foreground")}
               >
                 {isResolved ? (
                   <RotateCcw data-icon="inline-start" />
@@ -424,15 +415,11 @@ function ThreadBlock({
                 {isResolved ? "Unresolve" : "Resolve"}
               </Button>
             )}
-              {isResolved && expandedAfterResolve && (
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => setExpandedAfterResolve(false)}
-                >
-                  Collapse
-                </Button>
-              )}
+            {isResolved && expandedAfterResolve && (
+              <Button variant="ghost" size="xs" onClick={() => setExpandedAfterResolve(false)}>
+                Collapse
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -455,22 +442,14 @@ function FileSection({
     <div className="space-y-2">
       <div className="flex items-center gap-2 px-1">
         <FileCode className="size-3.5 shrink-0 text-[var(--color-fg-faint)]" />
-        <span className="truncate font-mono text-caption text-muted-foreground">
-          {group.path}
-        </span>
+        <span className="truncate font-mono text-caption text-muted-foreground">{group.path}</span>
         <span className="text-caption text-[var(--color-fg-faint)]">
           · {group.threads.length} {group.threads.length === 1 ? "thread" : "threads"}
         </span>
       </div>
       <div className="space-y-2">
         {group.threads.map((t) => (
-          <ThreadBlock
-            key={t.root.id}
-            thread={t}
-            owner={owner}
-            repo={repo}
-            number={number}
-          />
+          <ThreadBlock key={t.root.id} thread={t} owner={owner} repo={repo} number={number} />
         ))}
       </div>
     </div>
@@ -660,13 +639,7 @@ export function ReviewCard({
           {open && (
             <div className="space-y-4 px-4 pt-1 pb-4">
               {fileGroups.map((g) => (
-                <FileSection
-                  key={g.path}
-                  group={g}
-                  owner={owner}
-                  repo={repo}
-                  number={number}
-                />
+                <FileSection key={g.path} group={g} owner={owner} repo={repo} number={number} />
               ))}
             </div>
           )}

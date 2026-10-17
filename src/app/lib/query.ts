@@ -1,12 +1,18 @@
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryClient } from "@tanstack/react-query";
 // Wires TanStack's onlineManager to browser connectivity + session expiry.
-import "@/app/lib/connectivity";
+import { assertCanMutate } from "@/app/lib/connectivity";
 
 function isUnauthorized(error: unknown): boolean {
   return !!error && typeof error === "object" && "status" in error && error.status === 401;
 }
 
+/** Keep a cached page mounted while its unauthorized retry waits for sign-in. */
+export function retrySessionExpiry(failureCount: number, error: unknown): boolean {
+  return isUnauthorized(error) && failureCount < 2;
+}
+
 export const queryClient = new QueryClient({
+  mutationCache: new MutationCache({ onMutate: () => assertCanMutate() }),
   defaultOptions: {
     queries: {
       staleTime: 30_000,

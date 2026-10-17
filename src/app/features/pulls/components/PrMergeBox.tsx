@@ -121,7 +121,7 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
     hasConflicts,
     isBehind,
     onUpdateBranch: () => updateBranch.mutate({ expectedHeadSha: pr.head.sha }),
-    updateBranchPending: updateBranch.isPending,
+    updateBranchPending: updateBranch.isPending || !canMutate,
   });
   const blockedByRequirements = requirements.some((item) => item.blocksMerge);
   const canMergeNow =
@@ -182,7 +182,7 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
         <AutoMergeBanner
           request={mergeStatus.autoMergeRequest}
           canDisable={mergeStatus.viewerCanDisableAutoMerge}
-          disabled={autoMerge.isPending}
+          disabled={autoMerge.isPending || !canMutate}
           onDisable={() => autoMerge.mutate({ pullRequestId: pr.node_id, enabled: false })}
         />
       )}
@@ -370,6 +370,7 @@ function HeadBranchActions({
   onDelete: () => void;
   onRestore: () => void;
 }) {
+  const { canMutate, reason } = useCanMutate();
   if (!mergeStatus) return null;
   if (
     mergeStatus.headRefExists &&
@@ -377,7 +378,13 @@ function HeadBranchActions({
     pr.head.ref !== pr.base.ref
   ) {
     return (
-      <Button size="sm" variant="outline" disabled={deletePending} onClick={onDelete}>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={deletePending || !canMutate}
+        title={reason}
+        onClick={onDelete}
+      >
         <Trash2 data-icon="inline-start" />
         Delete branch
       </Button>
@@ -385,7 +392,13 @@ function HeadBranchActions({
   }
   if (!mergeStatus.headRefExists) {
     return (
-      <Button size="sm" variant="outline" disabled={restorePending} onClick={onRestore}>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={restorePending || !canMutate}
+        title={reason}
+        onClick={onRestore}
+      >
         <RotateCcw data-icon="inline-start" />
         Restore branch
       </Button>
