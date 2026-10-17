@@ -72,4 +72,15 @@ describe("breadcrumbs", () => {
       "/daedlock/githut/commits",
     );
   });
+
+  test("a file in Code is an item; a section's own list is not", () => {
+    expect(breadcrumbsFor("/daedlock/githut/code?path=src/app/main.tsx")).toMatchObject({
+      section: "code",
+      item: { kind: "file", path: "src/app/main.tsx" },
+    });
+    expect(breadcrumbsFor("/daedlock/githut")?.item).toBeNull();
+    expect(breadcrumbsFor("/daedlock/githut/code?branch=dev")?.item).toBeNull();
+    expect(breadcrumbsFor("/daedlock/githut/commit/abc123")?.item).toEqual({ kind: "page" });
+    expect(breadcrumbsFor("/daedlock/githut/actions/runs/9")?.item).toEqual({ kind: "page" });
+  });
 });

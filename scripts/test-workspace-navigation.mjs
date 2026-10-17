@@ -278,6 +278,23 @@ try {
   } finally {
     await branches.close();
   }
+  const offline = await fixture();
+  try {
+    const page = offline.page;
+    await page.goto(`${app}/demo/project/pull/1`);
+    // Offline an unloaded list's request pauses: the picker says so instead
+    // of pulsing forever, and fills in by itself once back online.
+    await page.context().setOffline(true);
+    await page.getByRole("button", { name: "Other pull requests", exact: true }).click();
+    await page.getByRole("alert").getByText("Couldn't load this list.").waitFor();
+    await page.context().setOffline(false);
+    await page.getByRole("alert").waitFor({ state: "detached", timeout: 8000 });
+    await page.getByRole("option", { name: /#1/ }).waitFor();
+    assert.deepEqual(offline.errors, []);
+    console.log("PASS pickers show the error pattern offline and recover online");
+  } finally {
+    await offline.close();
+  }
   const modifiers = await fixture();
   try {
     const page = modifiers.page;

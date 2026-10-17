@@ -135,6 +135,12 @@ function PickerBody({
   }, [ready, current]);
 
   const groups = groupItems(items);
+  const rememberMode = (e: { shiftKey: boolean; altKey: boolean }) => {
+    mode.current = openModeOf(e);
+    setTimeout(() => {
+      mode.current = "here";
+    });
+  };
 
   return (
     <Command
@@ -147,18 +153,9 @@ function PickerBody({
       // ⇧/⌥ ride along with ↵ or the click into cmdk's onSelect. Reset after
       // cmdk's own handler has run.
       onKeyDownCapture={(e) => {
-        if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
-        mode.current = openModeOf(e);
-        setTimeout(() => {
-          mode.current = "here";
-        });
+        if (e.key === "Enter" && !e.nativeEvent.isComposing) rememberMode(e);
       }}
-      onClickCapture={(e) => {
-        mode.current = openModeOf(e);
-        setTimeout(() => {
-          mode.current = "here";
-        });
-      }}
+      onClickCapture={rememberMode}
     >
       <CommandInput placeholder={placeholder} aria-label={placeholder} className="text-ui" />
       <CommandList ref={list} className="max-h-75">

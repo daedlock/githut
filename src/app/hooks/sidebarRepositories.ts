@@ -55,6 +55,8 @@ export type RepositoryList = {
   isPending: boolean;
   isError: boolean;
   isSuccess: boolean;
+  /** `"paused"` while a request waits to come back online. */
+  fetchStatus: string;
   hasMore: boolean;
   loadingMore: boolean;
   loadMore: () => void;
@@ -84,6 +86,7 @@ function useRepositoryPages(
     isPending: query.isPending,
     isError: query.isError,
     isSuccess: query.isSuccess,
+    fetchStatus: query.fetchStatus,
     hasMore: query.hasNextPage,
     loadingMore: query.isFetchingNextPage,
     loadMore: () => {

@@ -22,9 +22,9 @@ import {
 import { TONE_CLASS, useTabDisplay } from "@/app/components/shell/TabStrip";
 import { Button } from "@/app/components/ui/button";
 import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
-import { repoIssuesQueryOptions } from "@/app/features/issues/hooks";
+import { issueKeys, repoIssuesQueryOptions } from "@/app/features/issues/hooks";
 import { PrStateIcon } from "@/app/features/pulls/components/PrStatePill";
-import { pullsQueryOptions } from "@/app/features/pulls/hooks";
+import { pullsKeys, pullsQueryOptions } from "@/app/features/pulls/hooks";
 import { useYourRepositories } from "@/app/hooks/sidebarRepositories";
 import { useRepo } from "@/app/hooks/useRepo";
 import { repoBranchesQueryOptions } from "@/app/hooks/useRepoBranches";
@@ -32,6 +32,8 @@ import {
   type Breadcrumbs,
   branchOf,
   breadcrumbsFor,
+  type CrumbItem,
+  type NumberedItem,
   repoSwitchHref,
   sectionHref,
   siblingItemHref,
@@ -53,7 +55,7 @@ import { hrefPathname, type Island, selectedTab, type Tab } from "@/app/workspac
 // and ⌥-click to the side come from TabShortcuts, like any in-app link).
 // Each chevron lists the crumb's siblings (SiblingPicker). The branch chip
 // shows on branch-aware pages only. Unfocused islands dim the row; narrow
-// islands (container ≤480px) drop the owner and the item title.
+// islands (container ≤480px) drop the owner, the item title and the branch.
 
 const SECTIONS: readonly { id: RepoSection; label: string; icon: typeof CodeIcon }[] = [
   { id: "code", label: "Code", icon: CodeIcon },
@@ -108,17 +110,9 @@ type Open = (href: string, mode: OpenMode) => void;
 // ─── Crumbs ────────────────────────────────────────────────────────────────
 
 function RepoTrail({ tab, crumbs, open }: { tab: Tab; crumbs: Breadcrumbs; open: Open }) {
-  const pathname = hrefPathname(tab.href);
   const [owner, name] = crumbs.repo.split("/") as [string, string];
   const section = SECTIONS.find((s) => s.id === crumbs.section)!;
-  // Anything deeper than the section's own list is an item: a PR, an
-  // issue, a commit, a run, or a file in Code.
-  const filePath =
-    crumbs.section === "code"
-      ? new URL(tab.href, "https://x.invalid").searchParams.get("path")
-      : null;
-  const atSection =
-    !filePath && (pathname === crumbs.sectionHref || pathname === `/${crumbs.repo}`);
+  const { item } = crumbs;
 
   return (
     <>
@@ -134,7 +128,7 @@ function RepoTrail({ tab, crumbs, open }: { tab: Tab; crumbs: Breadcrumbs; open:
       </CrumbGroup>
       <Separator />
       <CrumbGroup>
-        <Crumb href={crumbs.sectionHref} current={atSection} open={open}>
+        <Crumb href={crumbs.sectionHref} current={!item} open={open}>
           <span className="truncate">{section.label}</span>
         </Crumb>
         <SiblingPicker
@@ -154,13 +148,13 @@ function RepoTrail({ tab, crumbs, open }: { tab: Tab; crumbs: Breadcrumbs; open:
           onPick={open}
         />
       </CrumbGroup>
-      {!atSection && (
+      {item && (
         <>
           <Separator />
           <CrumbGroup className="min-w-18 shrink">
-            <ItemCrumb tab={tab} item={crumbs.item} filePath={filePath} />
-            {crumbs.item && (
-              <ItemPicker tab={tab} repo={crumbs.repo} item={crumbs.item} open={open} />
+            <ItemCrumb tab={tab} repo={crumbs.repo} item={item} />
+            {(item.kind === "pull" || item.kind === "issue") && (
+              <ItemPicker tab={tab} repo={crumbs.repo} item={item} open={open} />
             )}
           </CrumbGroup>
         </>
@@ -241,45 +235,36 @@ function Crumb({
   );
 }
 
-function ItemCrumb({
-  tab,
-  item,
-  filePath,
-}: {
-  tab: Tab;
-  item: Breadcrumbs["item"];
-  filePath: string | null;
-}) {
+function ItemCrumb({ tab, repo, item }: { tab: Tab; repo: string; item: CrumbItem }) {
   const display = useTabDisplay(tab.href, tab.id);
   let content: ReactNode;
-  if (item) {
-    // The title is known once the page, a list, or a past visit has seen it.
-    const known = !!display.prefix;
+  let title = display.title;
+  if (item.kind === "pull" || item.kind === "issue") {
     content = (
       <>
         <span className="shrink-0 font-mono text-caption text-(--color-fg-faint)">
           #{item.number}
         </span>
-        {known ? (
+        {/* Known once the page, a list, or a past visit has seen it. */}
+        {display.prefix ? (
           <span className="min-w-0 truncate @max-[480px]:hidden">{display.label}</span>
         ) : (
-          <SkeletonGroup label="Loading title" className="@max-[480px]:hidden">
-            <Skeleton className="h-3 w-36" />
-          </SkeletonGroup>
+          <TitlePlaceholder repo={repo} item={item} />
         )}
       </>
     );
-  } else {
+  } else if (item.kind === "file") {
+    title = item.path;
     content = (
-      <span className={cn("min-w-0 truncate", filePath && "font-mono text-code")}>
-        {filePath ? filePath.split("/").pop() : display.label}
-      </span>
+      <span className="min-w-0 truncate font-mono text-code">{item.path.split("/").pop()}</span>
     );
+  } else {
+    content = <span className="min-w-0 truncate">{display.label}</span>;
   }
   return (
     <span
       aria-current="page"
-      title={filePath ?? display.title}
+      title={title}
       className="flex h-6 min-w-0 items-center gap-1.5 pr-1 pl-1.5 font-medium text-foreground"
     >
       {content}
@@ -287,12 +272,39 @@ function ItemCrumb({
   );
 }
 
+/**
+ * A Skeleton while the title loads. Observes the page's own detail query
+ * (never fetches it): if that fails or waits offline, the crumb settles on
+ * just the number instead of pulsing forever.
+ */
+function TitlePlaceholder({ repo, item }: { repo: string; item: NumberedItem }) {
+  const [owner, name] = repo.split("/") as [string, string];
+  const detail = useQuery({
+    queryKey:
+      item.kind === "pull"
+        ? pullsKeys.detail(owner, name, item.number)
+        : issueKeys.detail(owner, name, item.number),
+    enabled: false,
+  });
+  if (detail.isError || detail.fetchStatus === "paused") return null;
+  return (
+    <SkeletonGroup label="Loading title" className="@max-[480px]:hidden">
+      <Skeleton className="h-3 w-36" />
+    </SkeletonGroup>
+  );
+}
+
 // ─── Remote pickers ────────────────────────────────────────────────────────
 
-/** Loading only before anything is cached; failures only matter with nothing to show. */
-function statusOf(q: { isPending: boolean; isError: boolean }, count: number): PickerStatus {
+type QueryLike = { isPending: boolean; isError: boolean; fetchStatus: string };
+
+/**
+ * Loading only before anything is cached; a failure, or a request paused
+ * offline, only matters with nothing to show.
+ */
+function statusOf(q: QueryLike, count: number): PickerStatus {
   if (count > 0) return "ready";
-  if (q.isError) return "error";
+  if (q.isError || q.fetchStatus === "paused") return "error";
   return q.isPending ? "loading" : "ready";
 }
 
@@ -375,7 +387,7 @@ function ItemPicker({
 }: {
   tab: Tab;
   repo: string;
-  item: NonNullable<Breadcrumbs["item"]>;
+  item: NumberedItem;
   open: Open;
 }) {
   const isPull = item.kind === "pull";
@@ -469,12 +481,14 @@ function useIssueItems(tab: Tab, repo: string, current: number) {
  */
 function useWithCurrent(
   tab: Tab,
-  query: { isPending: boolean; isError: boolean; refetch: () => unknown },
+  query: QueryLike & { isSuccess: boolean; refetch: () => unknown },
   rows: Row[],
   current: number,
 ): PickerData {
   const display = useTabDisplay(tab.href, tab.id);
-  if (rows.length && !rows.some((r) => r.number === current)) {
+  const status = statusOf(query, rows.length);
+  // Only once the list has loaded, so first loads still show Skeleton rows.
+  if (query.isSuccess && !rows.some((r) => r.number === current)) {
     const Icon = display.icon;
     rows = [
       {
@@ -487,7 +501,7 @@ function useWithCurrent(
   }
   return {
     items: itemRows(tab, rows, current),
-    status: statusOf(query, rows.length),
+    status,
     onRetry: () => void query.refetch(),
   };
 }
