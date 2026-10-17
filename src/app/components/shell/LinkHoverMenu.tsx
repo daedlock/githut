@@ -12,10 +12,14 @@ import { internalLinkHref, linkIslandId, openInNewTab, openToSide } from "@/app/
 // appears under the cursor. Moving across links doesn't trigger it — the
 // pointer has to settle — so it stays out of the way while scanning lists.
 //
+// Row-sized links (whole list rows) only count while the pointer is on their
+// actual content (text or an image), not on the row's empty space, and a
+// drag never ends with the menu opening under the drop point.
+//
 // Opt out on a subtree with `data-link-menu="off"`. Links that are already
 // Radix triggers (hover cards, tooltips) are skipped so overlays don't stack.
 
-const REST_MS = 900;
+const REST_MS = 750;
 const MOVE_TOLERANCE = 6;
 const LEAVE_GRACE_MS = 180;
 
@@ -34,6 +38,9 @@ export function LinkHoverMenu() {
     let leaveTimer: ReturnType<typeof setTimeout> | undefined;
     let origin = { x: 0, y: 0 };
     let isOpen = false;
+    let down: { x: number; y: number } | null = null;
+    // The link under the pointer when a drag ended; ignored until it's left.
+    let suppressed: HTMLAnchorElement | null = null;
 
     const close = () => {
       clearTimeout(restTimer);
@@ -48,7 +55,7 @@ export function LinkHoverMenu() {
       origin = { x, y };
       restTimer = setTimeout(() => {
         const href = link && internalLinkHref(link);
-        if (!href) return;
+        if (!href || !link || !overLinkContent(link, origin.x, origin.y)) return;
         anchorRef.current = { getBoundingClientRect: () => new DOMRect(origin.x, origin.y, 0, 0) };
         isOpen = true;
         setTarget({ href, islandId: linkIslandId(link) });
@@ -60,6 +67,8 @@ export function LinkHoverMenu() {
       if (e.pointerType !== "mouse" || e.buttons !== 0) return;
       const next = eligibleLink(e.target);
       if (next === link) return;
+      if (next !== suppressed) suppressed = null;
+      if (next && next === suppressed) return;
       link = next;
       if (!link) return clearTimeout(restTimer);
       // Slid straight onto another link: retarget instead of keeping a stale menu.
@@ -85,7 +94,18 @@ export function LinkHoverMenu() {
       }
     };
 
+    const onUp = (e: PointerEvent) => {
+      const start = down;
+      down = null;
+      if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > MOVE_TOLERANCE) {
+        suppressed = eligibleLink(document.elementFromPoint(e.clientX, e.clientY));
+        link = null;
+        close();
+      }
+    };
+
     const onDown = (e: PointerEvent) => {
+      down = { x: e.clientX, y: e.clientY };
       // Clicking the link (or anything) means the user made their choice.
       if (!(e.target instanceof Element && e.target.closest("[data-link-menu-content]"))) {
         link = null;
@@ -97,6 +117,7 @@ export function LinkHoverMenu() {
     document.addEventListener("pointermove", onMove, { passive: true });
     document.addEventListener("pointerout", onOut);
     document.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("pointerup", onUp, true);
     window.addEventListener("scroll", close, { passive: true, capture: true });
     window.addEventListener("blur", close);
     // The menu's own leave/dismiss handlers close through this.
@@ -107,6 +128,7 @@ export function LinkHoverMenu() {
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerout", onOut);
       document.removeEventListener("pointerdown", onDown, true);
+      window.removeEventListener("pointerup", onUp, true);
       window.removeEventListener("scroll", close, { capture: true });
       window.removeEventListener("blur", close);
     };
@@ -176,4 +198,26 @@ function eligibleLink(target: EventTarget | null): HTMLAnchorElement | null {
     return null;
   }
   return a;
+}
+
+/**
+ * Inline links always qualify. A row-sized link qualifies only while the
+ * point is over its text or an image, not the row's padding or empty space.
+ */
+function overLinkContent(link: HTMLAnchorElement, x: number, y: number): boolean {
+  const box = link.getBoundingClientRect();
+  if (box.height <= 32 && box.width <= 480) return true;
+  const hit = document.elementFromPoint(x, y);
+  if (!hit || !link.contains(hit)) return false;
+  if (hit.closest("img, svg, picture")) return true;
+  const walker = document.createTreeWalker(hit, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!node.textContent?.trim()) continue;
+    range.selectNodeContents(node);
+    for (const r of range.getClientRects()) {
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return true;
+    }
+  }
+  return false;
 }
