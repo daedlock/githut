@@ -1,6 +1,7 @@
 import { CheckCircle2, CircleDot, X } from "lucide-react";
 import { useMemo } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
+import { LiveUpdates } from "@/app/components/LiveUpdates";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
@@ -168,35 +169,44 @@ export function IssueDetail({
 
           <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
             {/* Main column */}
-            <div className="min-w-0 flex-1 flex flex-col gap-3">
-              <IssueCommentCard
-                login={issue.user.login}
-                avatarUrl={issue.user.avatar_url}
-                date={issue.created_at}
-                isAuthor
-                reactions={issue.reactions}
-                myReactions={myIssueReactions ?? EMPTY_MY_REACTIONS}
-                onToggleReaction={onToggleIssueReaction}
-                canEdit={isMyIssue}
-                rawBody={issue.body ?? ""}
-                onSave={async (next) => {
-                  await updateIssueMutation.mutateAsync({ issueNumber: issue.number, body: next });
-                }}
-                participants={participants}
-                repoOwner={owner}
-                repoName={repo}
-                isSaving={updateIssueMutation.isPending}
-              >
-                {issue.body?.trim() ? (
-                  <div className="readme-prose max-w-none text-body">
-                    <GithubMarkdown repoContext={{ owner, repo }}>{issue.body}</GithubMarkdown>
-                  </div>
-                ) : (
-                  <p className="text-body italic text-[var(--color-fg-faint)]">
-                    No description provided.
-                  </p>
-                )}
-              </IssueCommentCard>
+            <LiveUpdates
+              key={`${owner}/${repo}/${issue.number}`}
+              ready={!commentsLoading}
+              className="min-w-0 flex-1 flex flex-col gap-3"
+            >
+              <div data-live-anchor>
+                <IssueCommentCard
+                  login={issue.user.login}
+                  avatarUrl={issue.user.avatar_url}
+                  date={issue.created_at}
+                  isAuthor
+                  reactions={issue.reactions}
+                  myReactions={myIssueReactions ?? EMPTY_MY_REACTIONS}
+                  onToggleReaction={onToggleIssueReaction}
+                  canEdit={isMyIssue}
+                  rawBody={issue.body ?? ""}
+                  onSave={async (next) => {
+                    await updateIssueMutation.mutateAsync({
+                      issueNumber: issue.number,
+                      body: next,
+                    });
+                  }}
+                  participants={participants}
+                  repoOwner={owner}
+                  repoName={repo}
+                  isSaving={updateIssueMutation.isPending}
+                >
+                  {issue.body?.trim() ? (
+                    <div className="readme-prose max-w-none text-body">
+                      <GithubMarkdown repoContext={{ owner, repo }}>{issue.body}</GithubMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-body italic text-[var(--color-fg-faint)]">
+                      No description provided.
+                    </p>
+                  )}
+                </IssueCommentCard>
+              </div>
 
               {commentsLoading ? (
                 <CommentSkeleton label="Loading comments" />
@@ -204,23 +214,29 @@ export function IssueDetail({
                 <StatusMessage tone="danger">Could not load comments.</StatusMessage>
               ) : (
                 comments.map((c) => (
-                  <CommentCardWithReactions
-                    key={c.id}
-                    owner={owner}
-                    repo={repo}
-                    meId={me?.id}
-                    meLogin={me?.login}
-                    issueNumber={issue.number}
-                    comment={c}
-                    onToggleReaction={onToggleCommentReaction}
-                    participants={participants}
-                  />
+                  <div key={c.id} data-live-item={`c-${c.id}`} tabIndex={-1}>
+                    <CommentCardWithReactions
+                      owner={owner}
+                      repo={repo}
+                      meId={me?.id}
+                      meLogin={me?.login}
+                      issueNumber={issue.number}
+                      comment={c}
+                      onToggleReaction={onToggleCommentReaction}
+                      participants={participants}
+                    />
+                  </div>
                 ))
               )}
 
-              <div className="flex gap-3">
+              <div data-live-anchor className="flex gap-3">
                 {me?.avatar_url && (
-                  <Avatar login={me.login} avatarUrl={me.avatar_url} size="sm" className="mt-2 shrink-0" />
+                  <Avatar
+                    login={me.login}
+                    avatarUrl={me.avatar_url}
+                    size="sm"
+                    className="mt-2 shrink-0"
+                  />
                 )}
                 <div className="min-w-0 flex-1">
                   <ComposeBox
@@ -238,7 +254,7 @@ export function IssueDetail({
                   />
                 </div>
               </div>
-            </div>
+            </LiveUpdates>
 
             {/* Sidebar */}
             <aside className="w-full lg:w-[328px] lg:flex-shrink-0 self-stretch">

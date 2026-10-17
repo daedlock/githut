@@ -56,6 +56,7 @@ export function IssueRow({
 
   return (
     <div
+      data-live-item={`issue-${issue.id}`}
       {...bulk?.rowProps}
       className={bulk?.className ?? "group relative rounded-lg transition-colors hover:bg-muted"}
     >

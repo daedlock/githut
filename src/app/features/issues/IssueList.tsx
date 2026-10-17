@@ -1,5 +1,6 @@
 import { AlertCircle, CheckCircle2, CircleDot, Plus, Search, X } from "lucide-react";
 import { useMemo } from "react";
+import { LiveUpdates } from "@/app/components/LiveUpdates";
 import { Button } from "@/app/components/ui/button";
 import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import { Container } from "@/app/components/ui/Container";
@@ -17,6 +18,7 @@ import { ListDisplayMenu } from "@/app/features/repo/components/ListDisplayMenu"
 import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
 import { groupListItems } from "@/app/features/repo/listGrouping";
 import { useListNavigation } from "@/app/hooks/useListNavigation";
+import { useStableList } from "@/app/hooks/useStableList";
 import { cn } from "@/app/lib/cn";
 import { useListGrouping } from "@/app/stores/listGrouping";
 
@@ -69,10 +71,11 @@ export function IssueList({
 }: IssueListProps) {
   useListNavigation(!isLoading && !isError && !isComposing);
   const grouping = useListGrouping(owner, repo, "issues");
-  const groups = useMemo(
+  const incomingGroups = useMemo(
     () => groupListItems(issues, grouping.groupBy),
     [issues, grouping.groupBy],
   );
+  const { items: groups, listProps } = useStableList(incomingGroups);
   const bulkItems = useMemo(() => issues.map(toBulkItem), [issues]);
   const visibleNumbers = useMemo(
     () =>
@@ -208,31 +211,33 @@ export function IssueList({
             visible={visibleNumbers}
           >
             {/* List — flat rows, hover surface shift */}
-            <div className="mt-4 flex flex-col gap-1">
-              {isLoading ? (
-                <IssueListSkeleton />
-              ) : isError ? (
-                <div className="px-5 py-10 text-center">
-                  <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
-                  <p className="text-body text-muted-foreground">Could not load issues.</p>
-                </div>
-              ) : issues.length === 0 ? (
-                <EmptyState hasSearch={!!searchText} state={stateFilter} />
-              ) : (
-                <GroupedList
-                  groups={groups}
-                  groupBy={grouping.groupBy}
-                  kind="issues"
-                  collapsedGroups={grouping.collapsedGroups}
-                  onGroupsCollapsed={grouping.setGroupsCollapsed}
-                  renderItems={(items) =>
-                    items.map((issue) => (
-                      <IssueRow key={issue.id} issue={issue} owner={owner} repo={repo} />
-                    ))
-                  }
-                />
-              )}
-            </div>
+            <LiveUpdates ready={!isLoading} announce={false}>
+              <div {...listProps} className="mt-4 flex flex-col gap-1">
+                {isLoading ? (
+                  <IssueListSkeleton />
+                ) : isError ? (
+                  <div className="px-5 py-10 text-center">
+                    <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
+                    <p className="text-body text-muted-foreground">Could not load issues.</p>
+                  </div>
+                ) : issues.length === 0 ? (
+                  <EmptyState hasSearch={!!searchText} state={stateFilter} />
+                ) : (
+                  <GroupedList
+                    groups={groups}
+                    groupBy={grouping.groupBy}
+                    kind="issues"
+                    collapsedGroups={grouping.collapsedGroups}
+                    onGroupsCollapsed={grouping.setGroupsCollapsed}
+                    renderItems={(items) =>
+                      items.map((issue) => (
+                        <IssueRow key={issue.id} issue={issue} owner={owner} repo={repo} />
+                      ))
+                    }
+                  />
+                )}
+              </div>
+            </LiveUpdates>
           </BulkSelectionProvider>
         </>
       )}
