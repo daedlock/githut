@@ -73,7 +73,7 @@ function UndoToast({
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) onFocusChange(false);
       }}
-      className="flex h-10 items-center gap-3 rounded-xl bg-popover px-3 text-ui text-popover-foreground shadow-lg ring-1 ring-foreground/10"
+      className="flex h-10 items-center gap-3 rounded-xl bg-popover px-3 font-sans text-ui text-popover-foreground shadow-lg ring-1 ring-foreground/10"
     >
       <span>{label}</span>
       <Button

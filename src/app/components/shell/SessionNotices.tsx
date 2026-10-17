@@ -53,7 +53,7 @@ export function SignInBanner() {
       () => (
         <div
           role="alert"
-          className="flex min-w-0 max-w-full items-center gap-3 rounded-xl bg-popover py-2 pr-2 pl-3 shadow-lg ring-1 ring-foreground/10"
+          className="flex min-w-0 max-w-full items-center gap-3 rounded-xl bg-popover py-2 pr-2 pl-3 font-sans shadow-lg ring-1 ring-foreground/10"
         >
           <KeyRound aria-hidden className="size-4 shrink-0 text-(--color-warning)" />
           <p className="min-w-0 text-ui">
