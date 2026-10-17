@@ -216,8 +216,10 @@ The workspace is a darker **frame** holding a sidebar and rounded **islands**. E
 `GLOSSARY.md`; the shell lives in `components/shell/TabHost.tsx`.
 
 ### Frame
-- `--color-frame` is derived from the theme's `--color-bg`: mixed 9% toward
-  `--color-fg` in light themes (deeper), 30% toward black in dark themes.
+- `--color-frame` is derived from the theme's `--color-bg` with Linear's
+  low contrast: 3% toward the text colour in light themes, 10% toward
+  black in dark themes. Islands sit barely above the frame; the hairline
+  edge does most of the separating.
   A palette that needs a different frame sets `--color-frame` in its
   `themes/*.css` block. Never hardcode a frame colour in a component.
 - The frame leaves a consistent `max(8px, safe-area)` gutter on every outer edge, including narrow screens. Sidebar-to-island and inter-island gaps are `8px`. No global header row reserves space above the islands.
