@@ -30,7 +30,12 @@ type Session = {
   attempts: Map<string, number>;
   views: Map<string, number>;
   notifications: Set<string>;
+  /** The focused page being viewed (`tabId:pageKey`), its page key, and the last time it was seen on screen. */
   visit: string | null;
+  visitPage: string | null;
+  visitSeenAt: number;
+  /** Start of the last background status round; every background page shares one cadence. */
+  roundAt: number;
   controller: AbortController;
   identityAt: number;
   pending?: Promise<void>;
@@ -55,6 +60,9 @@ function currentSession(): Session | undefined {
           views: new Map(),
           notifications: new Set(),
           visit: null,
+          visitPage: null,
+          visitSeenAt: 0,
+          roundAt: 0,
           controller: new AbortController(),
           identityAt: 0,
         }
@@ -81,40 +89,69 @@ function backgroundPages() {
   ];
 }
 
-/** Visible duplicates already refresh their details through the page scheduler. */
-function cachedActivity(key: string): number {
+function detailKey(key: string) {
   const page = pageEntity(key);
-  if (!page) return 0;
-  const queryKey =
-    page.kind === "issue"
-      ? issueKeys.detail(page.owner, page.repo, page.number)
-      : pullsKeys.detail(page.owner, page.repo, page.number);
+  if (!page) return null;
+  return page.kind === "issue"
+    ? issueKeys.detail(page.owner, page.repo, page.number)
+    : pullsKeys.detail(page.owner, page.repo, page.number);
+}
+
+/** Visible duplicates already refresh their details through their own live queries. */
+function cachedActivity(key: string): number {
+  const queryKey = detailKey(key);
+  if (!queryKey) return 0;
   const cached = queryClient.getQueryData<{ updated_at?: string }>(queryKey);
   const at = cached?.updated_at ? Date.parse(cached.updated_at) : 0;
   return Number.isFinite(at) ? at : 0;
+}
+
+/** When the page's details were last fetched, by its own page or by this watcher. */
+function lastObserved(active: Session, key: string): number {
+  const queryKey = detailKey(key);
+  const fetched = queryKey ? (queryClient.getQueryState(queryKey)?.dataUpdatedAt ?? 0) : 0;
+  return Math.max(active.attempts.get(key) ?? 0, fetched);
 }
 
 function acknowledgePage(key: string, at: number) {
   acknowledgeStoredPage(key, Math.max(at, cachedActivity(key)));
 }
 
+/**
+ * The focused page is being read: everything that lands on it while it is
+ * focused (including your own comments) is seen as it arrives, and leaving
+ * it acknowledges everything up to the last moment it was on screen.
+ */
 function recordView(active: Session, now: number) {
   const { workspace } = useWorkspaceStore.getState();
   const tab = focusedTab(workspace);
   const page = pageEntity(tab.href);
-  if (
-    !windowVisible() ||
-    !page ||
-    !visibleTabIds(workspace, useWorkspaceView.getState().narrow).has(tab.id)
-  ) {
+  const viewing =
+    windowVisible() &&
+    !!page &&
+    visibleTabIds(workspace, useWorkspaceView.getState().narrow).has(tab.id);
+  const visit = viewing && page ? `${tab.id}:${page.key}` : null;
+  if (active.visit && active.visit !== visit && active.visitPage) {
+    // Not the cached details: they may already hold activity that landed after leaving.
+    active.views.set(active.visitPage, active.visitSeenAt);
+    acknowledgeStoredPage(active.visitPage, active.visitSeenAt);
+  }
+  if (!visit || !page) {
     active.visit = null;
+    active.visitPage = null;
     return;
   }
-  const visit = `${tab.id}:${page.key}`;
-  if (active.visit === visit) return;
-  active.visit = visit;
-  active.views.set(page.key, now);
-  acknowledgePage(page.key, now);
+  if (active.visit !== visit) {
+    active.visit = visit;
+    active.visitPage = page.key;
+    active.visitSeenAt = now;
+    active.views.set(page.key, now);
+    acknowledgePage(page.key, now);
+    return;
+  }
+  active.visitSeenAt = Math.max(active.visitSeenAt, now);
+  // Only writes when newer activity was observed (the page's own live queries).
+  acknowledgePage(page.key, 0);
 }
 
 let notificationIndex:
@@ -178,14 +215,20 @@ export async function refreshBackgroundTabs(now = Date.now()): Promise<void> {
     await active.pending;
     return;
   }
-  const due = backgroundPages().filter(
-    (page) => now - (active.attempts.get(page.key) ?? 0) >= 60_000 * getRateBackoff("graphql", now),
-  );
+  const cadence = 60_000 * getRateBackoff("graphql", now);
+  // One round per cadence covers every background page in as few batches as
+  // possible. A page whose details were fetched within the last half cadence
+  // (it was on screen moments ago) waits for the next round.
+  const round = now - active.roundAt >= cadence;
+  if (round) active.roundAt = now;
+  const due = round
+    ? backgroundPages().filter((page) => now - lastObserved(active, page.key) >= cadence / 2)
+    : [];
   // A window containing only visible copies still needs a verified account
   // for local read history; this small identity read runs once, not every tick.
   const identify =
     !useTabActivityStore.getState().account &&
-    now - active.identityAt >= 60_000 * getRateBackoff("graphql", now) &&
+    now - active.identityAt >= cadence &&
     islands(useWorkspaceStore.getState().workspace.layout).some((island) =>
       island.tabs.some((tab) => pageEntity(tab.href)),
     );
@@ -201,12 +244,9 @@ export async function refreshBackgroundTabs(now = Date.now()): Promise<void> {
       const eligible = new Set(backgroundPages().map((page) => page.key));
       const batch = due
         .slice(offset, offset + STATUS_BATCH_SIZE)
-        .filter(
-          (page) =>
-            eligible.has(page.key) &&
-            now - (active.attempts.get(page.key) ?? 0) >= 60_000 * getRateBackoff("graphql", now),
-        );
-      if (!batch.length && !identify) continue;
+        .filter((page) => eligible.has(page.key));
+      // The identity read rides on the first batch only; never send empty batches after it.
+      if (!batch.length && !(identify && offset === 0)) continue;
       active.identityAt = now;
       for (const page of batch) active.attempts.set(page.key, now);
       try {

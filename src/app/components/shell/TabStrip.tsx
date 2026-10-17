@@ -43,8 +43,10 @@ import {
 } from "@/app/lib/tabActions";
 import { getTabMeta, type TabMeta } from "@/app/lib/tabMeta";
 import { useTabTitlesStore } from "@/app/stores/tabTitles";
+import { useWorkspaceView } from "@/app/stores/workspaceView";
 import { hrefPathname, type Island, type Tab } from "@/app/workspace/model";
 import { useWorkspaceStore } from "@/app/workspace/store";
+import { visibleTabIds } from "@/app/workspace/view";
 
 // ─── TabStrip ──────────────────────────────────────────────────────────────
 //
@@ -170,7 +172,7 @@ function TabOverflow({ island }: { island: Island }) {
 }
 
 function OverflowTab({ tab, selected, pinned }: { tab: Tab; selected: boolean; pinned: boolean }) {
-  const display = useTabDisplay(tab.href);
+  const display = useTabDisplay(tab.href, tab.id);
   const Icon = display.icon;
   return (
     <DropdownMenuItem
@@ -230,7 +232,7 @@ const TabItem = memo(function TabItem({
   pinned: boolean;
   isLast: boolean;
 }) {
-  const display = useTabDisplay(tab.href);
+  const display = useTabDisplay(tab.href, tab.id);
   const draft = usePageHasDraft(tab.href);
   const hasClosed = useWorkspaceStore((s) => s.workspace.closed.length > 0);
   const Icon = display.icon;
@@ -406,11 +408,15 @@ function subscribeUnread(changed: () => void) {
     });
 }
 
-export function useTabDisplay(href: string): TabDisplay {
+/** Display metadata for a tab. A tab on screen never shows the unread dot: you are looking at it. */
+export function useTabDisplay(href: string, tabId: string): TabDisplay {
   const pathname = hrefPathname(href);
   const meta = getTabMeta(pathname);
   const entity = useCachedEntity(pathname);
-  const unread = useSyncExternalStore(subscribeUnread, () => pageIsUnread(href));
+  const narrow = useWorkspaceView((s) => s.narrow);
+  const shown = useWorkspaceStore((s) => visibleTabIds(s.workspace, narrow).has(tabId));
+  const hasUnread = useSyncExternalStore(subscribeUnread, () => pageIsUnread(href));
+  const unread = hasUnread && !shown;
   const base = { icon: meta.icon, tone: "none" as Tone, repo: meta.sublabel, unread };
 
   const num = /\/(?:pull|pr|review|issues)\/(\d+)/.exec(pathname)?.[1];

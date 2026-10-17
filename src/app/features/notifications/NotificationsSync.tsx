@@ -18,7 +18,11 @@ const subscribeVisibility = (changed: () => void) => {
   return () => document.removeEventListener("visibilitychange", changed);
 };
 
-/** Only actual focused-page visits mark a thread read, never cache rerenders. */
+/**
+ * Viewing a page marks its notifications read on GitHub, including ones that
+ * arrive while you are on it. Each thread update is marked once per visit, so
+ * a thread you deliberately mark unread stays unread until something new lands.
+ */
 export function NotificationsSync() {
   const workspace = useWorkspaceStore((state) => state.workspace);
   const tab = focusedTab(workspace);
@@ -27,7 +31,7 @@ export function NotificationsSync() {
   const { canMutate } = useCanMutate();
   const visible = useSyncExternalStore(subscribeVisibility, () => !document.hidden);
   const pageVisible = visible && visibleTabIds(workspace, narrow).has(tab.id);
-  const visited = useRef<string | null>(null);
+  const visited = useRef<{ key: string; marked: Set<string> } | null>(null);
   const [failed, setFailed] = useState<string[]>([]);
   const page = notificationPageKey(tab.href);
   const key = `${tab.id}:${page}`;
@@ -37,15 +41,21 @@ export function NotificationsSync() {
       visited.current = null;
       return;
     }
-    if (!canMutate || !feed.data || visited.current === key) return;
-    visited.current = key;
+    if (visited.current?.key !== key) visited.current = { key, marked: new Set() };
+    if (!canMutate || !feed.data) return;
     if (!/^\/[^/]+\/[^/]+\/(pull|issues)\/\d+$/.test(page)) return;
-    const ids = feed.data.items
-      .filter((item) => {
-        const href = notificationHref(item);
-        return href && notificationPageKey(href) === page && notificationIsUnread(item);
-      })
-      .map((item) => item.id);
+    const { marked } = visited.current;
+    const fresh = feed.data.items.filter((item) => {
+      const href = notificationHref(item);
+      return (
+        href &&
+        notificationPageKey(href) === page &&
+        notificationIsUnread(item) &&
+        !marked.has(`${item.id}@${item.updated_at}`)
+      );
+    });
+    for (const item of fresh) marked.add(`${item.id}@${item.updated_at}`);
+    const ids = fresh.map((item) => item.id);
     if (ids.length)
       void runNotificationAction(ids, "read")
         .then((result) => setFailed(result.failed.map((item) => item.id)))

@@ -78,7 +78,7 @@ function TabChoice({
   current: boolean;
   onSelect: () => void;
 }) {
-  const display = useTabDisplay(tab.href);
+  const display = useTabDisplay(tab.href, tab.id);
   const Icon = display.icon;
   return (
     <DropdownMenuItem
