@@ -92,6 +92,8 @@ function undoLabel(cmd: WorkspaceCommand): string | null {
     // silently discards tabs opened since the operation being undone.
     case "openTab":
     case "openUrl":
+    case "openOrJump":
+    case "openToSide":
     case "duplicateTab":
     case "reopenClosedTab":
       return "Tab opened";

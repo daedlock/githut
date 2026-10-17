@@ -1,9 +1,10 @@
-import { AppWindow } from "lucide-react";
+import { AppWindow, Columns2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { Button } from "@/app/components/ui/button";
 import { Kbd } from "@/app/components/ui/kbd";
 import { Popover, PopoverAnchor, PopoverContent } from "@/app/components/ui/popover";
-import { internalLinkHref, openInNewTab } from "@/app/lib/tabActions";
+import { internalLinkHref, linkIslandId, openInNewTab, openToSide } from "@/app/lib/tabActions";
 import { useSettingsStore } from "@/app/stores/settings";
 
 // ─── LinkHoverMenu ─────────────────────────────────────────────────────────
@@ -19,7 +20,7 @@ const REST_MS = 900;
 const MOVE_TOLERANCE = 6;
 const LEAVE_GRACE_MS = 180;
 
-type Target = { href: string; x: number; y: number };
+type Target = { href: string; islandId?: string };
 
 export function LinkHoverMenu() {
   const enabled = useSettingsStore((s) => s.tabsEnabled);
@@ -54,7 +55,7 @@ export function LinkHoverMenu() {
         if (!href) return;
         anchorRef.current = { getBoundingClientRect: () => new DOMRect(origin.x, origin.y, 0, 0) };
         isOpen = true;
-        setTarget({ href, ...origin });
+        setTarget({ href, islandId: linkIslandId(link) });
         setOpen(true);
       }, REST_MS);
     };
@@ -137,18 +138,34 @@ export function LinkHoverMenu() {
         }}
         className="w-auto min-w-48 gap-0 p-1 text-ui"
       >
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => {
             closeRef.current();
-            openInNewTab(target.href);
+            openInNewTab(target.href, { islandId: target.islandId });
           }}
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-foreground outline-none transition-colors hover:bg-accent focus-visible:bg-accent"
+          className="justify-start gap-2 text-left"
         >
-          <AppWindow aria-hidden className="size-3.5 text-muted-foreground" />
+          <AppWindow aria-hidden data-icon="inline-start" />
           <span className="flex-1">Open in new tab</span>
           <Kbd>⇧ Click</Kbd>
-        </button>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            closeRef.current();
+            openToSide(target.href, target.islandId);
+          }}
+          className="justify-start gap-2 text-left"
+        >
+          <Columns2 aria-hidden data-icon="inline-start" />
+          <span className="flex-1">Open to the side</span>
+          <Kbd>Alt Click</Kbd>
+        </Button>
       </PopoverContent>
     </Popover>
   );
@@ -162,8 +179,5 @@ function eligibleLink(target: EventTarget | null): HTMLAnchorElement | null {
   if (a.closest('[data-link-menu="off"], [data-radix-popper-content-wrapper], [role="menu"]')) {
     return null;
   }
-  const here = `${window.location.pathname}${window.location.search}`;
-  const url = new URL(a.href);
-  if (`${url.pathname}${url.search}` === here) return null;
   return a;
 }

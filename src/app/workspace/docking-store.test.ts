@@ -65,3 +65,15 @@ test("undoing a pin preserves the tab opened before it", () => {
   dispatch({ type: "undo" });
   expect(getWorkspace()).toEqual(before);
 });
+
+test("launcher and side openings undo before earlier layout changes", () => {
+  dispatch({ type: "openTab", href: "/two" });
+  const before = getWorkspace();
+  dispatch({ type: "openOrJump", href: "/three" });
+  const launched = getWorkspace();
+  dispatch({ type: "openToSide", href: "/four" });
+  dispatch({ type: "undo" });
+  expect(getWorkspace()).toEqual(launched);
+  dispatch({ type: "undo" });
+  expect(getWorkspace()).toEqual(before);
+});

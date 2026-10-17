@@ -9,7 +9,7 @@ import { useMe } from "@/app/hooks/useMe";
 import { useRepo } from "@/app/hooks/useRepo";
 import { logout, manageGitHubAccess } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
-import { openInNewTab } from "@/app/lib/tabActions";
+import { openOrJump } from "@/app/lib/tabActions";
 import { getTabMeta, tabRepo } from "@/app/lib/tabMeta";
 import { useCommandPalette } from "@/app/stores/commandPalette";
 import { hrefPathname } from "@/app/workspace/model";
@@ -63,7 +63,7 @@ function LogoButton() {
         <button
           type="button"
           aria-label="Open dashboard"
-          onClick={() => openInNewTab("/")}
+          onClick={() => openOrJump("/")}
           className={cn(
             "inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-foreground",
             "outline-none transition-colors hover:bg-accent focus-visible:ring-1 focus-visible:ring-(--color-focus)",
