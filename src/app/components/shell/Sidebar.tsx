@@ -156,7 +156,7 @@ export const Sidebar = memo(function Sidebar({ beginDrag }: { beginDrag: BeginDr
       >
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-y-3 left-1/2 w-0.5 rounded-full bg-primary opacity-0 group-hover:opacity-90 group-focus-visible:opacity-90"
+          className="pointer-events-none absolute top-[calc(var(--island-tabs-height)+0.75rem-1px)] bottom-3 left-1/2 w-0.5 rounded-full bg-primary opacity-0 group-hover:opacity-90 group-focus-visible:opacity-90"
         />
       </div>
     </aside>

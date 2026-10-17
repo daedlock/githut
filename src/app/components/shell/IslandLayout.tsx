@@ -299,7 +299,7 @@ const IslandHeader = memo(function IslandHeader({
         toggleMaximize(island.id);
       }}
       // Overlaps the sheet by 1px so the selected tab covers the sheet's top edge.
-      className="relative z-10 -mb-px flex h-9 shrink-0 touch-none items-center gap-1 pr-0.5"
+      className="relative z-10 -mb-px flex h-(--island-tabs-height) shrink-0 touch-none items-center gap-1 pr-0.5"
     >
       {narrow && focused && <SidebarToggle />}
       <TabStrip island={island} focused={focused} />
@@ -522,7 +522,7 @@ function Gap({
           "pointer-events-none absolute rounded-full bg-primary opacity-0 transition-opacity duration-150",
           "group-hover/gap:opacity-90 group-hover/gap:delay-150 group-focus-visible/gap:opacity-90 group-data-dragging/gap:opacity-100 group-data-dragging/gap:delay-0",
           row
-            ? "inset-y-3 left-1/2 w-0.5 -translate-x-1/2"
+            ? "top-[calc(var(--island-tabs-height)+0.75rem-1px)] bottom-3 left-1/2 w-0.5 -translate-x-1/2"
             : "inset-x-3 top-1/2 h-0.5 -translate-y-1/2",
         )}
       />

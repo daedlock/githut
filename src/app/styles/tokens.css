@@ -54,6 +54,8 @@
   --color-island-edge: color-mix(in oklab, var(--color-fg) 9%, transparent);
   --color-island-edge-focus: color-mix(in oklab, var(--color-fg) 13%, transparent);
   --radius-island: 10px;
+  /* Island tabs sit above the sheet; the sheet starts 1px under their bottom edge. */
+  --island-tabs-height: 2.25rem;
 
   /* form controls: translucent so focus states lift relative to their local surface */
   --color-control-bg: transparent;
