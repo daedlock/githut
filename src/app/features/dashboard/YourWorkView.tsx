@@ -85,7 +85,7 @@ function WorkSection({ title, items }: { title: string; items: DashboardItem[] }
       </div>
       <div className="flex flex-col gap-1">
         {items.map((item) => (
-          <DashRow key={item.id} item={item} date={item.updated_at} showReason={false} />
+          <DashRow key={item.id} item={item} date={item.updated_at} />
         ))}
       </div>
     </section>
