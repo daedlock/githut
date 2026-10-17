@@ -266,6 +266,14 @@
   --text-micro--line-height: 1.2;
   --text-micro--letter-spacing: 0.015em;
 
+  /* --- mark / mark-sm: 9.5px / 8.5px / 1 ---
+     Repo-mark glyphs only (RepoMark). An identity graphic sized like an icon
+     inside a 16px / 14px square, never running text. */
+  --text-mark: 9.5px;
+  --text-mark--line-height: 1;
+  --text-mark-sm: 8.5px;
+  --text-mark-sm--line-height: 1;
+
   /* --- caption: 12px / 1.4 / +0.01em ---
      Small meta text (counts, timestamps, language names, keyboard hints). */
   --text-caption: 12px;

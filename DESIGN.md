@@ -89,6 +89,7 @@ Only these sizes exist. **Never use `text-xs`, `text-sm`, `text-base`,
 | `text-title` | 18 / 1.35 | Section titles |
 | `text-heading` | 24 / 1.25 | Page headings, issue and PR titles |
 | `text-display` | 32 / 1.15 | Login and empty-state centerpieces |
+| `text-mark` / `text-mark-sm` | 9.5 / 8.5, line-height 1 | Repo-mark glyphs only (an identity graphic, like an icon) |
 
 - Tokens set size, line-height and tracking; **callers set weight.** Row
   titles use `font-[475]`, emphasis and labels use `font-medium`, and
@@ -310,12 +311,14 @@ sidebar with GitHub stars, recent pages, or expanded pull request queues.
 
 ### Repo marks
 - `RepoMark` (`components/shell/RepoMark.tsx`): a 16px (`sm` 14px)
-  rounded square with the repo's initial, two letters when two repos in
-  view share one.
+  rounded square with the repo's initial (`text-mark`, `sm` uses
+  `text-mark-sm`), two letters when two open or favorite repos share one.
+  Only open tabs and favorites count, both local state, so a mark never
+  changes when network data arrives.
 - Colour hashes the repo's full name onto a curated hue set that skips
   the status hues. Every hue shares `--repo-l` / `--repo-c`, so no repo
-  is louder than another. Fill is the colour at 20% over `bg-muted`, ring
-  35%. With `<html data-repo-color="off">` marks go neutral.
+  is louder than another. Fill is the colour at 20% over `bg-muted`, `ring-1 ring-inset`
+  at 35%. With `<html data-repo-color="off">` marks go neutral.
 
 ### Settings
 - Settings is a scrollable shadcn Dialog over the workspace, including direct
