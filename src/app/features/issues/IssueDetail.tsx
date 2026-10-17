@@ -28,6 +28,7 @@ import {
 } from "@/app/features/issues/schemas";
 import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 import { formatRelativeTime } from "@/app/lib/time";
 
 export type IssueDetailProps = {
@@ -79,6 +80,7 @@ export function IssueDetail({
   // CommentCardWithReactions so each comment has an independently-keyed cache.
   const { data: myIssueReactions } = useMyIssueReactions(owner, repo, issue?.number, me?.id);
   const updateIssueMutation = useUpdateIssue(owner, repo);
+  const { canMutate, reason: cannotMutateReason } = useCanMutate();
 
   const isMyIssue = !!me && !!issue && me.login === issue.user.login;
 
@@ -114,7 +116,8 @@ export function IssueDetail({
           <Button
             variant={issue.state === "open" ? "secondary" : "default"}
             size="sm"
-            disabled={isTogglingState}
+            disabled={isTogglingState || !canMutate}
+            title={cannotMutateReason}
             onClick={onToggleState}
           >
             {issue.state === "open" ? (

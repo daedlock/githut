@@ -10,6 +10,7 @@ import { DocumentTitle } from "@/app/components/shell/DocumentTitle";
 import { IslandLayout } from "@/app/components/shell/IslandLayout";
 import { LayoutUndo } from "@/app/components/shell/LayoutUndo";
 import { LinkHoverMenu } from "@/app/components/shell/LinkHoverMenu";
+import { SignInBanner } from "@/app/components/shell/SessionNotices";
 import { TabShortcuts } from "@/app/components/shell/TabShortcuts";
 import { TitleBar } from "@/app/components/shell/TitleBar";
 import { TooltipProvider } from "@/app/components/ui/tooltip";
@@ -101,7 +102,7 @@ export function TabHost() {
     <TooltipProvider delayDuration={500} skipDelayDuration={300}>
       <div
         className={cn(
-          "flex h-full flex-col bg-(--color-frame)",
+          "relative flex h-full flex-col bg-(--color-frame)",
           "pr-[max(1rem,env(safe-area-inset-right))] pb-2 pl-[max(1rem,env(safe-area-inset-left))]",
         )}
       >
@@ -116,6 +117,7 @@ export function TabHost() {
           maximizedIslandId={maximizedIslandId}
           renderPanes={renderPanes}
         />
+        <SignInBanner />
       </div>
     </TooltipProvider>
   );
