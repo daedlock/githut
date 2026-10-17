@@ -40,6 +40,7 @@ import {
 } from "@/app/lib/tabActions";
 import { getTabMeta, type TabMeta } from "@/app/lib/tabMeta";
 import { hrefPathname, type Tab, useTabsStore } from "@/app/stores/tabs";
+import { useTabTitlesStore } from "@/app/stores/tabTitles";
 
 // ─── TabStrip ──────────────────────────────────────────────────────────────
 //
@@ -334,10 +335,15 @@ type EntityRow = {
 /**
  * Title + state of a PR/issue from the query cache — the detail query if the
  * page was opened, else any list page that contained it. Never fetches.
+ *
+ * The cache is in memory only, so the last value seen is remembered across
+ * reloads (see stores/tabTitles) and used until the cache has it again.
  */
 function useCachedEntity(pathname: string): { title: string; tone: Tone } | null {
   const queryClient = useQueryClient();
   const m = /^\/([^/]+)\/([^/]+)\/(pull|pr|review|issues)\/(\d+)/.exec(pathname);
+  const key = m ? `${m[1]}/${m[2]}/${m[3] === "issues" ? "issue" : "pull"}/${m[4]}` : "";
+  const remembered = useTabTitlesStore((s) => (key ? s.entries[key] : undefined));
 
   // Snapshot is a primitive so useSyncExternalStore can compare it cheaply.
   const snapshot = useSyncExternalStore(
@@ -364,8 +370,13 @@ function useCachedEntity(pathname: string): { title: string; tone: Tone } | null
     },
   );
 
-  if (!snapshot) return null;
-  const [tone, title] = snapshot.split("\u0000") as [Tone, string];
+  useEffect(() => {
+    if (key && snapshot) useTabTitlesStore.getState().remember(key, snapshot);
+  }, [key, snapshot]);
+
+  const value = snapshot || remembered;
+  if (!value) return null;
+  const [tone, title] = value.split("\u0000") as [Tone, string];
   return { tone, title };
 }
 
