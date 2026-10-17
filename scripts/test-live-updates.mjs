@@ -149,7 +149,7 @@ try {
     }
     assert.equal(route.request().method(), "GET", "Fixtures never mutate GitHub");
     const body =
-      path === "/user/starred"
+      path === "/user/repos"
         ? [repo, { ...repo, id: 2, name: "satellite", full_name: "demo/satellite" }]
         : path === "/user"
           ? actor
@@ -430,24 +430,25 @@ try {
     listItems = survivingItems;
   }
   console.log("PASS: empty refreshes preserve hovered PR and issue rows until leave");
-  const stars = page.getByRole("region", { name: "Starred", exact: true });
+  const stars = page.getByRole("region", { name: "Your repos", exact: true });
   const starOrder = () =>
     stars
       .locator("[data-sidebar-href]")
       .evaluateAll((rows) => rows.map((row) => row.dataset.sidebarHref));
+  await stars.locator("[data-sidebar-row]").first().waitFor();
   const initialOrder = await starOrder();
-  await stars.getByRole("button", { name: "satellite", exact: true }).click();
+  await stars.getByRole("button", { name: "satellite · demo/satellite", exact: true }).click();
   await page.waitForURL(`${app}/demo/satellite/code`);
   await delay(100);
   assert.deepEqual(
     await starOrder(),
     initialOrder,
-    "Recent-use sorting cannot move a hovered sidebar row",
+    "Opening a repository must not move sidebar destinations",
   );
   await page.mouse.move(0, 0);
   await delay(100);
-  assert.equal((await starOrder())[0], "/demo/satellite/code");
-  console.log("PASS: sidebar star order waits until the pointer leaves");
+  assert.deepEqual(await starOrder(), initialOrder);
+  console.log("PASS: repository navigation order stays stable across visits");
 } finally {
   await browser?.close();
   server?.kill();

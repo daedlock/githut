@@ -55,7 +55,7 @@ _Avoid_: Repo badge, repo icon, repo chip
 ## Navigation
 
 **Sidebar**:
-The collapsible navigation column on the window surface, outside the islands, holding Inbox, Your work, Starred and Recent.
+The collapsible navigation column on the window surface, outside the islands, holding Inbox, Favorites, Your repos and Organizations.
 _Avoid_: Nav drawer, rail (the rail is only its collapsed state)
 
 **Inbox**:
@@ -70,9 +70,17 @@ _Avoid_: Dismissed, resolved, archived
 Pull requests that need you: those where your review is requested, then your own open ones.
 _Avoid_: My PRs, assigned
 
-**Starred**:
-The repos you have starred on GitHub, ordered by how recently you used them in githut.
-_Avoid_: Favorites, pinned repos, bookmarks
+**Favorite**:
+A repo or specific page you choose to keep in the sidebar for this account on this device, independently of GitHub stars.
+_Avoid_: Starred repo, pinned tab
+
+**Your repos**:
+Repos you own or can access as a direct collaborator. Organization membership alone does not put a repo in this list.
+_Avoid_: All repos, contributed repos
+
+**Organizations**:
+Organizations you belong to, with their accessible repos available when expanded.
+_Avoid_: Your repos
 
 **Recent**:
 Pages you visited lately that are no longer open in any tab.

@@ -285,8 +285,11 @@ try {
       ],
     );
     await page.keyboard.press("Alt+w");
-    await page.locator('[data-sidebar-href="/demo/project/issues/1"]').click({ button: "right" });
-    await page.getByRole("menuitem", { name: "Mark done", exact: true }).click({ timeout: 3000 });
+    await page
+      .locator('[data-notification-row="1"]')
+      .getByRole("button", { name: "Actions for Inbox thread 1" })
+      .click();
+    await page.getByRole("menuitem", { name: "Done", exact: true }).click({ timeout: 3000 });
     await page.waitForFunction(() => !document.querySelector('[data-notification-row="1"]'));
     assert.deepEqual(viewing.errors, []);
     console.log(
@@ -399,14 +402,14 @@ try {
       await empty.page.getByRole("button", { name: "Your work", exact: true }).count(),
       1,
     );
-    assert.equal(await empty.page.getByRole("button", { name: "Recent", exact: true }).count(), 1);
-    await empty.page.setViewportSize({ width: 640, height: 900 });
     assert.equal(
-      await empty.page.getByRole("button", { name: "Recent", exact: true }).isDisabled(),
-      true,
+      await empty.page.getByRole("button", { name: "Your repos", exact: true }).count(),
+      1,
     );
-    await empty.page.getByText("No recent pages yet.", { exact: true }).waitFor();
-    console.log("PASS calm empty Inbox links to work and recent pages");
+    await empty.page.setViewportSize({ width: 640, height: 900 });
+    await empty.page.getByRole("button", { name: "Your repos", exact: true }).click();
+    await empty.page.getByRole("dialog", { name: "Sidebar" }).waitFor();
+    console.log("PASS calm empty Inbox links to work and opens repository drawer");
   } finally {
     await empty.close();
   }

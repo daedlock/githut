@@ -1,9 +1,10 @@
 import { type CSSProperties, createContext, type ReactNode, useContext } from "react";
-import { useStarredRepos } from "@/app/hooks/useStarredRepos";
-
+import { useYourRepositories } from "@/app/hooks/sidebarRepositories";
 import { cn } from "@/app/lib/cn";
 import { repoHue, repoMarkLetter } from "@/app/lib/repoMark";
 import { tabRepo } from "@/app/lib/tabMeta";
+import { useAuthStore } from "@/app/stores/auth";
+import { useFavoritesStore } from "@/app/stores/favorites";
 import { hrefPathname, islands } from "@/app/workspace/model";
 import { useWorkspaceStore } from "@/app/workspace/store";
 
@@ -25,16 +26,21 @@ function useReposInView(): string {
   });
 }
 
-const StarredRepoContext = createContext<readonly string[]>([]);
+const SidebarRepoContext = createContext<readonly string[]>([]);
 
-/** Every mark, including marks inside tabs, disambiguates against the same stars. */
+/** Every mark, including marks inside tabs, disambiguates against the same repository destinations. */
 export function RepoMarkScope({ children }: { children: ReactNode }) {
-  const { data } = useStarredRepos();
-  return (
-    <StarredRepoContext.Provider value={data?.map((repo) => repo.full_name) ?? []}>
-      {children}
-    </StarredRepoContext.Provider>
-  );
+  const { data } = useYourRepositories();
+  const accountId = useAuthStore((state) => state.accountId);
+  const favorites = useFavoritesStore((state) => state.forAccount(accountId));
+  const repos = [
+    ...(data?.map((repo) => repo.full_name) ?? []),
+    ...favorites.flatMap((item) => {
+      const repo = tabRepo(hrefPathname(item.href));
+      return repo ? [repo] : [];
+    }),
+  ];
+  return <SidebarRepoContext.Provider value={repos}>{children}</SidebarRepoContext.Provider>;
 }
 
 export function RepoMark({
@@ -48,8 +54,8 @@ export function RepoMark({
   className?: string;
 }) {
   const inView = useReposInView();
-  const starred = useContext(StarredRepoContext);
-  const letter = repoMarkLetter(repo, [...starred, ...(inView ? inView.split("\n") : [])]);
+  const destinations = useContext(SidebarRepoContext);
+  const letter = repoMarkLetter(repo, [...destinations, ...(inView ? inView.split("\n") : [])]);
 
   return (
     <span
