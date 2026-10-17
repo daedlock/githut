@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { accountStorage, followDraftAccount } from "./accountStorage";
+import { accountStorage, followAccount } from "@/app/stores/accountStorage";
 
 // ─── Remembered tab titles ───────────────────────────────────────────────────
 //
@@ -9,14 +9,19 @@ import { accountStorage, followDraftAccount } from "./accountStorage";
 // full reload, signing in again) only the focused tab mounts, so background
 // tabs would fall back to a bare "PR #12" until visited. The last title and
 // state seen for each PR/issue are kept here so tabs keep their labels across
-// reloads. The live cache always wins; this is only a fallback.
-//
-// Titles of private PRs and issues belong to one account, so they are stored
-// per verified account and swapped out when the account changes.
-
-const LEGACY_KEY = "githut.tab-titles.v1";
+// reloads. The live cache always wins; this is only a fallback. Titles of
+// private PRs and issues are kept per account (see stores/accountStorage), so
+// the next account on the device never sees them.
 
 const MAX_ENTRIES = 200;
+const NAME = "githut.tab-titles.v2";
+
+// v1 was shared by every account on the device.
+try {
+  globalThis.localStorage?.removeItem("githut.tab-titles.v1");
+} catch {
+  /* Storage may be disabled. */
+}
 
 type TabTitlesState = {
   /** `owner/repo/kind/number` → `tone\0title`, oldest first. */
@@ -41,10 +46,9 @@ export const useTabTitlesStore = create<TabTitlesState>()(
       },
     }),
     {
-      name: LEGACY_KEY,
+      name: NAME,
       storage: accountStorage<Pick<TabTitlesState, "entries">>(),
       partialize: (s) => ({ entries: s.entries }),
-      // An account with nothing saved must not inherit the previous one's titles.
       merge: (persisted, current) => ({
         ...current,
         entries: (persisted as Partial<TabTitlesState> | undefined)?.entries ?? {},
@@ -52,11 +56,12 @@ export const useTabTitlesStore = create<TabTitlesState>()(
     },
   ),
 );
-followDraftAccount(() => useTabTitlesStore.persist.rehydrate());
 
-try {
-  // Before per-account keys; unowned, so it is deleted rather than migrated.
-  localStorage.removeItem(LEGACY_KEY);
-} catch {
-  /* Storage may be disabled. */
-}
+followAccount(NAME, {
+  rehydrate: () => useTabTitlesStore.persist.rehydrate(),
+  snapshot: () => useTabTitlesStore.getState().entries,
+  adopt: (pending) =>
+    useTabTitlesStore.setState({
+      entries: { ...useTabTitlesStore.getState().entries, ...pending },
+    }),
+});

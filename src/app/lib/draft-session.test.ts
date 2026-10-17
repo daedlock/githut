@@ -65,7 +65,7 @@ test("switching accounts hides every composer and pending review and recovers th
   useReviewStore.getState().openComposer("demo", "project", 1, {
     path: "file.ts",
     side: "RIGHT",
-    line: 2,
+    line: 1,
   });
 
   await signIn("bob", 2, "bob-token");
@@ -80,7 +80,7 @@ test("switching accounts hides every composer and pending review and recovers th
   for (const slot of slots)
     expect(useDraftsStore.getState().drafts[draftKey(page, slot)]?.body).toBe(`Alice ${slot}`);
   expect(useReviewStore.getState().pendingByPr[page]?.[0]?.body).toBe("Alice pending");
-  expect(useReviewStore.getState().composerByPr[page]?.line).toBe(2);
+  expect(useReviewStore.getState().composerByPr[page]?.line).toBe(1);
 });
 
 test("a verified token restores its drafts offline after reload and keeps them through same-account renewal", async () => {
@@ -109,29 +109,17 @@ test("a verified token restores its drafts offline after reload and keeps them t
   expect(useDraftsStore.getState().drafts).toEqual({});
 });
 
-test("sign-out preserves owned drafts but legacy unowned records are never assigned to the next account", async () => {
+test("sign-out keeps owned drafts out of sight, and unverified typing is never assigned to another token's account", async () => {
   const entries = browserStorage();
-  const legacy = JSON.stringify({
-    state: { drafts: { [draftKey(page, "comment")]: { body: "Unowned", at: Date.now() } } },
-    version: 0,
-  });
-  const legacyReview = JSON.stringify({
-    state: {
-      pendingByPr: {
-        [page]: [{ id: -1, body: "Unowned inline", path: "file.ts", side: "RIGHT", line: 1 }],
-      },
-    },
-    version: 0,
-  });
-  entries.set("githut.drafts.v1", legacy);
-  entries.set("githut.review-drafts.v1", legacyReview);
   useAuthStore.getState().setToken("unverified");
-  await useDraftsStore.persist.rehydrate();
-  await useReviewStore.persist.rehydrate();
-  useDraftsStore.getState().setDraft(draftKey(page, "comment"), "Must not own this");
+  useDraftsStore.getState().setDraft(draftKey(page, "comment"), "Typed before /user answered");
+  expect(useDraftsStore.getState().drafts[draftKey(page, "comment")]?.body).toBe(
+    "Typed before /user answered",
+  );
   await signIn("alice", 1, "alice-token");
   expect(useDraftsStore.getState().drafts).toEqual({});
   expect(useReviewStore.getState().pendingByPr).toEqual({});
+  expect(entries.has("githut.drafts.v1.pending")).toBe(false);
   useDraftsStore.getState().setDraft(draftKey(page, "comment"), "Owned by Alice");
   useAuthStore.getState().clear();
   expect(useDraftsStore.getState().drafts).toEqual({});
@@ -142,6 +130,15 @@ test("sign-out preserves owned drafts but legacy unowned records are never assig
   expect(useDraftsStore.getState().drafts).toEqual({});
   await signIn("alice", 1, "alice-return");
   expect(useDraftsStore.getState().drafts[draftKey(page, "comment")]?.body).toBe("Owned by Alice");
-  expect(entries.get("githut.drafts.v1")).toBe(legacy);
-  expect(entries.get("githut.review-drafts.v1")).toBe(legacyReview);
+});
+
+test("typing while the account is unverified is adopted once the same token is verified", async () => {
+  const entries = browserStorage();
+  useAuthStore.getState().setToken("fresh-token");
+  useDraftsStore.getState().setDraft(draftKey(page, "comment"), "Early draft");
+  expect(entries.has("githut.drafts.v1.pending")).toBe(true);
+  useAuthStore.getState().verifyAccount("fresh-token", 3);
+  expect(useDraftsStore.getState().drafts[draftKey(page, "comment")]?.body).toBe("Early draft");
+  expect(entries.has("githut.drafts.v1.pending")).toBe(false);
+  expect(entries.get("githut.drafts.v1.account.3")).toContain("Early draft");
 });

@@ -8,7 +8,10 @@ import { StatusIcon, StatusPill } from "@/app/components/ui/StatusPill";
 import { Skeleton } from "@/app/components/ui/skeleton";
 import { ArtifactList } from "@/app/features/actions/components/ArtifactList";
 import { JobPanel } from "@/app/features/actions/components/JobPanel";
-import { JobListSkeleton, RunDetailSkeleton } from "@/app/features/actions/components/RunDetailSkeleton";
+import {
+  JobListSkeleton,
+  RunDetailSkeleton,
+} from "@/app/features/actions/components/RunDetailSkeleton";
 import {
   RunHeader,
   RunOverview,
@@ -93,10 +96,7 @@ function RunDetailPage() {
           />
         ) : null}
         <div className="flex flex-col items-start gap-6 lg:flex-row lg:gap-8">
-          <aside
-            className="w-full shrink-0 lg:sticky lg:top-28 lg:w-60"
-            aria-label="Run navigation"
-          >
+          <aside className="w-full shrink-0 lg:sticky lg:top-8 lg:w-60" aria-label="Run navigation">
             <select
               aria-label="View summary or job"
               className="h-10 w-full rounded-md border border-input bg-background px-3 text-ui lg:hidden"
@@ -174,7 +174,7 @@ function RunDetailPage() {
               </div>
             </div>
           </aside>
-          <main className="min-w-0 w-full flex-1 space-y-6">
+          <div className="min-w-0 w-full flex-1 space-y-6">
             {jobsQuery.isError ? (
               <QueryError
                 title="Could not refresh jobs. Any visible jobs show the last received state."
@@ -309,7 +309,7 @@ function RunDetailPage() {
                 </section>
               </>
             )}
-          </main>
+          </div>
         </div>
       </Container>
     </NowTicker>

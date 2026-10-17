@@ -2,11 +2,13 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { type AnyRouter, createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { NotFound } from "@/app/components/NotFound";
 import { TabHost } from "@/app/components/shell/TabHost";
 import { bootstrapAuthFromHash } from "@/app/lib/auth";
 import { queryClient } from "@/app/lib/query";
 import { listenForSignIn } from "@/app/lib/session";
 import { setTabRouterFactory, startBrowserSync } from "@/app/lib/tabRouters";
+import { useAuthStore } from "@/app/stores/auth";
 import {
   isSettingsHref,
   openSettings,
@@ -27,6 +29,7 @@ function createAppRouter(href: string, history?: AnyRouter["history"]) {
     routeTree,
     context: { queryClient },
     defaultPreload: "intent",
+    defaultNotFoundComponent: NotFound,
     history: history ?? createMemoryHistory({ initialEntries: [href] }),
   });
 }
@@ -44,11 +47,19 @@ setTabRouterFactory(createAppRouter);
 // the callback's root URL as a new tab.
 if (authStart !== "handoff") {
   const href = normalizeHref(window.location.href);
+  // Settings needs a session; signed out, /settings shows the login page.
+  const signedIn = !!useAuthStore.getState().token;
   const showSettings =
-    isSettingsHref(href) || (authStart === "redirect" && restoreSettingsAfterSignIn());
+    signedIn &&
+    (isSettingsHref(href) || (authStart === "redirect" && restoreSettingsAfterSignIn()));
   initWorkspace(isSettingsHref(href) ? "/" : href);
   if (authStart === "redirect") window.history.replaceState(null, "", getFocusedTab().href);
-  else if (!showSettings) dispatch({ type: "openOrJump", href, match: "href" });
+  else if (!showSettings)
+    dispatch({
+      type: "openOrJump",
+      href: isSettingsHref(href) ? "/login" : href,
+      match: "href",
+    });
   if (showSettings) openSettings({ replace: true });
 }
 

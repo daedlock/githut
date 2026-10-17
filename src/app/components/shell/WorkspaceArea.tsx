@@ -130,7 +130,7 @@ export function WorkspaceArea({ children }: { children: ReactNode }) {
       ) : (
         <Sidebar beginDrag={docking.beginDrag} />
       )}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</main>
       {docking.overlay}
     </div>
   );

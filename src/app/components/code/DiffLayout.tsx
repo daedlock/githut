@@ -62,7 +62,7 @@ export type DiffLayoutProps = {
 // Once painted, the browser remembers the actual size.
 
 const TOPBAR_H = 44;
-const STICKY_TOP = "calc(var(--app-header-height, 40px) + var(--diff-toolbar-height, 44px))";
+const STICKY_TOP = "var(--diff-toolbar-height, 44px)";
 
 export function DiffLayout({
   files,
@@ -119,8 +119,6 @@ export function DiffLayout({
     let observer: IntersectionObserver | undefined;
     const observeFiles = () => {
       observer?.disconnect();
-      const headerHeight =
-        Number.parseFloat(getComputedStyle(layout).getPropertyValue("--app-header-height")) || 0;
       observer = new IntersectionObserver(
         (entries) => {
           const visible = entries
@@ -134,7 +132,7 @@ export function DiffLayout({
         },
         {
           root: tabScrollContainer(layout),
-          rootMargin: `-${toolbarHeight + headerHeight}px 0px -55% 0px`,
+          rootMargin: `-${toolbarHeight}px 0px -55% 0px`,
           threshold: [0, 0.25],
         },
       );
@@ -193,7 +191,7 @@ export function DiffLayout({
       >
         <div
           ref={toolbarRef}
-          className="sticky top-(--app-header-height) z-30 flex min-h-11 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-background py-2"
+          className="sticky top-0 z-30 flex min-h-11 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-background py-2"
         >
           {/* Left: review bar or sidebar toggle + file stats */}
           {reviewBar ? (

@@ -18,7 +18,7 @@ import type { ReviewComment } from "@/app/features/pulls/schemas";
 import { useMe } from "@/app/hooks/useMe";
 import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { useCanMutate } from "@/app/lib/connectivity";
-import { draftKey, draftPage, hasDraft } from "@/app/stores/drafts";
+import { draftKey, draftPage, hasDraft, sentDraft } from "@/app/stores/drafts";
 
 export type InlineThreadProps = {
   owner: string;
@@ -67,11 +67,18 @@ export function InlineThread({ owner, repo, number, root, replies }: InlineThrea
   }, [allComments]);
 
   function handleReply(body: string) {
-    if (!body || replyMutation.isPending || !canMutate) return;
-    // Fire-and-forget: optimistic insertion happens in onMutate, so close
-    // the box immediately for instant feedback.
-    replyMutation.mutate({ inReplyToId: root.id, body });
+    if (!body || replyMutation.isPending || !canMutate) return false;
+    // Optimistic insertion happens in onMutate, so close the box at once.
+    // The draft is cleared only when the reply succeeds; a failure reopens
+    // the box with the text still in it.
+    const sending = replyMutation.mutateAsync({
+      inReplyToId: root.id,
+      body,
+      draft: sentDraft(replyDraftKey, body),
+    });
     setReplyOpen(false);
+    sending.catch(() => setReplyOpen(true));
+    return sending;
   }
 
   function handleResolveToggle() {

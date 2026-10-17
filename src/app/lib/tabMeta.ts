@@ -1,6 +1,7 @@
 import {
   CircleDot,
   Code2,
+  FileDiff,
   FileText,
   GitCommitHorizontal,
   GitPullRequest,
@@ -62,11 +63,12 @@ const RULES: PatternRule[] = [
     meta: (g) => ({ label: "PRs", sublabel: `${g.owner}/${g.repo}`, icon: GitPullRequest }),
   },
   {
+    // The review (files) view of a PR: told apart from its conversation tab.
     match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/pr\/(?<number>\d+)(?:\/.*)?$/,
     meta: (g) => ({
-      label: `PR #${g.number}`,
+      label: `PR #${g.number} · Files`,
       sublabel: `${g.owner}/${g.repo}`,
-      icon: GitPullRequest,
+      icon: FileDiff,
     }),
   },
   {
@@ -80,9 +82,9 @@ const RULES: PatternRule[] = [
   {
     match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/review\/(?<number>\d+)$/,
     meta: (g) => ({
-      label: `Review #${g.number}`,
+      label: `PR #${g.number} · Files`,
       sublabel: `${g.owner}/${g.repo}`,
-      icon: GitPullRequest,
+      icon: FileDiff,
     }),
   },
   {
@@ -114,9 +116,11 @@ const RULES: PatternRule[] = [
     meta: (g) => ({ label: "Actions", sublabel: `${g.owner}/${g.repo}`, icon: Play }),
   },
   {
+    // The URL holds the run id, not the run number people know; the tab strip
+    // shows the number once the run is loaded.
     match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/actions\/runs\/(?<runId>[^/]+)$/,
     meta: (g) => ({
-      label: `Run #${g.runId}`,
+      label: "Workflow run",
       sublabel: `${g.owner}/${g.repo}`,
       icon: Play,
     }),

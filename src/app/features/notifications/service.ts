@@ -4,7 +4,7 @@ import { persist } from "zustand/middleware";
 import { assertCanMutate } from "@/app/lib/connectivity";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { queryClient } from "@/app/lib/query";
-import { accountStorage, followDraftAccount } from "@/app/stores/accountStorage";
+import { accountStorage, followAccount } from "@/app/stores/accountStorage";
 import { useAuthStore } from "@/app/stores/auth";
 import { getRateBackoff } from "@/app/stores/rateLimit";
 import {
@@ -35,9 +35,19 @@ export const useNotificationState = create<NotificationState>()(
     // Thread IDs reveal which private threads an account follows.
     storage: accountStorage<Pick<NotificationState, "unread">>(),
     partialize: (state) => ({ unread: state.unread }),
+    // An account with nothing saved must not inherit the previous one's overrides.
+    merge: (persisted, current) => ({
+      ...current,
+      unread: (persisted as Partial<NotificationState> | undefined)?.unread ?? {},
+    }),
   }),
 );
-followDraftAccount(() => useNotificationState.persist.rehydrate());
+followAccount("githut.notifications", {
+  rehydrate: () => useNotificationState.persist.rehydrate(),
+  snapshot: () => useNotificationState.getState().unread,
+  adopt: (pending) =>
+    useNotificationState.setState((state) => ({ unread: { ...state.unread, ...pending } })),
+});
 
 export function notificationIsUnread(item: Notification): boolean {
   return item.unread || !!useNotificationState.getState().unread[item.id];

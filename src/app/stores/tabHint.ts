@@ -12,6 +12,15 @@ function wasRetired() {
 
 export const useTabHintStore = create<{ retired: boolean }>()(() => ({ retired: wasRetired() }));
 
+/** Shown once: later loads never show it again, while this one keeps it until dismissed. */
+export function markTabHintSeen() {
+  try {
+    window.localStorage.setItem(KEY, "1");
+  } catch {
+    // Without storage the tip may show again next load.
+  }
+}
+
 /** Learning to split is as final as dismissing the tip, even when that split is undone. */
 export function retireTabHint() {
   useTabHintStore.setState({ retired: true });

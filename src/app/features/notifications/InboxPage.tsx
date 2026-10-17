@@ -85,7 +85,7 @@ export function InboxPage({ view }: { view?: HomeView }) {
   const unread = useNotificationUnreadCount(view === "all" ? "all" : "participating");
   const value = view ?? "participating";
   return (
-    <main className="min-h-full min-w-0 pb-24">
+    <div className="min-h-full min-w-0 pb-24">
       <Container className="pt-6 sm:pr-14">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-baseline gap-3">
@@ -123,7 +123,7 @@ export function InboxPage({ view }: { view?: HomeView }) {
           onShowAll={() => void navigate({ to: "/", search: { view: "all" } })}
         />
       )}
-    </main>
+    </div>
   );
 }
 

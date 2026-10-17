@@ -14,7 +14,7 @@ import {
 import { IssueDetail } from "@/app/features/issues/IssueDetail";
 import { IssueList } from "@/app/features/issues/IssueList";
 import { useMe } from "@/app/hooks/useMe";
-import { draftKey, draftPage, useDraft } from "@/app/stores/drafts";
+import { draftKey, draftPage, sentDraft, useDraft } from "@/app/stores/drafts";
 
 export type RepoIssuesPageProps = {
   owner: string;
@@ -58,9 +58,8 @@ export function RepoIssuesPage({
   const [isComposing, setIsComposing] = useState(false);
   const [newIssueTitle, setNewIssueTitle] = useState("");
   const [newIssueBody, setNewIssueBody] = useState("");
-  const [newCommentBody, setNewCommentBody] = useDraft(
-    draftKey(draftPage(owner, repo, selectedIssueNumber ?? 0), "comment"),
-  );
+  const commentDraftKey = draftKey(draftPage(owner, repo, selectedIssueNumber ?? 0), "comment");
+  const [newCommentBody, setNewCommentBody] = useDraft(commentDraftKey);
 
   const issuesQuery = useRepoIssues(owner, repo);
   const issueQuery = useRepoIssue(owner, repo, selectedIssueNumber);
@@ -129,9 +128,13 @@ export function RepoIssuesPage({
         onNewCommentChange={setNewCommentBody}
         onSubmitComment={() => {
           const body = newCommentBody.trim();
-          if (!body) return;
-          setNewCommentBody("");
-          createCommentMutation.mutate({ issueNumber: selectedIssueNumber, body });
+          if (!body || createCommentMutation.isPending) return;
+          // The draft is cleared when the comment is posted; a failed send keeps it.
+          createCommentMutation.mutate({
+            issueNumber: selectedIssueNumber,
+            body,
+            draft: sentDraft(commentDraftKey, body),
+          });
         }}
         onToggleState={() =>
           selectedIssue &&
