@@ -1,11 +1,8 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { useEffect } from "react";
-
 import { AppShell } from "@/app/components/shell/AppShell";
 import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
 import { repoQueryOptions } from "@/app/hooks/useRepo";
 import { useAuthStore } from "@/app/stores/auth";
-import { useTabsStore } from "@/app/stores/tabs";
 
 // Sticky content follows the header's second row on narrow screens.
 
@@ -33,36 +30,7 @@ function RepoLayout() {
       className="[--app-header-height:80px] md:[--app-header-height:40px]"
       stickyHeader
     >
-      <TabScrollRegistrar />
       <Outlet />
     </AppShell>
   );
-}
-
-/**
- * Saves scroll position to the active tab on unmount,
- * restores it on mount. Replaces WorkspaceRegistrar.
- */
-function TabScrollRegistrar() {
-  const activeTabId = useTabsStore((s) => s.activeTabId);
-  const saveScroll = useTabsStore((s) => s.saveScroll);
-
-  // Restore scroll on mount
-  useEffect(() => {
-    if (!activeTabId) return;
-    const tab = useTabsStore.getState().tabs.find((t) => t.id === activeTabId);
-    if (tab && tab.scrollY > 0) {
-      requestAnimationFrame(() => window.scrollTo(0, tab.scrollY));
-    }
-  }, [activeTabId]);
-
-  // Save scroll on unmount
-  useEffect(() => {
-    return () => {
-      const id = useTabsStore.getState().activeTabId;
-      if (id) saveScroll(id, window.scrollY);
-    };
-  }, [saveScroll]);
-
-  return null;
 }

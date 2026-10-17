@@ -14,8 +14,7 @@ type Registration = {
   map: ShortcutMap;
 };
 
-const IS_MAC =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
 
 // Keys we must never intercept — the browser owns these. Mirrored against
 // common shortcuts; dispatching would break reload/close/new-tab/etc.
@@ -46,6 +45,19 @@ function normalizeKey(raw: string): string {
   if (k === "return") return "enter";
   if (k === "space" || k === " ") return "space";
   return k;
+}
+
+const CODE_KEYS: Record<string, string> = { BracketLeft: "[", BracketRight: "]" };
+
+// Option on macOS rewrites e.key ("alt+w" arrives as "∑"), so alt chords
+// match on the physical key instead.
+function eventKey(e: KeyboardEvent): string {
+  if (e.altKey) {
+    const m = /^(?:Key|Digit)(.)$/.exec(e.code);
+    if (m) return m[1]!.toLowerCase();
+    if (CODE_KEYS[e.code]) return CODE_KEYS[e.code]!;
+  }
+  return normalizeKey(e.key);
 }
 
 // Parse "⌘k", "shift+enter", "g h", "?" into a canonical shape.
@@ -144,7 +156,7 @@ function onKeyDown(e: KeyboardEvent) {
   if (editable && e.key !== "Escape") return;
   if (isBrowserOwned(e)) return;
 
-  const key = normalizeKey(e.key);
+  const key = eventKey(e);
   // Ignore pure modifier keydowns.
   if (key === "shift" || key === "control" || key === "alt" || key === "meta") return;
 

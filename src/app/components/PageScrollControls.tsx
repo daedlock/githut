@@ -1,5 +1,5 @@
 import { ArrowDownToLine, ArrowUpToLine } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import {
   Tooltip,
@@ -8,17 +8,24 @@ import {
   TooltipTrigger,
 } from "@/app/components/ui/tooltip";
 
-export function PageScrollControls() {
+/** Scroll-to-top/bottom affordances for one tab pane (its own scroll container). */
+export function PageScrollControls({
+  scrollerRef,
+}: {
+  scrollerRef: RefObject<HTMLElement | null>;
+}) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [canScrollToTop, setCanScrollToTop] = useState(false);
   const [canScrollToBottom, setCanScrollToBottom] = useState(false);
 
   useEffect(() => {
-    const updateTopVisibility = () => setCanScrollToTop(window.scrollY > 0);
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const updateTopVisibility = () => setCanScrollToTop(scroller.scrollTop > 0);
     updateTopVisibility();
-    window.addEventListener("scroll", updateTopVisibility, { passive: true });
-    return () => window.removeEventListener("scroll", updateTopVisibility);
-  }, []);
+    scroller.addEventListener("scroll", updateTopVisibility, { passive: true });
+    return () => scroller.removeEventListener("scroll", updateTopVisibility);
+  }, [scrollerRef]);
 
   useEffect(() => {
     const bottom = bottomRef.current;
@@ -29,18 +36,18 @@ export function PageScrollControls() {
       ([entry]) => {
         if (entry) setCanScrollToBottom(!entry.isIntersecting);
       },
-      { rootMargin: "0px 0px 96px 0px" },
+      { root: scrollerRef.current, rootMargin: "0px 0px 96px 0px" },
     );
     observer.observe(bottom);
     return () => observer.disconnect();
-  }, []);
+  }, [scrollerRef]);
 
   function scrollTo(direction: "top" | "bottom") {
     const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches
       ? "instant"
       : "smooth";
     if (direction === "top") {
-      window.scrollTo({ top: 0, behavior });
+      scrollerRef.current?.scrollTo({ top: 0, behavior });
     } else {
       bottomRef.current?.scrollIntoView({ behavior, block: "end" });
     }

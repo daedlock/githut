@@ -41,12 +41,10 @@ import { track } from "@/app/lib/analytics";
 import { logout } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
 import { clearRecentItems, pushRecentItem, type RecentItem } from "@/app/lib/recentItems";
-import { getTabMeta } from "@/app/lib/tabMeta";
+import { openInNewTab } from "@/app/lib/tabActions";
 import { THEME_OPTIONS } from "@/app/lib/themeCatalog";
 import { formatRelativeTime } from "@/app/lib/time";
 import { useCommandPalette, useCommandPaletteStore } from "@/app/stores/commandPalette";
-import { useSettingsStore } from "@/app/stores/settings";
-import { hrefToTabId, useTabsStore } from "@/app/stores/tabs";
 import { useThemeStore } from "@/app/stores/theme";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -65,27 +63,22 @@ type RepoContext = { owner: string; repo: string } | null;
 // ─── Command builder ─────────────────────────────────────────────────────────
 // Returns a flat array of all available commands. cmdk handles the filtering.
 
-/**
- * Navigate to an href — through the tab system if enabled, or direct router
- * navigation if tabs are off.
- */
-function openTabOrNavigate(href: string, navigate: ReturnType<typeof useNavigate>) {
-  if (useSettingsStore.getState().tabsEnabled) {
-    const id = hrefToTabId(href);
-    const meta = getTabMeta(id);
-    useTabsStore.getState().openTab(href, {
-      label: meta.label,
-      sublabel: meta.sublabel,
-      icon: meta.icon.displayName ?? meta.icon.name ?? "File",
-    });
-    // Opening a different search result in the same page tab (for example
-    // /code?path=a.ts → /code?path=b.ts) keeps the same activeTabId, so the
-    // tab-sync subscription will not fire. Navigate directly as well so
-    // search-param-only tab updates are applied immediately.
-    navigate({ to: href });
+// Set from the dialog's capture handlers just before cmdk fires onSelect, so a
+// shift+Enter / shift+click on any result opens it in a new tab.
+let newTabIntent = false;
+function setNewTabIntent(shift: boolean) {
+  newTabIntent = shift;
+  // cmdk selects synchronously within the same event; never let it leak.
+  if (shift) setTimeout(() => (newTabIntent = false));
+}
+
+/** Navigate the active tab to an href, or open a new tab if shift was held. */
+function navigateTo(href: string, navigate: ReturnType<typeof useNavigate>) {
+  if (newTabIntent) {
+    newTabIntent = false;
+    openInNewTab(href);
     return;
   }
-
   navigate({ to: href });
 }
 
@@ -111,7 +104,7 @@ function buildCommands(
 ): { actions: PaletteCommand[]; themes: PaletteCommand[] } {
   const goTo = (path: string) => () => {
     close();
-    openTabOrNavigate(path, navigate);
+    navigateTo(path, navigate);
   };
   const r = repoContext;
   const base = r ? `/${r.owner}/${r.repo}` : null;
@@ -230,22 +223,19 @@ export function CommandPalette() {
     return { owner: parts[0]!, repo: parts[1]! };
   }, [pathname]);
 
-  // ⌘K + vim-style navigation shortcuts — all go through openTab
+  // ⌘K + vim-style navigation shortcuts
   const shortcuts = useMemo(
     () => ({
       "⌘k": toggle,
-      "g h": () => openTabOrNavigate("/", navigate),
+      "g h": () => navigateTo("/", navigate),
       "g i": () => {
-        if (repoContext)
-          openTabOrNavigate(`/${repoContext.owner}/${repoContext.repo}/issues`, navigate);
+        if (repoContext) navigateTo(`/${repoContext.owner}/${repoContext.repo}/issues`, navigate);
       },
       "g p": () => {
-        if (repoContext)
-          openTabOrNavigate(`/${repoContext.owner}/${repoContext.repo}/pulls`, navigate);
+        if (repoContext) navigateTo(`/${repoContext.owner}/${repoContext.repo}/pulls`, navigate);
       },
       "g c": () => {
-        if (repoContext)
-          openTabOrNavigate(`/${repoContext.owner}/${repoContext.repo}/code`, navigate);
+        if (repoContext) navigateTo(`/${repoContext.owner}/${repoContext.repo}/code`, navigate);
       },
     }),
     [toggle, repoContext, navigate],
@@ -299,7 +289,7 @@ export function CommandPalette() {
       track("command_palette_result_selected", { kind: item.kind });
       void pushRecentItem(item);
       close();
-      openTabOrNavigate(item.href, navigate);
+      navigateTo(item.href, navigate);
     },
     [close, navigate],
   );
@@ -357,6 +347,12 @@ export function CommandPalette() {
     >
       {/* biome-ignore lint/a11y/noStaticElementInteractions: cmdk owns focus; we intercept Enter for number-mode jump */}
       <div
+        onKeyDownCapture={(e) => {
+          if (e.key === "Enter") setNewTabIntent(e.shiftKey);
+        }}
+        onClickCapture={(e) => {
+          setNewTabIntent(e.shiftKey);
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
@@ -634,7 +630,7 @@ export function CommandPalette() {
         {/* ── Footer ── */}
         <div className="flex items-center gap-3 border-t border-border px-3 py-2">
           <FooterHint keys={["↵"]} label="select" />
-          <FooterHint keys={["↑", "↓"]} label="navigate" />
+          <FooterHint keys={["⇧", "↵"]} label="new tab" />
           <span className="flex-1" />
           <FooterHint keys={[">"]} label="commands" />
           <FooterHint keys={["@"]} label="repos" />
@@ -708,7 +704,7 @@ function FooterHint({ keys, label }: { keys: string[]; label: string }) {
       {keys.map((k) => (
         <Kbd key={k}>{k}</Kbd>
       ))}
-      <span className="text-micro">{label}</span>
+      <span className="whitespace-nowrap text-micro">{label}</span>
     </span>
   );
 }

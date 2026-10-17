@@ -5,7 +5,7 @@ import {
   IssueOpenedIcon,
   PlayIcon,
 } from "@primer/octicons-react";
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useMemo } from "react";
 import { UserMenu } from "@/app/components/shell/UserMenu";
@@ -21,10 +21,7 @@ import {
 import { useMe } from "@/app/hooks/useMe";
 import { logout, manageGitHubAccess } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
-import { getTabMeta } from "@/app/lib/tabMeta";
 import { useCommandPalette } from "@/app/stores/commandPalette";
-import { useSettingsStore } from "@/app/stores/settings";
-import { hrefToTabId, useTabsStore } from "@/app/stores/tabs";
 
 // ─── UnifiedNav ────────────────────────────────────────────────────────────
 //
@@ -50,7 +47,10 @@ export function UnifiedNav({ repoContext }: { repoContext?: RepoContext }) {
   const { open: openPalette } = useCommandPalette();
 
   return (
-    <header className="h-(--app-header-height) w-full shrink-0 border-b border-border bg-background">
+    <header
+      data-link-menu="off"
+      className="h-(--app-header-height) w-full shrink-0 border-b border-border bg-background"
+    >
       <TooltipProvider delayDuration={300}>
         <Container className="flex min-h-10 flex-wrap items-center md:flex-nowrap">
           <LogoLink />
@@ -114,9 +114,6 @@ const REPO_TABS = [
 
 function RepoSection({ owner, repo }: { owner: string; repo: string }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const tabsEnabled = useSettingsStore((s) => s.tabsEnabled);
-  const openTab = useTabsStore((s) => s.openTab);
-  const navigate = useNavigate();
 
   const tabs = useMemo(
     () =>
@@ -130,24 +127,10 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
 
   const activeHref = useMemo(() => {
     for (const tab of tabs) {
-      const tabId = hrefToTabId(tab.href);
-      if (pathname === tabId || pathname.startsWith(`${tabId}/`)) return tab.href;
+      if (pathname === tab.href || pathname.startsWith(`${tab.href}/`)) return tab.href;
     }
     return null;
   }, [tabs, pathname]);
-
-  function handleTabClick(href: string) {
-    if (tabsEnabled) {
-      const meta = getTabMeta(hrefToTabId(href));
-      openTab(href, {
-        label: meta.label,
-        sublabel: meta.sublabel,
-        icon: meta.icon.displayName ?? meta.icon.name ?? "File",
-      });
-    } else {
-      navigate({ to: href });
-    }
-  }
 
   return (
     <>
@@ -222,10 +205,9 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
           const isActive = tab.href === activeHref;
           const Icon = tab.icon;
           return (
-            <button
+            <Link
               key={tab.href}
-              type="button"
-              onClick={() => handleTabClick(tab.href)}
+              to={tab.href}
               className={cn(
                 "group relative flex flex-1 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 text-ui md:flex-none md:px-2.5",
                 "text-muted-foreground outline-none transition-colors",
@@ -242,7 +224,7 @@ function RepoSection({ owner, repo }: { owner: string; repo: string }) {
                   className="absolute inset-x-2.5 bottom-0 h-[2px] rounded-full bg-primary"
                 />
               )}
-            </button>
+            </Link>
           );
         })}
       </nav>
