@@ -1,4 +1,4 @@
-import { type ReactNode, useLayoutEffect, useRef } from "react";
+import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react";
 import { IslandSwitcher } from "@/app/components/shell/IslandSwitcher";
 import { RecentVisits } from "@/app/components/shell/RecentVisits";
 import { Sidebar, SidebarContent } from "@/app/components/shell/Sidebar";
@@ -10,6 +10,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/app/components/ui/sheet";
+import { startBackgroundWatcher } from "@/app/features/activity/watcher";
 import { NotificationsSync } from "@/app/features/notifications/NotificationsSync";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { focusPaneOfFocusedTab } from "@/app/lib/tabActions";
@@ -35,6 +36,7 @@ export function WorkspaceArea({ children }: { children: ReactNode }) {
     },
   });
   useKeybindings({ "⌘b": toggleSidebar });
+  useEffect(startBackgroundWatcher, []);
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;

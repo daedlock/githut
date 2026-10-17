@@ -1,6 +1,8 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
+import { jobLogsQueryOptions } from "@/app/features/actions/hooks";
 import { queryClientForTab, refreshWorkspaceQueries } from "@/app/lib/freshness";
+import { useAuthStore } from "@/app/stores/auth";
 import { clearRateLimit, recordRateLimit } from "@/app/stores/rateLimit";
 import { useWorkspaceView } from "@/app/stores/workspaceView";
 import { createWorkspace, focusedTab, islands, runCommand } from "@/app/workspace/model";
@@ -224,5 +226,110 @@ test("an immutable query first mounted in a background tab loads when that tab b
   } finally {
     unsubscribe();
     client.clear();
+  }
+});
+
+test.each([
+  403, 410, 429,
+])("terminal %i Actions log failures stop requesting logs while the job stays visible", async (status) => {
+  useAuthStore.getState().setToken("log-test");
+  const send = spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response("unavailable", { status }),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const workspace = createWorkspace(["/demo/project/actions/runs/1"]);
+  const observer = new QueryObserver(
+    queryClientForTab(client, focusedTab(workspace).id, () => workspace),
+    {
+      ...jobLogsQueryOptions("demo", "project", 1),
+    },
+  );
+  const unsubscribe = observer.subscribe(() => {});
+  try {
+    await observer.refetch();
+    await refreshWorkspaceQueries(client, workspace, { now: Date.now() + 16_000 });
+    await refreshWorkspaceQueries(client, workspace, { now: Date.now() + 32_000 });
+    expect(observer.getCurrentResult().error).toMatchObject({ status });
+    expect(send).toHaveBeenCalledTimes(1);
+  } finally {
+    unsubscribe();
+    client.clear();
+    send.mockRestore();
+    useAuthStore.getState().clear();
+  }
+});
+
+test("completed logs first load on reveal, retry during materialization and stop at the grace deadline", async () => {
+  let now = 50_000;
+  const clock = spyOn(Date, "now").mockImplementation(() => now);
+  useAuthStore.getState().setToken("materializing-log-test");
+  const send = spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response("not yet", { status: 404 }),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  let workspace = createWorkspace(["/one", "/demo/project/actions/runs/1"]);
+  const tab = islands(workspace.layout)[0]!.tabs[1]!;
+  const observer = new QueryObserver(
+    queryClientForTab(client, tab.id, () => workspace),
+    jobLogsQueryOptions("demo", "project", 1, { pollUntil: 55_000 }),
+  );
+  const stop = observer.subscribe(() => {});
+  try {
+    await refreshWorkspaceQueries(client, workspace);
+    expect(send).not.toHaveBeenCalled();
+    workspace = runCommand(workspace, { type: "selectTab", tabId: tab.id });
+    await refreshWorkspaceQueries(client, workspace);
+    expect(send).toHaveBeenCalledTimes(1);
+    now = 53_000;
+    await refreshWorkspaceQueries(client, workspace);
+    expect(send).toHaveBeenCalledTimes(2);
+    now = 56_000;
+    await refreshWorkspaceQueries(client, workspace);
+    now = 80_000;
+    await refreshWorkspaceQueries(client, workspace);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(observer.getCurrentResult().error).toMatchObject({ status: 404 });
+  } finally {
+    stop();
+    client.clear();
+    send.mockRestore();
+    clock.mockRestore();
+    useAuthStore.getState().clear();
+  }
+});
+
+test("live Actions logs honor terminal response stops without stopping completed CI metadata refreshes", async () => {
+  useAuthStore.getState().setToken("live-log-test");
+  const send = spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response("rate limited", { status: 429 }),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const workspace = createWorkspace(["/demo/project/actions/runs/1"]);
+  const scoped = queryClientForTab(client, focusedTab(workspace).id, () => workspace);
+  const observer = new QueryObserver(
+    scoped,
+    jobLogsQueryOptions("demo", "project", 1, { isLive: true }),
+  );
+  const metadata = ["actions-run", "demo", "project", 1];
+  client.setQueryData(metadata, "completed", { updatedAt: 1 });
+  const run = new QueryObserver(scoped, {
+    queryKey: metadata,
+    queryFn: async () => "completed and refreshed",
+    staleTime: 5000,
+    refetchInterval: () => false,
+  });
+  const cleanup = [observer.subscribe(() => {}), run.subscribe(() => {})];
+  try {
+    await observer.refetch();
+    await refreshWorkspaceQueries(client, workspace, { now: Date.now() + 16_000 });
+    expect(client.getQueryData(metadata)).toBe("completed and refreshed");
+    expect(send).toHaveBeenCalledTimes(1);
+  } finally {
+    cleanup.forEach((stop) => {
+      stop();
+    });
+    client.clear();
+    send.mockRestore();
+    useAuthStore.getState().clear();
   }
 });

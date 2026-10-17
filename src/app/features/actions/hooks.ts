@@ -275,13 +275,26 @@ export const jobLogsQueryOptions = (
   owner: string,
   repo: string,
   jobId: number,
-  { isLive = false }: { isLive?: boolean } = {},
+  { isLive = false, pollUntil }: { isLive?: boolean; pollUntil?: number } = {},
 ) =>
   queryOptions({
     queryKey: actionsKeys.logs(owner, repo, jobId),
+    // Log polling has terminal errors and a materialization deadline; false is a stop.
+    meta: { workspacePolling: "interval" },
     staleTime: isLive ? 0 : Infinity,
     gcTime: 10 * 60_000,
     retry: retrySessionExpiry,
+    refetchInterval: (q) => {
+      const status = (q.state.error as { status?: number } | null)?.status;
+      if (status === 401 || status === 403 || status === 410 || status === 429) return false;
+      if (isLive) return 5_000;
+      return pollUntil &&
+        Date.now() < pollUntil &&
+        (!q.state.data || q.state.isInvalidated || q.state.status === "error")
+        ? 3_000
+        : false;
+    },
+    refetchIntervalInBackground: false,
     queryFn: async ({ signal }): Promise<string> => {
       const token = useAuthStore.getState().token;
       if (!token) throw new Error("Not authenticated");
@@ -319,19 +332,8 @@ export function useJobLogs(
       void qc.invalidateQueries({ queryKey: actionsKeys.logs(owner, repo, jobId) });
   }, [qc, owner, repo, jobId, enabled, isLive]);
   return useQuery({
-    ...jobLogsQueryOptions(owner, repo, jobId, { isLive }),
+    ...jobLogsQueryOptions(owner, repo, jobId, { isLive, pollUntil }),
     enabled: enabled && !!token && validId(jobId),
-    refetchInterval: (q) => {
-      const status = (q.state.error as { status?: number } | null)?.status;
-      if (status === 401 || status === 403 || status === 410 || status === 429) return false;
-      if (isLive) return 5_000;
-      return pollUntil &&
-        Date.now() < pollUntil &&
-        (!q.state.data || q.state.isInvalidated || q.state.status === "error")
-        ? 3_000
-        : false;
-    },
-    refetchIntervalInBackground: false,
   });
 }
 
