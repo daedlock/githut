@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /** Retain row positions (including removed rows) while updating fields for surviving identities. */
 export function holdListOrder<T>(
@@ -29,6 +29,18 @@ export function useStableList<T>(
   if (held && held.resetKey !== options.resetKey) {
     setHeld({ rows: incoming, resetKey: options.resetKey });
   }
+  // A hidden page gets no pointerleave: release the hold when the tab is
+  // hidden (<Activity> runs effect cleanups) or the window is.
+  useEffect(() => {
+    const release = () => {
+      if (document.hidden) setHeld(null);
+    };
+    document.addEventListener("visibilitychange", release);
+    return () => {
+      document.removeEventListener("visibilitychange", release);
+      setHeld(null);
+    };
+  }, []);
   return {
     items:
       held && held.resetKey === options.resetKey
