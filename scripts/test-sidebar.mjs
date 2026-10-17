@@ -127,6 +127,7 @@ async function fixture({ empty = false, failUnstar = false } = {}) {
       queries.push("org-repos");
       data = [{ ...repo, id: 90, name: "member-only", full_name: "company/member-only" }];
     } else if (path === "/user/starred") {
+      queries.push("github-stars");
       const page = Number(url.searchParams.get("page"));
       data = page === 1 ? currentStars.slice(0, 8) : currentStars.slice(8);
       if (page === 1 && currentStars.length > 8)
@@ -175,6 +176,7 @@ try {
     assert.equal(await sidebar.getByRole("region", { name: "Recent", exact: true }).count(), 0);
     assert.equal(await sidebar.getByRole("region", { name: "Your work" }).count(), 0);
     assert.equal(f.queries.includes("org-repos"), false);
+    assert.equal(f.queries.includes("github-stars"), false);
     await section.getByRole("button", { name: "Show more" }).click();
     assert.equal(await section.locator("[data-sidebar-row]").count(), 10);
     await sidebar.getByRole("button", { name: "company repositories" }).focus();
@@ -194,6 +196,7 @@ try {
   const favorites = await fixture();
   try {
     const page = favorites.page;
+    await page.goto(`${app}/demo/project/pulls`);
     const sidebar = page.getByRole("complementary", { name: "Sidebar" });
     const section = sidebar.getByRole("region", { name: "Favorites" });
     await sidebar
@@ -201,19 +204,19 @@ try {
       .click();
     await sidebar.getByRole("button", { name: "Favorite current view", exact: true }).click();
     await section
-      .getByRole("button", { name: "project · Issues · demo/project", exact: true })
+      .getByRole("button", { name: "project · PRs · demo/project", exact: true })
       .waitFor();
     assert.equal(await section.locator("[data-sidebar-row]").count(), 2);
     await page.reload();
     await section
-      .getByRole("button", { name: "project · Issues · demo/project", exact: true })
+      .getByRole("button", { name: "project · PRs · demo/project", exact: true })
       .waitFor();
     await section.getByRole("button", { name: "project · demo/project", exact: true }).click();
     await page.waitForURL(`${app}/demo/project/code`);
     await section
-      .getByRole("button", { name: "project · Issues · demo/project", exact: true })
+      .getByRole("button", { name: "project · PRs · demo/project", exact: true })
       .click();
-    await page.waitForURL(`${app}/demo/project/issues`);
+    await page.waitForURL(`${app}/demo/project/pulls`);
     await section
       .getByRole("button", { name: "Remove favorite project · demo/project", exact: true })
       .click();
@@ -229,7 +232,7 @@ try {
       useAuthStore.getState().setToken("fixture", 1);
     });
     await section
-      .getByRole("button", { name: "project · Issues · demo/project", exact: true })
+      .getByRole("button", { name: "project · PRs · demo/project", exact: true })
       .waitFor();
     if (process.env.SIDEBAR_SCREENSHOT)
       await page.screenshot({ path: process.env.SIDEBAR_SCREENSHOT });
