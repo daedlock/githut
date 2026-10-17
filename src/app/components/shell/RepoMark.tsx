@@ -30,11 +30,11 @@ const SidebarRepoContext = createContext<readonly string[]>([]);
 
 /** Every mark, including marks inside tabs, disambiguates against the same repository destinations. */
 export function RepoMarkScope({ children }: { children: ReactNode }) {
-  const { data } = useYourRepositories();
+  const data = useYourRepositories();
   const accountId = useAuthStore((state) => state.accountId);
   const favorites = useFavoritesStore((state) => state.forAccount(accountId));
   const repos = [
-    ...(data?.map((repo) => repo.full_name) ?? []),
+    ...data.items.map((repo) => repo.full_name),
     ...favorites.flatMap((item) => {
       const repo = tabRepo(hrefPathname(item.href));
       return repo ? [repo] : [];
