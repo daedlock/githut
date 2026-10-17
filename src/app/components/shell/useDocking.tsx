@@ -78,7 +78,10 @@ export function useDocking(
       const update = () => {
         frame = 0;
         if (!active) return;
+        stripScroll.active = false;
         current = { source, ...point, label, drop: findDrop(root, source, point.x, point.y) };
+        // Holding still at a strip end keeps scrolling it, not only on move.
+        if (stripScroll.active) frame = requestAnimationFrame(update);
         setDrag(current);
       };
       const move = (event: globalThis.PointerEvent) => {
@@ -98,6 +101,8 @@ export function useDocking(
       const finish = (commit: boolean, buttonStillDown = false) => {
         if (frame) cancelAnimationFrame(frame);
         if (active && commit) update();
+        // The final update may have queued another strip-scroll frame.
+        if (frame) cancelAnimationFrame(frame);
         window.removeEventListener("pointermove", move);
         window.removeEventListener("pointerup", up);
         window.removeEventListener("pointercancel", cancel);
@@ -222,6 +227,9 @@ function DockingOverlay() {
   );
 }
 
+/** Set by `findDrop` when it scrolled a tab strip, so the drag loop keeps going. */
+const stripScroll = { active: false };
+
 function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): Drop | null {
   const ws = getWorkspace();
   const outer = root.getBoundingClientRect();
@@ -262,8 +270,10 @@ function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): 
         x <= stripRect.right
       ) {
         // Scroll overflowing strips while holding near either end.
-        if (x < stripRect.left + 20) strip.scrollLeft -= 12;
-        else if (x > stripRect.right - 20) strip.scrollLeft += 12;
+        const step = x < stripRect.left + 20 ? -8 : x > stripRect.right - 20 ? 8 : 0;
+        const before = strip.scrollLeft;
+        if (step) strip.scrollLeft += step;
+        stripScroll.active = strip.scrollLeft !== before;
         const tabs = [...strip.querySelectorAll<HTMLElement>("[data-tab-id]")];
         let index = tabs.findIndex((tab) => {
           const r = tab.getBoundingClientRect();
