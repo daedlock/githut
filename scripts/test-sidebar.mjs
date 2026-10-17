@@ -142,7 +142,14 @@ async function fixture({ empty = false } = {}) {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`${app}/demo/project/issues`);
-  return { page, errors, queries, writes, close: () => context.close() };
+  return {
+    page,
+    errors,
+    queries,
+    writes,
+    goOffline: () => context.setOffline(true),
+    close: () => context.close(),
+  };
 }
 
 try {
@@ -372,6 +379,13 @@ try {
     await page.getByRole("menu").waitFor({ state: "hidden" });
     await stars.getByRole("button", { name: "phoenix", exact: true }).waitFor({ state: "hidden" });
     assert.deepEqual(unstar.writes, ["/user/starred/demo/phoenix"]);
+    await unstar.goOffline();
+    await stars.getByRole("button", { name: "alpha", exact: true }).click({ button: "right" });
+    assert.equal(
+      await page.getByRole("menuitem", { name: "Unstar", exact: true }).isDisabled(),
+      true,
+    );
+    await page.keyboard.press("Escape");
     assert.deepEqual(unstar.errors, []);
     console.log("PASS Unstar updates GitHub and removes the repository from the shared list");
   } finally {

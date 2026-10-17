@@ -29,6 +29,7 @@ import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { useToggleStar } from "@/app/hooks/useRepoStarred";
 import { useStarredRepos } from "@/app/hooks/useStarredRepos";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 import {
   getRecentItemsSync,
   hydrateRecentItems,
@@ -370,6 +371,7 @@ function SidebarRow({
 }) {
   const [owner = "", repo = ""] = row.repo?.split("/") ?? [];
   const unstar = useToggleStar(owner, repo);
+  const { canMutate, reason } = useCanMutate();
   const navigation = useRef(false);
   const Icon = row.icon ?? Star;
   const launch = (action: () => void) => {
@@ -453,7 +455,11 @@ function SidebarRow({
         <DockingMenu source={{ type: "href", href: row.href }} />
         {row.starred && (
           <ContextMenuGroup>
-            <ContextMenuItem disabled={unstar.isPending} onSelect={() => unstar.mutate(false)}>
+            <ContextMenuItem
+              disabled={!canMutate || unstar.isPending}
+              title={reason}
+              onSelect={() => unstar.mutate(false)}
+            >
               Unstar
             </ContextMenuItem>
           </ContextMenuGroup>
