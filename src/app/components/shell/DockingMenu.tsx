@@ -15,13 +15,15 @@ import {
   DropdownMenuSubTrigger,
 } from "@/app/components/ui/dropdown-menu";
 import { getTabMeta } from "@/app/lib/tabMeta";
-import { type DockSource, type DockTarget, reorderTargets } from "@/app/workspace/model";
 import {
+  type DockSource,
+  type DockTarget,
   findIsland,
   findTab,
   focusedIsland,
   hrefPathname,
   islands,
+  reorderTargets,
   selectedTab,
 } from "@/app/workspace/model";
 import { dispatch, previewCommand, useWorkspaceStore } from "@/app/workspace/store";

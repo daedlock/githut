@@ -4,6 +4,7 @@ import {
   islands,
   neighbourIsland,
   pathTo,
+  reorderTargets,
   selectedTab,
   type Workspace,
   type WorkspaceCommand,
@@ -68,11 +69,6 @@ export function buildWorkspaceCommands(
     });
 
   const pinned = from.pinned.includes(tab.id);
-  const index = from.tabs.findIndex((item) => item.id === tab.id);
-  // Pins stay before ordinary tabs, so a tab moves only within its own group.
-  const [first, last] = pinned
-    ? [0, from.pinned.length - 1]
-    : [from.pinned.length, from.tabs.length - 1];
 
   add("pin", `${pinned ? "Unpin" : "Pin"} focused tab`, {
     type: "pinTab",
@@ -91,26 +87,16 @@ export function buildWorkspaceCommands(
   );
   add("previous", "Select previous tab", { type: "cycleTab", delta: -1 }, { shortcut: "Alt [" });
   add("next", "Select next tab", { type: "cycleTab", delta: 1 }, { shortcut: "Alt ]" });
-  add(
-    "reorder-left",
-    "Move focused tab left",
-    {
-      type: "dock",
-      source: { type: "tab", tabId: tab.id },
-      target: { type: "tabs", islandId: from.id, index: index - 1 },
-    },
-    { disabled: index <= first, keywords: ["reorder"] },
-  );
-  add(
-    "reorder-right",
-    "Move focused tab right",
-    {
-      type: "dock",
-      source: { type: "tab", tabId: tab.id },
-      target: { type: "tabs", islandId: from.id, index: index + 2 },
-    },
-    { disabled: index >= last, keywords: ["reorder"] },
-  );
+  // Same targets and disabled rules as the tab menu's "Reorder tab" entries.
+  for (const { position, target, disabled } of reorderTargets(workspace, tab.id)) {
+    if (position !== "left" && position !== "right") continue;
+    add(
+      `reorder-${position}`,
+      `Move focused tab ${position}`,
+      { type: "dock", source: { type: "tab", tabId: tab.id }, target },
+      { disabled, keywords: ["reorder"] },
+    );
+  }
   for (const side of ["right", "bottom"] as const) {
     add(
       `tab-new-island-${side}`,

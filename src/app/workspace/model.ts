@@ -1,3 +1,5 @@
+import { layoutGeometry } from "@/app/workspace/geometry";
+
 // ─── Workspace model ─────────────────────────────────────────────────────────
 //
 // A pure model of everything one browser window shows (GLOSSARY → Workspace):
@@ -19,7 +21,6 @@
 
 // ─── Shape ───────────────────────────────────────────────────────────────────
 
-import { layoutGeometry } from "@/app/workspace/geometry";
 export type Tab = {
   id: string;
   /** pathname + search + hash */
