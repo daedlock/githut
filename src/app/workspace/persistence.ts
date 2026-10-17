@@ -1,5 +1,6 @@
 import {
   createWorkspace,
+  hrefPathname,
   type Island,
   type LayoutNode,
   normalizeHref,
@@ -36,11 +37,18 @@ const MIGRATIONS: ((data: unknown) => unknown)[] = [];
 
 /** This window's layout, else the last-used one, else migrated tabs, else one island at `href`. */
 export function loadWorkspace(href: string): Workspace {
+  // The old repository workspace bar is retired; islands own persistence now.
+  try {
+    safeStorage("local")?.removeItem("githut.workspaces.v1");
+    safeStorage("local")?.removeItem("githut.workspaces.v2");
+  } catch {
+    /* Storage may be disabled. */
+  }
   return (
     read(safeStorage("session")?.getItem(WINDOW_KEY)) ??
     read(safeStorage("local")?.getItem(LAST_USED_KEY)) ??
     migrateLegacyTabs(safeStorage("local")?.getItem(LEGACY_TABS_KEY)) ??
-    createWorkspace([href])
+    createWorkspace([hrefPathname(href) === "/settings" ? "/" : href])
   );
 }
 
@@ -99,7 +107,10 @@ function parseNode(value: unknown): LayoutNode | null {
   if (typeof n.id !== "string") return null;
   if (n.kind === "island") {
     if (!Array.isArray(n.tabs)) return null;
-    const tabs = n.tabs.filter(isTab).map((t) => ({ id: t.id, href: normalizeHref(t.href) }));
+    const tabs = n.tabs
+      .filter(isTab)
+      .filter((t) => hrefPathname(t.href) !== "/settings")
+      .map((t) => ({ id: t.id, href: normalizeHref(t.href) }));
     const island: Island = {
       kind: "island",
       id: n.id,
@@ -136,7 +147,9 @@ function migrateLegacyTabs(raw: string | null | undefined): Workspace | null {
   if (!raw) return null;
   try {
     const state = (JSON.parse(raw) as { state?: { tabs?: unknown; activeId?: unknown } }).state;
-    const tabs = Array.isArray(state?.tabs) ? state.tabs.filter(isTab) : [];
+    const tabs = Array.isArray(state?.tabs)
+      ? state.tabs.filter(isTab).filter((t) => hrefPathname(t.href) !== "/settings")
+      : [];
     if (!tabs.length) return null;
     const ws = createWorkspace(tabs.map((t) => t.href));
     const island = ws.layout as Island;

@@ -43,12 +43,18 @@ function applyCodeLigatures(codeLigatures: boolean) {
   document.documentElement.dataset.codeLigatures = codeLigatures ? "on" : "off";
 }
 
+function applyRepoColor(enabled: boolean) {
+  if (typeof document !== "undefined")
+    document.documentElement.dataset.repoColor = enabled ? "on" : "off";
+}
+
 type SettingsState = {
   /** Shared width for page content and navigation. */
   containerWidth: ContainerWidth;
   setContainerWidth: (width: ContainerWidth) => void;
-  /** Enable the workspace tab bar. When off, the app uses plain router navigation. */
-  tabsEnabled: boolean;
+  /** Show the repository identity colour cue. */
+  repoColor: boolean;
+  setRepoColor: (enabled: boolean) => void;
   /** Allow privacy-friendly product analytics. */
   analyticsEnabled: boolean;
   /** Preferred diff view mode (persisted across navigations). */
@@ -61,7 +67,6 @@ type SettingsState = {
   codeFontSize: CodeFontSize;
   /** Whether programming ligatures are enabled on code-reading surfaces. */
   codeLigatures: boolean;
-  setTabsEnabled: (enabled: boolean) => void;
   setAnalyticsEnabled: (enabled: boolean) => void;
   setDiffMode: (mode: DiffMode) => void;
   setUiFont: (uiFont: UiFont) => void;
@@ -76,14 +81,17 @@ export const createSettingsStore = (storage?: StateStorage) =>
       (set) => ({
         containerWidth: DEFAULT_CONTAINER_WIDTH,
         setContainerWidth: (containerWidth) => set({ containerWidth }),
-        tabsEnabled: true,
+        repoColor: true,
+        setRepoColor: (repoColor) => {
+          applyRepoColor(repoColor);
+          set({ repoColor });
+        },
         analyticsEnabled: isAnalyticsEnabled(),
         diffMode: "split",
         uiFont: DEFAULT_UI_FONT,
         codeFont: DEFAULT_CODE_FONT,
         codeFontSize: DEFAULT_CODE_FONT_SIZE,
         codeLigatures: DEFAULT_CODE_LIGATURES,
-        setTabsEnabled: (tabsEnabled) => set({ tabsEnabled }),
         setAnalyticsEnabled: (analyticsEnabled) => {
           setAnalyticsEnabledPreference(analyticsEnabled);
           set({ analyticsEnabled });
@@ -108,12 +116,23 @@ export const createSettingsStore = (storage?: StateStorage) =>
       }),
       {
         name: "githut.settings",
+        version: 1,
+        // The validated merge also drops retired settings before persisting the upgrade.
+        migrate: (persisted) => persisted as SettingsState,
         storage: createJSONStorage(() => storage ?? localStorage),
         merge: (persistedState, currentState) => {
           const persisted = (persistedState ?? {}) as Partial<SettingsState>;
           return {
             ...currentState,
-            ...persisted,
+            repoColor: typeof persisted.repoColor === "boolean" ? persisted.repoColor : true,
+            analyticsEnabled:
+              typeof persisted.analyticsEnabled === "boolean"
+                ? persisted.analyticsEnabled
+                : currentState.analyticsEnabled,
+            diffMode:
+              persisted.diffMode === "unified" || persisted.diffMode === "split"
+                ? persisted.diffMode
+                : currentState.diffMode,
             containerWidth: isContainerWidth(persisted.containerWidth)
               ? persisted.containerWidth
               : DEFAULT_CONTAINER_WIDTH,
@@ -134,6 +153,7 @@ export const createSettingsStore = (storage?: StateStorage) =>
           applyCodeFont(state?.codeFont ?? DEFAULT_CODE_FONT);
           applyCodeFontSize(state?.codeFontSize ?? DEFAULT_CODE_FONT_SIZE);
           applyCodeLigatures(state?.codeLigatures ?? DEFAULT_CODE_LIGATURES);
+          applyRepoColor(state?.repoColor ?? true);
         },
       },
     ),

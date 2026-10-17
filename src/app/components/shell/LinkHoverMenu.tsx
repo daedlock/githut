@@ -5,7 +5,6 @@ import { Button } from "@/app/components/ui/button";
 import { Kbd } from "@/app/components/ui/kbd";
 import { Popover, PopoverAnchor, PopoverContent } from "@/app/components/ui/popover";
 import { internalLinkHref, linkIslandId, openInNewTab, openToSide } from "@/app/lib/tabActions";
-import { useSettingsStore } from "@/app/stores/settings";
 
 // ─── LinkHoverMenu ─────────────────────────────────────────────────────────
 //
@@ -23,7 +22,6 @@ const LEAVE_GRACE_MS = 180;
 type Target = { href: string; islandId?: string };
 
 export function LinkHoverMenu() {
-  const enabled = useSettingsStore((s) => s.tabsEnabled);
   const [target, setTarget] = useState<Target | null>(null);
   const [open, setOpen] = useState(false);
   const anchorRef = useRef({ getBoundingClientRect: () => new DOMRect() });
@@ -31,8 +29,6 @@ export function LinkHoverMenu() {
   const closeRef = useRef<() => void>(() => {});
 
   useEffect(() => {
-    if (!enabled) return;
-
     let link: HTMLAnchorElement | null = null;
     let restTimer: ReturnType<typeof setTimeout> | undefined;
     let leaveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -114,9 +110,9 @@ export function LinkHoverMenu() {
       window.removeEventListener("scroll", close, { capture: true });
       window.removeEventListener("blur", close);
     };
-  }, [enabled]);
+  }, []);
 
-  if (!enabled || !target) return null;
+  if (!target) return null;
 
   return (
     <Popover open={open} onOpenChange={(next) => !next && closeRef.current()}>

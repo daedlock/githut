@@ -77,3 +77,26 @@ test("launcher and side openings undo before earlier layout changes", () => {
   dispatch({ type: "undo" });
   expect(getWorkspace()).toEqual(before);
 });
+
+test("reset layout gathers every tab and pin into one island and can be undone", () => {
+  dispatch({ type: "openTab", href: "/demo/project/issues" });
+  dispatch({ type: "splitIsland", side: "right" });
+  const selected = focusedIsland(getWorkspace()).selectedTabId;
+  dispatch({ type: "pinTab", tabId: selected, pinned: true });
+  dispatch({ type: "toggleMaximize" });
+  const before = getWorkspace();
+  const tabIds = islands(before.layout).flatMap((island) => island.tabs.map((tab) => tab.id));
+  dispatch({ type: "resetLayout" });
+  const after = getWorkspace();
+  expect(islands(after.layout)).toHaveLength(1);
+  expect(
+    focusedIsland(after)
+      .tabs.map((tab) => tab.id)
+      .sort(),
+  ).toEqual(tabIds.sort());
+  expect(focusedIsland(after).selectedTabId).toBe(selected);
+  expect(focusedIsland(after).pinned).toContain(selected);
+  expect(after.maximizedIslandId).toBeNull();
+  dispatch({ type: "undo" });
+  expect(getWorkspace()).toEqual(before);
+});

@@ -10,9 +10,9 @@ import { useMe } from "@/app/hooks/useMe";
 import { useRepo } from "@/app/hooks/useRepo";
 import { logout, manageGitHubAccess } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
-import { openOrJump } from "@/app/lib/tabActions";
 import { getTabMeta, tabRepo } from "@/app/lib/tabMeta";
 import { useCommandPalette } from "@/app/stores/commandPalette";
+import { useSidebarStore } from "@/app/stores/sidebar";
 import { hrefPathname } from "@/app/workspace/model";
 
 // ─── TitleBar ──────────────────────────────────────────────────────────────
@@ -60,13 +60,18 @@ export function TitleBar({ focusedHref }: { focusedHref: string | null }) {
 }
 
 function LogoButton() {
+  const collapsed = useSidebarStore((state) => state.collapsed);
+  const toggle = useSidebarStore((state) => state.toggle);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"
-          aria-label="Open dashboard"
-          onClick={() => openOrJump("/")}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!collapsed}
+          aria-controls="workspace-sidebar"
+          aria-keyshortcuts={mac ? "Meta+B" : "Control+B"}
+          onClick={toggle}
           className={cn(
             "inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-foreground",
             "outline-none transition-colors hover:bg-accent focus-visible:ring-1 focus-visible:ring-(--color-focus)",
@@ -81,7 +86,9 @@ function LogoButton() {
           </svg>
         </button>
       </TooltipTrigger>
-      <TooltipContent side="bottom">Dashboard</TooltipContent>
+      <TooltipContent side="bottom">
+        Toggle sidebar <Kbd>{mac ? "⌘B" : "Ctrl B"}</Kbd>
+      </TooltipContent>
     </Tooltip>
   );
 }

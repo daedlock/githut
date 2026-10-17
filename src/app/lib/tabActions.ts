@@ -1,5 +1,5 @@
 import { getFocusedTabRouter } from "@/app/lib/tabRouters";
-import { useSettingsStore } from "@/app/stores/settings";
+import { isSettingsHref, openSettings } from "@/app/stores/settingsModal";
 import { type Direction, focusedTab, type Side } from "@/app/workspace/model";
 import { dispatch, getWorkspace } from "@/app/workspace/store";
 
@@ -8,32 +8,26 @@ import { dispatch, getWorkspace } from "@/app/workspace/store";
 // command palette. Every tab stays mounted (TabHost), so these are pure
 // state changes — switching tabs is just a visibility flip.
 
-export function tabsEnabled(): boolean {
-  return useSettingsStore.getState().tabsEnabled;
-}
-
-/** Open `href` as a new tab in the focused island (navigates instead when tabs are off). */
+/** Open `href` as a new tab in the focused island. Settings is always an overlay. */
 export function openInNewTab(href: string, opts: { select?: boolean; islandId?: string } = {}) {
-  if (!tabsEnabled()) {
-    void getFocusedTabRouter()?.navigate({ href });
-    return;
-  }
+  if (isSettingsHref(href)) return openSettings();
   dispatch({ type: "openTab", href, select: opts.select, islandId: opts.islandId, match: "href" });
 }
 
 /** Launchers never replace a page: jump to an existing tab or open a new one. */
 export function openOrJump(href: string) {
-  if (!tabsEnabled()) return replaceFocusedTab(href);
+  if (isSettingsHref(href)) return openSettings();
   dispatch({ type: "openOrJump", href });
 }
 
 export function openToSide(href: string, islandId?: string) {
-  if (!tabsEnabled()) return replaceFocusedTab(href);
+  if (isSettingsHref(href)) return openSettings();
   dispatch({ type: "openToSide", href, islandId });
 }
 
 /** Explicit palette replacement navigates through the tab's own history. */
 export function replaceFocusedTab(href: string) {
+  if (isSettingsHref(href)) return openSettings();
   void getFocusedTabRouter()?.navigate({ href });
 }
 

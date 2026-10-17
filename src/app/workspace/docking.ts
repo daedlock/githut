@@ -4,6 +4,7 @@ import {
   type Island,
   insertBeside,
   newId,
+  newIsland,
   normalizeLayout,
   replaceNode,
   reselect,
@@ -11,7 +12,10 @@ import {
   type Workspace,
 } from "@/app/workspace/model";
 
-export type DockSource = { type: "tab"; tabId: string } | { type: "island"; islandId: string };
+export type DockSource =
+  | { type: "tab"; tabId: string }
+  | { type: "island"; islandId: string }
+  | { type: "href"; href: string };
 export type DockTarget =
   | { type: "tabs"; islandId: string; index: number }
   | { type: "island-edge"; islandId: string; side: Side }
@@ -20,6 +24,37 @@ export type DockingCommand = { type: "dock"; source: DockSource; target: DockTar
 
 /** Move existing tabs, retaining their ids, router history, selection and pinned status. */
 export function applyDock(ws: Workspace, source: DockSource, target: DockTarget): Workspace {
+  if (source.type === "href") {
+    const dest =
+      target.type === "workspace-edge" ? undefined : findIsland(ws.layout, target.islandId);
+    if (target.type !== "workspace-edge" && !dest) return ws;
+    const added = newIsland([source.href]);
+    if (target.type === "tabs" && dest) {
+      const tabs = [...dest.tabs];
+      tabs.splice(
+        Math.max(dest.pinned.length, Math.min(target.index, tabs.length)),
+        0,
+        added.tabs[0]!,
+      );
+      return {
+        ...ws,
+        layout: replaceNode(ws.layout, dest.id, {
+          ...dest,
+          tabs,
+          selectedTabId: added.selectedTabId,
+        }),
+        focusedIslandId: dest.id,
+        maximizedIslandId: null,
+      };
+    }
+    if (target.type === "tabs") return ws;
+    return {
+      ...ws,
+      layout: insertBeside(ws.layout, dest?.id ?? ws.layout.id, target.side, added),
+      focusedIslandId: added.id,
+      maximizedIslandId: null,
+    };
+  }
   const found = source.type === "tab" ? findTab(ws.layout, source.tabId) : undefined;
   const from = source.type === "tab" ? found?.island : findIsland(ws.layout, source.islandId);
   if (!from) return ws;
