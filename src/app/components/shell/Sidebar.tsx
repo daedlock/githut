@@ -25,7 +25,6 @@ import {
   useMyOpenPrs,
   useReviewRequestedPrs,
 } from "@/app/features/dashboard/hooks";
-import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { useToggleStar } from "@/app/hooks/useRepoStarred";
 import { useStarredRepos } from "@/app/hooks/useStarredRepos";
 import { cn } from "@/app/lib/cn";
@@ -52,9 +51,8 @@ type Row = {
 };
 
 export function Sidebar({ beginDrag }: { beginDrag: BeginDrag }) {
-  const { width, collapsed, toggle, resize, reset } = useSidebarStore();
+  const { width, collapsed, resize, reset } = useSidebarStore();
   const cleanup = useRef<(() => void) | null>(null);
-  useKeybindings({ "⌘b": toggle });
   useEffect(() => () => cleanup.current?.(), []);
 
   function startResize(event: PointerEvent<HTMLDivElement>) {
@@ -464,7 +462,7 @@ function SidebarRow({
             Copy link
           </ContextMenuItem>
         </ContextMenuGroup>
-        <DockingMenu source={{ type: "href", href: row.href }} />
+        <DockingMenu source={{ type: "href", href: row.href }} onDock={onLaunch} />
         {row.starred && (
           <ContextMenuGroup>
             <ContextMenuItem
