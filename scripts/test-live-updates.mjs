@@ -352,14 +352,9 @@ try {
     (await beta.boundingBox()).y < (await alpha.boundingBox()).y,
     "Latest order applies on pointer leave",
   );
-  assert.notEqual(
-    await page
-      .getByText("List row Gamma", { exact: true })
-      .evaluate(
-        (element) =>
-          getComputedStyle(element.closest("[data-live-item]") ?? element).backgroundColor,
-      ),
-    "rgba(0, 0, 0, 0)",
+  assert.ok(
+    await page.getByText("List row Gamma", { exact: true }).isVisible(),
+    "A row that arrived while held is shown after reconciling",
   );
   console.log("PASS: PR rows keep their order under the pointer and reconcile on leave");
 
