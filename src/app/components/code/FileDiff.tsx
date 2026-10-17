@@ -132,7 +132,7 @@ export const FileDiff = memo(function FileDiff({
     >
       <header
         className={cn(
-          embedded ? "relative z-[1]" : "sticky top-[calc(var(--app-header-height,40px)+var(--diff-toolbar-height,44px)+20px)] z-[5]",
+          embedded ? "relative z-[1]" : "sticky top-[calc(var(--diff-toolbar-height,44px)+20px)] z-[5]",
           "isolate flex items-center gap-2.5 rounded-lg border border-border px-3 py-2 shadow-sm",
           "bg-muted",
         )}

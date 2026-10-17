@@ -258,7 +258,7 @@ export function IssueDetail({
 
             {/* Sidebar */}
             <aside className="w-full lg:w-[328px] lg:flex-shrink-0 self-stretch">
-              <div className="sticky top-[calc(var(--app-header-height)+16px)]">
+              <div className="sticky top-4">
                 <IssueSidebar owner={owner} repo={repo} issue={issue} />
               </div>
             </aside>

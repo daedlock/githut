@@ -95,7 +95,7 @@ export function GroupedList<T>({
           >
             <h2
               id={`${contentId}-heading`}
-              className="sticky top-(--app-header-height) z-30 bg-background"
+              className="sticky top-0 z-30 bg-background"
             >
               <button
                 type="button"

@@ -59,7 +59,7 @@ function PrDetailLayout() {
       </Container>
 
       {/* Sticky tabs bar */}
-      <div className="sticky top-(--app-header-height) z-10 border-b border-border bg-background">
+      <div className="sticky top-0 z-10 border-b border-border bg-background">
         <Container>
           <PrSubTabs
             owner={owner}
@@ -85,7 +85,7 @@ function PrDetailLayout() {
 
           {/* Sticky sidebar */}
           <aside className="hidden lg:block w-[328px] flex-shrink-0">
-            <div className="sticky top-[calc(var(--app-header-height)+56px)]">
+            <div className="sticky top-14">
               {pr ? (
                 <PrSidebar owner={owner} repo={repo} pr={pr} reviews={reviews} />
               ) : <MetadataSkeleton />}

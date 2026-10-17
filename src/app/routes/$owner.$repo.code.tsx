@@ -261,11 +261,10 @@ function CodePage() {
           )}
         </div>
 
-        {/* sidebar — sticky offset = navbar (h-10/40px) + container py-6
-            (24px) so the sidebar parks the same gap below the navbar
-            that the buttons originally have above the file list. */}
+        {/* sidebar — sticky offset = container py-6 (24px), so the sidebar
+            parks the same gap below the pane top as above the file list. */}
         {showSidebar && (
-          <div className="w-full shrink-0 flex flex-col gap-3 lg:sticky lg:top-[calc(var(--app-header-height)+24px)] lg:w-64">
+          <div className="w-full shrink-0 flex flex-col gap-3 lg:sticky lg:top-6 lg:w-64">
             <div className="flex items-center justify-end gap-2">
               <StarButton owner={owner} repo={repo} starCount={repoData?.stargazers_count} />
               <CloneDropdown owner={owner} repo={repo} branch={branch} />

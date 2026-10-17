@@ -94,7 +94,7 @@ function RunDetailPage() {
         ) : null}
         <div className="flex flex-col items-start gap-6 lg:flex-row lg:gap-8">
           <aside
-            className="w-full shrink-0 lg:sticky lg:top-28 lg:w-60"
+            className="w-full shrink-0 lg:sticky lg:top-8 lg:w-60"
             aria-label="Run navigation"
           >
             <select
