@@ -8,6 +8,7 @@ import { OpenInGithubLink } from "@/app/components/OpenInGithubLink";
 import { PageScrollControls } from "@/app/components/PageScrollControls";
 import { DocumentTitle } from "@/app/components/shell/DocumentTitle";
 import { IslandLayout } from "@/app/components/shell/IslandLayout";
+import { LayoutUndo } from "@/app/components/shell/LayoutUndo";
 import { LinkHoverMenu } from "@/app/components/shell/LinkHoverMenu";
 import { TabShortcuts } from "@/app/components/shell/TabShortcuts";
 import { TitleBar } from "@/app/components/shell/TitleBar";
@@ -107,6 +108,7 @@ export function TabHost() {
         <RouterContextProvider router={focusedRouter}>
           <TitleBar focusedHref={focused.href} />
           {overlays}
+          <LayoutUndo />
         </RouterContextProvider>
         <IslandLayout
           layout={layout}
