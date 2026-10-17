@@ -228,11 +228,13 @@ The workspace is a darker **frame** holding a slim **title bar** and rounded
 ### Island
 - `bg-background rounded-island overflow-hidden`, with
   `shadow-(--island-shadow)` at rest and `shadow-(--island-shadow-focus)`
-  for the focused island. The recipe is a 1px hairline edge plus a
-  barely-there drop (`--island-elev`); don't add others.
-- Idle edge: `--color-island-edge` (border at 70%). Focused edge:
-  `--color-island-edge-focus` (border-strong with 14% brand). The edge
-  change is the only focus cue on the island itself.
+  for the focused island. The recipe is a 1px hairline edge plus
+  `--island-elev`: a barely-there drop in light themes, a 1px top
+  highlight in dark themes. Don't add others.
+- Edges are Linear-style: a translucent tint of the text colour, never a
+  border colour. Idle `--color-island-edge` (fg 7%), focused
+  `--color-island-edge-focus` (fg 11%). No brand on the edge; the
+  focused island's selected tab carries the brand tint.
 - An island is a `@container`, so its header adapts to the island's
   width, not the window's.
 
