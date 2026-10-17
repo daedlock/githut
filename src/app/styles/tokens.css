@@ -50,9 +50,9 @@
    * ones, in every palette. Focus only firms the edge a little; the focused
    * tab carries the brand tint.
    */
-  --color-frame: color-mix(in oklab, var(--color-bg) 93%, var(--color-fg));
-  --color-island-edge: color-mix(in oklab, var(--color-fg) 7%, transparent);
-  --color-island-edge-focus: color-mix(in oklab, var(--color-fg) 11%, transparent);
+  --color-frame: color-mix(in oklab, var(--color-bg) 95%, var(--color-fg));
+  --color-island-edge: color-mix(in oklab, var(--color-fg) 9%, transparent);
+  --color-island-edge-focus: color-mix(in oklab, var(--color-fg) 13%, transparent);
   --radius-island: 10px;
 
   /* form controls: translucent so focus states lift relative to their local surface */
@@ -362,7 +362,7 @@
   --color-popover: color-mix(in oklab, var(--color-bg-subtle) 98%, white);
   --color-popover-active: color-mix(in oklab, var(--color-popover) 96%, white);
 
-  --color-frame: color-mix(in oklab, var(--color-bg) 70%, black);
+  --color-frame: color-mix(in oklab, var(--color-bg) 84%, black);
 
   /* surfaces */
   --color-bg: oklch(0.1469 0.00423 52.7554); /* stone-950 — warm near-black; fg contrast 17.4:1 */

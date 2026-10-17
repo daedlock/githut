@@ -40,13 +40,22 @@ describe("workspace model (single island)", () => {
     expect(selectedHref(ws)).toBe("/x");
   });
 
-  test("openTab reuses a tab in the island already showing the same page", () => {
-    const ws = runCommand(withTabs(["/a/b/code", "/a/b/pulls"]), {
-      type: "openTab",
-      href: "/a/b/pulls?state=closed",
-    });
+  test("openTab reuses a tab in the island already showing exactly that href", () => {
+    const start = withTabs(["/a/b/code", "/a/b/pulls?state=closed"], 0);
+    const ws = runCommand(start, { type: "openTab", href: "/a/b/pulls?state=closed" });
     expect(hrefs(ws)).toEqual(["/a/b/code", "/a/b/pulls?state=closed"]);
     expect(selectedHref(ws)).toBe("/a/b/pulls?state=closed");
+    const other = runCommand(start, { type: "openTab", href: "/a/b/pulls" });
+    expect(hrefs(other)).toEqual(["/a/b/code", "/a/b/pulls", "/a/b/pulls?state=closed"]);
+  });
+
+  test("launchers jump to a tab showing the same pathname, whatever its filters", () => {
+    const start = withTabs(["/a/b/code", "/a/b/pulls?state=closed"], 0);
+    const ws = runCommand(start, { type: "openOrJump", href: "/a/b/pulls" });
+    expect(hrefs(ws)).toEqual(["/a/b/code", "/a/b/pulls?state=closed"]);
+    expect(selectedHref(ws)).toBe("/a/b/pulls?state=closed");
+    const exact = runCommand(start, { type: "openOrJump", href: "/a/b/pulls", match: "href" });
+    expect(hrefs(exact)).toHaveLength(3);
   });
 
   test("allowDuplicate opens a second copy", () => {
@@ -68,9 +77,12 @@ describe("workspace model (single island)", () => {
     expect(next.closed).toEqual(["/2"]);
   });
 
-  test("the last tab can't be closed", () => {
+  test("closing the last tab leaves a fresh Inbox tab; closing a lone Inbox does nothing", () => {
     const ws = withTabs(["/1"]);
-    expect(runCommand(ws, { type: "closeTab", tabId: tabId(ws, 0) })).toBe(ws);
+    const closed = runCommand(ws, { type: "closeTab", tabId: tabId(ws, 0) });
+    expect(hrefs(closed)).toEqual(["/"]);
+    expect(closed.closed).toEqual(["/1"]);
+    expect(runCommand(closed, { type: "closeTab", tabId: tabId(closed, 0) })).toBe(closed);
   });
 
   test("reopening a closed file keeps the surviving file tab and restores its exact query state", () => {
@@ -99,18 +111,22 @@ describe("workspace model (single island)", () => {
     expect(right.closed).toEqual(["/3", "/4"]);
   });
 
-  test("moveTab reorders within the island", () => {
+  test("docking a tab into its own strip reorders it", () => {
     const ws = withTabs(["/1", "/2", "/3"]);
     const island = focusedIsland(ws).id;
+    const source = { type: "tab", tabId: tabId(ws, 0) } as const;
     const moved = runCommand(ws, {
-      type: "moveTab",
-      tabId: tabId(ws, 0),
-      islandId: island,
-      index: 2,
+      type: "dock",
+      source,
+      target: { type: "tabs", islandId: island, index: 3 },
     });
     expect(hrefs(moved)).toEqual(["/2", "/3", "/1"]);
     expect(
-      runCommand(ws, { type: "moveTab", tabId: tabId(ws, 0), islandId: island, index: 0 }),
+      runCommand(ws, {
+        type: "dock",
+        source,
+        target: { type: "tabs", islandId: island, index: 0 },
+      }),
     ).toBe(ws);
   });
 
