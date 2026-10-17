@@ -101,13 +101,11 @@ function CodePage() {
   const branchReady = !!searchBranch || !!defaultBranch;
   const isBlob = view === "blob";
 
-  const { data: contents, isPending: contentsPending, isError: contentsError } = useRepoContents(
-    owner,
-    repo,
-    path,
-    dataRef,
-    { enabled: branchReady && !isBlob },
-  );
+  const {
+    data: contents,
+    isPending: contentsPending,
+    isError: contentsError,
+  } = useRepoContents(owner, repo, path, dataRef, { enabled: branchReady && !isBlob });
   const { data: commit, isPending: commitPending } = usePathCommit(owner, repo, path, dataRef, {
     enabled: branchReady && !isBlob,
   });
@@ -119,7 +117,11 @@ function CodePage() {
   const { data: contributors, isPending: contributorsPending } = useRepoContributors(owner, repo);
 
   // blob view
-  const { data: fileData, isPending: filePending, isError: fileError } = useRepoFile(owner, repo, path, dataRef, {
+  const {
+    data: fileData,
+    isPending: filePending,
+    isError: fileError,
+  } = useRepoFile(owner, repo, path, dataRef, {
     enabled: branchReady && isBlob && !!path,
   });
 
@@ -228,7 +230,9 @@ function CodePage() {
                   });
                 }}
               />
-            ) : <StatusMessage tone="danger">This file is not available.</StatusMessage>
+            ) : (
+              <StatusMessage tone="danger">This file is not available.</StatusMessage>
+            )
           ) : (
             <>
               {contentsError && !contents ? (
@@ -247,7 +251,10 @@ function CodePage() {
                 />
               )}
               {!path && readmePending && (
-                <SkeletonGroup label="Loading README" className="space-y-3 rounded-md border border-border p-5">
+                <SkeletonGroup
+                  label="Loading README"
+                  className="space-y-3 rounded-md border border-border p-5"
+                >
                   <Skeleton className="mb-5 h-6 w-48" />
                   {[80, 100, 72, 60].map((width) => (
                     <Skeleton key={width} className="h-4" style={{ width: `${width}%` }} />
