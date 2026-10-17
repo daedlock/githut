@@ -22,10 +22,15 @@ import {
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
-import { issueDetailQueryOptions, issueKeys } from "@/app/features/issues/hooks";
-import { prDetailQueryOptions, pullsKeys } from "@/app/features/pulls/hooks";
+import { pageEntity } from "@/app/features/activity/api";
+import { useTabActivityStore } from "@/app/features/activity/store";
+import { pageIsUnread } from "@/app/features/activity/watcher";
+import { issueKeys } from "@/app/features/issues/hooks";
+import { useNotificationState } from "@/app/features/notifications/service";
+import { pullsKeys } from "@/app/features/pulls/hooks";
 import { usePageHasDraft } from "@/app/hooks/usePageHasDraft";
 import { cn } from "@/app/lib/cn";
+import { queryClient as workspaceQueryClient } from "@/app/lib/query";
 import {
   closeOtherTabs,
   closeTab,
@@ -36,7 +41,6 @@ import {
   selectTab,
 } from "@/app/lib/tabActions";
 import { getTabMeta, type TabMeta } from "@/app/lib/tabMeta";
-import { useAuthStore } from "@/app/stores/auth";
 import { useTabTitlesStore } from "@/app/stores/tabTitles";
 import { hrefPathname, type Island, type Tab } from "@/app/workspace/model";
 import { useWorkspaceStore } from "@/app/workspace/store";
@@ -169,6 +173,7 @@ function OverflowTab({ tab, selected, pinned }: { tab: Tab; selected: boolean; p
     <DropdownMenuItem
       onSelect={() => selectTab(tab.id)}
       aria-current={selected ? "page" : undefined}
+      aria-label={`${display.prefix ?? ""} ${display.label}${display.status ? `, ${display.status}` : ""}${display.unread ? ", unread" : ""}`}
     >
       {display.repo && <RepoMark repo={display.repo} size="sm" />}
       <Icon className={TONE_CLASS[display.tone]} />
@@ -177,6 +182,7 @@ function OverflowTab({ tab, selected, pinned }: { tab: Tab; selected: boolean; p
         {display.label}
       </span>
       {pinned && <Pin aria-label="Pinned" />}
+      {display.unread && <UnreadDot />}
       {selected && <Check aria-label="Selected" />}
     </DropdownMenuItem>
   );
@@ -184,14 +190,29 @@ function OverflowTab({ tab, selected, pinned }: { tab: Tab; selected: boolean; p
 
 // ─── Tab ───────────────────────────────────────────────────────────────────
 
-const TONE_CLASS: Record<Tone, string> = {
+export const TONE_CLASS: Record<Tone, string> = {
   none: "text-muted-foreground",
   open: "text-(--color-success)",
   merged: "text-(--color-pr-merged)",
   closed: "text-(--color-danger)",
   done: "text-(--color-pr-merged)",
   draft: "text-(--color-fg-faint)",
+  running: "text-(--color-warning)",
+  failed: "text-(--color-danger)",
 };
+
+export function UnreadDot({ pinned = false }: { pinned?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      data-unread-dot
+      className={cn(
+        "size-1.5 shrink-0 rounded-full bg-(--color-brand)",
+        pinned && "absolute bottom-0.5 right-0.5",
+      )}
+    />
+  );
+}
 
 const TabItem = memo(function TabItem({
   tab,
@@ -219,7 +240,7 @@ const TabItem = memo(function TabItem({
             <div
               role="tab"
               aria-selected={selected}
-              aria-label={`${display.prefix ? `${display.prefix} ` : ""}${display.label}${pinned ? ", pinned" : ""}${draft ? ", unsent draft" : ""}`}
+              aria-label={`${display.prefix ? `${display.prefix} ` : ""}${display.label}${display.status ? `, ${display.status}` : ""}${display.unread ? ", unread" : ""}${pinned ? ", pinned" : ""}${draft ? ", unsent draft" : ""}`}
               tabIndex={selected ? 0 : -1}
               data-tab-id={tab.id}
               data-pinned={pinned || undefined}
@@ -253,13 +274,18 @@ const TabItem = memo(function TabItem({
               )}
             >
               {display.repo && <RepoMark repo={display.repo} size="sm" />}
-              <Icon aria-hidden className={cn("size-3.5 shrink-0", TONE_CLASS[display.tone])} />
+              <Icon
+                aria-hidden
+                data-tab-status={display.tone}
+                className={cn("size-3.5 shrink-0", TONE_CLASS[display.tone])}
+              />
               {!pinned && display.prefix && (
                 <span className="shrink-0 font-mono text-caption text-(--color-fg-faint)">
                   {display.prefix}
                 </span>
               )}
               {!pinned && <span className="min-w-0 flex-1 truncate">{display.label}</span>}
+              {display.unread && <UnreadDot pinned={pinned} />}
               {pinned && draft && (
                 <span
                   aria-hidden
@@ -305,6 +331,8 @@ const TabItem = memo(function TabItem({
           )}
           {display.repo && " · "}
           {display.title}
+          {display.status && ` · ${display.status}`}
+          {display.unread && " · Unread activity"}
           {draft && " · Unsent draft"}
         </TooltipContent>
       </Tooltip>
@@ -348,7 +376,7 @@ const TabItem = memo(function TabItem({
 
 // ─── Display metadata ──────────────────────────────────────────────────────
 
-type Tone = "none" | "open" | "merged" | "closed" | "done" | "draft";
+type Tone = "none" | "open" | "merged" | "closed" | "done" | "draft" | "running" | "failed";
 
 type TabDisplay = {
   icon: TabMeta["icon"];
@@ -359,13 +387,28 @@ type TabDisplay = {
   /** Full description for the tooltip. */
   title: string;
   repo?: string;
+  unread: boolean;
+  status?: string;
 };
+
+function subscribeUnread(changed: () => void) {
+  const cleanups = [
+    useTabActivityStore.subscribe(changed),
+    useNotificationState.subscribe(changed),
+    workspaceQueryClient.getQueryCache().subscribe(changed),
+  ];
+  return () =>
+    cleanups.forEach((stop) => {
+      stop();
+    });
+}
 
 export function useTabDisplay(href: string): TabDisplay {
   const pathname = hrefPathname(href);
   const meta = getTabMeta(pathname);
   const entity = useCachedEntity(pathname);
-  const base = { icon: meta.icon, tone: "none" as Tone, repo: meta.sublabel };
+  const unread = useSyncExternalStore(subscribeUnread, () => pageIsUnread(href));
+  const base = { icon: meta.icon, tone: "none" as Tone, repo: meta.sublabel, unread };
 
   const num = /\/(?:pull|pr|review|issues)\/(\d+)/.exec(pathname)?.[1];
   if (num && entity) {
@@ -375,6 +418,12 @@ export function useTabDisplay(href: string): TabDisplay {
       label: entity.title,
       prefix: `#${num}`,
       title: entity.title,
+      status:
+        entity.tone === "failed"
+          ? "CI failed"
+          : entity.tone === "running"
+            ? "CI running"
+            : undefined,
     };
   }
 
@@ -402,58 +451,75 @@ type EntityRow = {
  * page was opened, else any list page that contained it.
  *
  * The cache is in memory only, so the last value seen is remembered across
- * reloads (see stores/tabTitles) and used until the cache has it again. Only
- * a tab never seen before, with nothing cached or remembered, fetches its
- * detail once.
+ * reloads (see stores/tabTitles). Background status belongs to the lightweight
+ * watcher, never an eager detail prefetch from a tab label.
  */
 function useCachedEntity(pathname: string): { title: string; tone: Tone } | null {
   const queryClient = useQueryClient();
   const m = /^\/([^/]+)\/([^/]+)\/(pull|pr|review|issues)\/(\d+)/.exec(pathname);
   const key = m ? `${m[1]}/${m[2]}/${m[3] === "issues" ? "issue" : "pull"}/${m[4]}` : "";
   const remembered = useTabTitlesStore((s) => (key ? s.entries[key] : undefined));
+  const page = pageEntity(pathname);
 
   // Snapshot is a primitive so useSyncExternalStore can compare it cheaply.
   const snapshot = useSyncExternalStore(
-    (cb) => queryClient.getQueryCache().subscribe(cb),
+    (cb) => {
+      const stops = [queryClient.getQueryCache().subscribe(cb), useTabActivityStore.subscribe(cb)];
+      return () =>
+        stops.forEach((stop) => {
+          stop();
+        });
+    },
     () => {
       if (!m) return "";
       const [, owner, repo, kind, num] = m as unknown as [string, string, string, string, string];
       const n = Number(num);
       const isIssue = kind === "issues";
-      let row = queryClient.getQueryData<EntityRow>(
+      const detail = queryClient.getQueryState<EntityRow>(
         isIssue ? issueKeys.detail(owner, repo, n) : pullsKeys.detail(owner, repo, n),
       );
+      let row = detail?.data;
+      let updatedAt = detail?.dataUpdatedAt ?? 0;
       if (!row?.title) {
-        const lists = queryClient.getQueriesData({
+        const lists = queryClient.getQueryCache().findAll({
           queryKey: isIssue ? issueKeys.all(owner, repo) : pullsKeys.lists(owner, repo),
         });
-        for (const [, data] of lists) {
-          row = findByNumber(data, n);
-          if (row) break;
+        for (const query of lists) {
+          const candidate = findByNumber(query.state.data, n);
+          if (candidate?.title && query.state.dataUpdatedAt >= updatedAt) {
+            row = candidate;
+            updatedAt = query.state.dataUpdatedAt;
+          }
         }
       }
-      if (!row?.title) return "";
-      return `${toneOf(row, isIssue)}\u0000${row.title}`;
+      const watched = page ? useTabActivityStore.getState().statuses[page.key] : undefined;
+      const useWatched = watched && (!row?.title || watched.observedAt >= updatedAt);
+      const title = useWatched ? watched.title : row?.title;
+      if (!title) return "";
+      let tone = useWatched ? watched.state : toneOf(row!, isIssue);
+      if (!isIssue && (tone === "open" || tone === "draft")) {
+        const rollup = queryClient.getQueryState<{ state: string } | null>(
+          pullsKeys.checkRollup(owner, repo, n),
+        );
+        const ci =
+          watched && watched.observedAt >= (rollup?.dataUpdatedAt ?? 0)
+            ? watched.ci
+            : rollup?.data?.state === "failure"
+              ? "failed"
+              : rollup?.data?.state === "pending"
+                ? "running"
+                : null;
+        if (ci === "failed" || ci === "running") tone = ci;
+      }
+      return `${tone}\u0000${title}`;
     },
   );
 
   const value = snapshot || remembered;
-  const signedIn = useAuthStore((s) => !!s.token);
 
   useEffect(() => {
     if (key && snapshot) useTabTitlesStore.getState().remember(key, snapshot);
   }, [key, snapshot]);
-
-  const fetchKey = key && !value && signedIn ? key : "";
-  useEffect(() => {
-    if (!fetchKey) return;
-    const [owner = "", repo = "", kind, num] = fetchKey.split("/");
-    if (kind === "issue") {
-      void queryClient.prefetchQuery(issueDetailQueryOptions(owner, repo, Number(num)));
-    } else {
-      void queryClient.prefetchQuery(prDetailQueryOptions(owner, repo, Number(num)));
-    }
-  }, [fetchKey, queryClient]);
 
   if (!value) return null;
   const [tone, title] = value.split("\u0000") as [Tone, string];
