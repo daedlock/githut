@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { trackWorkspaceAction } from "@/app/lib/analytics";
 import type { ShortcutMap } from "@/app/lib/shortcuts";
 import { useTabScope } from "@/app/lib/tabScope";
+import { getWorkspace } from "@/app/workspace/store";
 
 type Mod = "meta" | "shift" | "alt";
 type Parsed = {
@@ -175,8 +176,11 @@ function onKeyDown(e: KeyboardEvent) {
   if (handler) {
     clearPending();
     e.preventDefault();
+    const layout = getWorkspace().layout;
     handler();
-    trackWorkspaceAction("shortcut");
+    // Count layout shortcuts only: list moves and palette keys would send a
+    // beacon per keypress.
+    if (getWorkspace().layout !== layout) trackWorkspaceAction("shortcut");
     return;
   }
 
