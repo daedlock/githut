@@ -149,7 +149,10 @@ try {
     await page.getByRole("button", { name: "Dark theme", exact: true }).click();
     await page.keyboard.press("Escape");
     await page.mouse.move(800, 700);
-    await delay(250);
+    await page.evaluate(() =>
+      Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => {}))),
+    );
+    await delay(100);
     await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/45-desktop-dark.png` });
   }
   await page.setViewportSize({ width: 390, height: 844 });

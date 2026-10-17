@@ -189,7 +189,7 @@ function IslandFrame({
       aria-label={islandName(href)}
       data-island={island.id}
       data-focused={focused || undefined}
-      // Any press or keyboard focus inside an island makes it the focused one.
+      // Only DOM descendants focus this island: portaled menus can select another island.
       onPointerDownCapture={(event) => {
         if (event.currentTarget.contains(event.target as Node)) focusIsland(island.id);
       }}
