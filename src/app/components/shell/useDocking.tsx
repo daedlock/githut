@@ -8,6 +8,7 @@ import {
 import { createPortal } from "react-dom";
 import { cn } from "@/app/lib/cn";
 import { getTabMeta } from "@/app/lib/tabMeta";
+import { useWorkspaceView } from "@/app/stores/workspaceView";
 import { applyDock, type DockSource, type DockTarget } from "@/app/workspace/docking";
 import { layoutGeometry, type Rect } from "@/app/workspace/geometry";
 import {
@@ -23,7 +24,10 @@ type Drop = { target: DockTarget; rect: Rect; line: boolean };
 type Drag = { source: DockSource; x: number; y: number; label: string; drop: Drop | null };
 
 /** One pointer interaction spans every island; the layout changes only on drop. */
-export function useDocking(ref: RefObject<HTMLDivElement | null>) {
+export function useDocking(
+  ref: RefObject<HTMLDivElement | null>,
+  { onDragStart }: { onDragStart?: () => void } = {},
+) {
   const [drag, setDrag] = useState<Drag | null>(null);
   const cleanup = useRef<(() => void) | null>(null);
   useEffect(() => () => cleanup.current?.(), []);
@@ -74,6 +78,7 @@ export function useDocking(ref: RefObject<HTMLDivElement | null>) {
       if (!active) {
         active = true;
         root.setPointerCapture(e.pointerId);
+        onDragStart?.();
         document.documentElement.style.cursor = "grabbing";
         document.documentElement.style.userSelect = "none";
       }
@@ -250,6 +255,18 @@ function findDrop(root: HTMLElement, source: DockSource, x: number, y: number): 
   const next = normalizeWorkspace(result);
   const layoutBounds =
     root.querySelector("[data-workspace-layout]")?.getBoundingClientRect() ?? bounds;
+  if (useWorkspaceView.getState().narrow) {
+    return {
+      target,
+      rect: {
+        left: layoutBounds.left,
+        top: layoutBounds.top,
+        width: layoutBounds.width,
+        height: layoutBounds.height,
+      },
+      line: false,
+    };
+  }
   const geometry = layoutGeometry(next.layout, {
     left: layoutBounds.left,
     top: layoutBounds.top,

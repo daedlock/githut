@@ -13,6 +13,7 @@ import { cn } from "@/app/lib/cn";
 import { getTabMeta, tabRepo } from "@/app/lib/tabMeta";
 import { useCommandPalette } from "@/app/stores/commandPalette";
 import { useSidebarStore } from "@/app/stores/sidebar";
+import { useWorkspaceView } from "@/app/stores/workspaceView";
 import { hrefPathname } from "@/app/workspace/model";
 
 // ─── TitleBar ──────────────────────────────────────────────────────────────
@@ -61,17 +62,18 @@ export function TitleBar({ focusedHref }: { focusedHref: string | null }) {
 
 function LogoButton() {
   const collapsed = useSidebarStore((state) => state.collapsed);
-  const toggle = useSidebarStore((state) => state.toggle);
+  const { narrow, sidebarOpen, toggleSidebar } = useWorkspaceView();
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-expanded={!collapsed}
+          data-sidebar-toggle
+          aria-label={narrow ? "Open sidebar" : collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={narrow ? sidebarOpen : !collapsed}
           aria-controls="workspace-sidebar"
           aria-keyshortcuts={mac ? "Meta+B" : "Control+B"}
-          onClick={toggle}
+          onClick={toggleSidebar}
           className={cn(
             "inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-foreground",
             "outline-none transition-colors hover:bg-accent focus-visible:ring-1 focus-visible:ring-(--color-focus)",

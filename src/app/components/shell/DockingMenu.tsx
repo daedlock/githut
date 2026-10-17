@@ -30,9 +30,11 @@ import { dispatch, useWorkspaceStore } from "@/app/workspace/store";
 export function DockingMenu({
   source,
   dropdown = false,
+  onDock,
 }: {
   source: DockSource;
   dropdown?: boolean;
+  onDock?: () => void;
 }) {
   const workspace = useWorkspaceStore((s) => s.workspace);
   const layout = workspace.layout;
@@ -52,7 +54,10 @@ export function DockingMenu({
   const Trigger = dropdown ? DropdownMenuSubTrigger : ContextMenuSubTrigger;
   const Content = dropdown ? DropdownMenuSubContent : ContextMenuSubContent;
   const Separator = dropdown ? DropdownMenuSeparator : ContextMenuSeparator;
-  const dock = (target: DockTarget) => dispatch({ type: "dock", source, target });
+  const dock = (target: DockTarget) => {
+    dispatch({ type: "dock", source, target });
+    onDock?.();
+  };
   const isTab = source.type === "tab";
   const index = found ? from.tabs.findIndex((tab) => tab.id === found.tab.id) : -1;
   return (
