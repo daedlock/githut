@@ -252,6 +252,9 @@ The workspace is a darker **frame** holding a slim **title bar** and rounded
   Order: repo mark (`sm`) → state icon (16px box, `size-3.5`, coloured by
   open / merged / closed / draft) → mono `#number` in `--color-fg-faint` →
   title (truncates) → close `×` (shown on hover and on the selected tab).
+  A tab whose page has an unsent draft shows a 6px `--color-warning` draft
+  dot in the close slot instead; `×` replaces it on hover. Closing never
+  prompts: the draft stays with the page.
 - Tab states: rest has no fill; hover `bg-sunken` at 60%; selected
   `bg-muted` with a 1px `--color-border` ring; selected in the focused
   island takes a brand tint instead (9% brand over `bg-muted`, ring 45%
