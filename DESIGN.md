@@ -311,6 +311,17 @@ The workspace is a darker **frame** holding a slim **title bar** and rounded
   is louder than another. Fill is the colour at 20% over `bg-muted`, ring
   35%. With `<html data-repo-color="off">` marks go neutral.
 
+### Settings
+- Settings is a scrollable shadcn Dialog over the workspace, including direct
+  `/settings` visits. Opening and closing it preserves tabs, focus and layout;
+  closing restores the focused tab's URL. It has a visible title and close
+  button, traps keyboard focus, and dismisses with Escape.
+- Repository colours default on and can be turned off in Settings. Preferences
+  remain local to the browser. There is no tabs on/off mode.
+- The avatar menu contains Settings, theme controls, Reset layout and Sign out.
+  Reset layout gathers all open tabs and pins into one island, keeps the
+  focused tab selected, and offers Undo.
+
 ## Components
 
 Use the shadcn primitives in `src/app/components/ui/` for every popover,

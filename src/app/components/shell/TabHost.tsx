@@ -7,6 +7,7 @@ import { FileHistorySheet } from "@/app/components/code/FileHistorySheet";
 import { KeyboardHelp } from "@/app/components/KeyboardHelp";
 import { OpenInGithubLink } from "@/app/components/OpenInGithubLink";
 import { PageScrollControls } from "@/app/components/PageScrollControls";
+import { SettingsModal } from "@/app/components/settings/SettingsModal";
 import { DocumentTitle } from "@/app/components/shell/DocumentTitle";
 import { IslandLayout } from "@/app/components/shell/IslandLayout";
 import { LayoutUndo } from "@/app/components/shell/LayoutUndo";
@@ -23,7 +24,6 @@ import { queryClient } from "@/app/lib/query";
 import { getTabRouter, releaseTabRouter } from "@/app/lib/tabRouters";
 import { type TabScope, TabScopeContext } from "@/app/lib/tabScope";
 import { useAuthStore } from "@/app/stores/auth";
-import { useSettingsStore } from "@/app/stores/settings";
 import { focusedIsland, focusedTab, type Island, islands } from "@/app/workspace/model";
 import { getFocusedTab, useWorkspaceStore } from "@/app/workspace/store";
 import { KEEP_ALIVE_BUDGET, keepAliveTabs } from "@/app/workspace/tabLifetime";
@@ -54,7 +54,6 @@ export function TabHost() {
   const workspace = useWorkspaceStore((s) => s.workspace);
   const { layout, focusedIslandId, maximizedIslandId } = workspace;
   const focused = focusedTab(workspace);
-  const tabsEnabled = useSettingsStore((s) => s.tabsEnabled);
   const signedIn = useAuthStore((s) => !!s.token);
   useEffect(() => (signedIn ? startWorkspaceFreshness(queryClient) : undefined), [signedIn]);
 
@@ -65,9 +64,9 @@ export function TabHost() {
     const all = islands(layout);
     const open = new Set(all.flatMap((i) => i.tabs.map((t) => t.id)));
     const next = [focused.id, ...recent.current.filter((id) => id !== focused.id && open.has(id))];
-    recent.current = tabsEnabled ? next.slice(0, KEEP_ALIVE_BUDGET) : [focused.id];
+    recent.current = next.slice(0, KEEP_ALIVE_BUDGET);
     return keepAliveTabs(layout, recent.current);
-  }, [layout, focused.id, tabsEnabled]);
+  }, [layout, focused.id]);
 
   // React releases the pane; release its router too. Query data and scroll
   // memory remain available when the page is rebuilt on its next selection.
@@ -124,6 +123,7 @@ export function TabHost() {
             <TitleBar focusedHref={focused.href} />
             {overlays}
             <LayoutUndo />
+            <SettingsModal />
           </RouterContextProvider>
           <WorkspaceArea>
             <IslandLayout

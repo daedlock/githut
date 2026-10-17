@@ -13,21 +13,24 @@ import {
   selectTabAt,
   splitIsland,
 } from "@/app/lib/tabActions";
-import { useSettingsStore } from "@/app/stores/settings";
+import { isSettingsHref, openSettings } from "@/app/stores/settingsModal";
 
 /** Global tab and island entry points: modified links and alt-based shortcuts. */
 export function TabShortcuts() {
-  const tabsEnabled = useSettingsStore((s) => s.tabsEnabled);
-
   useEffect(() => {
-    if (!tabsEnabled) return;
     const onMouseDown = (e: MouseEvent) => {
       // Shift+mousedown would otherwise extend the text selection.
       if (isShiftClick(e) && internalLinkHref(e.target)) e.preventDefault();
     };
     const onClick = (e: MouseEvent) => {
-      if (!isShiftClick(e) && !isAltClick(e)) return;
       const href = internalLinkHref(e.target);
+      if (href && isSettingsHref(href) && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        openSettings();
+        return;
+      }
+      if (!isShiftClick(e) && !isAltClick(e)) return;
       if (!href) return;
       e.preventDefault();
       e.stopPropagation();
@@ -41,10 +44,9 @@ export function TabShortcuts() {
       document.removeEventListener("mousedown", onMouseDown, true);
       document.removeEventListener("click", onClick, true);
     };
-  }, [tabsEnabled]);
+  }, []);
 
   const shortcuts = useMemo(() => {
-    if (!tabsEnabled) return {};
     const map: Record<string, () => void> = {
       "alt+w": closeFocusedTab,
       "alt+shift+t": reopenClosedTab,
@@ -59,7 +61,7 @@ export function TabShortcuts() {
     };
     for (let n = 1; n <= 8; n++) map[`alt+${n}`] = () => selectTabAt(n - 1);
     return map;
-  }, [tabsEnabled]);
+  }, []);
   useKeybindings(shortcuts);
 
   return null;

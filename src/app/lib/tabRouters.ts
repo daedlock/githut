@@ -1,4 +1,10 @@
 import type { AnyRouter } from "@tanstack/react-router";
+import {
+  isSettingsHref,
+  openSettings,
+  syncSettingsFromHistory,
+  useSettingsModal,
+} from "@/app/stores/settingsModal";
 import { findTab, focusedTab, islands } from "@/app/workspace/model";
 import { dispatch, getFocusedTab, getWorkspace, useWorkspaceStore } from "@/app/workspace/store";
 
@@ -78,10 +84,15 @@ function writeUrl(href: string, mode: "push" | "replace") {
 
 function onTabLocation(id: string, href: string, action: string) {
   const before = findTab(getWorkspace().layout, id)?.tab.href;
+  if (isSettingsHref(href)) {
+    routers.get(id)?.history.replace(before ?? "/");
+    openSettings();
+    return;
+  }
   dispatch({ type: "navigate", tabId: id, href });
   if (getFocusedTab().id !== id) return;
 
-  writeUrl(href, action === "PUSH" ? "push" : "replace");
+  if (!useSettingsModal.getState().open) writeUrl(href, action === "PUSH" ? "push" : "replace");
 
   // New page → start at the top, like a browser. Same-page search changes
   // (filters, sort) keep their place.
@@ -100,6 +111,10 @@ export function startBrowserSync(): () => void {
 
   const onPopState = (e: PopStateEvent) => {
     const next = e.state?.ghSeq;
+    if (syncSettingsFromHistory()) {
+      if (typeof next === "number") seq = next;
+      return;
+    }
     if (typeof next !== "number") return;
     const router = getFocusedTabRouter();
     const delta = next - seq;
@@ -117,7 +132,8 @@ export function startBrowserSync(): () => void {
   // routers of closed tabs are released.
   const unsubscribe = useWorkspaceStore.subscribe(({ workspace: ws }, { workspace: prev }) => {
     const focused = focusedTab(ws);
-    if (focused.id !== focusedTab(prev).id) writeUrl(focused.href, "replace");
+    if (focused.id !== focusedTab(prev).id && !useSettingsModal.getState().open)
+      writeUrl(focused.href, "replace");
     if (ws.layout !== prev.layout) {
       const open = new Set(islands(ws.layout).flatMap((i) => i.tabs.map((t) => t.id)));
       for (const entry of useWorkspaceStore.getState().undo) {

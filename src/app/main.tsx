@@ -7,6 +7,11 @@ import { bootstrapAuthFromHash } from "@/app/lib/auth";
 import { queryClient } from "@/app/lib/query";
 import { listenForSignIn } from "@/app/lib/session";
 import { setTabRouterFactory, startBrowserSync } from "@/app/lib/tabRouters";
+import {
+  isSettingsHref,
+  openSettings,
+  restoreSettingsAfterSignIn,
+} from "@/app/stores/settingsModal";
 import { bootstrapTheme } from "@/app/stores/theme";
 import { normalizeHref } from "@/app/workspace/model";
 import { dispatch, getFocusedTab, initWorkspace } from "@/app/workspace/store";
@@ -39,9 +44,12 @@ setTabRouterFactory(createAppRouter);
 // the callback's root URL as a new tab.
 if (authStart !== "handoff") {
   const href = normalizeHref(window.location.href);
-  initWorkspace(href);
+  const showSettings =
+    isSettingsHref(href) || (authStart === "redirect" && restoreSettingsAfterSignIn());
+  initWorkspace(isSettingsHref(href) ? "/" : href);
   if (authStart === "redirect") window.history.replaceState(null, "", getFocusedTab().href);
-  else dispatch({ type: "openUrl", href });
+  else if (!showSettings) dispatch({ type: "openUrl", href });
+  if (showSettings) openSettings({ replace: true });
 }
 
 function SignedInHandoff() {

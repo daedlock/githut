@@ -132,8 +132,8 @@ const issueLink = (page, number) =>
 try {
   const f = await fixture();
   try {
-    await palette(f.page, "> Settings");
-    await f.page.waitForURL(`${app}/settings`);
+    await palette(f.page, "> Go home");
+    await f.page.waitForURL(`${app}/`);
     await tabCount(f.page, 2);
     assert.equal(await f.page.locator("[data-island]").count(), 1);
     assert.deepEqual(f.errors, []);
@@ -225,8 +225,8 @@ try {
     await palette(page, "> Issues", "Alt+Enter");
     await tabCount(page, 2);
     assert.equal(await page.locator("[data-island]").count(), 2);
-    await palette(page, "> Settings", "Meta+Enter");
-    await page.waitForURL(`${app}/settings`);
+    await palette(page, "> Code", "Meta+Enter");
+    await page.waitForURL(`${app}/demo/project/code`);
     await tabCount(page, 2);
     await palette(page, "> Go home", "Control+Enter");
     await page.waitForURL(`${app}/`);
