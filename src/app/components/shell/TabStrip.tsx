@@ -26,8 +26,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/app/components/ui/tooltip";
-import { issueKeys } from "@/app/features/issues/hooks";
-import { pullsKeys } from "@/app/features/pulls/hooks";
+import { issueDetailQueryOptions, issueKeys } from "@/app/features/issues/hooks";
+import { prDetailQueryOptions, pullsKeys } from "@/app/features/pulls/hooks";
 import { cn } from "@/app/lib/cn";
 import {
   activateTab,
@@ -39,6 +39,7 @@ import {
   reorderTabs,
 } from "@/app/lib/tabActions";
 import { getTabMeta, type TabMeta } from "@/app/lib/tabMeta";
+import { useAuthStore } from "@/app/stores/auth";
 import { hrefPathname, type Tab, useTabsStore } from "@/app/stores/tabs";
 import { useTabTitlesStore } from "@/app/stores/tabTitles";
 
@@ -334,10 +335,12 @@ type EntityRow = {
 
 /**
  * Title + state of a PR/issue from the query cache — the detail query if the
- * page was opened, else any list page that contained it. Never fetches.
+ * page was opened, else any list page that contained it.
  *
  * The cache is in memory only, so the last value seen is remembered across
- * reloads (see stores/tabTitles) and used until the cache has it again.
+ * reloads (see stores/tabTitles) and used until the cache has it again. Only
+ * a tab never seen before, with nothing cached or remembered, fetches its
+ * detail once.
  */
 function useCachedEntity(pathname: string): { title: string; tone: Tone } | null {
   const queryClient = useQueryClient();
@@ -370,11 +373,24 @@ function useCachedEntity(pathname: string): { title: string; tone: Tone } | null
     },
   );
 
+  const value = snapshot || remembered;
+  const signedIn = useAuthStore((s) => !!s.token);
+
   useEffect(() => {
     if (key && snapshot) useTabTitlesStore.getState().remember(key, snapshot);
   }, [key, snapshot]);
 
-  const value = snapshot || remembered;
+  const fetchKey = key && !value && signedIn ? key : "";
+  useEffect(() => {
+    if (!fetchKey) return;
+    const [owner = "", repo = "", kind, num] = fetchKey.split("/");
+    if (kind === "issue") {
+      void queryClient.prefetchQuery(issueDetailQueryOptions(owner, repo, Number(num)));
+    } else {
+      void queryClient.prefetchQuery(prDetailQueryOptions(owner, repo, Number(num)));
+    }
+  }, [fetchKey, queryClient]);
+
   if (!value) return null;
   const [tone, title] = value.split("\u0000") as [Tone, string];
   return { tone, title };

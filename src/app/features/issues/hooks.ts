@@ -1,5 +1,4 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type RepoLabel, repoLabelsKey } from "@/app/features/pulls/pickers";
 import {
   EMPTY_MY_REACTIONS,
   IssueCommentSchema,
@@ -12,6 +11,7 @@ import {
   type RepoIssue,
   type RepoIssueComment,
 } from "@/app/features/issues/schemas";
+import { type RepoLabel, repoLabelsKey } from "@/app/features/pulls/pickers";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
 
@@ -32,12 +32,8 @@ export const issueKeys = {
     issueNumber: number | undefined,
     meId: number | undefined,
   ) => ["issue-my-reactions", owner, repo, issueNumber, meId] as const,
-  myCommentReactions: (
-    owner: string,
-    repo: string,
-    commentId: number,
-    meId: number | undefined,
-  ) => ["comment-my-reactions", owner, repo, commentId, meId] as const,
+  myCommentReactions: (owner: string, repo: string, commentId: number, meId: number | undefined) =>
+    ["comment-my-reactions", owner, repo, commentId, meId] as const,
 };
 
 // ─── Queries ────────────────────────────────────────────────────────────────
@@ -68,21 +64,27 @@ export function useRepoIssues(owner: string, repo: string) {
   });
 }
 
-export function useRepoIssue(owner: string, repo: string, issueNumber: number | undefined) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
+export const issueDetailQueryOptions = (owner: string, repo: string, issueNumber: number) =>
+  queryOptions({
     queryKey: issueKeys.detail(owner, repo, issueNumber),
-    enabled: !!token && !!owner && !!repo && !!issueNumber,
     queryFn: async (): Promise<RepoIssue> => {
       const client = getGitHubClient();
       const res = await client.request("GET /repos/{owner}/{repo}/issues/{issue_number}", {
         owner,
         repo,
-        // enabled guard ensures issueNumber is defined
-        issue_number: issueNumber!,
+        issue_number: issueNumber,
       });
       return IssueDetailSchema.parse(res.data);
     },
+  });
+
+export function useRepoIssue(owner: string, repo: string, issueNumber: number | undefined) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    // enabled guard ensures issueNumber is defined before the query runs
+    ...issueDetailQueryOptions(owner, repo, issueNumber ?? 0),
+    queryKey: issueKeys.detail(owner, repo, issueNumber),
+    enabled: !!token && !!owner && !!repo && !!issueNumber,
   });
 }
 
@@ -352,11 +354,7 @@ export function useUpdateIssueState(owner: string, repo: string) {
  *   3. onSuccess writes the real reaction id back
  *   4. onSettled runs a cheap invalidation to reconcile
  */
-export function useToggleIssueReaction(
-  owner: string,
-  repo: string,
-  meId: number | undefined,
-) {
+export function useToggleIssueReaction(owner: string, repo: string, meId: number | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
@@ -562,12 +560,18 @@ export function useSetIssueAssignees(owner: string, repo: string, number: number
       const client = getGitHubClient();
       if (add.length > 0) {
         await client.request("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", {
-          owner, repo, issue_number: number, assignees: add,
+          owner,
+          repo,
+          issue_number: number,
+          assignees: add,
         });
       }
       if (remove.length > 0) {
         await client.request("DELETE /repos/{owner}/{repo}/issues/{issue_number}/assignees", {
-          owner, repo, issue_number: number, assignees: remove,
+          owner,
+          repo,
+          issue_number: number,
+          assignees: remove,
         });
       }
     },
@@ -579,7 +583,11 @@ export function useSetIssueAssignees(owner: string, repo: string, number: number
           ...issue.assignees.filter((a) => !remove.includes(a.login)),
           ...add
             .filter((login) => !issue.assignees.some((a) => a.login === login))
-            .map((login) => ({ login, avatar_url: `https://github.com/${login}.png`, html_url: `https://github.com/${login}` })),
+            .map((login) => ({
+              login,
+              avatar_url: `https://github.com/${login}.png`,
+              html_url: `https://github.com/${login}`,
+            })),
         ],
       }));
     },
@@ -601,9 +609,17 @@ export function useSetIssueLabels(owner: string, repo: string, number: number) {
     mutationFn: async ({ names }: { names: string[] }) => {
       const client = getGitHubClient();
       const res = await client.request("PUT /repos/{owner}/{repo}/issues/{issue_number}/labels", {
-        owner, repo, issue_number: number, labels: names,
+        owner,
+        repo,
+        issue_number: number,
+        labels: names,
       });
-      return res.data as Array<{ id: number; name: string; color: string; description: string | null }>;
+      return res.data as Array<{
+        id: number;
+        name: string;
+        color: string;
+        description: string | null;
+      }>;
     },
     onMutate: async ({ names }) => {
       await queryClient.cancelQueries({ queryKey: issueKeys.detail(owner, repo, number) });
@@ -614,8 +630,18 @@ export function useSetIssueLabels(owner: string, repo: string, number: number) {
         labels: names.map((name) => {
           const found = byName.get(name);
           return found
-            ? { id: found.id, name: found.name, color: found.color, description: found.description ?? null }
-            : issue.labels.find((l) => l.name === name) ?? { id: -Date.now(), name, color: "cccccc", description: null };
+            ? {
+                id: found.id,
+                name: found.name,
+                color: found.color,
+                description: found.description ?? null,
+              }
+            : (issue.labels.find((l) => l.name === name) ?? {
+                id: -Date.now(),
+                name,
+                color: "cccccc",
+                description: null,
+              });
         }),
       }));
     },
@@ -671,10 +697,12 @@ export function useUpdateIssueComment(owner: string, repo: string, issueNumber: 
   return useMutation({
     mutationFn: async ({ commentId, body }: { commentId: number; body: string }) => {
       const client = getGitHubClient();
-      const res = await client.request(
-        "PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}",
-        { owner, repo, comment_id: commentId, body },
-      );
+      const res = await client.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", {
+        owner,
+        repo,
+        comment_id: commentId,
+        body,
+      });
       return IssueCommentSchema.parse(res.data);
     },
     onMutate: async ({ commentId, body }) => {
