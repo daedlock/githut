@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { trackWorkspaceAction } from "@/app/lib/analytics";
 import type { ShortcutMap } from "@/app/lib/shortcuts";
 import { useTabScope } from "@/app/lib/tabScope";
 
@@ -175,6 +176,7 @@ function onKeyDown(e: KeyboardEvent) {
     clearPending();
     e.preventDefault();
     handler();
+    trackWorkspaceAction("shortcut");
     return;
   }
 

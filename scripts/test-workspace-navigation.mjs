@@ -204,7 +204,7 @@ try {
     );
     await tabCount(page, 3);
     assert.equal(await second.getByRole("tab").count(), 1);
-    await page.setViewportSize({ width: 900, height: 900 });
+    await page.setViewportSize({ width: 1000, height: 900 });
     await second.getByRole("button", { name: "project sections", exact: true }).click();
     await page.getByRole("menuitem", { name: "PRs", exact: true }).click();
     await page.getByRole("menu").waitFor({ state: "hidden" });

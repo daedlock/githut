@@ -1,7 +1,10 @@
 type UmamiEventData = Record<string, string | number | boolean | null | undefined>;
 
 type UmamiGlobal = {
-  track?: (event: string, data?: UmamiEventData) => void;
+  track?: (
+    event: string | ((props: Record<string, unknown>) => Record<string, unknown>),
+    data?: UmamiEventData,
+  ) => unknown;
 };
 
 const UMAMI_DISABLED_KEY = "umami.disabled";
@@ -27,8 +30,39 @@ export function setAnalyticsEnabledPreference(enabled: boolean) {
 }
 
 export function track(event: string, data?: UmamiEventData) {
-  if (!isAnalyticsEnabled()) return;
-  getUmami()?.track?.(event, data);
+  try {
+    if (!isAnalyticsEnabled()) return;
+    void Promise.resolve(getUmami()?.track?.(event, data)).catch(() => {});
+  } catch {
+    // Analytics and preference storage must never interrupt a user action.
+  }
+}
+
+export type WorkspaceAction =
+  | "split"
+  | "drag-dock"
+  | "move-island"
+  | "pin"
+  | "shortcut"
+  | "sidebar-toggled";
+
+/** Counts only. Umami's ordinary event overload includes the current page identity. */
+export function trackWorkspaceAction(action: WorkspaceAction) {
+  try {
+    if (!isAnalyticsEnabled()) return;
+    const result = getUmami()?.track?.((props) => ({
+      website: props.website,
+      url: "/workspace",
+      title: "Workspace",
+      referrer: "",
+      name: "workspace_action",
+      data: { action },
+    }));
+    // Tracking may be blocked or reject asynchronously; the action has already succeeded.
+    void Promise.resolve(result).catch(() => {});
+  } catch {
+    // Blocked preference storage also means no tracking.
+  }
 }
 
 export function bucketNumber(value: number, buckets: number[]): string {
