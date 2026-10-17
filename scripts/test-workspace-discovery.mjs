@@ -35,18 +35,21 @@ async function fixture() {
     window.workspaceEvents = [];
     window.layoutCommandEvents = [];
     window.umami = {
+      // Every event and pageview now goes through the payload-function form.
       track: (event, data) => {
-        if (event === "command_palette_command_selected") window.layoutCommandEvents.push(data);
-        if (typeof event === "function")
-          window.workspaceEvents.push(
-            event({
-              website: "site-id",
-              url: location.href,
-              title: document.title,
-              referrer: "https://github.com/private-owner/secret-repo",
-              id: "private-person",
-            }),
-          );
+        const payload =
+          typeof event === "function"
+            ? event({
+                website: "site-id",
+                url: location.href,
+                title: document.title,
+                referrer: "https://github.com/private-owner/secret-repo",
+                id: "private-person",
+              })
+            : { name: event, data };
+        if (payload.name === "command_palette_command_selected")
+          window.layoutCommandEvents.push(payload.data);
+        if (payload.name === "workspace_action") window.workspaceEvents.push(payload);
       },
     };
   });
@@ -108,7 +111,10 @@ try {
     assert.equal(await hint.count(), 0);
     await command(first.page, { type: "openTab", href: "/private-owner/secret-repo/pulls" });
     await hint.waitFor({ timeout: 3000 });
-    assert.match(await hint.innerText(), /drag to split · ⇧-click new tab · ⌥-click to the side/);
+    assert.match(
+      await hint.innerText(),
+      /Drag a tab to split. Shift-click opens a new tab, (Alt|⌥)-click opens it beside./,
+    );
     const hintBox = await hint.boundingBox();
     const stripBox = await first.page.locator("[data-tab-strip]").boundingBox();
     assert.ok(Math.abs(hintBox.y - stripBox.y - stripBox.height) < 20, "Hint anchors to tab row");
@@ -146,9 +152,11 @@ try {
       "shortcut",
     ]);
     await page.keyboard.press("Control+b");
-    assert.equal(
-      await page.evaluate(() => window.workspaceEvents.at(-2).data.action),
-      "sidebar-toggled",
+    assert.deepEqual(
+      (
+        await page.evaluate(() => window.workspaceEvents.slice(-2).map((e) => e.data.action))
+      ).sort(),
+      ["shortcut", "sidebar-toggled"],
     );
     await page.evaluate(async () => {
       const { dispatch, getFocusedTab } = await import("/src/app/workspace/store.ts");
@@ -220,7 +228,10 @@ try {
     await page.keyboard.press("ArrowLeft");
     await page.waitForTimeout(300);
     const resized = await page.locator("[data-island]").first().boundingBox();
-    assert.ok(Math.abs(before.width - resized.width - 16) < 2, `${before.width} -> ${resized.width}`);
+    assert.ok(
+      Math.abs(before.width - resized.width - 16) < 2,
+      `${before.width} -> ${resized.width}`,
+    );
     await page.locator("[data-island]").nth(1).getByRole("tab").first().click();
     await palette(page, "Equalize island sizes");
     assert.ok(

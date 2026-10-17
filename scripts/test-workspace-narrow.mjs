@@ -133,7 +133,11 @@ try {
     .getByRole("link", { name: "Open issue #2: Navigation issue 2", exact: true })
     .click({ modifiers: ["Shift"] });
   await page.waitForURL(`${app}/demo/project/issues/2`);
-  const saved = await page.evaluate(() => sessionStorage.getItem("githut.workspace.window"));
+  const saved = await page.evaluate(() =>
+    sessionStorage.getItem(
+      Object.keys(sessionStorage).find((k) => k.startsWith("githut.workspace.window")) ?? "",
+    ),
+  );
   const beforeBounds = await page.locator("[data-island]").evaluateAll((nodes) =>
     nodes.map((node) => {
       const r = node.getBoundingClientRect();
@@ -144,7 +148,14 @@ try {
   await page.getByRole("button", { name: "Switch island or tab", exact: true }).waitFor();
   assert.equal(await page.locator("[data-island]:visible").count(), 1);
   assert.equal(await page.locator("[data-sidebar]").count(), 0);
-  assert.equal(await page.evaluate(() => sessionStorage.getItem("githut.workspace.window")), saved);
+  assert.equal(
+    await page.evaluate(() =>
+      sessionStorage.getItem(
+        Object.keys(sessionStorage).find((k) => k.startsWith("githut.workspace.window")) ?? "",
+      ),
+    ),
+    saved,
+  );
   const area = await page.locator("[data-workspace-area]").boundingBox();
   const island = await page.locator("[data-island]:visible").boundingBox();
   assert.equal(island.width, area.width);
@@ -159,7 +170,14 @@ try {
     .getByRole("button", { name: "Switch island or tab", exact: true })
     .waitFor({ state: "hidden" });
   assert.equal(await page.locator("[data-island]:visible").count(), 2);
-  assert.equal(await page.evaluate(() => sessionStorage.getItem("githut.workspace.window")), saved);
+  assert.equal(
+    await page.evaluate(() =>
+      sessionStorage.getItem(
+        Object.keys(sessionStorage).find((k) => k.startsWith("githut.workspace.window")) ?? "",
+      ),
+    ),
+    saved,
+  );
   assert.deepEqual(
     await page.locator("[data-island]").evaluateAll((nodes) =>
       nodes.map((node) => {
@@ -181,12 +199,20 @@ try {
     })
     .click();
   await page.getByRole("menuitem", { name: "Maximize", exact: true }).click();
-  const maximized = await page.evaluate(() => sessionStorage.getItem("githut.workspace.window"));
+  const maximized = await page.evaluate(() =>
+    sessionStorage.getItem(
+      Object.keys(sessionStorage).find((k) => k.startsWith("githut.workspace.window")) ?? "",
+    ),
+  );
   const maximizedIsland = JSON.parse(maximized).workspace.focusedIslandId;
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Switch island or tab", exact: true }).waitFor();
   assert.equal(
-    await page.evaluate(() => sessionStorage.getItem("githut.workspace.window")),
+    await page.evaluate(() =>
+      sessionStorage.getItem(
+        Object.keys(sessionStorage).find((k) => k.startsWith("githut.workspace.window")) ?? "",
+      ),
+    ),
     maximized,
   );
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -220,7 +246,12 @@ try {
   assert.equal(await page.locator("[data-island]:visible").count(), 2);
   assert.deepEqual(
     await page.evaluate(
-      () => JSON.parse(sessionStorage.getItem("githut.workspace.window")).workspace.layout,
+      () =>
+        JSON.parse(
+          sessionStorage.getItem(
+            Object.keys(sessionStorage).find((k) => k.startsWith("githut.workspace.window")) ?? "",
+          ),
+        ).workspace.layout,
     ),
     JSON.parse(saved).workspace.layout,
   );
@@ -231,7 +262,11 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Switch island or tab", exact: true }).waitFor();
   const allTabs = await page.evaluate(() => {
-    const ws = JSON.parse(sessionStorage.getItem("githut.workspace.window")).workspace;
+    const ws = JSON.parse(
+      sessionStorage.getItem(
+        Object.keys(sessionStorage).find((k) => k.startsWith("githut.workspace.window")) ?? "",
+      ),
+    ).workspace;
     const all = (node) => (node.kind === "island" ? node.tabs : node.children.flatMap(all));
     return all(ws.layout);
   });
