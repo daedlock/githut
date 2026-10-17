@@ -4,9 +4,17 @@ import { persist } from "zustand/middleware";
 import { assertCanMutate } from "@/app/lib/connectivity";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { queryClient } from "@/app/lib/query";
+import { accountStorage, followDraftAccount } from "@/app/stores/accountStorage";
 import { useAuthStore } from "@/app/stores/auth";
 import { getRateBackoff } from "@/app/stores/rateLimit";
-import { fetchNotifications, type Notification, type NotificationFeed } from "./api";
+import {
+  appendPage,
+  fetchNotificationPage,
+  isParticipating,
+  mergeFirstPage,
+  type Notification,
+  type NotificationFeed,
+} from "./api";
 
 export const NOTIFICATIONS_KEY = ["notifications", "workspace"] as const;
 export type NotificationAction = "read" | "unread" | "done" | "unsubscribe";
@@ -20,12 +28,21 @@ type NotificationState = { unread: Record<string, true>; busy: string[] };
 export const useNotificationState = create<NotificationState>()(
   persist((): NotificationState => ({ unread: {}, busy: [] }), {
     name: "githut.notifications",
+    // Thread IDs reveal which private threads an account follows.
+    storage: accountStorage<Pick<NotificationState, "unread">>(),
     partialize: (state) => ({ unread: state.unread }),
   }),
 );
+followDraftAccount(() => useNotificationState.persist.rehydrate());
 
 export function notificationIsUnread(item: Notification): boolean {
   return item.unread || !!useNotificationState.getState().unread[item.id];
+}
+
+/** A poll asks for page 1 only and keeps any older pages already loaded. */
+async function pollFirstPage(signal?: AbortSignal): Promise<NotificationFeed> {
+  const first = await fetchNotificationPage(1, signal);
+  return mergeFirstPage(first, queryClient.getQueryData<NotificationFeed>(NOTIFICATIONS_KEY));
 }
 
 /** Consumers observe the same cache without starting another polling loop. */
@@ -33,17 +50,41 @@ export function useNotifications() {
   return useQuery(
     {
       queryKey: NOTIFICATIONS_KEY,
-      queryFn: ({ signal }) => fetchNotifications(signal),
+      queryFn: ({ signal }) => pollFirstPage(signal),
       enabled: false,
     },
     queryClient,
   );
 }
 
+/** Counts what the Inbox opens on (Participating), so the sidebar and list agree. */
 export function useNotificationUnreadCount(): number {
   const { data } = useNotifications();
   const unread = useNotificationState((state) => state.unread);
-  return data?.items.filter((item) => item.unread || unread[item.id]).length ?? 0;
+  return (
+    data?.items.filter((item) => isParticipating(item) && (item.unread || unread[item.id]))
+      .length ?? 0
+  );
+}
+
+let loadingMore: Promise<void> | undefined;
+
+/** The Inbox's "Load more": one older page, on request, never polled. */
+export function loadMoreNotifications(): Promise<void> {
+  loadingMore ??= (async () => {
+    const feed = queryClient.getQueryData<NotificationFeed>(NOTIFICATIONS_KEY);
+    if (!feed?.hasMore) return;
+    const token = useAuthStore.getState().token;
+    const next = await fetchNotificationPage(feed.pages + 1);
+    if (useAuthStore.getState().token !== token) return;
+    queryClient.setQueryData<NotificationFeed>(
+      NOTIFICATIONS_KEY,
+      (current) => current && appendPage(current, next),
+    );
+  })().finally(() => {
+    loadingMore = undefined;
+  });
+  return loadingMore;
 }
 
 let poll: { token: string; at: number; promise?: Promise<unknown> } | undefined;
@@ -72,7 +113,7 @@ export async function refreshNotifications(now = Date.now()): Promise<void> {
   poll = attempt;
   attempt.promise = queryClient.fetchQuery({
     queryKey: NOTIFICATIONS_KEY,
-    queryFn: ({ signal }) => fetchNotifications(signal),
+    queryFn: ({ signal }) => pollFirstPage(signal),
     staleTime: 0,
     retry: false,
   });
@@ -155,7 +196,9 @@ export async function runNotificationAction(
           const path = `/notifications/threads/${encodeURIComponent(id)}`;
           if (action === "read") await client.request(`PATCH ${path}`);
           else if (action === "done") await client.request(`DELETE ${path}`);
-          else await client.request(`PUT ${path}/subscription`, { ignored: true });
+          // GitHub's Unsubscribe: quiet until you're mentioned or comment again.
+          // (`ignored: true` would block those too.)
+          else await client.request(`DELETE ${path}/subscription`);
         }
         result.succeeded.push(id);
       } catch (error) {
