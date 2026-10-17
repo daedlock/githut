@@ -21,6 +21,15 @@ export function holdListOrder<T>(
   return latest.size ? [...rows, ...latest.values()] : rows;
 }
 
+/** `merge` for grouped lists: hold each group's own rows. A group only ever
+ * takes rows from its current version, never from the whole list. */
+export function holdGroupItems<T>(key: (item: T) => string | number) {
+  return <G extends { items: T[] }>(held: G, current: G): G => ({
+    ...current,
+    items: holdListOrder(held.items, current.items, key),
+  });
+}
+
 /** Queue ordering changes while pointing; `merge` preserves nested row order in grouped lists. */
 export function useStableList<T>(
   incoming: T[],

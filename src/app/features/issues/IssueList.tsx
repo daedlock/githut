@@ -18,7 +18,7 @@ import { ListDisplayMenu } from "@/app/features/repo/components/ListDisplayMenu"
 import { buildRepoFilterFields } from "@/app/features/repo/filterFields";
 import { groupListItems } from "@/app/features/repo/listGrouping";
 import { useListNavigation } from "@/app/hooks/useListNavigation";
-import { holdListOrder, useStableList } from "@/app/hooks/useStableList";
+import { holdGroupItems, useStableList } from "@/app/hooks/useStableList";
 import { cn } from "@/app/lib/cn";
 import { useListGrouping } from "@/app/stores/listGrouping";
 
@@ -85,10 +85,7 @@ export function IssueList({
       activeFilters,
       grouping.groupBy,
     ]),
-    merge: (held, current) => ({
-      ...current,
-      items: holdListOrder(held.items, issues, (issue) => issue.id),
-    }),
+    merge: holdGroupItems((issue: { id: number }) => issue.id),
   });
   const bulkItems = useMemo(() => issues.map(toBulkItem), [issues]);
   const visibleNumbers = useMemo(
