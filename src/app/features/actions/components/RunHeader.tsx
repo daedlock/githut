@@ -56,7 +56,7 @@ export function RunOverview({ run, artifactCount }: { run: WorkflowRun; artifact
   return (
     <section
       aria-label="Run summary"
-      className="grid grid-cols-2 gap-4 rounded-lg bg-muted p-4 xl:grid-cols-[2fr_1fr_1fr_1fr]"
+      className="grid grid-cols-2 gap-4 rounded-lg bg-muted p-4 @5xl/pane:grid-cols-[2fr_1fr_1fr_1fr]"
     >
       <Metric
         label={`${run.event === "workflow_dispatch" ? "Manually triggered" : run.event.replaceAll("_", " ")} ${formatRelativeTime(run.created_at)}`}

@@ -95,11 +95,14 @@ function RunDetailPage() {
             }}
           />
         ) : null}
-        <div className="flex flex-col items-start gap-6 lg:flex-row lg:gap-8">
-          <aside className="w-full shrink-0 lg:sticky lg:top-8 lg:w-60" aria-label="Run navigation">
+        <div className="flex flex-col items-start gap-6 @3xl/pane:flex-row @3xl/pane:gap-8">
+          <aside
+            className="w-full shrink-0 @3xl/pane:sticky @3xl/pane:top-8 @3xl/pane:w-60"
+            aria-label="Run navigation"
+          >
             <select
               aria-label="View summary or job"
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-ui lg:hidden"
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-ui @3xl/pane:hidden"
               value={jobId ?? ""}
               onChange={(event) =>
                 selectJob(event.target.value ? Number(event.target.value) : undefined)
@@ -117,7 +120,7 @@ function RunDetailPage() {
                 </option>
               ))}
             </select>
-            <div className="hidden lg:block">
+            <div className="hidden @3xl/pane:block">
               <button
                 type="button"
                 onClick={() => selectJob()}
@@ -135,7 +138,7 @@ function RunDetailPage() {
                 <span>{jobsQuery.data ? `${completed}/${jobs.length}` : "—"}</span>
               </div>
               <nav
-                className="mt-2 max-h-64 space-y-1 overflow-y-auto lg:max-h-[55vh]"
+                className="mt-2 max-h-64 space-y-1 overflow-y-auto @3xl/pane:max-h-[calc(var(--pane-height,100dvh)*0.55)]"
                 aria-label="Jobs"
               >
                 {jobsQuery.isPending
@@ -279,7 +282,7 @@ function RunDetailPage() {
                         className="shrink-0"
                       />
                       <span className="min-w-0 flex-1 truncate text-ui">{job.name}</span>
-                      <span className="hidden text-caption text-muted-foreground sm:block">
+                      <span className="hidden text-caption text-muted-foreground @xl/pane:block">
                         {statusLabel(toUiStatus(job.status, job.conclusion))}
                       </span>
                       <JobDuration job={job} />

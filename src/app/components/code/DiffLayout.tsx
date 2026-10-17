@@ -6,12 +6,15 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { type ChangedFile, ChangedFileTree } from "@/app/components/repo/ChangedFileTree";
+import { Button } from "@/app/components/ui/button";
 import { Container } from "@/app/components/ui/Container";
+import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
 import { cn } from "@/app/lib/cn";
 import { tabScrollContainer, useTabScope } from "@/app/lib/tabScope";
 import { useSettingsStore } from "@/app/stores/settings";
@@ -62,6 +65,11 @@ export type DiffLayoutProps = {
 // Once painted, the browser remembers the actual size.
 
 const TOPBAR_H = 44;
+const TREE_W = 320;
+/** Layout width below which the file tree moves into a popover. */
+const TREE_INLINE_MIN = 848;
+/** Diff column width below which split falls back to unified. */
+const SPLIT_MIN = 640;
 const STICKY_TOP = "var(--diff-toolbar-height, 44px)";
 
 export function DiffLayout({
@@ -90,6 +98,32 @@ export function DiffLayout({
   const layoutRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarHeight, setToolbarHeight] = useState(TOPBAR_H);
+  const [layoutWidth, setLayoutWidth] = useState<number | null>(null);
+  const [treePopoverOpen, setTreePopoverOpen] = useState(false);
+
+  // Layout follows the island, not the window: measure the layout itself.
+  useLayoutEffect(() => {
+    const layout = layoutRef.current;
+    if (!layout) return;
+    const sync = () => setLayoutWidth(layout.clientWidth);
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(layout);
+    return () => observer.disconnect();
+  }, []);
+
+  // Narrow islands keep the file tree behind the toolbar toggle.
+  const treeInline = layoutWidth === null || layoutWidth >= TREE_INLINE_MIN;
+  const showTree = treeInline && sidebarOpen;
+  // Split needs room for two code columns; fall back to unified without
+  // touching the saved preference.
+  const diffWidth = (layoutWidth ?? Number.POSITIVE_INFINITY) - (showTree ? TREE_W : 0);
+  const splitFits = diffWidth >= SPLIT_MIN;
+  const effectiveMode: DiffMode = splitFits ? mode : "unified";
+  const toggleTree = useCallback(() => {
+    if (treeInline) setSidebarOpen((v) => !v);
+    else setTreePopoverOpen((v) => !v);
+  }, [treeInline]);
 
   // The toolbar wraps at narrow container widths; all sticky offsets follow it.
   useEffect(() => {
@@ -142,12 +176,7 @@ export function DiffLayout({
       }
     };
     observeFiles();
-    const breakpoint = window.matchMedia("(min-width: 48rem)");
-    breakpoint.addEventListener("change", observeFiles);
-    return () => {
-      observer?.disconnect();
-      breakpoint.removeEventListener("change", observeFiles);
-    };
+    return () => observer?.disconnect();
   }, [files, toolbarHeight]);
 
   const { isFocused } = useTabScope();
@@ -176,12 +205,12 @@ export function DiffLayout({
         if (next) scrollToFile(next.filename);
       } else if (e.key === "[") {
         e.preventDefault();
-        setSidebarOpen((v) => !v);
+        toggleTree();
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [files, activeFile, scrollToFile, isFocused]);
+  }, [files, activeFile, scrollToFile, isFocused, toggleTree]);
 
   return (
     <Container className={cn("bg-background", className)}>
@@ -195,22 +224,43 @@ export function DiffLayout({
         >
           {/* Left: review bar or sidebar toggle + file stats */}
           {reviewBar ? (
-            <div className="min-w-0 basis-56 flex-1">{reviewBar}</div>
+            <>
+              {!treeInline && (
+                <FileTreePopover
+                  open={treePopoverOpen}
+                  onOpenChange={setTreePopoverOpen}
+                  files={files}
+                  activeFile={activeFile}
+                  onFileClick={scrollToFile}
+                />
+              )}
+              <div className="min-w-0 basis-56 flex-1">{reviewBar}</div>
+            </>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => setSidebarOpen((v) => !v)}
-                className="inline-flex size-7 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15"
-                title={sidebarOpen ? "Hide file tree" : "Show file tree"}
-                aria-label={sidebarOpen ? "Hide file tree" : "Show file tree"}
-              >
-                {sidebarOpen ? (
-                  <PanelLeftClose className="size-3.5" />
-                ) : (
-                  <PanelLeftOpen className="size-3.5" />
-                )}
-              </button>
+              {treeInline ? (
+                <button
+                  type="button"
+                  onClick={toggleTree}
+                  className="inline-flex size-7 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-foreground/15"
+                  title={sidebarOpen ? "Hide file tree" : "Show file tree"}
+                  aria-label={sidebarOpen ? "Hide file tree" : "Show file tree"}
+                >
+                  {sidebarOpen ? (
+                    <PanelLeftClose className="size-3.5" />
+                  ) : (
+                    <PanelLeftOpen className="size-3.5" />
+                  )}
+                </button>
+              ) : (
+                <FileTreePopover
+                  open={treePopoverOpen}
+                  onOpenChange={setTreePopoverOpen}
+                  files={files}
+                  activeFile={activeFile}
+                  onFileClick={scrollToFile}
+                />
+              )}
               <div className="flex shrink-0 items-center gap-2 text-caption">
                 <span className="flex items-baseline gap-1.5">
                   <span className="tabular-nums font-medium text-foreground">{files.length}</span>
@@ -236,14 +286,19 @@ export function DiffLayout({
 
           <div className="flex shrink-0 items-center rounded-lg bg-muted p-0.5">
             <ModeBtn
-              active={mode === "unified"}
+              active={effectiveMode === "unified"}
               onClick={() => setMode("unified")}
               title="Unified view"
             >
               <Rows2 className="size-3" />
               <span>Unified</span>
             </ModeBtn>
-            <ModeBtn active={mode === "split"} onClick={() => setMode("split")} title="Split view">
+            <ModeBtn
+              active={effectiveMode === "split"}
+              disabled={!splitFits}
+              onClick={() => setMode("split")}
+              title={splitFits ? "Split view" : "Split view needs a wider island"}
+            >
               <Columns2 className="size-3" />
               <span>Split</span>
             </ModeBtn>
@@ -259,9 +314,9 @@ export function DiffLayout({
         />
 
         <div className="flex min-h-[calc(var(--pane-height,100dvh)-44px)] w-full">
-          {sidebarOpen && (
+          {showTree && (
             <aside
-              className="sticky z-10 hidden w-[320px] flex-shrink-0 self-stretch overflow-y-auto lg:block"
+              className="sticky z-10 w-[320px] flex-shrink-0 self-stretch overflow-y-auto"
               style={{
                 top: STICKY_TOP,
                 maxHeight: `calc(var(--pane-height, 100dvh) - ${STICKY_TOP})`,
@@ -271,7 +326,7 @@ export function DiffLayout({
             </aside>
           )}
 
-          <DiffModeContext value={mode}>
+          <DiffModeContext value={effectiveMode}>
             <div className="min-w-0 flex-1 p-4">
               <div className="flex flex-col">
                 {files.map((file, index) => (
@@ -350,13 +405,59 @@ const FileItem = memo(function FileItem({
   );
 });
 
+/** File tree for narrow islands: a toolbar toggle that opens the tree in a popover. */
+function FileTreePopover({
+  open,
+  onOpenChange,
+  files,
+  activeFile,
+  onFileClick,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  files: ChangedFile[];
+  activeFile: string | undefined;
+  onFileClick: (filename: string) => void;
+}) {
+  return (
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="shrink-0 text-muted-foreground"
+          title="Show file tree"
+          aria-label="Show file tree"
+        >
+          <PanelLeftOpen />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="max-h-[min(32rem,calc(var(--radix-popover-content-available-height)-8px))] w-[min(320px,calc(100vw-16px))] overflow-y-auto p-0"
+      >
+        <ChangedFileTree
+          files={files}
+          activeFile={activeFile}
+          onFileClick={(filename) => {
+            onFileClick(filename);
+            onOpenChange(false);
+          }}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function ModeBtn({
   active,
+  disabled,
   onClick,
   title,
   children,
 }: {
   active: boolean;
+  disabled?: boolean;
   onClick: () => void;
   title: string;
   children: React.ReactNode;
@@ -365,11 +466,12 @@ function ModeBtn({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       title={title}
       aria-label={title}
       className={cn(
         "inline-flex h-6 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium",
-        "outline-none transition-colors",
+        "outline-none transition-colors disabled:pointer-events-none disabled:opacity-50",
         "focus-visible:ring-1 focus-visible:ring-foreground/15",
         active
           ? "bg-background text-foreground shadow-xs"

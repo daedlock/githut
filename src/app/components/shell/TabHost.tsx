@@ -202,7 +202,7 @@ const TabPane = memo(
         data-tab-pane={id}
         // Focusable so keyboard focus can move into an island (Alt+Shift+arrows).
         tabIndex={-1}
-        className="absolute inset-0 overflow-y-auto overscroll-contain outline-none"
+        className="@container/pane absolute inset-0 overflow-y-auto overscroll-contain outline-none"
       >
         <TabScopeContext.Provider value={scope}>
           <QueryClientProvider client={queries}>

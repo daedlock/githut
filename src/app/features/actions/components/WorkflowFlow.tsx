@@ -217,7 +217,7 @@ export const WorkflowFlow = memo(function WorkflowFlow({
                   Additional jobs · dependency mapping unavailable
                 </p>
               ) : null}
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-2 @xl/pane:grid-cols-2 @5xl/pane:grid-cols-3">
                 {graph.unmatched.map((job) => (
                   <div key={job.id} className="rounded-lg bg-background/50">
                     <FlowJob job={job} onSelectJob={onSelectJob} />

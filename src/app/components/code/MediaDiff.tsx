@@ -49,7 +49,7 @@ export function MediaDiff({ kind, status, before, after, className }: MediaDiffP
   if (panes.length === 0) return null;
 
   return (
-    <div className={cn("flex flex-col md:flex-row", className)} data-media-kind={kind}>
+    <div className={cn("flex flex-col @2xl/pane:flex-row", className)} data-media-kind={kind}>
       {panes.map((pane, index) => (
         <MediaPane
           key={pane.key}
@@ -57,7 +57,7 @@ export function MediaDiff({ kind, status, before, after, className }: MediaDiffP
           source={pane.source}
           label={pane.label}
           tone={pane.tone}
-          className={cn(index > 0 && "border-t border-border md:border-t-0 md:border-l")}
+          className={cn(index > 0 && "border-t border-border @2xl/pane:border-t-0 @2xl/pane:border-l")}
         />
       ))}
     </div>

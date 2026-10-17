@@ -18,7 +18,7 @@ export function Container({ children, className, as: As = "div", ...rest }: Cont
   return (
     <As
       data-slot="container"
-      className={cn("mx-auto w-full min-w-0 px-4 sm:px-6", widthClass, className)}
+      className={cn("mx-auto w-full min-w-0 px-4 @xl/pane:px-6", widthClass, className)}
       {...rest}
     >
       {children}

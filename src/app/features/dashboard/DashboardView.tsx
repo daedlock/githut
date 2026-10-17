@@ -111,7 +111,7 @@ export function DashboardView() {
   return (
     <section className="flex min-h-full min-w-0 flex-col">
       <Container className="py-6">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+        <div className="flex flex-col gap-6 @3xl/pane:flex-row @3xl/pane:items-start @3xl/pane:gap-8">
           <DashboardSidebar
             category={category}
             onCategoryChange={(next) => {
@@ -376,7 +376,7 @@ function RowsSkeleton() {
         <div key={w} className="flex items-center gap-3 px-3 py-2">
           <Skeleton className="size-1.5 shrink-0 rounded-full" />
           <Skeleton className="size-3.5 shrink-0 rounded-full" />
-          <Skeleton className="hidden h-3 sm:block" style={{ width: `${w / 4 + 6}%` }} />
+          <Skeleton className="hidden h-3 @xl/pane:block" style={{ width: `${w / 4 + 6}%` }} />
           <Skeleton className="h-3.5 flex-1" style={{ maxWidth: `${w}%` }} />
           <Skeleton className="h-3 w-8" />
         </div>

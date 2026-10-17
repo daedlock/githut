@@ -63,7 +63,7 @@ export function DashboardSidebar({
   return (
     // Sidebar shares the page surface (bg-background, no chrome). On desktop
     // it sticks below the top nav; on mobile it stacks above the list content.
-    <aside className="flex w-full shrink-0 flex-col gap-5 lg:sticky lg:top-6 lg:w-56 lg:pt-[52px] lg:pr-3">
+    <aside className="flex w-full shrink-0 flex-col gap-5 @3xl/pane:sticky @3xl/pane:top-6 @3xl/pane:w-56 @3xl/pane:pt-[52px] @3xl/pane:pr-3">
       {grouped.map(({ group, items }) => {
         const heading = GROUP_LABELS[group];
         return (
