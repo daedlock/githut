@@ -29,25 +29,34 @@ type CachedResponse = {
 
 const etagCache = new Map<string, CachedResponse>();
 
-function buildCacheKey(options: Record<string, unknown>): string {
-  const method = String(options.method ?? "GET").toUpperCase();
-  const url = String(options.url ?? "");
-  const rest: Record<string, unknown> = {};
-  for (const k of Object.keys(options).sort()) {
-    if (k === "method" || k === "url" || k === "headers") continue;
-    if (k === "request" || k === "mediaType" || k === "baseUrl") continue;
-    rest[k] = options[k];
+/**
+ * Keyed by the expanded URL (`/repos/acme/app/pulls?page=2`), never the route
+ * template, so repo-scoped eviction can match real paths. The accept header
+ * is part of the key: the same URL can return different media types.
+ */
+function buildCacheKey(endpoint: { method: string; url: string; headers: object }): string {
+  const accept = (endpoint.headers as Record<string, unknown>).accept ?? "";
+  return `${endpoint.method.toUpperCase()} ${endpoint.url} ${String(accept)}`;
+}
+
+/** Least recently used first: a hit moves the entry to the end. */
+function touchETag(key: string): CachedResponse | undefined {
+  const entry = etagCache.get(key);
+  if (entry) {
+    etagCache.delete(key);
+    etagCache.set(key, entry);
   }
-  return `${method} ${url} ${JSON.stringify(rest)}`;
+  return entry;
 }
 
 function rememberETag(key: string, response: OctokitResponse<unknown>): void {
   const etag = response.headers?.etag;
   const lastModified = response.headers?.["last-modified"];
   if (typeof etag !== "string" && typeof lastModified !== "string") return;
+  etagCache.delete(key);
   if (etagCache.size >= ETAG_CACHE_MAX) {
-    const first = etagCache.keys().next().value;
-    if (first !== undefined) etagCache.delete(first);
+    const oldest = etagCache.keys().next().value;
+    if (oldest !== undefined) etagCache.delete(oldest);
   }
   etagCache.set(key, {
     etag: typeof etag === "string" ? etag : undefined,
@@ -63,11 +72,31 @@ export function clearETagCache(): void {
   etagCache.clear();
 }
 
+/** Drop cached GETs for one repo: its REST paths and searches qualified with `repo:owner/name`. */
 function evictETagsForRepo(owner: string, repo: string): void {
-  const needle = `/${owner}/${repo}`;
+  const path = `/repos/${owner}/${repo}`.toLowerCase();
+  const search = encodeURIComponent(`repo:${owner}/${repo}`).toLowerCase();
   for (const key of etagCache.keys()) {
-    if (key.includes(needle)) etagCache.delete(key);
+    const lower = key.toLowerCase();
+    if (
+      lower.includes(`${path}/`) ||
+      lower.includes(`${path}?`) ||
+      lower.includes(`${path} `) ||
+      lower.includes(search)
+    )
+      etagCache.delete(key);
   }
+}
+
+/** GraphQL queries and Markdown rendering are POSTs that change nothing. */
+function isRead(method: string, url: string, options: Record<string, unknown>): boolean {
+  if (method === "GET" || method === "HEAD") return true;
+  if (url === "/markdown" || url === "/markdown/raw") return true;
+  if (url === "/graphql") {
+    const query = typeof options.query === "string" ? options.query.trimStart() : "";
+    return !query.startsWith("mutation");
+  }
+  return false;
 }
 
 // ─── Client singleton ──────────────────────────────────────────────────────
@@ -132,14 +161,18 @@ export function getGitHubClient(): Octokit {
     };
 
     if (method !== "GET") {
+      const url = String(options.url ?? "");
+      if (isRead(method, url, options as Record<string, unknown>)) return request(options);
       assertCanMutate();
       const response = await request(options);
       // After any write, evict cached GET responses for the same repo so
       // subsequent refetches bypass the ETag 304 path and get fresh data.
-      const url = String(options.url ?? "");
-      const match = url.match(/\/repos\/([^/]+)\/([^/]+)/);
-      if (match?.[1] && match[2]) evictETagsForRepo(match[1], match[2]);
-      if (url.includes("/notifications")) {
+      // `options.url` is the route template; the expanded URL has the real repo.
+      const path = new URL(client.request.endpoint.parse(options).url).pathname;
+      const match = path.match(/^\/repos\/([^/]+)\/([^/]+)/);
+      if (match?.[1] && match[2])
+        evictETagsForRepo(decodeURIComponent(match[1]), decodeURIComponent(match[2]));
+      if (path.startsWith("/notifications")) {
         for (const key of etagCache.keys()) {
           if (key.includes("/notifications")) etagCache.delete(key);
         }
@@ -147,8 +180,8 @@ export function getGitHubClient(): Octokit {
       return response;
     }
 
-    const key = buildCacheKey(options as Record<string, unknown>);
-    const prev = etagCache.get(key);
+    const key = buildCacheKey(client.request.endpoint.parse(options));
+    const prev = touchETag(key);
     if (prev?.etag) options.headers["if-none-match"] = prev.etag;
     else if (prev?.lastModified) options.headers["if-modified-since"] = prev.lastModified;
 
