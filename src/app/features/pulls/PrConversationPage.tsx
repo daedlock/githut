@@ -28,6 +28,7 @@ import type { Review, ReviewComment } from "@/app/features/pulls/schemas";
 import { useMe } from "@/app/hooks/useMe";
 import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
+import { draftKey, draftPage } from "@/app/stores/drafts";
 
 export type PrConversationPageProps = {
   owner: string;
@@ -246,6 +247,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
               submitLabel="Comment"
               hideAvatar
               participants={participants}
+              draftKey={draftKey(draftPage(owner, repo, number), "comment")}
             />
           </div>
         </div>

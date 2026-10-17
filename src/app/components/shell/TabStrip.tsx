@@ -34,6 +34,7 @@ import {
   reopenClosedTab,
   reorderTabs,
 } from "@/app/lib/tabActions";
+import { usePageHasDraft } from "@/app/hooks/usePageHasDraft";
 import { getTabMeta, type TabMeta } from "@/app/lib/tabMeta";
 import { useAuthStore } from "@/app/stores/auth";
 import { hrefPathname, type Tab, useTabsStore } from "@/app/stores/tabs";
@@ -161,6 +162,7 @@ const TabItem = memo(function TabItem({
   isLast: boolean;
 }) {
   const display = useTabDisplay(tab.href);
+  const draft = usePageHasDraft(tab.href);
   const hasClosed = useTabsStore((s) => s.closed.length > 0);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: tab.id,
@@ -234,10 +236,17 @@ const TabItem = memo(function TabItem({
                 className={cn(
                   "inline-flex size-4.5 shrink-0 items-center justify-center rounded-md text-muted-foreground",
                   "hover:bg-accent hover:text-foreground",
-                  active ? "visible" : "invisible group-hover:visible",
+                  active || draft ? "visible" : "invisible group-hover:visible",
                 )}
               >
-                <X className="size-3" />
+                {draft && (
+                  <span
+                    aria-hidden
+                    data-draft-dot
+                    className="size-1.5 rounded-full bg-(--color-warning) group-hover:hidden"
+                  />
+                )}
+                <X className={cn("size-3", draft && "hidden group-hover:block")} />
               </button>
             </div>
           </TooltipTrigger>
@@ -252,6 +261,7 @@ const TabItem = memo(function TabItem({
             )}
             {display.repo && " · "}
             {display.title}
+            {draft && " · Unsent draft"}
           </TooltipContent>
         )}
       </Tooltip>

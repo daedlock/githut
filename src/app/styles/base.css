@@ -43,9 +43,10 @@ html {
 
   /*
    * Islands: the only in-flow surface with elevation. A hairline edge plus a
-   * barely-there drop keeps islands distinct from the frame (DESIGN.md → Islands).
+   * barely-there drop in light themes; in dark themes a 1px top highlight
+   * instead of a shadow (DESIGN.md → Islands).
    */
-  --island-elev: 0 1px 2px rgb(0 0 0 / 0.05);
+  --island-elev: 0 1px 2px rgb(0 0 0 / 0.04);
   --island-shadow: 0 0 0 1px var(--color-island-edge), var(--island-elev);
   --island-shadow-focus: 0 0 0 1px var(--color-island-edge-focus), var(--island-elev);
 
@@ -56,7 +57,7 @@ html {
 
 html.dark {
   color-scheme: dark;
-  --island-elev: 0 1px 3px rgb(0 0 0 / 0.3);
+  --island-elev: inset 0 1px 0 rgb(255 255 255 / 0.035);
   --repo-l: 0.76;
   --repo-c: 0.11;
 }

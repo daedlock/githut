@@ -13,6 +13,7 @@ export type InlineComposerProps = {
   submitLabel?: string;
   placeholder?: string;
   participants?: MentionUser[];
+  draftKey?: string;
 };
 
 export function InlineComposer({
@@ -26,15 +27,14 @@ export function InlineComposer({
   submitLabel = "Add review comment",
   placeholder = "Leave a comment on this line…",
   participants,
+  draftKey,
 }: InlineComposerProps) {
   return (
     <div className="diff-line-comment diff-thread py-3 pl-4 pr-4">
       <div className="max-w-2xl flex gap-2.5">
         <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="mt-1 shrink-0" />
         <div className="min-w-0 flex-1">
-          <span className="block text-caption font-medium text-foreground mb-1.5">
-            {login}
-          </span>
+          <span className="block text-caption font-medium text-foreground mb-1.5">{login}</span>
           <CommentComposeCard
             login={login}
             avatarUrl={avatarUrl}
@@ -50,6 +50,7 @@ export function InlineComposer({
             rows={3}
             autoFocus
             hideAvatar
+            draftKey={draftKey}
           />
         </div>
       </div>

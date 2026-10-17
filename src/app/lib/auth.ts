@@ -73,8 +73,8 @@ export function startLogin() {
  * Sign in again after the token expired, without leaving the workspace: the
  * OAuth flow runs in a popup and hands the token back (see `lib/session.ts`),
  * so tabs, scroll positions and unsent drafts survive. Falls back to a full
- * redirect when popups are blocked; the layout and tabs still restore from
- * storage, but in-memory drafts don't.
+ * redirect when popups are blocked; layout, tabs and drafts still restore
+ * from storage, but cached pages reload.
  */
 export function startReauth() {
   try {
