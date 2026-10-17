@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 
-/** Retain row positions (including removed rows) while updating fields for surviving identities. */
+/**
+ * Retain row positions (including removed rows) while updating fields for
+ * surviving identities. Rows that arrive while held are appended at the end,
+ * so nothing shifts under the pointer and nothing new is hidden.
+ */
 export function holdListOrder<T>(
   held: T[],
   incoming: T[],
@@ -8,10 +12,13 @@ export function holdListOrder<T>(
   merge?: (held: T, current: T) => T,
 ): T[] {
   const latest = new Map(incoming.map((item) => [key(item), item]));
-  return held.map((item) => {
-    const current = latest.get(key(item)) ?? item;
+  const rows = held.map((item) => {
+    const k = key(item);
+    const current = latest.get(k) ?? item;
+    latest.delete(k);
     return merge ? merge(item, current) : current;
   });
+  return latest.size ? [...rows, ...latest.values()] : rows;
 }
 
 /** Queue ordering changes while pointing; `merge` preserves nested row order in grouped lists. */
