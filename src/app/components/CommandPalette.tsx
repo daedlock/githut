@@ -1,4 +1,5 @@
 import { useRouterState } from "@tanstack/react-router";
+import { defaultFilter } from "cmdk";
 import {
   BookMarked,
   CheckCircle2,
@@ -42,6 +43,7 @@ import { track } from "@/app/lib/analytics";
 import { logout } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
 import { clearRecentItems, pushRecentItem, type RecentItem } from "@/app/lib/recentItems";
+import { MOD_KEY } from "@/app/lib/shortcuts";
 import { openOrJump, openToSide, replaceFocusedTab } from "@/app/lib/tabActions";
 import { THEME_OPTIONS } from "@/app/lib/themeCatalog";
 import { formatRelativeTime } from "@/app/lib/time";
@@ -269,6 +271,15 @@ export function CommandPalette() {
     [close, repoContext, navigateTo],
   );
   const layoutActions = useWorkspacePaletteCommands(open, close);
+  // Layout commands rank below pages, repos and search results, so a word
+  // like "island" or "tab" never pushes the content being looked for away.
+  const filter = useMemo(() => {
+    const layout = new Set(layoutActions.map(commandValue));
+    return (value: string, search: string, keywords?: string[]) => {
+      const score = defaultFilter(value, search, keywords);
+      return layout.has(value) ? score * 0.25 : score;
+    };
+  }, [layoutActions]);
 
   // Track opens + reset query on close.
   const wasOpen = useRef(open);
@@ -339,6 +350,7 @@ export function CommandPalette() {
       title="Command palette"
       description="Search, navigate, or run a command"
       shouldFilter={shouldFilter}
+      filter={filter}
     >
       <div
         onKeyDownCapture={(e) => {
@@ -407,10 +419,8 @@ export function CommandPalette() {
                   <span
                     className={cn(
                       "min-w-0 flex-1 truncate",
-                      (item.kind === "repo" ||
-                        item.kind === "issue" ||
-                        item.kind === "pr" ||
-                        item.kind === "file") &&
+                      // Repo names and paths are identifiers; issue and PR labels are titles.
+                      (item.kind === "repo" || item.kind === "file" || /^#\d+$/.test(item.label)) &&
                         "font-mono tabular-nums",
                     )}
                   >
@@ -653,13 +663,17 @@ export function CommandPalette() {
 
 // ─── Subcomponents ───────────────────────────────────────────────────────────
 
+function commandValue(cmd: PaletteCommand): string {
+  return `> ${cmd.label} ${cmd.keywords?.join(" ") ?? ""}`;
+}
+
 function CommandRow({ cmd }: { cmd: PaletteCommand }) {
   const Icon = cmd.icon;
   return (
     <CommandItem
       aria-label={cmd.label}
       disabled={cmd.disabled}
-      value={`> ${cmd.label} ${cmd.keywords?.join(" ") ?? ""}`}
+      value={commandValue(cmd)}
       onSelect={() => {
         if (!cmd.workspace) track("command_palette_command_selected", { id: cmd.id });
         cmd.run();
@@ -702,7 +716,7 @@ function ShortcutKeys({ chord }: { chord: string }) {
   return (
     <span className="inline-flex items-center gap-0.75">
       {chord.split(" ").map((k) => (
-        <Kbd key={k}>{k}</Kbd>
+        <Kbd key={k}>{k === "⌘" ? MOD_KEY : k}</Kbd>
       ))}
     </span>
   );
