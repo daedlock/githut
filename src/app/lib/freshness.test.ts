@@ -169,3 +169,29 @@ test("a focused island refreshes stale repo metadata without polling immutable f
     client.clear();
   }
 });
+
+test("an immutable query first mounted in a background tab loads when that tab becomes visible", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  let workspace = createWorkspace(["/one", "/file"]);
+  const tab = islands(workspace.layout)[0]!.tabs[1]!;
+  const key = ["repo-file", "demo", "repo", "commit-sha", "file"];
+  const observer = new QueryObserver(
+    queryClientForTab(client, tab.id, () => workspace),
+    {
+      queryKey: key,
+      queryFn: async () => "file contents",
+      staleTime: Infinity,
+    },
+  );
+  const unsubscribe = observer.subscribe(() => {});
+  try {
+    await refreshWorkspaceQueries(client, workspace);
+    expect(client.getQueryData<string>(key)).toBeUndefined();
+    workspace = runCommand(workspace, { type: "selectTab", tabId: tab.id });
+    await refreshWorkspaceQueries(client, workspace);
+    expect(client.getQueryData<string>(key)).toBe("file contents");
+  } finally {
+    unsubscribe();
+    client.clear();
+  }
+});

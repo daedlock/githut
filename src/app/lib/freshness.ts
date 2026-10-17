@@ -78,10 +78,16 @@ export async function refreshWorkspaceQueries(
           : (candidate.options.staleTime ?? 30_000);
       const running =
         typeof previousInterval === "number" && previousInterval > 0 && previousInterval <= 15_000;
-      // Immutable files never poll; repo metadata keeps its slower expiry.
-      if (!running && (staleTime === "static" || staleTime === Infinity)) continue;
+      // Loaded immutable files never poll. An initially disabled observer
+      // still needs its first fetch when its tab or window becomes visible.
+      if (
+        !running &&
+        (staleTime === "static" || staleTime === Infinity) &&
+        query.state.data !== undefined
+      )
+        continue;
       const normal =
-        staleTime !== "static" && staleTime > 60_000
+        typeof staleTime === "number" && Number.isFinite(staleTime) && staleTime > 60_000
           ? staleTime
           : meta.tabId === focused
             ? 15_000
