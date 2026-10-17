@@ -37,7 +37,10 @@ export function SettingsModal() {
         className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] flex-col overflow-hidden sm:max-w-[48rem]"
         onCloseAutoFocus={(event) => {
           event.preventDefault();
-          document.querySelector<HTMLButtonElement>('[aria-label="Open user menu"]')?.focus();
+          (
+            document.querySelector<HTMLButtonElement>('[aria-label="Open user menu"]') ??
+            document.querySelector<HTMLButtonElement>("[data-sidebar-toggle]")
+          )?.focus();
         }}
       >
         <DialogHeader>

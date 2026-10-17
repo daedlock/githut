@@ -22,6 +22,7 @@ export type UserMenuProps = {
   avatarUrl?: string;
   onSignOut: () => void;
   onReAuth?: () => void;
+  onNavigate?: () => void;
   variant?: "full" | "compact";
 };
 
@@ -36,6 +37,7 @@ export function UserMenu({
   avatarUrl,
   onSignOut,
   onReAuth,
+  onNavigate,
   variant = "full",
 }: UserMenuProps) {
   const themePreference = useThemeStore((s) => s.preference);
@@ -90,7 +92,7 @@ export function UserMenu({
           <DropdownMenuGroup className="my-2 flex flex-col gap-1">
             {login ? (
               <DropdownMenuItem asChild className="h-8.5 gap-2 px-2.5 text-ui">
-                <Link to="/$username" params={{ username: login }}>
+                <Link to="/$username" params={{ username: login }} onClick={onNavigate}>
                   <User2 />
                   Profile
                 </Link>
@@ -98,7 +100,10 @@ export function UserMenu({
             ) : null}
 
             <DropdownMenuItem
-              onSelect={() => openSettings()}
+              onSelect={() => {
+                onNavigate?.();
+                openSettings();
+              }}
               className="h-8.5 gap-2 px-2.5 text-ui"
             >
               <Settings />

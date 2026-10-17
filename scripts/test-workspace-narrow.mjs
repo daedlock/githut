@@ -312,6 +312,8 @@ try {
   assert.equal(await page.locator("[data-tab-id]").count(), tabsBeforeDrop + 1);
   console.log("PASS drawer drag retains capture and docks after its portal closes");
 
+  await page.getByRole("button", { name: "Open sidebar", exact: true }).click();
+  await drawer.waitFor();
   await page.getByRole("button", { name: "Open user menu", exact: true }).click();
   await page.getByRole("menuitem", { name: "Settings", exact: true }).click();
   const settings = page.getByRole("dialog", { name: "Settings", exact: true });

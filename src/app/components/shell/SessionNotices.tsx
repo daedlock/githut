@@ -1,6 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { KeyRound, LogIn, WifiOff } from "lucide-react";
 
+import { RateLimitNotice } from "@/app/components/shell/RateLimitNotice";
 import { Button } from "@/app/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { startReauth } from "@/app/lib/auth";
@@ -11,7 +12,7 @@ import { useAuthStore } from "@/app/stores/auth";
 // ─── Session notices ───────────────────────────────────────────────────────
 //
 // Resilience chrome for the workspace:
-// - OfflinePill: a quiet title-bar notice while the browser is offline.
+// - OfflinePill: a quiet floating notice while the browser is offline.
 //   Cached pages stay readable; mutating actions disable themselves.
 // - SignInBanner: floats over the workspace when GitHub rejects the token.
 //   Signing in again runs in a popup and resumes in place (lib/session.ts),
@@ -71,6 +72,16 @@ export function SignInBanner() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** Transient connection status never reserves workspace space. */
+export function WorkspaceNotices() {
+  return (
+    <div className="pointer-events-none absolute right-3 bottom-3 z-40 flex max-w-[calc(100%-1.5rem)] flex-wrap justify-end gap-2 [&>*]:pointer-events-auto">
+      <RateLimitNotice />
+      <OfflinePill />
     </div>
   );
 }

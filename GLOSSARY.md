@@ -5,7 +5,7 @@ A fast, keyboard-friendly GitHub client for reviewing and managing code across m
 ## Workspace
 
 **Workspace**:
-Everything githut shows in one browser window: the sidebar, the title bar, and the islands with their tabs.
+Everything githut shows in one browser window: the sidebar and the islands with their tabs.
 _Avoid_: App shell, window (a browser window is a separate thing)
 
 **Layout**:
@@ -21,7 +21,7 @@ A single page open in an island, with its own history and scroll position. Every
 _Avoid_: View, document
 
 **Focused island**:
-The one island in a workspace that receives keyboard input and whose selected tab the title bar and URL describe.
+The one island in a workspace that receives keyboard input and whose selected tab the URL describes.
 _Avoid_: Active pane, current group
 
 **Selected tab**:

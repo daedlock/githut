@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef } from "react";
-import { IslandSwitcher } from "@/app/components/shell/IslandSwitcher";
 import { RecentVisits } from "@/app/components/shell/RecentVisits";
 import { Sidebar, SidebarContent } from "@/app/components/shell/Sidebar";
+import { SidebarControls } from "@/app/components/shell/SidebarControls";
 import { useDocking } from "@/app/components/shell/useDocking";
 import {
   Sheet,
@@ -14,6 +14,8 @@ import { startBackgroundWatcher } from "@/app/features/activity/watcher";
 import { NotificationsSync } from "@/app/features/notifications/NotificationsSync";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { focusPaneOfFocusedTab } from "@/app/lib/tabActions";
+import { useCommandPaletteStore } from "@/app/stores/commandPalette";
+import { useSettingsModal } from "@/app/stores/settingsModal";
 import { SIDEBAR_RAIL_WIDTH, useSidebarStore } from "@/app/stores/sidebar";
 import { useWorkspaceView } from "@/app/stores/workspaceView";
 import { useWorkspaceStore } from "@/app/workspace/store";
@@ -74,30 +76,38 @@ export function WorkspaceArea({ children }: { children: ReactNode }) {
             id="workspace-sidebar"
             side="left"
             className="w-80 max-w-[calc(100vw-2rem)] p-4"
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              document
+                .querySelector<HTMLInputElement>(
+                  '#workspace-sidebar input[aria-label="Filter sidebar"]',
+                )
+                ?.focus();
+            }}
             onCloseAutoFocus={(event) => {
               event.preventDefault();
+              if (useSettingsModal.getState().open || useCommandPaletteStore.getState().open)
+                return;
               if (launched.current) {
                 launched.current = false;
                 focusPaneOfFocusedTab();
               } else document.querySelector<HTMLButtonElement>("[data-sidebar-toggle]")?.focus();
             }}
           >
-            <SheetHeader className="pr-8 pb-4">
+            <SheetHeader className="sr-only">
               <SheetTitle>Sidebar</SheetTitle>
               <SheetDescription className="sr-only">
                 Open Inbox, favorite pages, your repositories and organizations.
               </SheetDescription>
             </SheetHeader>
+            <SidebarControls drawer />
             <SidebarContent beginDrag={docking.beginDrag} onLaunch={closeAfterLaunch} />
           </SheetContent>
         </Sheet>
       ) : (
         <Sidebar beginDrag={docking.beginDrag} />
       )}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {narrow && <IslandSwitcher />}
-        {children}
-      </div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
       {docking.overlay}
     </div>
   );

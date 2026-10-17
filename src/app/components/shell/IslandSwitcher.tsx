@@ -1,4 +1,4 @@
-import { Check, ChevronDown, PanelsTopLeft } from "lucide-react";
+import { Check, PanelsTopLeft } from "lucide-react";
 import { useRef } from "react";
 import { TONE_CLASS, UnreadDot, useTabDisplay } from "@/app/components/shell/TabStrip";
 import { Button } from "@/app/components/ui/button";
@@ -10,6 +10,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { focusPaneOfFocusedTab, selectTab } from "@/app/lib/tabActions";
 import { islands, type Tab } from "@/app/workspace/model";
 import { useWorkspaceStore } from "@/app/workspace/store";
@@ -20,16 +21,18 @@ export function IslandSwitcher() {
   const selected = useRef(false);
   const all = islands(workspace.layout);
   return (
-    <div className="flex h-8 shrink-0 items-center pb-1">
+    <div className="flex shrink-0 items-center">
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" aria-label="Switch island or tab">
-            <PanelsTopLeft data-icon="inline-start" />
-            Island {all.findIndex((island) => island.id === workspace.focusedIslandId) + 1} of{" "}
-            {all.length}
-            <ChevronDown data-icon="inline-end" />
-          </Button>
-        </DropdownMenuTrigger>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="Switch island or tab">
+                <PanelsTopLeft data-icon="inline-start" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>Switch island or tab</TooltipContent>
+        </Tooltip>
         <DropdownMenuContent
           align="start"
           className="max-h-[min(70dvh,32rem)] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto"

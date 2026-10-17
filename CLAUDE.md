@@ -7,7 +7,7 @@ type, spacing, radius, elevation, z-index, motion, and component patterns. If th
 file disagrees with it, DESIGN.md wins. Fix this file.
 
 Key rules that catch most mistakes:
-- Chrome bars: fixed height (`h-10`; the app header is `--app-header-height`) with `flex items-center`. **Never `py-*`** on a chrome bar.
+- Chrome bars: fixed height (`h-10` for island headers; there is no global title bar) with `flex items-center`. **Never `py-*`** on a chrome bar.
 - Rows: hover `bg-muted`, selected `bg-accent`. **Never `primary` as a surface fill.**
 - Text sizes: only `text-micro/caption/ui/code/body/body-lg/title/heading/display`. **Never `text-xs`, `text-sm`, etc.**
 - `font-mono` for identifiers and code (numbers, SHAs, branches, paths). Sans for labels and prose.

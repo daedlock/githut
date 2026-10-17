@@ -13,12 +13,12 @@ import { IslandLayout } from "@/app/components/shell/IslandLayout";
 import { LayoutUndo } from "@/app/components/shell/LayoutUndo";
 import { LinkHoverMenu } from "@/app/components/shell/LinkHoverMenu";
 import { RepoMarkScope } from "@/app/components/shell/RepoMark";
-import { SignInBanner } from "@/app/components/shell/SessionNotices";
+import { SignInBanner, WorkspaceNotices } from "@/app/components/shell/SessionNotices";
 import { TabShortcuts } from "@/app/components/shell/TabShortcuts";
-import { TitleBar } from "@/app/components/shell/TitleBar";
+
 import { WorkspaceArea } from "@/app/components/shell/WorkspaceArea";
 import { TooltipProvider } from "@/app/components/ui/tooltip";
-import { cn } from "@/app/lib/cn";
+
 import { queryClientForTab, startWorkspaceFreshness } from "@/app/lib/freshness";
 import { queryClient } from "@/app/lib/query";
 import { getTabRouter, releaseTabRouter } from "@/app/lib/tabRouters";
@@ -32,17 +32,8 @@ import { visibleIslandIds } from "@/app/workspace/view";
 
 // ─── TabHost ───────────────────────────────────────────────────────────────
 //
-// The islands workspace frame:
-//
-//   ┌ TitleBar (frame) ─ logo · focused repo ⎇ branch · ⌘K · avatar ─┐
-//   │ ╭ Island ───────────────────╮ ┊ ╭ Island ──────────────────────╮ │
-//   │ │ tabs …   sections  ▥      │ ┊ │ tabs …   sections  ▥         │ │
-//   │ │ pane (selected tab)       │ ┊ │ pane (selected tab)          │ │
-//   │ ╰───────────────────────────╯ ┊ ╰──────────────────────────────╯ │
-//   └──────────────────────────────────────────────────────────────────┘
-//
-// Pages carry no navigation chrome of their own: identity, search and
-// account live in the title bar; repo sections live in each island header.
+// Sidebar controls sit beside the full-height islands, inside a consistent frame gutter.
+// Repo sections and contextual controls live in each island header.
 // The layout itself is drawn by IslandLayout.
 //
 // Recently used tabs stay mounted inside <Activity>: hidden panes keep their
@@ -116,27 +107,22 @@ export function TabHost() {
   return (
     <TooltipProvider delayDuration={500} skipDelayDuration={300}>
       <RepoMarkScope>
-        <div
-          className={cn(
-            "relative flex h-full flex-col bg-(--color-frame)",
-            "pr-[max(1rem,env(safe-area-inset-right))] pb-2 pl-[max(1rem,env(safe-area-inset-left))]",
-          )}
-        >
+        <div className="relative flex h-full flex-col bg-(--color-frame) pt-[max(0.5rem,env(safe-area-inset-top))] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[max(0.5rem,env(safe-area-inset-left))]">
           <RouterContextProvider router={focusedRouter}>
-            <TitleBar focusedHref={focused.href} />
             {overlays}
             <LayoutUndo />
             <SettingsModal />
+            <WorkspaceArea>
+              <IslandLayout
+                layout={layout}
+                focusedIslandId={focusedIslandId}
+                maximizedIslandId={maximizedIslandId}
+                narrow={narrow}
+                renderPanes={renderPanes}
+              />
+            </WorkspaceArea>
           </RouterContextProvider>
-          <WorkspaceArea>
-            <IslandLayout
-              layout={layout}
-              focusedIslandId={focusedIslandId}
-              maximizedIslandId={maximizedIslandId}
-              narrow={narrow}
-              renderPanes={renderPanes}
-            />
-          </WorkspaceArea>
+          <WorkspaceNotices />
           <SignInBanner />
         </div>
       </RepoMarkScope>
