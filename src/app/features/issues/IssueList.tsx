@@ -234,7 +234,7 @@ export function IssueList({
                     <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
                     <p className="text-body text-muted-foreground">Could not load issues.</p>
                   </div>
-                ) : issues.length === 0 ? (
+                ) : groups.length === 0 ? (
                   <EmptyState hasSearch={!!searchText} state={stateFilter} />
                 ) : (
                   <GroupedList

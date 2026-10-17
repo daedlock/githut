@@ -318,7 +318,7 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
                 <AlertCircle className="mx-auto mb-2 size-5 text-destructive" />
                 <p className="text-body text-muted-foreground">Could not load pull requests.</p>
               </div>
-            ) : filtered.length === 0 ? (
+            ) : groups.length === 0 ? (
               <EmptyState hasSearch={!!searchText} state={currentState} />
             ) : (
               <>

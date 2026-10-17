@@ -408,6 +408,28 @@ try {
   await delay(100);
   assert.ok((await beta.boundingBox()).y < (await alpha.boundingBox()).y);
   console.log("PASS: issue rows defer reordered responses while hovered");
+  const survivingItems = listItems;
+  for (const section of ["pulls", "issues"]) {
+    await page.goto(`${app}/demo/project/${section}`);
+    await alpha.waitFor();
+    await alpha.hover();
+    listItems = [];
+    await Promise.all([
+      page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return section === "pulls"
+          ? url.pathname === "/search/issues" && url.searchParams.get("per_page") === "30"
+          : url.pathname.endsWith("/project/issues");
+      }),
+      page.clock.fastForward(16_000),
+    ]);
+    await delay(100);
+    assert.equal(await alpha.count(), 1, `${section} retains the final hovered rows`);
+    await page.mouse.move(0, 0);
+    await alpha.waitFor({ state: "hidden" });
+    listItems = survivingItems;
+  }
+  console.log("PASS: empty refreshes preserve hovered PR and issue rows until leave");
   const stars = page.getByRole("region", { name: "Starred", exact: true });
   const starOrder = () =>
     stars
