@@ -40,59 +40,42 @@ import { useTabScope } from "@/app/lib/tabScope";
 
 const ROW = "[data-bulk-row]";
 
-export type BulkContextValue = {
-  kind: BulkKind;
+// ─── Selection (generic) ───────────────────────────────────────────────────
+//
+// The selection model, keys and row wiring, independent of what the actions
+// do. `BulkSelectionProvider` adds issue and PR actions on top; other lists
+// (the Inbox) pass their own bar.
+
+export type SelectionContextValue = {
   selected: ReadonlySet<number>;
-  selectedItems: BulkItem[];
   visibleCount: number;
   toggle: (row: HTMLElement, range: boolean) => void;
   selectAll: () => void;
   clear: () => void;
-  apply: (action: BulkAction) => void;
-  pending: boolean;
-  notice: BulkNotice | null;
-  retry: () => void;
-  undo: () => void;
-  dismiss: () => void;
-  labels: readonly RepoLabel[];
-  labelsLoading: boolean;
-  users: readonly BulkUser[];
-  usersLoading: boolean;
 };
 
-const BulkContext = createContext<BulkContextValue | null>(null);
+const SelectionContext = createContext<SelectionContextValue | null>(null);
 
-export function useBulkContext() {
-  const context = useContext(BulkContext);
-  if (!context) throw new Error("useBulkContext must be used inside <BulkSelectionProvider>");
+export function useSelection() {
+  const context = useContext(SelectionContext);
+  if (!context) throw new Error("useSelection must be used inside <SelectionRoot>");
   return context;
 }
 
-export function BulkSelectionProvider({
-  owner,
-  repo,
-  kind,
-  items,
+export function SelectionRoot({
   visible,
+  bar,
   children,
 }: {
-  owner: string;
-  repo: string;
-  kind: BulkKind;
-  /** Every loaded item, for reading current labels, assignees and status. */
-  items: readonly BulkItem[];
-  /** Numbers of the rows currently rendered, in display order. */
+  /** Keys of the rows currently rendered, in display order. */
   visible: readonly number[];
+  /** The floating bar; it renders inside the selection context. */
+  bar: ReactNode;
   children: ReactNode;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const anchor = useRef<HTMLElement | null>(null);
   const [rawSelected, setSelected] = useState<ReadonlySet<number>>(() => new Set());
-  const labelsQuery = useRepoLabels(owner, repo);
-  const usersQuery = useRepoCollaborators(owner, repo);
-  const labels = labelsQuery.data ?? [];
-  const users = usersQuery.data ?? [];
-  const actions = useBulkActions({ owner, repo, kind }, { labels, users });
 
   // Rows that leave the view (filters, collapsed groups, closed while viewing
   // open items) leave the selection too: actions only reach what you can see.
@@ -105,11 +88,6 @@ export function BulkSelectionProvider({
   useEffect(() => {
     if (selected !== rawSelected) setSelected(selected);
   }, [selected, rawSelected]);
-
-  const selectedItems = useMemo(
-    () => items.filter((item) => selected.has(item.number)),
-    [items, selected],
-  );
 
   const toggle = useCallback((row: HTMLElement, range: boolean) => {
     // A grouped item can render more than once; anchor to the row, not its number.
@@ -128,12 +106,6 @@ export function BulkSelectionProvider({
     setSelected(new Set());
     anchor.current = null;
   }, []);
-
-  const { run } = actions;
-  const apply = useCallback(
-    (action: BulkAction) => void run(planJobs(selectedItems, action)),
-    [run, selectedItems],
-  );
 
   const hasRows = visible.length > 0;
   useKeybindings(
@@ -180,14 +152,109 @@ export function BulkSelectionProvider({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [count, clear, isFocused]);
 
+  const value = useMemo(
+    () => ({ selected, visibleCount: visible.length, toggle, selectAll, clear }),
+    [selected, visible.length, toggle, selectAll, clear],
+  );
+
+  return (
+    <SelectionContext value={value}>
+      <div ref={root}>
+        {children}
+        {/* Keep the last rows reachable above the floating bar. */}
+        {count > 0 && <div aria-hidden className="h-16" />}
+      </div>
+      {bar}
+    </SelectionContext>
+  );
+}
+
+// ─── Issue and pull request bulk actions ───────────────────────────────────
+
+export type BulkContextValue = SelectionContextValue & {
+  kind: BulkKind;
+  selectedItems: BulkItem[];
+  apply: (action: BulkAction) => void;
+  pending: boolean;
+  notice: BulkNotice | null;
+  retry: () => void;
+  undo: () => void;
+  dismiss: () => void;
+  labels: readonly RepoLabel[];
+  labelsLoading: boolean;
+  users: readonly BulkUser[];
+  usersLoading: boolean;
+};
+
+const BulkContext = createContext<BulkContextValue | null>(null);
+
+export function useBulkContext() {
+  const context = useContext(BulkContext);
+  if (!context) throw new Error("useBulkContext must be used inside <BulkSelectionProvider>");
+  return context;
+}
+
+type BulkProps = {
+  owner: string;
+  repo: string;
+  kind: BulkKind;
+  /** Every loaded item, for reading current labels, assignees and status. */
+  items: readonly BulkItem[];
+};
+
+export function BulkSelectionProvider({
+  visible,
+  children,
+  ...props
+}: BulkProps & {
+  /** Numbers of the rows currently rendered, in display order. */
+  visible: readonly number[];
+  children: ReactNode;
+}) {
+  return (
+    <SelectionRoot
+      visible={visible}
+      bar={
+        <BulkActionsContext {...props}>
+          <BulkActionBar />
+        </BulkActionsContext>
+      }
+    >
+      {children}
+    </SelectionRoot>
+  );
+}
+
+function BulkActionsContext({
+  owner,
+  repo,
+  kind,
+  items,
+  children,
+}: BulkProps & { children: ReactNode }) {
+  const selection = useSelection();
+  const { selected } = selection;
+  const labelsQuery = useRepoLabels(owner, repo);
+  const usersQuery = useRepoCollaborators(owner, repo);
+  const labels = labelsQuery.data ?? [];
+  const users = usersQuery.data ?? [];
+  const actions = useBulkActions({ owner, repo, kind }, { labels, users });
+
+  const selectedItems = useMemo(
+    () => items.filter((item) => selected.has(item.number)),
+    [items, selected],
+  );
+
+  const { run } = actions;
+  const apply = useCallback(
+    (action: BulkAction) => void run(planJobs(selectedItems, action)),
+    [run, selectedItems],
+  );
+
   const value: BulkContextValue = {
+    ...selection,
     kind,
-    selected,
     selectedItems,
-    visibleCount: visible.length,
-    toggle,
-    selectAll,
-    clear,
     apply,
     pending: actions.pending,
     notice: actions.notice,
@@ -200,16 +267,7 @@ export function BulkSelectionProvider({
     usersLoading: usersQuery.isPending,
   };
 
-  return (
-    <BulkContext value={value}>
-      <div ref={root}>
-        {children}
-        {/* Keep the last rows reachable above the floating bar. */}
-        {count > 0 && <div aria-hidden className="h-16" />}
-      </div>
-      <BulkActionBar />
-    </BulkContext>
-  );
+  return <BulkContext value={value}>{children}</BulkContext>;
 }
 
 // ─── Rows ──────────────────────────────────────────────────────────────────
@@ -227,9 +285,9 @@ export type BulkRow = {
   };
 };
 
-/** Selection wiring for one row; `null` outside a `<BulkSelectionProvider>`. */
+/** Selection wiring for one row; `null` outside a `<SelectionRoot>`. */
 export function useBulkRow(number: number): BulkRow | null {
-  const context = useContext(BulkContext);
+  const context = useContext(SelectionContext);
   if (!context) return null;
   const { selected, toggle } = context;
   const isSelected = selected.has(number);
@@ -270,7 +328,7 @@ export function useBulkRow(number: number): BulkRow | null {
 
 /** The row's checkbox, absolutely placed in the gutter rows reserve with `pl-10`. */
 export function BulkRowCheckbox({ number, label }: { number: number; label: string }) {
-  const { selected, toggle } = useBulkContext();
+  const { selected, toggle } = useSelection();
   const checked = selected.has(number);
   return (
     <div

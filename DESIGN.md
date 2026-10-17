@@ -170,9 +170,9 @@ Use only this z-index scale:
 ### Chrome
 - Pages have no navigation bar of their own. Global controls live in the sidebar; each island owns its header (`h-10`); see Islands. Rows inside
   chrome are `h-* flex items-center`. **Never use `py-*` on a chrome bar.**
-- Each tab scrolls in its own pane. Sticky page bars stick at
-  `top-(--app-header-height)`, which is `0px` inside a pane; keep using the
-  variable so offsets stay correct if chrome ever returns above a page.
+- Each tab scrolls in its own pane, with no chrome above the page inside it.
+  Sticky page bars stick at `top-0`; sticky sidebars offset only by the page's
+  own padding (`top-6` under a `py-6` container).
 - Full-height regions size against the pane, never the viewport:
   `var(--pane-height, 100dvh)`, not `100dvh` or `min-h-screen`.
 
@@ -366,7 +366,7 @@ yourself.
 right. Toolbars recede; they never dominate.
 
 ### Group headers
-Sticky at `top-(--app-header-height)` with `z-30 bg-background`. The header
+Sticky at `top-0` with `z-30 bg-background`. The header
 button is `min-h-10 rounded-md bg-muted/60 px-3 text-ui font-medium`:
 chevron, icon, label, then the count in `text-caption tabular-nums
 text-muted-foreground`.

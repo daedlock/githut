@@ -15,6 +15,7 @@ import { type RepoLabel, repoLabelsKey } from "@/app/features/pulls/pickers";
 import { useLiveInterval } from "@/app/lib/freshness";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";
+import { clearSentDraft, type SentDraft } from "@/app/stores/drafts";
 
 // ─── Query keys ─────────────────────────────────────────────────────────────
 //
@@ -221,7 +222,14 @@ export function useCreateIssueComment(
 ) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ issueNumber: n, body }: { issueNumber: number; body: string }) => {
+    mutationFn: async ({
+      issueNumber: n,
+      body,
+    }: {
+      issueNumber: number;
+      body: string;
+      draft?: SentDraft;
+    }) => {
       const client = getGitHubClient();
       const res = await client.request(
         "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
@@ -263,6 +271,7 @@ export function useCreateIssueComment(
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
     onSuccess: (created, vars, ctx) => {
+      clearSentDraft(vars.draft);
       // Swap temp → real in place
       if (ctx) {
         queryClient.setQueryData<RepoIssueComment[]>(ctx.key, (old) =>

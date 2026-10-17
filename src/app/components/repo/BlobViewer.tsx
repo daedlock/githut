@@ -209,13 +209,13 @@ function BlobHeader({
     <div className="flex h-9 items-center justify-between gap-3 border-b border-border bg-muted px-3">
       <div className="flex min-w-0 items-baseline gap-2">
         <span className="truncate font-mono text-caption text-foreground">{file.path}</span>
-        <span className="hidden shrink-0 font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)] sm:inline">
+        <span className="hidden shrink-0 font-mono text-micro uppercase tracking-widest text-[var(--color-fg-faint)] @xl/pane:inline">
           {lang}
         </span>
       </div>
 
       <div className="flex shrink-0 items-center gap-3">
-        <div className="hidden items-center gap-2 font-mono text-caption text-[var(--color-fg-faint)] sm:flex">
+        <div className="hidden items-center gap-2 font-mono text-caption text-[var(--color-fg-faint)] @xl/pane:flex">
           <span>{lineCount} lines</span>
           <span>{formatBytes(file.size)}</span>
         </div>

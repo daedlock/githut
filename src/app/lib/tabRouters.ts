@@ -1,4 +1,5 @@
 import type { AnyRouter } from "@tanstack/react-router";
+import { trackPageview } from "@/app/lib/analytics";
 import {
   isSettingsHref,
   openSettings,
@@ -73,6 +74,7 @@ function currentUrl() {
 }
 
 function writeUrl(href: string, mode: "push" | "replace") {
+  trackPageview(href);
   if (currentUrl() === href) return;
   if (mode === "push") {
     seq += 1;
@@ -108,6 +110,10 @@ function onTabLocation(id: string, href: string, action: string) {
 export function startBrowserSync(): () => void {
   seq = typeof window.history.state?.ghSeq === "number" ? window.history.state.ghSeq : 0;
   window.history.replaceState({ ...window.history.state, ghSeq: seq }, "", currentUrl());
+  // The tracker script loads deferred; report the first page once it's there.
+  const firstPageview = () => trackPageview(currentUrl());
+  if (document.readyState === "complete") setTimeout(firstPageview, 0);
+  else window.addEventListener("load", firstPageview, { once: true });
 
   const onPopState = (e: PopStateEvent) => {
     const next = e.state?.ghSeq;

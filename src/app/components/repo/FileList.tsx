@@ -191,7 +191,7 @@ function ParentRow({ onNavigate }: { onNavigate: () => void }) {
           </span>
         </div>
       </td>
-      <td className="hidden px-4 py-2 md:table-cell md:w-[52%]" />
+      <td className="hidden px-4 py-2 @2xl/pane:table-cell @2xl/pane:w-[52%]" />
       <td className="w-[8.5rem] py-2 pr-4" />
     </tr>
   );
@@ -238,7 +238,7 @@ function FileRow({
           </span>
         </div>
       </td>
-      <td className="hidden px-4 py-2 md:table-cell md:w-[52%]">
+      <td className="hidden px-4 py-2 @2xl/pane:table-cell @2xl/pane:w-[52%]">
         {entryCommitPending ? (
           <span className="flex h-[1lh] items-center text-body">
             <Skeleton className="h-3.5 w-80 max-w-full" />
@@ -288,7 +288,7 @@ function SkeletonRow() {
           </span>
         </div>
       </td>
-      <td className="hidden px-4 py-2 md:table-cell md:w-[52%]">
+      <td className="hidden px-4 py-2 @2xl/pane:table-cell @2xl/pane:w-[52%]">
         <span className="flex min-w-0 h-[1lh] items-center text-body">
           <Skeleton className="h-3.5 w-80 max-w-full" />
         </span>

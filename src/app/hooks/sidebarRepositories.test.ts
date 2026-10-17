@@ -8,7 +8,7 @@ afterEach(() => {
   clearETagCache();
   useAuthStore.getState().clear();
 });
-test("Your repos requests only owned/direct collaborator access and follows pagination without duplicates", async () => {
+test("Your repos requests only owned/direct collaborator access, one page at a time", async () => {
   useAuthStore.getState().setToken("sidebar-pagination");
   const requests: URL[] = [];
   spyOn(globalThis, "fetch").mockImplementation((async (input: string | URL | Request) => {
@@ -32,11 +32,15 @@ test("Your repos requests only owned/direct collaborator access and follows pagi
       },
     );
   }) as typeof fetch);
-  expect((await fetchYourRepositories()).map((repo) => repo.full_name)).toEqual([
-    "me/owned",
-    "org/direct",
-  ]);
+  const first = await fetchYourRepositories();
+  expect(first.items.map((repo) => repo.full_name)).toEqual(["me/owned"]);
+  expect(first.next).toBe(2);
+  expect(requests).toHaveLength(1);
+  const second = await fetchYourRepositories(2);
+  expect(second.items.map((repo) => repo.full_name)).toEqual(["me/owned", "org/direct"]);
+  expect(second.next).toBeNull();
   expect(requests).toHaveLength(2);
+  expect(requests.every((url) => url.searchParams.get("per_page") === "30")).toBe(true);
   expect(
     requests.every((url) => url.searchParams.get("affiliation") === "owner,collaborator"),
   ).toBe(true);

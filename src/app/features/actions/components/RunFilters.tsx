@@ -61,7 +61,7 @@ export function RunFilters({
             aria-label="Filter by branch"
             placeholder="Branch"
             defaultValue={branch}
-            className="h-8 min-w-0 w-28 flex-1 rounded-md border border-input bg-background px-2 text-ui"
+            className="h-8 w-28 min-w-24 flex-1 rounded-md border border-input bg-background px-2 text-ui"
           />
           <input
             name="event"
@@ -69,7 +69,7 @@ export function RunFilters({
             placeholder="Event"
             defaultValue={event}
             list="action-events"
-            className="h-8 min-w-0 w-28 flex-1 rounded-md border border-input bg-background px-2 text-ui"
+            className="h-8 w-28 min-w-24 flex-1 rounded-md border border-input bg-background px-2 text-ui"
           />
           <datalist id="action-events">
             {[
@@ -88,7 +88,7 @@ export function RunFilters({
             aria-label="Filter by actor"
             placeholder="Actor"
             defaultValue={actor}
-            className="h-8 min-w-0 w-28 flex-1 rounded-md border border-input bg-background px-2 text-ui"
+            className="h-8 w-28 min-w-24 flex-1 rounded-md border border-input bg-background px-2 text-ui"
           />
           <Button type="submit" size="sm" variant="outline">
             <Search />

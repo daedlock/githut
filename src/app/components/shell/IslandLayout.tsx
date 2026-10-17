@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { OpenInGithubLink } from "@/app/components/OpenInGithubLink";
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { IslandSwitcher } from "@/app/components/shell/IslandSwitcher";
 import { SectionMenu } from "@/app/components/shell/SectionMenu";
@@ -244,6 +245,7 @@ const IslandHeader = memo(function IslandHeader({
       <TabStrip island={island} focused={focused} />
       {narrow && focused && <IslandSwitcher />}
       <SectionMenu href={href} />
+      <OpenInGithubLink href={href} />
       <IslandMenu islandId={island.id} maximized={maximized} canMaximize={canMaximize} />
     </div>
   );

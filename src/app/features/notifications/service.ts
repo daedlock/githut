@@ -4,9 +4,17 @@ import { persist } from "zustand/middleware";
 import { assertCanMutate } from "@/app/lib/connectivity";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { queryClient } from "@/app/lib/query";
+import { accountStorage, followAccount } from "@/app/stores/accountStorage";
 import { useAuthStore } from "@/app/stores/auth";
 import { getRateBackoff } from "@/app/stores/rateLimit";
-import { fetchNotifications, type Notification, type NotificationFeed } from "./api";
+import {
+  appendPage,
+  fetchNotificationPage,
+  isParticipating,
+  mergeFirstPage,
+  type Notification,
+  type NotificationFeed,
+} from "./api";
 
 export const NOTIFICATIONS_KEY = ["notifications", "workspace"] as const;
 export type NotificationAction = "read" | "unread" | "done" | "unsubscribe";
@@ -15,17 +23,68 @@ export type NotificationResult = {
   failed: Array<{ id: string; message: string }>;
 };
 
-/** Overrides contain thread IDs only, and never change GitHub's read state. */
-type NotificationState = { unread: Record<string, true>; busy: string[] };
+/**
+ * Overrides contain thread IDs only, and never change GitHub's read state.
+ * Each holds when it was set (`true` from before that was recorded).
+ */
+export type UnreadOverrides = Record<string, number | true>;
+type NotificationState = { unread: UnreadOverrides; busy: string[] };
 export const useNotificationState = create<NotificationState>()(
   persist((): NotificationState => ({ unread: {}, busy: [] }), {
     name: "githut.notifications",
+    // Thread IDs reveal which private threads an account follows.
+    storage: accountStorage<Pick<NotificationState, "unread">>(),
     partialize: (state) => ({ unread: state.unread }),
+    // An account with nothing saved must not inherit the previous one's overrides.
+    merge: (persisted, current) => ({
+      ...current,
+      unread: (persisted as Partial<NotificationState> | undefined)?.unread ?? {},
+    }),
   }),
 );
+followAccount("githut.notifications", {
+  rehydrate: () => useNotificationState.persist.rehydrate(),
+  snapshot: () => useNotificationState.getState().unread,
+  adopt: (pending) =>
+    useNotificationState.setState((state) => ({ unread: { ...state.unread, ...pending } })),
+});
 
 export function notificationIsUnread(item: Notification): boolean {
   return item.unread || !!useNotificationState.getState().unread[item.id];
+}
+
+/**
+ * Device-only unread gives way to github.com: an override ends once the
+ * thread is read there after it was set, or once the thread is gone (Done
+ * elsewhere) from a feed that is fully loaded.
+ */
+export function pruneUnreadOverrides(
+  unread: UnreadOverrides,
+  feed: Pick<NotificationFeed, "items" | "hasMore">,
+): UnreadOverrides {
+  const byId = new Map(feed.items.map((item) => [item.id, item]));
+  let changed = false;
+  const next: UnreadOverrides = {};
+  for (const [id, at] of Object.entries(unread)) {
+    const item = byId.get(id);
+    const readAt = item?.last_read_at ? Date.parse(item.last_read_at) : 0;
+    const gone = !item && !feed.hasMore;
+    if (gone || readAt > (at === true ? 0 : at)) changed = true;
+    else next[id] = at;
+  }
+  return changed ? next : unread;
+}
+
+/** A poll asks for page 1 only and keeps any older pages already loaded. */
+async function pollFirstPage(signal?: AbortSignal): Promise<NotificationFeed> {
+  const first = await fetchNotificationPage(1, signal);
+  const feed = mergeFirstPage(first, queryClient.getQueryData<NotificationFeed>(NOTIFICATIONS_KEY));
+  const { unread, busy } = useNotificationState.getState();
+  if (!busy.length) {
+    const pruned = pruneUnreadOverrides(unread, feed);
+    if (pruned !== unread) useNotificationState.setState({ unread: pruned });
+  }
+  return feed;
 }
 
 /** Consumers observe the same cache without starting another polling loop. */
@@ -33,17 +92,44 @@ export function useNotifications() {
   return useQuery(
     {
       queryKey: NOTIFICATIONS_KEY,
-      queryFn: ({ signal }) => fetchNotifications(signal),
+      queryFn: ({ signal }) => pollFirstPage(signal),
       enabled: false,
     },
     queryClient,
   );
 }
 
-export function useNotificationUnreadCount(): number {
+/** Counts what the Inbox opens on (Participating), so the sidebar and list agree. */
+export function useNotificationUnreadCount(
+  filter: "participating" | "all" = "participating",
+): number {
   const { data } = useNotifications();
   const unread = useNotificationState((state) => state.unread);
-  return data?.items.filter((item) => item.unread || unread[item.id]).length ?? 0;
+  return (
+    data?.items.filter(
+      (item) => (filter === "all" || isParticipating(item)) && (item.unread || unread[item.id]),
+    ).length ?? 0
+  );
+}
+
+let loadingMore: Promise<void> | undefined;
+
+/** The Inbox's "Load more": one older page, on request, never polled. */
+export function loadMoreNotifications(): Promise<void> {
+  loadingMore ??= (async () => {
+    const feed = queryClient.getQueryData<NotificationFeed>(NOTIFICATIONS_KEY);
+    if (!feed?.hasMore) return;
+    const token = useAuthStore.getState().token;
+    const next = await fetchNotificationPage(feed.pages + 1);
+    if (useAuthStore.getState().token !== token) return;
+    queryClient.setQueryData<NotificationFeed>(
+      NOTIFICATIONS_KEY,
+      (current) => current && appendPage(current, next),
+    );
+  })().finally(() => {
+    loadingMore = undefined;
+  });
+  return loadingMore;
 }
 
 let poll: { token: string; at: number; promise?: Promise<unknown> } | undefined;
@@ -74,7 +160,7 @@ export async function refreshNotifications(now = Date.now()): Promise<void> {
   poll = attempt;
   attempt.promise = queryClient.fetchQuery({
     queryKey: NOTIFICATIONS_KEY,
-    queryFn: ({ signal }) => fetchNotifications(signal),
+    queryFn: ({ signal }) => pollFirstPage(signal),
     staleTime: 0,
     retry: false,
   });
@@ -125,7 +211,7 @@ export async function runNotificationAction(
   useNotificationState.setState((state) => {
     const unread = { ...state.unread };
     for (const id of targets) {
-      if (action === "unread") unread[id] = true;
+      if (action === "unread") unread[id] = Date.now();
       else if (action !== "unsubscribe") delete unread[id];
     }
     return { unread, busy: [...state.busy, ...targets] };
@@ -157,7 +243,9 @@ export async function runNotificationAction(
           const path = `/notifications/threads/${encodeURIComponent(id)}`;
           if (action === "read") await client.request(`PATCH ${path}`);
           else if (action === "done") await client.request(`DELETE ${path}`);
-          else await client.request(`PUT ${path}/subscription`, { ignored: true });
+          // GitHub's Unsubscribe: quiet until you're mentioned or comment again.
+          // (`ignored: true` would block those too.)
+          else await client.request(`DELETE ${path}/subscription`);
         }
         result.succeeded.push(id);
       } catch (error) {
@@ -175,8 +263,9 @@ export async function runNotificationAction(
             items.splice(Math.min(index, items.length), 0, original);
             return { ...current, items };
           });
-        if (previousUnread[id])
-          useNotificationState.setState((state) => ({ unread: { ...state.unread, [id]: true } }));
+        const was = previousUnread[id];
+        if (was)
+          useNotificationState.setState((state) => ({ unread: { ...state.unread, [id]: was } }));
       } finally {
         useNotificationState.setState((state) => ({
           busy: state.busy.filter((item) => item !== id),

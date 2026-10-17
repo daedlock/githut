@@ -66,7 +66,7 @@ export function ProfileRepos({ repos, isLoading }: ProfileReposProps) {
         icon={<RepoIcon className="size-3 text-(--color-fg-faint)" />}
       />
 
-      <div className="flex flex-col gap-2 rounded-lg bg-muted px-2 py-1.5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 rounded-lg bg-muted px-2 py-1.5 @xl/pane:flex-row @xl/pane:items-center @xl/pane:justify-between">
         <div className="relative min-w-0 flex-1">
           <MagnifyingGlass
             className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
@@ -173,7 +173,7 @@ function RepoListSkeleton() {
             <Skeleton className="h-3.5" style={{ width: `${w}%` }} />
             <Skeleton className="h-3" style={{ width: `${Math.min(90, w + 20)}%` }} />
           </div>
-          <Skeleton className="hidden h-3 w-16 sm:block" />
+          <Skeleton className="hidden h-3 w-16 @xl/pane:block" />
         </div>
       ))}
     </SkeletonGroup>

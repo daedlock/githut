@@ -21,12 +21,12 @@ export function ProfileHero({ profile, isLoading }: ProfileHeroProps) {
   const isOrg = profile.type === "Organization";
 
   return (
-    <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+    <header className="flex flex-col gap-4 @xl/pane:flex-row @xl/pane:items-start @xl/pane:gap-5">
       <Avatar
         login={profile.login}
         avatarUrl={profile.avatar_url}
         size="xl"
-        className="size-20 shrink-0 rounded-2xl sm:size-24"
+        className="size-20 shrink-0 rounded-2xl @xl/pane:size-24"
       />
 
       <div className="min-w-0 flex flex-col gap-1.5">
@@ -136,8 +136,8 @@ function ProfileMetaLine({ profile }: { profile: GitHubProfile }) {
 
 function HeroSkeleton() {
   return (
-    <SkeletonGroup label="Loading profile" className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
-      <Skeleton className="size-20 shrink-0 rounded-2xl sm:size-24" />
+    <SkeletonGroup label="Loading profile" className="flex flex-col gap-4 @xl/pane:flex-row @xl/pane:items-start @xl/pane:gap-5">
+      <Skeleton className="size-20 shrink-0 rounded-2xl @xl/pane:size-24" />
       <div className="flex min-w-0 flex-col gap-2">
         <Skeleton className="h-3 w-16" />
         <Skeleton className="h-7 w-56" />

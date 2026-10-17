@@ -19,10 +19,13 @@ import {
 //   localStorage    githut.workspace         the last-used window's layout,
 //                                            which a new window starts from
 //
-// so two windows never fight over one layout. On first load the old tab
-// strip's tabs (`githut.tabs.v1`, or the `githut.tabs.v3` groundwork format)
-// migrate into a single island in the same order, keeping the selected tab
-// and pins; the old keys are then deleted. `closed` is session state and
+// so two windows never fight over one layout. Each verified account has its
+// own pair (`<key>.account.<id>`); the unscoped pair holds the layout of a
+// token whose account isn't verified yet (and layouts saved before accounts
+// were partitioned), adopted once the account is known. On first load the old
+// tab strip's tabs (`githut.tabs.v1`, or the `githut.tabs.v3` groundwork
+// format) migrate into a single island in the same order, keeping the selected
+// tab and pins; the old keys are then deleted. `closed` is session state and
 // isn't saved.
 
 export const WORKSPACE_SCHEMA_VERSION = 1;
@@ -42,17 +45,41 @@ type Saved = {
 /** Upgrades from older schema versions; index n turns version n into n + 1. */
 const MIGRATIONS: ((data: unknown) => unknown)[] = [];
 
+/** `account.<id>` for a verified account; omitted for the unverified (unscoped) layout. */
+export type LayoutScope = string | undefined;
+
+function scoped(key: string, scope: LayoutScope): string {
+  return scope ? `${key}.${scope}` : key;
+}
+
+/** A saved layout for `scope`, if there is one. */
+export function readSavedWorkspace(scope: LayoutScope): Workspace | null {
+  return (
+    read(safeStorage("session")?.getItem(scoped(WINDOW_KEY, scope))) ??
+    read(safeStorage("local")?.getItem(scoped(LAST_USED_KEY, scope)))
+  );
+}
+
+/** Forget the unscoped layout (after it was adopted, or on sign-out). */
+export function forgetUnscopedWorkspace() {
+  try {
+    safeStorage("session")?.removeItem(WINDOW_KEY);
+    safeStorage("local")?.removeItem(LAST_USED_KEY);
+  } catch {
+    /* Storage may be disabled. */
+  }
+}
+
 /** This window's layout, else the last-used one, else migrated tabs, else one island at `href`. */
-export function loadWorkspace(href: string): Workspace {
+export function loadWorkspace(href: string, scope?: LayoutScope): Workspace {
   const local = safeStorage("local");
   const workspace =
-    read(safeStorage("session")?.getItem(WINDOW_KEY)) ??
-    read(local?.getItem(LAST_USED_KEY)) ??
+    readSavedWorkspace(scope) ??
     LEGACY_TABS_KEYS.reduce<Workspace | null>(
       (found, key) => found ?? migrateLegacyTabs(local?.getItem(key)),
       null,
     ) ??
-    createWorkspace([hrefPathname(href) === "/settings" ? "/" : href]);
+    createWorkspace([isTransientHref(href) ? "/" : href]);
   // Islands own persistence now; the caller saves the result right away.
   try {
     for (const key of [...LEGACY_TABS_KEYS, ...RETIRED_KEYS]) local?.removeItem(key);
@@ -62,7 +89,10 @@ export function loadWorkspace(href: string): Workspace {
   return workspace;
 }
 
-export function saveWorkspace(ws: Workspace, { lastUsed = true } = {}) {
+export function saveWorkspace(
+  ws: Workspace,
+  { lastUsed = true, scope }: { lastUsed?: boolean; scope?: LayoutScope } = {},
+) {
   const saved: Saved = {
     version: WORKSPACE_SCHEMA_VERSION,
     workspace: {
@@ -74,8 +104,8 @@ export function saveWorkspace(ws: Workspace, { lastUsed = true } = {}) {
   };
   const json = JSON.stringify(saved);
   try {
-    safeStorage("session")?.setItem(WINDOW_KEY, json);
-    if (lastUsed) safeStorage("local")?.setItem(LAST_USED_KEY, json);
+    safeStorage("session")?.setItem(scoped(WINDOW_KEY, scope), json);
+    if (lastUsed) safeStorage("local")?.setItem(scoped(LAST_USED_KEY, scope), json);
   } catch {
     // Storage full or blocked: the layout just won't survive a reload.
   }
@@ -119,7 +149,7 @@ function parseNode(value: unknown): LayoutNode | null {
     if (!Array.isArray(n.tabs)) return null;
     const tabs = n.tabs
       .filter(isTab)
-      .filter((t) => hrefPathname(t.href) !== "/settings")
+      .filter((t) => !isTransientHref(t.href))
       .map((t) => ({ id: t.id, href: normalizeHref(t.href) }));
     const island: Island = {
       kind: "island",
@@ -145,6 +175,12 @@ function parseNode(value: unknown): LayoutNode | null {
     };
   }
   return null;
+}
+
+/** Settings is a modal and the login page a signed-out screen: neither is ever restored as a tab. */
+function isTransientHref(href: string): boolean {
+  const path = hrefPathname(href);
+  return path === "/settings" || path === "/login";
 }
 
 /** Relative sizes summing to 1, each at least `MIN_SAVED_SIZE`; junk becomes an even share. */
@@ -194,7 +230,7 @@ function migrateLegacyTabs(raw: string | null | undefined): Workspace | null {
     const old = Array.isArray(state?.tabs)
       ? state.tabs
           .filter(isTab)
-          .filter((t) => hrefPathname(t.href) !== "/settings")
+          .filter((t) => !isTransientHref(t.href))
           .filter((t, i, all) => all.findIndex((o) => o.id === t.id) === i)
       : [];
     if (!old.length) return null;

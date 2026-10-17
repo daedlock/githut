@@ -26,9 +26,12 @@ import {
   type TimelineEvent,
   TimelineEventSchema,
 } from "@/app/features/pulls/schemas";
+import { finishReview } from "@/app/features/pulls/stores/review";
 import { useLiveInterval } from "@/app/lib/freshness";
 import { getGitHubClient } from "@/app/lib/github/client";
+import type { StorageOwner } from "@/app/stores/accountStorage";
 import { useAuthStore } from "@/app/stores/auth";
+import { clearSentDraft, type SentDraft } from "@/app/stores/drafts";
 
 // ─── PR-list schema (search API `items` shape) ─────────────────────────────
 //
@@ -475,7 +478,7 @@ export function usePostPrComment(
 ) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ body }: { body: string }) => {
+    mutationFn: async ({ body }: { body: string; draft?: SentDraft }) => {
       const client = getGitHubClient();
       const res = await client.request(
         "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
@@ -516,7 +519,9 @@ export function usePostPrComment(
       // Roll back to previous state on error
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSuccess: async (created, _vars, ctx) => {
+    onSuccess: async (created, vars, ctx) => {
+      // Hook-level, so it runs even after the composer's tab is gone.
+      clearSentDraft(vars.draft);
       if (ctx) {
         queryClient.setQueryData<IssueCommentOnPr[]>(ctx.key, (old) =>
           (old ?? []).map((c) => (c.id === ctx.tempId ? created : c)),
@@ -1447,6 +1452,8 @@ export function useSubmitPrReview(owner: string, repo: string, number: number) {
       comments,
     }: {
       event: ReviewEvent;
+      /** Who submitted: their pending comments and drafts are cleared on success. */
+      owner?: StorageOwner;
       body?: string;
       comments?: Array<{
         path: string;
@@ -1466,7 +1473,10 @@ export function useSubmitPrReview(owner: string, repo: string, number: number) {
       });
       return ReviewSchema.parse(res.data);
     },
-    onSuccess: async () => {
+    onSuccess: async (_review, vars) => {
+      // Hook-level, so the pending review is cleared even if the tab closed
+      // (or the window switched accounts) while the request was in flight.
+      if (vars.owner) finishReview(vars.owner, owner, repo, number);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: pullsKeys.reviews(owner, repo, number) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) }),
@@ -1564,7 +1574,14 @@ export function useReplyToReviewComment(
 ) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ inReplyToId, body }: { inReplyToId: number; body: string }) => {
+    mutationFn: async ({
+      inReplyToId,
+      body,
+    }: {
+      inReplyToId: number;
+      body: string;
+      draft?: SentDraft;
+    }) => {
       const client = getGitHubClient();
       const res = await client.request(
         "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies",
@@ -1618,7 +1635,8 @@ export function useReplyToReviewComment(
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSuccess: (created, _vars, ctx) => {
+    onSuccess: (created, vars, ctx) => {
+      clearSentDraft(vars.draft);
       // Swap temp → real in place
       if (ctx) {
         queryClient.setQueryData<ReviewComment[]>(ctx.key, (old) =>

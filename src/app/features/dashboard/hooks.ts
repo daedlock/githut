@@ -36,15 +36,6 @@ export type DashboardItem = RawDashboardItem & {
   isPr: boolean;
 };
 
-// review-requested ranks above assigned ranks above mentioned: when a single
-// item matches more than one query, the most actionable reason wins so the
-// row reads "REVIEW" rather than a softer label.
-const REASON_PRIORITY: Record<DashboardReason, number> = {
-  review_requested: 0,
-  assigned: 1,
-  mentioned: 2,
-};
-
 const REPO_URL_RE = /\/repos\/([^/]+)\/([^/]+)\/?$/;
 function parseOwnerRepo(url: string): { owner: string; repo: string } | null {
   const m = REPO_URL_RE.exec(url);
@@ -83,20 +74,11 @@ async function fetchSearch(
   return items;
 }
 
-// ─── Recency horizons ──────────────────────────────────────────────────────
+// ─── Recency horizon ───────────────────────────────────────────────────────
 //
-// Stale items are the single biggest noise source in GitHub notifications.
-// We push the recency filter to the query so we never even paginate over
-// items the user hasn't touched in months. Horizons are tuned per reason:
-//
-//   review_requested → no filter. A review request doesn't go stale until
-//                      you respond; surfacing a 90-day-old request is the
-//                      right amount of guilt.
-//   assigned        → 60 days. Long enough to show real ownership; short
-//                      enough to drop dead-issue assignments from years ago.
-//   mentioned       → 30 days. Mentions decay fastest — a stale mention is
-//                      almost never actionable.
-//   author (my PRs) → no filter. Open work stays available in the sidebar.
+// Review requests have no horizon: one doesn't go stale until you respond.
+// Your own open PRs are limited to the last 90 days, so abandoned drafts from
+// years ago don't bury the work that's live.
 
 const DAY_MS = 86_400_000;
 
@@ -104,20 +86,7 @@ function dateAgoIso(days: number): string {
   return new Date(Date.now() - days * DAY_MS).toISOString().slice(0, 10);
 }
 
-// ─── "Your turn" — three queries merged + ranked ───────────────────────────
-//
-// Three filter buckets that GitHub treats as separate ("Review requested",
-// "Assigned", "Mentioned") get fetched in parallel and merged into one
-// latency-sorted list. Items appearing in multiple buckets dedupe by id and
-// keep the highest-priority reason. We sort by `created_at` ascending so the
-// oldest-waiting items rise to the top — the dashboard's job is to surface
-// what's been ignored, not what's freshest.
-
-export type YourTurnResult = {
-  items: DashboardItem[];
-  isPending: boolean;
-  isError: boolean;
-};
+// ─── Your work: review requests, oldest waiting first ──────────────────────
 
 // Search allows 30 requests a minute and these lists also back the sidebar's
 // Your work: they refresh about once a minute even in the focused tab.
@@ -127,7 +96,7 @@ export function useReviewRequestedPrs() {
   const token = useAuthStore((s) => s.token);
   const live = useLiveInterval("search");
   return useQuery({
-    queryKey: ["dashboard", "your-turn", "review-requested"] as const,
+    queryKey: ["dashboard", "your-work", "review-requested"] as const,
     enabled: !!token,
     staleTime: 30_000,
     refetchInterval: live("changing", SEARCH_FLOOR),
@@ -141,78 +110,24 @@ export function useReviewRequestedPrs() {
   });
 }
 
-export function useYourTurn(): YourTurnResult {
-  const token = useAuthStore((s) => s.token);
-  const live = useLiveInterval("search");
-  const enabled = !!token;
-
-  // The horizon date changes once a day; cache key includes the day so we
-  // don't hold yesterday's results past midnight.
-  const assignedSince = dateAgoIso(60);
-  const mentionedSince = dateAgoIso(30);
-
-  const reviewRequested = useReviewRequestedPrs();
-
-  const assigned = useQuery({
-    queryKey: ["dashboard", "your-turn", "assigned", assignedSince] as const,
-    enabled,
-    staleTime: 30_000,
-    refetchInterval: live("changing", SEARCH_FLOOR),
-    queryFn: () =>
-      fetchSearch(
-        `is:open assignee:@me archived:false updated:>=${assignedSince}`,
-        "assigned",
-        "updated",
-        "desc",
-      ),
-  });
-
-  const mentioned = useQuery({
-    queryKey: ["dashboard", "your-turn", "mentioned", mentionedSince] as const,
-    enabled,
-    staleTime: 30_000,
-    refetchInterval: live("changing", SEARCH_FLOOR),
-    queryFn: () =>
-      fetchSearch(
-        `is:open mentions:@me archived:false updated:>=${mentionedSince}`,
-        "mentioned",
-        "updated",
-        "desc",
-      ),
-  });
-
-  const buckets = [reviewRequested.data, assigned.data, mentioned.data];
-  const seen = new Map<number, DashboardItem>();
-  for (const list of buckets) {
-    if (!list) continue;
-    for (const item of list) {
-      const existing = seen.get(item.id);
-      if (!existing || REASON_PRIORITY[item.reason] < REASON_PRIORITY[existing.reason]) {
-        seen.set(item.id, item);
-      }
-    }
-  }
-  const items = [...seen.values()].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-  );
-
-  return {
-    items,
-    isPending: reviewRequested.isPending || assigned.isPending || mentioned.isPending,
-    isError: reviewRequested.isError || assigned.isError || mentioned.isError,
-  };
-}
-
-// ─── "Your open PRs" — single search ───────────────────────────────────────
+// ─── Your work: your open PRs, recently updated ────────────────────────────
 
 export function useMyOpenPrs() {
   const token = useAuthStore((s) => s.token);
   const live = useLiveInterval("search");
+  // The horizon changes once a day; keying on it drops yesterday's results.
+  const since = dateAgoIso(90);
   return useQuery({
-    queryKey: ["dashboard", "my-open-prs"] as const,
+    queryKey: ["dashboard", "my-open-prs", since] as const,
     enabled: !!token,
     staleTime: 30_000,
     refetchInterval: live("changing", SEARCH_FLOOR),
-    queryFn: () => fetchSearch("is:open is:pr author:@me archived:false", null, "updated", "desc"),
+    queryFn: () =>
+      fetchSearch(
+        `is:open is:pr author:@me archived:false updated:>=${since}`,
+        null,
+        "updated",
+        "desc",
+      ),
   });
 }

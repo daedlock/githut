@@ -42,7 +42,7 @@ export function ProfileLatestActivity({ events, isLoading }: ProfileLatestActivi
   const items = useMemo(() => buildItems(events), [events]);
 
   return (
-    <Card variant="muted" className="flex flex-col gap-3 px-4 py-4 sm:px-5 sm:py-5">
+    <Card variant="muted" className="flex flex-col gap-3 px-4 py-4 @xl/pane:px-5 @xl/pane:py-5">
       <ProfileSectionHeader
         title="Latest Activity"
         icon={<BroadcastIcon className="size-3 text-(--color-fg-faint)" />}

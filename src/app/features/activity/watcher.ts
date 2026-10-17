@@ -8,6 +8,7 @@ import {
 import {
   NOTIFICATIONS_KEY,
   notificationIsUnread,
+  type UnreadOverrides,
   useNotificationState,
 } from "@/app/features/notifications/service";
 import { pullsKeys } from "@/app/features/pulls/hooks";
@@ -157,7 +158,7 @@ function recordView(active: Session, now: number) {
 }
 
 let notificationIndex:
-  | { items: NotificationFeed["items"]; unread: Record<string, true>; pages: Map<string, boolean> }
+  | { items: NotificationFeed["items"]; unread: UnreadOverrides; pages: Map<string, boolean> }
   | undefined;
 
 /** Reuse one index across tab subscribers; unrelated cache updates need no feed scan. */

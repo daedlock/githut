@@ -1,21 +1,32 @@
-import { useRouterState } from "@tanstack/react-router";
+import { ExternalLink } from "lucide-react";
+import { Button } from "@/app/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { getOpenInGithubHref } from "@/app/lib/openGithubUrl";
 
-export function OpenInGithubLink() {
-  const href = useRouterState({
-    select: (state) => getOpenInGithubHref(state.location),
+/** The GitHub page for a tab's href, or null where GitHub has no equivalent. */
+export function githubHrefFor(href: string): string | null {
+  const url = new URL(href, "https://githut.invalid");
+  return getOpenInGithubHref({
+    pathname: url.pathname,
+    search: Object.fromEntries(url.searchParams),
+    hash: url.hash,
   });
+}
 
-  if (!href) return null;
-
+/** Lives in each island's header, so it always opens that island's page. */
+export function OpenInGithubLink({ href }: { href: string }) {
+  const github = githubHrefFor(href);
+  if (!github) return null;
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="fixed right-4 bottom-4 z-30 rounded-md px-2 py-1 font-sans text-caption text-muted-foreground/70 outline-none transition-colors hover:bg-muted hover:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
-    >
-      Open in GitHub
-    </a>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button asChild variant="ghost" size="icon-sm" className="shrink-0 text-muted-foreground">
+          <a href={github} target="_blank" rel="noreferrer" aria-label="Open in GitHub">
+            <ExternalLink />
+          </a>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">Open in GitHub</TooltipContent>
+    </Tooltip>
   );
 }

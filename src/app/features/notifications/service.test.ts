@@ -26,7 +26,8 @@ const item = (id: string, unread = true) => ({
 });
 const feed = () => ({
   items: [item("1"), item("2", false)],
-  participatingIds: ["1", "2"],
+  pages: 1,
+  hasMore: false,
   pollInterval: 60_000,
 });
 afterEach(() => {
@@ -110,7 +111,7 @@ test("device-only unread survives refresh and only explicit read clears it; GitH
   ).toEqual(["2"]);
   expect(requests).toEqual([
     { method: "PATCH", path: "/notifications/threads/2", body: null },
-    { method: "PUT", path: "/notifications/threads/1/subscription", body: { ignored: true } },
+    { method: "DELETE", path: "/notifications/threads/1/subscription", body: null },
     { method: "DELETE", path: "/notifications/threads/1", body: null },
   ]);
 });
@@ -151,17 +152,17 @@ test("polling shares one request, obeys GitHub cadence and low-quota backoff, an
   }) as typeof fetch);
   const now = Date.now();
   await Promise.all([refreshNotifications(now), refreshNotifications(now)]);
-  expect(requests).toHaveLength(2);
+  expect(requests).toHaveLength(1);
   await refreshNotifications(now + 119_000);
-  expect(requests).toHaveLength(2);
+  expect(requests).toHaveLength(1);
   useRateLimitStore.setState({ buckets: { core: { slowUntil: now + 1_000_000, pausedUntil: 0 } } });
   await refreshNotifications(now + 121_000);
-  expect(requests).toHaveLength(2);
+  expect(requests).toHaveLength(1);
   await refreshNotifications(now + 481_000);
-  expect(requests).toHaveLength(4);
+  expect(requests).toHaveLength(2);
   useAuthStore.getState().markExpired();
   await refreshNotifications(now + 1_000_000);
-  expect(requests).toHaveLength(4);
+  expect(requests).toHaveLength(2);
 });
 
 test("hidden and offline windows do not poll", async () => {

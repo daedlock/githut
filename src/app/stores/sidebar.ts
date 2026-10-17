@@ -10,6 +10,7 @@ type SidebarState = {
   collapsed: boolean;
   toggle: () => void;
   resize: (width: number) => void;
+  expand: () => void;
   reset: () => void;
 };
 
@@ -31,6 +32,7 @@ export const createSidebarStore = (storage?: StateStorage) =>
               : { collapsed: false, width: Math.max(200, Math.min(360, width)) },
           );
         },
+        expand: () => set({ collapsed: false }),
         reset: () => set({ collapsed: false, width: SIDEBAR_DEFAULT_WIDTH }),
       }),
       {

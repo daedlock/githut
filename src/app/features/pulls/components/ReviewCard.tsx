@@ -31,7 +31,7 @@ import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
 import { useCanMutate } from "@/app/lib/connectivity";
 import { formatRelativeTime } from "@/app/lib/time";
-import { draftKey, draftPage, hasDraft } from "@/app/stores/drafts";
+import { draftKey, draftPage, hasDraft, sentDraft } from "@/app/stores/drafts";
 
 // ─── State styling ─────────────────────────────────────────────────────────
 
@@ -285,11 +285,18 @@ function ThreadBlock({
   }, [allComments]);
 
   function handleReply(body: string) {
-    if (!body || replyMutation.isPending || !canMutate) return;
-    // Fire-and-forget: optimistic insertion happens in onMutate, so close
-    // the box immediately for instant feedback.
-    replyMutation.mutate({ inReplyToId: thread.root.id, body });
+    if (!body || replyMutation.isPending || !canMutate) return false;
+    // Optimistic insertion happens in onMutate, so close the box at once.
+    // The draft is cleared only when the reply succeeds; a failure reopens
+    // the box with the text still in it.
+    const sending = replyMutation.mutateAsync({
+      inReplyToId: thread.root.id,
+      body,
+      draft: sentDraft(replyDraftKey, body),
+    });
     setReplyOpen(false);
+    sending.catch(() => setReplyOpen(true));
+    return sending;
   }
 
   function handleResolveToggle() {
