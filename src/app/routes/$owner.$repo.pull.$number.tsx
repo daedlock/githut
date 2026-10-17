@@ -47,7 +47,7 @@ function PrDetailLayout() {
   return (
     <>
       {/* Header */}
-      <Container className="pt-5 sm:pt-6 pb-4">
+      <Container className="pt-5 pb-4 @xl/pane:pt-6">
         {pr ? (
           <PrHeader
             owner={owner}
@@ -75,17 +75,17 @@ function PrDetailLayout() {
         </Container>
       </div>
 
-      {/* Two-column layout with sticky sidebar */}
+      {/* Two columns in wide islands; the sidebar stacks below the page in narrow ones. */}
       <Container className="py-6">
-        <div className="flex gap-6 lg:gap-8">
+        <div className="flex flex-col gap-6 @4xl/pane:flex-row @4xl/pane:gap-8">
           {/* Main content */}
           <div className="min-w-0 flex-1">
             <Outlet />
           </div>
 
           {/* Sticky sidebar */}
-          <aside className="hidden lg:block w-[328px] flex-shrink-0">
-            <div className="sticky top-[calc(var(--app-header-height)+56px)]">
+          <aside className="w-full shrink-0 @4xl/pane:w-[328px]">
+            <div className="@4xl/pane:sticky @4xl/pane:top-[calc(var(--app-header-height)+56px)]">
               {pr ? (
                 <PrSidebar owner={owner} repo={repo} pr={pr} reviews={reviews} />
               ) : <MetadataSkeleton />}

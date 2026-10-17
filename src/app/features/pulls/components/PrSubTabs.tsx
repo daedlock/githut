@@ -84,7 +84,7 @@ export function PrSubTabs({ owner, repo, number, counts, changeStats }: PrSubTab
                 className={cn(isActive && "bg-muted !text-foreground font-medium")}
                 aria-current={isActive ? "page" : undefined}
               >
-                <Icon data-icon="inline-start" />
+                <Icon data-icon="inline-start" className="@max-xl/pane:hidden" />
                 <span>{t.label}</span>
                 {typeof t.count === "number" && (
                   <span className="tabular-nums text-muted-foreground">{t.count}</span>
@@ -95,7 +95,7 @@ export function PrSubTabs({ owner, repo, number, counts, changeStats }: PrSubTab
         })}
       </div>
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto hidden items-center gap-2 @2xl/pane:flex">
         {changeStats && (
           <ChangeStatsBadge additions={changeStats.additions} deletions={changeStats.deletions} />
         )}
