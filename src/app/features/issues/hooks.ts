@@ -7,12 +7,12 @@ import {
   type RepoIssue,
   type RepoIssueComment,
 } from "@/app/features/issues/schemas";
+import { type RepoLabel, repoLabelsKey } from "@/app/features/pulls/pickers";
 import {
   bumpReaction,
   type ReactionToggleVars,
   useViewerReactionToggle,
 } from "@/app/features/reactions/viewerReactions";
-import { type RepoLabel, repoLabelsKey } from "@/app/features/pulls/pickers";
 import { useLiveInterval } from "@/app/lib/freshness";
 import { getGitHubClient } from "@/app/lib/github/client";
 import { useAuthStore } from "@/app/stores/auth";

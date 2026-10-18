@@ -7,8 +7,7 @@ import { fileURLToPath } from "node:url";
 // workspace body never scrolls, so the shadcn wrappers must not mount it.
 // There is no DOM test environment in this repo, so this checks the wrappers'
 // source: a `shadcn add` that restores the upstream files fails here.
-const read = (name: string) =>
-  Bun.file(new URL(`./${name}`, import.meta.url)).text();
+const read = (name: string) => Bun.file(new URL(`./${name}`, import.meta.url)).text();
 
 describe("overlays never mount Radix's scroll lock", () => {
   test("dialog and sheet do not render DialogPrimitive.Overlay", async () => {
@@ -23,12 +22,9 @@ describe("overlays never mount Radix's scroll lock", () => {
     expect(sheet).toMatch(/<Dialog\b/);
   });
 
-  test.each(["context-menu.tsx", "dropdown-menu.tsx"])(
-    "%s root is non-modal",
-    async (file) => {
-      expect(await read(file)).toMatch(/Primitive\.Root[^>]*modal=\{false\}/);
-    },
-  );
+  test.each(["context-menu.tsx", "dropdown-menu.tsx"])("%s root is non-modal", async (file) => {
+    expect(await read(file)).toMatch(/Primitive\.Root[^>]*modal=\{false\}/);
+  });
 
   test("no other Radix overlay with a scroll lock is wrapped", async () => {
     const glob = new Bun.Glob("*.tsx");

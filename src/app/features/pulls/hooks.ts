@@ -10,13 +10,6 @@ import {
 import { useMemo } from "react";
 import { z } from "zod";
 import {
-  bumpReaction,
-  type ReactionToggleVars,
-  selectMine,
-  usePrViewerReactions,
-  useViewerReactionToggle,
-} from "@/app/features/reactions/viewerReactions";
-import {
   type ReviewDecision as AggregatedReviewDecision,
   aggregateReviews,
 } from "@/app/features/pulls/lib/reviewDecision";
@@ -35,6 +28,13 @@ import {
   TimelineEventSchema,
 } from "@/app/features/pulls/schemas";
 import { finishReview } from "@/app/features/pulls/stores/review";
+import {
+  bumpReaction,
+  type ReactionToggleVars,
+  selectMine,
+  usePrViewerReactions,
+  useViewerReactionToggle,
+} from "@/app/features/reactions/viewerReactions";
 import { useLiveInterval } from "@/app/lib/freshness";
 import { getGitHubClient } from "@/app/lib/github/client";
 import type { StorageOwner } from "@/app/stores/accountStorage";
