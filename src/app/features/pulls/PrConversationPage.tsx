@@ -298,7 +298,7 @@ function PrCommentRow({
   meLogin: string | undefined;
   participants?: MentionUser[];
 }) {
-  const myReactions = useMyPrCommentReactions(owner, repo, item.id, meId);
+  const myReactions = useMyPrCommentReactions(owner, repo, number, item.id);
   const toggleReaction = useTogglePrCommentReaction(owner, repo, number, meId);
   const updateComment = useUpdatePrComment(owner, repo, number);
   const deleteComment = useDeletePrComment(owner, repo, number);

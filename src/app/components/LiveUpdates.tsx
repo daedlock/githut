@@ -1,5 +1,6 @@
 import { Component, createRef, type ReactNode } from "react";
 import { Button } from "@/app/components/ui/button";
+import { commitMeasure, type PaneState } from "@/app/lib/liveAnchor";
 
 type Props = { children: ReactNode; ready: boolean; className?: string; announce?: boolean };
 type Snapshot = {
@@ -12,6 +13,11 @@ type Snapshot = {
  * Keep the reader's anchor through a React commit. Mark stable rows with
  * data-live-item, and static content (description/composer) with data-live-anchor.
  * `ready` distinguishes the initial load from later arrivals.
+ *
+ * Geometry is never read while the tab pane is hidden, nor in the commit that
+ * reveals it: the pane was display:none, so any read there forces a full
+ * synchronous layout of it before the click can paint. The ResizeObserver's
+ * first report (after the browser's own layout) captures the anchor instead.
  */
 export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot | null> {
   override state = { unseen: [] as string[] };
@@ -19,12 +25,17 @@ export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot
   private scroller: HTMLElement | null = null;
   private resize: ResizeObserver | undefined;
   private readingAnchor: { node: HTMLElement; top: number; atTop: boolean } | undefined;
+  private pane: PaneState = "hidden";
+  private frame = 0;
 
+  // Runs on first mount and again on every reveal (<Activity> re-mounts effects).
   override componentDidMount() {
+    this.pane = "revealed";
+    this.readingAnchor = undefined;
     this.scroller = this.root.current?.closest<HTMLElement>("[data-tab-pane]") ?? null;
     this.scroller?.addEventListener("scroll", this.onScroll, { passive: true });
-    this.captureAnchor();
     this.resize = new ResizeObserver(() => {
+      if (this.pane === "hidden") return;
       // Images and expanded markdown can settle after the React commit.
       // A reader at the very top stays there: when an island narrows and a
       // toolbar above the rows wraps, following the anchor would scroll the
@@ -33,19 +44,32 @@ export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot
       if (anchor?.node.isConnected && this.scroller && !anchor.atTop) {
         this.scroller.scrollTop += anchor.node.getBoundingClientRect().top - anchor.top;
       }
+      this.pane = "settled";
       this.captureAnchor();
       this.markVisible();
     });
     if (this.root.current) this.resize.observe(this.root.current);
   }
 
+  // Runs on unmount and when the tab is hidden.
   override componentWillUnmount() {
+    this.pane = "hidden";
+    this.readingAnchor = undefined;
+    cancelAnimationFrame(this.frame);
+    this.frame = 0;
     this.scroller?.removeEventListener("scroll", this.onScroll);
     this.resize?.disconnect();
   }
 
+  private measure(previous: Props) {
+    return commitMeasure(this.pane, {
+      previousReady: previous.ready,
+      childrenChanged: previous.children !== this.props.children,
+    });
+  }
+
   override getSnapshotBeforeUpdate(previous: Props): Snapshot | null {
-    if (!previous.ready || previous.children === this.props.children || !this.scroller) return null;
+    if (this.measure(previous) !== "keep-place" || !this.scroller) return null;
     const top = this.scroller.getBoundingClientRect().top;
     const anchors = this.root.current?.querySelectorAll<HTMLElement>(
       "[data-live-item], [data-live-anchor]",
@@ -61,12 +85,12 @@ export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot
   }
 
   override componentDidUpdate(
-    _previous: Props,
+    previous: Props,
     _state: { unseen: string[] },
     snapshot: Snapshot | null,
   ) {
     if (!snapshot || !this.scroller) {
-      this.captureAnchor();
+      if (this.measure(previous) === "recapture") this.captureNextFrame();
       return;
     }
     if (snapshot.anchor?.isConnected) {
@@ -82,6 +106,14 @@ export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot
       }));
     }
     this.captureAnchor();
+  }
+
+  private captureNextFrame() {
+    if (this.frame) return;
+    this.frame = requestAnimationFrame(() => {
+      this.frame = 0;
+      if (this.pane === "settled") this.captureAnchor();
+    });
   }
 
   private items() {
@@ -104,6 +136,7 @@ export class LiveUpdates extends Component<Props, { unseen: string[] }, Snapshot
   }
 
   private onScroll = () => {
+    if (this.pane !== "settled") return;
     this.captureAnchor();
     this.markVisible();
   };

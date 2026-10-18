@@ -12,7 +12,10 @@
     "check": "bunx biome check .",
     "format": "bunx biome format --write .",
     "test": "bun test",
-    "test:browser": "node scripts/test-loading-layouts.mjs"
+    "test:browser": "node scripts/test-loading-layouts.mjs",
+    "perf:build": "vite build --config perf/profiling.vite.config.ts",
+    "perf:preview": "vite preview --port 4173 --strictPort --outDir dist-profiling",
+    "perf:test": "bun test perf"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.0.0",

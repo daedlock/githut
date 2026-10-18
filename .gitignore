@@ -40,3 +40,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # browser regression artifacts
 test-results/
+
+# perf harness output
+dist-profiling/
+perf/results/

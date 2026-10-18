@@ -4,11 +4,14 @@ import { XIcon } from "lucide-react";
 
 import { cn } from "@/app/lib/cn";
 import { Button } from "@/app/components/ui/button";
+import { Dialog, DialogOverlay } from "@/app/components/ui/dialog";
 
+// Shares Dialog's root and backdrop so the sheet never mounts Radix's scroll
+// lock either (see DialogOverlay, #58).
 function Sheet({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="sheet" {...props} />;
+  return <Dialog data-slot="sheet" {...props} />;
 }
 
 function SheetTrigger({
@@ -32,9 +35,9 @@ function SheetPortal({
 function SheetOverlay({
   className,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+}: React.ComponentProps<typeof DialogOverlay>) {
   return (
-    <DialogPrimitive.Overlay
+    <DialogOverlay
       data-slot="sheet-overlay"
       className={cn(
         "fixed inset-0 isolate z-50 bg-black/40 backdrop-blur-sm duration-150 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0",

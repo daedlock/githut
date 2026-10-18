@@ -7,7 +7,16 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { z } from "zod";
+import type { ReactionContent } from "@/app/features/issues/schemas";
+import {
+  type ReactionToggleVars,
+  selectMine,
+  usePrViewerReactions,
+  useViewerReactionToggle,
+  viewerReactionKeys,
+} from "@/app/features/issues/viewerReactions";
 import {
   type ReviewDecision as AggregatedReviewDecision,
   aggregateReviews,
@@ -296,7 +305,7 @@ export function useFullPr(owner: string, repo: string, number: number) {
   return useQuery({
     ...prDetailQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
   });
 }
 
@@ -368,7 +377,7 @@ export function usePrComments(owner: string, repo: string, number: number) {
   return useQuery({
     ...prCommentsQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
   });
 }
 
@@ -398,7 +407,7 @@ export function usePrReviews(owner: string, repo: string, number: number) {
   return useQuery({
     ...prReviewsQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
   });
 }
 
@@ -460,7 +469,7 @@ export function usePrTimeline(owner: string, repo: string, number: number) {
   return useQuery({
     ...prTimelineQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
   });
 }
 
@@ -1211,7 +1220,7 @@ export function usePrMergeStatus(owner: string, repo: string, number: number) {
   return useQuery({
     ...prMergeStatusQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
   });
 }
 
@@ -1562,7 +1571,7 @@ export function usePrReviewComments(owner: string, repo: string, number: number)
   return useQuery({
     ...prReviewCommentsQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
   });
 }
 
@@ -1648,52 +1657,33 @@ export function useReplyToReviewComment(
 }
 
 // ─── Review comment reactions ─────────────────────────────────────────────
+//
+// The viewer's reactions for the whole PR come from one GraphQL request
+// (usePrViewerReactions, #61); these hooks read one comment's slice of it.
 
-import {
-  EMPTY_MY_REACTIONS,
-  type MyReactionsMap,
-  type ReactionContent,
-  ReactionListSchema,
-} from "@/app/features/issues/schemas";
-
+/** The viewer's reactions on one review (diff) comment. */
 export function useMyReviewCommentReactions(
   owner: string,
   repo: string,
+  number: number,
   commentId: number,
-  meId: number | undefined,
 ) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    queryKey: [
-      ...pullsKeys.all,
-      "review-comment-reactions",
-      owner,
-      repo,
-      commentId,
-      meId ?? 0,
-    ] as const,
-    staleTime: 60_000,
-    enabled: !!token && !!owner && !!repo && !!meId && commentId > 0,
-    queryFn: async (): Promise<MyReactionsMap> => {
-      const client = getGitHubClient();
-      const list = await fetchAllPages(
-        (page) =>
-          client.request("GET /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions", {
-            owner,
-            repo,
-            comment_id: commentId,
-            per_page: 100,
-            page,
-          }),
-        (data) => ReactionListSchema.parse(data),
-      );
-      const map: MyReactionsMap = new Map();
-      for (const reaction of list) {
-        if (reaction.user?.id === meId) map.set(reaction.content, reaction.id);
-      }
-      return map;
+  const select = useMemo(() => selectMine({ kind: "reviewComment", id: commentId }), [commentId]);
+  return usePrViewerReactions(owner, repo, number, select);
+}
+
+function bumpReaction<T extends { reactions: Record<ReactionContent, number> }>(
+  item: T,
+  content: ReactionContent,
+  delta: number,
+): T {
+  return {
+    ...item,
+    reactions: {
+      ...item.reactions,
+      [content]: Math.max(0, (item.reactions[content] ?? 0) + delta),
     },
-  });
+  };
 }
 
 export function useToggleReviewCommentReaction(
@@ -1702,72 +1692,18 @@ export function useToggleReviewCommentReaction(
   prNumber: number,
   meId: number | undefined,
 ) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      commentId,
-      content,
-      existingReactionId,
-    }: {
-      commentId: number;
-      content: ReactionContent;
-      existingReactionId?: number;
-    }) => {
-      const client = getGitHubClient();
-      if (existingReactionId && existingReactionId > 0) {
-        await client.request(
-          "DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions/{reaction_id}",
-          { owner, repo, comment_id: commentId, reaction_id: existingReactionId },
-        );
-        return { newReactionId: null as number | null, content, commentId };
-      }
-      const res = await client.request(
-        "POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions",
-        { owner, repo, comment_id: commentId, content },
-      );
-      return { newReactionId: (res.data as { id: number }).id, content, commentId };
-    },
-    onMutate: async ({ commentId, content, existingReactionId }) => {
-      const key = pullsKeys.reviewComments(owner, repo, prNumber);
-      await queryClient.cancelQueries({ queryKey: key });
-      const prev = queryClient.getQueryData<ReviewComment[]>(key);
-      if (prev) {
-        queryClient.setQueryData<ReviewComment[]>(
-          key,
-          prev.map((c) => {
-            if (c.id !== commentId) return c;
-            const delta = existingReactionId ? -1 : 1;
-            return {
-              ...c,
-              reactions: {
-                ...c.reactions,
-                [content]: Math.max(0, (c.reactions[content] ?? 0) + delta),
-              },
-            };
-          }),
-        );
-      }
-      return { prev, key };
-    },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
-    },
-    onSuccess: ({ newReactionId, content, commentId }) => {
-      const myKey = [
-        ...pullsKeys.all,
-        "review-comment-reactions",
-        owner,
-        repo,
-        commentId,
-        meId ?? 0,
-      ];
-      queryClient.setQueryData<MyReactionsMap>(myKey, (old) => {
-        const next = new Map(old ?? []);
-        if (newReactionId != null) next.set(content, newReactionId);
-        else next.delete(content);
-        return next;
-      });
-    },
+  return useViewerReactionToggle({
+    owner,
+    repo,
+    meId,
+    reactionsKey: viewerReactionKeys.pr(owner, repo, prNumber),
+    countsKey: pullsKeys.reviewComments(owner, repo, prNumber),
+    targetOf: (vars: ReactionToggleVars & { commentId: number }) => ({
+      kind: "reviewComment",
+      id: vars.commentId,
+    }),
+    patchCounts: (list: ReviewComment[], vars, delta) =>
+      list.map((c) => (c.id === vars.commentId ? bumpReaction(c, vars.content, delta) : c)),
   });
 }
 
@@ -1819,7 +1755,7 @@ export function useThreadResolution(owner: string, repo: string, number: number)
     queryKey: pullsKeys.threadResolution(owner, repo, number),
     staleTime: 15_000,
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
     queryFn: async (): Promise<ThreadResolutionMap> => {
       const client = getGitHubClient();
       const map: ThreadResolutionMap = new Map();
@@ -1885,49 +1821,18 @@ export function useResolveThread(owner: string, repo: string, number: number) {
 
 // ─── PR comment reactions ─────────────────────────────────────────────────
 //
-// PR conversation comments use the same /issues/comments/{id}/reactions API
-// as issue comments. These hooks handle cache invalidation for PR-specific
-// query keys.
+// PR conversation comments are issue comments; the viewer's reactions on them
+// come from the same per-PR GraphQL request as review comments.
 
-function buildMyReactionsMap(
-  reactions: Array<{ id: number; content: string; user: { id: number } | null }>,
-  meId: number,
-): MyReactionsMap {
-  const m: MyReactionsMap = new Map();
-  for (const r of reactions) {
-    if (r.user?.id === meId) m.set(r.content as ReactionContent, r.id);
-  }
-  return m;
-}
-
+/** The viewer's reactions on one PR conversation comment. */
 export function useMyPrCommentReactions(
   owner: string,
   repo: string,
+  number: number,
   commentId: number,
-  meId: number | undefined,
 ) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    queryKey: [...pullsKeys.all, "comment-reactions", owner, repo, commentId, meId ?? 0] as const,
-    enabled: !!token && !!owner && !!repo && commentId > 0 && !!meId,
-    staleTime: 60_000,
-    queryFn: async (): Promise<MyReactionsMap> => {
-      const client = getGitHubClient();
-      const reactions = await fetchAllPages(
-        (page) =>
-          client.request("GET /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions", {
-            owner,
-            repo,
-            comment_id: commentId,
-            per_page: 100,
-            page,
-            headers: { accept: "application/vnd.github+json" },
-          }),
-        (data) => ReactionListSchema.parse(data),
-      );
-      return buildMyReactionsMap(reactions, meId as number);
-    },
-  });
+  const select = useMemo(() => selectMine({ kind: "comment", id: commentId }), [commentId]);
+  return usePrViewerReactions(owner, repo, number, select);
 }
 
 export function useTogglePrCommentReaction(
@@ -1936,102 +1841,18 @@ export function useTogglePrCommentReaction(
   prNumber: number,
   meId: number | undefined,
 ) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      commentId,
-      content,
-      existingReactionId,
-    }: {
-      commentId: number;
-      content: ReactionContent;
-      existingReactionId?: number;
-    }) => {
-      const client = getGitHubClient();
-      if (existingReactionId && existingReactionId > 0) {
-        await client.request(
-          "DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions/{reaction_id}",
-          {
-            owner,
-            repo,
-            comment_id: commentId,
-            reaction_id: existingReactionId,
-            headers: { accept: "application/vnd.github+json" },
-          },
-        );
-        return { newReactionId: null as number | null, content };
-      }
-      const res = await client.request(
-        "POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions",
-        {
-          owner,
-          repo,
-          comment_id: commentId,
-          content,
-          headers: { accept: "application/vnd.github+json" },
-        },
-      );
-      return { newReactionId: (res.data as { id: number }).id, content };
-    },
-    onMutate: async ({ commentId, content, existingReactionId }) => {
-      const commentsKey = pullsKeys.comments(owner, repo, prNumber);
-      const myKey = [
-        ...pullsKeys.all,
-        "comment-reactions",
-        owner,
-        repo,
-        commentId,
-        meId ?? 0,
-      ] as const;
-      await queryClient.cancelQueries({ queryKey: commentsKey });
-      await queryClient.cancelQueries({ queryKey: myKey });
-
-      const prevList = queryClient.getQueryData<IssueCommentOnPr[]>(commentsKey);
-      const prevMy = queryClient.getQueryData<MyReactionsMap>(myKey);
-      const delta = existingReactionId ? -1 : 1;
-
-      if (prevList) {
-        queryClient.setQueryData<IssueCommentOnPr[]>(
-          commentsKey,
-          prevList.map((c) =>
-            c.id === commentId
-              ? {
-                  ...c,
-                  reactions: {
-                    ...c.reactions,
-                    [content]: Math.max(0, (c.reactions[content] ?? 0) + delta),
-                  },
-                }
-              : c,
-          ),
-        );
-      }
-      const nextMy: MyReactionsMap = new Map(prevMy ?? EMPTY_MY_REACTIONS);
-      if (existingReactionId) nextMy.delete(content);
-      else nextMy.set(content, -Date.now());
-      queryClient.setQueryData(myKey, nextMy);
-
-      return { prevList, prevMy, commentsKey, myKey };
-    },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.prevList) queryClient.setQueryData(ctx.commentsKey, ctx.prevList);
-      if (ctx?.prevMy !== undefined) queryClient.setQueryData(ctx.myKey, ctx.prevMy);
-    },
-    onSuccess: (data, vars, ctx) => {
-      if (!ctx) return;
-      const current = queryClient.getQueryData<MyReactionsMap>(ctx.myKey);
-      if (!current) return;
-      const next = new Map(current);
-      if (data.newReactionId) next.set(vars.content, data.newReactionId);
-      else next.delete(vars.content);
-      queryClient.setQueryData(ctx.myKey, next);
-    },
-    onSettled: (_data, _err, vars) => {
-      queryClient.invalidateQueries({ queryKey: pullsKeys.comments(owner, repo, prNumber) });
-      queryClient.invalidateQueries({
-        queryKey: [...pullsKeys.all, "comment-reactions", owner, repo, vars.commentId, meId ?? 0],
-      });
-    },
+  return useViewerReactionToggle({
+    owner,
+    repo,
+    meId,
+    reactionsKey: viewerReactionKeys.pr(owner, repo, prNumber),
+    countsKey: pullsKeys.comments(owner, repo, prNumber),
+    targetOf: (vars: ReactionToggleVars & { commentId: number }) => ({
+      kind: "comment",
+      id: vars.commentId,
+    }),
+    patchCounts: (list: IssueCommentOnPr[], vars, delta) =>
+      list.map((c) => (c.id === vars.commentId ? bumpReaction(c, vars.content, delta) : c)),
   });
 }
 

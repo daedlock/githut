@@ -16,17 +16,17 @@ import { IssueSidebar } from "@/app/features/issues/components/IssueSidebar";
 import { IssueStatePill } from "@/app/features/issues/components/IssueStatePill";
 import {
   useDeleteIssueComment,
-  useMyCommentReactions,
-  useMyIssueReactions,
   useUpdateIssue,
   useUpdateIssueComment,
 } from "@/app/features/issues/hooks";
 import {
   EMPTY_MY_REACTIONS,
+  type MyReactionsMap,
   type ReactionContent,
   type RepoIssue,
   type RepoIssueComment,
 } from "@/app/features/issues/schemas";
+import { useIssueViewerReactions } from "@/app/features/issues/viewerReactions";
 import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
 import { useCanMutate } from "@/app/lib/connectivity";
@@ -77,9 +77,9 @@ export function IssueDetail({
   me,
   onBack,
 }: IssueDetailProps) {
-  // My reactions for the issue body itself. Per-comment fetches live inside
-  // CommentCardWithReactions so each comment has an independently-keyed cache.
-  const { data: myIssueReactions } = useMyIssueReactions(owner, repo, issue?.number, me?.id);
+  // The viewer's reactions on the body and every comment: one request per issue.
+  const { data: viewerReactions } = useIssueViewerReactions(owner, repo, issue?.number);
+  const myIssueReactions = viewerReactions?.subject;
   const updateIssueMutation = useUpdateIssue(owner, repo);
   const { canMutate, reason: cannotMutateReason } = useCanMutate();
 
@@ -218,10 +218,10 @@ export function IssueDetail({
                     <CommentCardWithReactions
                       owner={owner}
                       repo={repo}
-                      meId={me?.id}
                       meLogin={me?.login}
                       issueNumber={issue.number}
                       comment={c}
+                      myReactions={viewerReactions?.comments.get(c.id) ?? EMPTY_MY_REACTIONS}
                       onToggleReaction={onToggleCommentReaction}
                       participants={participants}
                     />
@@ -292,27 +292,23 @@ function IssueDetailSkeleton() {
   );
 }
 
-/**
- * Per-comment wrapper that owns its own my-reactions fetch. Each card has an
- * independently-keyed React Query entry so toggles don't thrash neighbors and
- * optimistic temp comments (negative ids) skip the network until promoted.
- */
+/** One issue comment with its edit/delete mutations and the viewer's reactions. */
 function CommentCardWithReactions({
   owner,
   repo,
-  meId,
   meLogin,
   issueNumber,
   comment,
+  myReactions,
   onToggleReaction,
   participants,
 }: {
   owner: string;
   repo: string;
-  meId: number | undefined;
   meLogin: string | undefined;
   issueNumber: number;
   comment: RepoIssueComment;
+  myReactions: MyReactionsMap;
   onToggleReaction: (
     commentId: number,
     content: ReactionContent,
@@ -320,7 +316,6 @@ function CommentCardWithReactions({
   ) => void;
   participants?: MentionUser[];
 }) {
-  const { data: myReactions } = useMyCommentReactions(owner, repo, comment.id, meId);
   const updateComment = useUpdateIssueComment(owner, repo, issueNumber);
   const deleteComment = useDeleteIssueComment(owner, repo, issueNumber);
   const isMine = !!meLogin && meLogin === comment.user.login;
@@ -331,7 +326,7 @@ function CommentCardWithReactions({
       avatarUrl={comment.user.avatar_url}
       date={comment.created_at}
       reactions={comment.reactions}
-      myReactions={myReactions ?? EMPTY_MY_REACTIONS}
+      myReactions={myReactions}
       onToggleReaction={(content, existingReactionId) =>
         onToggleReaction(comment.id, content, existingReactionId)
       }

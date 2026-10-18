@@ -1,10 +1,11 @@
+import type { QueryCache } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
-import { refreshTabOnFocus } from "@/app/lib/query";
+import { queryClient, refreshTabOnFocus } from "@/app/lib/query";
 import { useTabScope } from "@/app/lib/tabScope";
-import { bucketBackoff, type RateResource, useRateLimitStore } from "@/app/stores/rateLimit";
+import { getRateBackoff, type RateResource, useRateLimitStore } from "@/app/stores/rateLimit";
 import { useWorkspaceView } from "@/app/stores/workspaceView";
 import { focusedTab, type Workspace } from "@/app/workspace/model";
-import { useWorkspaceStore } from "@/app/workspace/store";
+import { getWorkspace, useWorkspaceStore } from "@/app/workspace/store";
 import { visibleTabIds } from "@/app/workspace/view";
 
 // ─── Freshness (ADR 0003, spec #24 → Freshness) ──────────────────────────────
@@ -26,6 +27,11 @@ import { visibleTabIds } from "@/app/workspace/view";
 //     bucket slows only its own queries 4×; an exhausted one pauses them.
 //   - Focusing an island refreshes stale data the same way returning to the
 //     window does (`IslandFocusRefresh`).
+//   - A page never re-renders because its tab's level changed. Live queries
+//     read the level when TanStack asks for their interval, and a level or
+//     backoff change re-times the observed queries directly
+//     (`retimeLiveQueries`). Re-rendering every page on each island focus
+//     cost thousands of components in islands the user didn't touch.
 
 export type FreshnessLevel = "focused" | "visible" | "background";
 
@@ -66,20 +72,66 @@ export function liveInterval(
 
 /**
  * Opt a query in to live polling. Returns `(kind, floor?) => refetchInterval`
- * for use inside a `refetchInterval` callback or as a plain value:
+ * to call inside a `refetchInterval` callback, never at render:
  *
  *   const live = useLiveInterval("graphql");
  *   useQuery({ ..., refetchInterval: (q) => live(isRunning(q) ? "ci" : "changing") });
  *
- * Outside a tab (sidebar, title bar) the visible cadence applies.
+ * The level and backoff are read when TanStack calls it, so the component
+ * subscribes to nothing; `followFreshness` re-times queries when either
+ * changes. Outside a tab (sidebar, title bar) the visible cadence applies.
  */
 export function useLiveInterval(resource: RateResource = "core") {
-  const level = useFreshnessLevel() ?? "visible";
-  const backoff = useRateLimitStore((state) => bucketBackoff(state.buckets[resource]));
+  const { tabId } = useTabScope();
+  useEffect(followFreshness, []);
   return useCallback(
-    (kind: LiveKind, floor?: number) => liveInterval(level, kind, { floor, backoff }),
-    [level, backoff],
+    (kind: LiveKind, floor?: number) =>
+      liveInterval(currentLevel(tabId), kind, { floor, backoff: getRateBackoff(resource) }),
+    [tabId, resource],
   );
+}
+
+function currentLevel(tabId: string | null | undefined): FreshnessLevel {
+  return tabId
+    ? freshnessLevel(getWorkspace(), useWorkspaceView.getState().narrow, tabId)
+    : "visible";
+}
+
+/**
+ * Re-evaluate the refetch interval of every observed query in `cache`, as
+ * TanStack does when options change, without touching React. Unobserved
+ * queries (background tabs) have no timer to re-time.
+ */
+export function retimeLiveQueries(cache: QueryCache) {
+  for (const query of cache.getAll()) {
+    // Same options: no fetch, no result change, only the timer is re-checked.
+    for (const observer of query.observers) observer.setOptions(observer.options);
+  }
+}
+
+/** Where tabs sit: the focused tab and the visible ones. Changes exactly when a level does. */
+function levelKey(workspace: Workspace, narrow: boolean): string {
+  return `${focusedTab(workspace).id}|${[...visibleTabIds(workspace, narrow)].sort().join(",")}`;
+}
+
+let following = false;
+
+/** Once per window: re-time live queries whenever a tab's level or a bucket's backoff changes. */
+function followFreshness() {
+  if (following) return;
+  following = true;
+  let key = levelKey(getWorkspace(), useWorkspaceView.getState().narrow);
+  const levelsChanged = () => {
+    const next = levelKey(getWorkspace(), useWorkspaceView.getState().narrow);
+    if (next === key) return;
+    key = next;
+    retimeLiveQueries(queryClient.getQueryCache());
+  };
+  useWorkspaceStore.subscribe(levelsChanged);
+  useWorkspaceView.subscribe(levelsChanged);
+  useRateLimitStore.subscribe((state, prev) => {
+    if (state.buckets !== prev.buckets) retimeLiveQueries(queryClient.getQueryCache());
+  });
 }
 
 /**

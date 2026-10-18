@@ -1,6 +1,15 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterContextProvider, RouterProvider } from "@tanstack/react-router";
-import { Activity, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Activity,
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { CommandPalette } from "@/app/components/CommandPalette";
 import { FileHistorySheet } from "@/app/components/code/FileHistorySheet";
@@ -20,6 +29,7 @@ import { TooltipProvider } from "@/app/components/ui/tooltip";
 
 import { IslandFocusRefresh } from "@/app/lib/freshness";
 import { tabQueryClient } from "@/app/lib/query";
+import { restoreScroll } from "@/app/lib/scrollRestore";
 import { getTabRouter, releaseTabRouter } from "@/app/lib/tabRouters";
 import { type TabScope, TabScopeContext } from "@/app/lib/tabScope";
 import { useAuthStore } from "@/app/stores/auth";
@@ -51,7 +61,11 @@ export function TabHost() {
 
   // Open tabs, most recently focused first; keepAliveTabs trims them to the
   // keep-alive budget and adds every island's selected tab and every pin.
+  // The set keeps its identity while its members don't change, so renderPanes
+  // does too and focusing an island re-renders only the two islands whose
+  // focus changed (IslandFrame is memoized on it).
   const recent = useRef<string[]>([]);
+  const lastMounted = useRef<ReadonlySet<string> | undefined>(undefined);
   const mounted = useMemo(() => {
     const all = islands(layout);
     const open = new Set(all.flatMap((i) => i.tabs.map((t) => t.id)));
@@ -59,7 +73,13 @@ export function TabHost() {
       focused.id,
       ...recent.current.filter((id) => id !== focused.id && open.has(id)),
     ];
-    return keepAliveTabs(layout, recent.current, visibleIslandIds(workspace, narrow));
+    lastMounted.current = keepAliveTabs(
+      layout,
+      recent.current,
+      visibleIslandIds(workspace, narrow),
+      lastMounted.current,
+    );
+    return lastMounted.current;
   }, [layout, focused.id, workspace, narrow]);
 
   // React releases the pane; release its router too. Query data and scroll
@@ -72,24 +92,16 @@ export function TabHost() {
 
   const focusedRouter = getTabRouter(focused.id, focused.href);
 
-  const renderPanes = (island: Island, shown: boolean) =>
-    island.tabs
-      .filter((t) => mounted.has(t.id))
-      .map((t) => (
-        <Activity key={t.id} mode={shown && t.id === island.selectedTabId ? "visible" : "hidden"}>
-          <TabPane id={t.id} href={t.href} />
-        </Activity>
-      ));
-
-  const overlays = (
-    <>
-      <DocumentTitle />
-      <TabShortcuts />
-      <LinkHoverMenu />
-      <CommandPalette />
-      <KeyboardHelp />
-      <FileHistorySheet />
-    </>
+  const renderPanes = useCallback(
+    (island: Island, shown: boolean) =>
+      island.tabs
+        .filter((t) => mounted.has(t.id))
+        .map((t) => (
+          <Activity key={t.id} mode={shown && t.id === island.selectedTabId ? "visible" : "hidden"}>
+            <TabPane id={t.id} href={t.href} />
+          </Activity>
+        )),
+    [mounted],
   );
 
   // Signed out (the login page) there is no workspace yet: the focused tab
@@ -98,7 +110,7 @@ export function TabHost() {
     return (
       <main className="relative h-full">
         {renderPanes(focusedIsland(workspace), true)}
-        <RouterContextProvider router={focusedRouter}>{overlays}</RouterContextProvider>
+        <RouterContextProvider router={focusedRouter}>{OVERLAYS}</RouterContextProvider>
       </main>
     );
   }
@@ -108,10 +120,8 @@ export function TabHost() {
       <RepoMarkScope>
         <div className="relative flex h-full flex-col bg-(--color-frame) pt-[max(0.5rem,env(safe-area-inset-top))] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[max(0.5rem,env(safe-area-inset-left))]">
           <RouterContextProvider router={focusedRouter}>
-            {overlays}
-            <LayoutUndo />
-            <Toaster position="bottom-center" />
-            <SettingsModal />
+            {OVERLAYS}
+            {WORKSPACE_OVERLAYS}
             <WorkspaceArea>
               <IslandLayout
                 layout={layout}
@@ -129,6 +139,28 @@ export function TabHost() {
     </TooltipProvider>
   );
 }
+
+// Window-wide overlays. Hoisted so a workspace change (an island focus) re-renders
+// only those that read what changed, not every overlay with the host.
+const OVERLAYS = (
+  <>
+    <DocumentTitle />
+    <TabShortcuts />
+    <LinkHoverMenu />
+    <CommandPalette />
+    <KeyboardHelp />
+    <FileHistorySheet />
+  </>
+);
+
+// One Toaster for the whole window, centred under the workspace.
+const WORKSPACE_OVERLAYS = (
+  <>
+    <LayoutUndo />
+    <Toaster position="bottom-center" />
+    <SettingsModal />
+  </>
+);
 
 // Scroll offsets survive hide/show (display:none resets scrollTop). Effects are
 // torn down on hide, so this lives outside React.
@@ -150,47 +182,42 @@ const TabPane = memo(
       [id],
     );
 
-    // Runs on every reveal (Activity re-mounts effects), before paint. A tab
-    // rebuilt after its router was released has no content on first commit
-    // (the router loads in an effect), so keep restoring each frame until the
-    // page is tall enough, the user scrolls, or a few seconds pass.
+    // Runs on every reveal (Activity re-mounts effects). Nothing here may read
+    // or write geometry synchronously: the pane was display:none, so any such
+    // access would force a full layout of it inside the click. The restore
+    // runs in the next frame instead (still before it paints) and keeps
+    // retrying while a rebuilt page is still too short; see restoreScroll.
     useLayoutEffect(() => {
       const el = ref.current;
       if (!el) return;
-      const target = scrollMemory.get(id) ?? 0;
-      let frame = 0;
-      let restoring = true;
-      const stop = () => {
-        restoring = false;
-        cancelAnimationFrame(frame);
-      };
-      const deadline = performance.now() + 3000;
-      const restore = () => {
-        el.scrollTop = target;
-        if (Math.abs(el.scrollTop - target) <= 1 || performance.now() > deadline) stop();
-        else frame = requestAnimationFrame(restore);
-      };
+      const restore = restoreScroll(el, scrollMemory.get(id) ?? 0);
       const onScroll = () => {
-        if (!restoring) scrollMemory.set(id, el.scrollTop);
+        if (!restore.restoring) scrollMemory.set(id, el.scrollTop);
       };
-      restore();
       const interactions = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
-      for (const type of interactions) el.addEventListener(type, stop, { passive: true });
+      for (const type of interactions) el.addEventListener(type, restore.stop, { passive: true });
       el.addEventListener("scroll", onScroll, { passive: true });
       return () => {
-        stop();
-        for (const type of interactions) el.removeEventListener(type, stop);
+        restore.stop();
+        for (const type of interactions) el.removeEventListener(type, restore.stop);
         el.removeEventListener("scroll", onScroll);
       };
     }, [id]);
 
     // Pages size full-height regions against the pane, not the viewport:
-    // `var(--pane-height, 100dvh)`.
+    // `var(--pane-height, 100dvh)`. The observer reports after layout, so on a
+    // reveal (the property survives display:none) there is no forced read; only
+    // a pane's very first commit measures synchronously, while it is empty.
     useLayoutEffect(() => {
       const el = ref.current;
       if (!el) return;
-      const sync = () => el.style.setProperty("--pane-height", `${el.clientHeight}px`);
-      sync();
+      const sync = () => {
+        const height = `${el.clientHeight}px`;
+        if (el.style.getPropertyValue("--pane-height") !== height) {
+          el.style.setProperty("--pane-height", height);
+        }
+      };
+      if (!el.style.getPropertyValue("--pane-height")) sync();
       const ro = new ResizeObserver(sync);
       ro.observe(el);
       return () => ro.disconnect();

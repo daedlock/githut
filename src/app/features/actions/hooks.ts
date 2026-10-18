@@ -282,7 +282,7 @@ export function useRunArtifacts(owner: string, repo: string, runId: number, run?
   return useQuery({
     ...runArtifactsQueryOptions(owner, repo, runId),
     enabled: !!token && validId(runId) && !!run,
-    refetchInterval: live(!!status && status !== "completed" && "ci", 10_000),
+    refetchInterval: () => live(!!status && status !== "completed" && "ci", 10_000),
   });
 }
 

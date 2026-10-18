@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Fragment } from "react";
+import { Fragment, memo, useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -256,19 +256,63 @@ function fontStyleToCSS(fs: number | undefined): React.CSSProperties {
   };
 }
 
-export function GithubMarkdown({
-  children,
-  assetContext,
-  repoContext,
-}: {
+type GithubMarkdownProps = {
   children: string;
   assetContext?: MarkdownAssetContext;
   repoContext?: RepoContext;
-}) {
-  const components = assetContext ? buildComponents(assetContext) : MARKDOWN_COMPONENTS_NO_CONTEXT;
-  const remarkPlugins = repoContext
-    ? [remarkGfm, remarkMentions(repoContext)]
-    : [remarkGfm, remarkMentions()];
+};
+
+function sameAssetContext(a?: MarkdownAssetContext, b?: MarkdownAssetContext) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.owner === b.owner && a.repo === b.repo && a.ref === b.ref && a.basePath === b.basePath;
+}
+
+function sameRepoContext(a?: RepoContext, b?: RepoContext) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.owner === b.owner && a.repo === b.repo;
+}
+
+/**
+ * Whether two renders would produce the same markdown. Contexts compare by
+ * value, so callers may pass fresh `{ owner, repo }` literals.
+ */
+export function sameMarkdownInputs(a: GithubMarkdownProps, b: GithubMarkdownProps): boolean {
+  return (
+    a.children === b.children &&
+    sameAssetContext(a.assetContext, b.assetContext) &&
+    sameRepoContext(a.repoContext, b.repoContext)
+  );
+}
+
+/**
+ * GitHub-flavoured markdown. ReactMarkdown re-parses its whole source on every
+ * render, so this only re-renders when the source or a context changes (#59).
+ */
+export const GithubMarkdown = memo(function GithubMarkdown({
+  children,
+  assetContext,
+  repoContext,
+}: GithubMarkdownProps) {
+  const { owner: assetOwner, repo: assetRepo, ref, basePath } = assetContext ?? {};
+  const components = useMemo(
+    () =>
+      assetOwner !== undefined && assetRepo !== undefined
+        ? buildComponents({ owner: assetOwner, repo: assetRepo, ref, basePath })
+        : MARKDOWN_COMPONENTS_NO_CONTEXT,
+    [assetOwner, assetRepo, ref, basePath],
+  );
+  const { owner, repo } = repoContext ?? {};
+  const remarkPlugins = useMemo<PluggableList>(
+    () => [
+      remarkGfm,
+      owner !== undefined && repo !== undefined
+        ? remarkMentions({ owner, repo })
+        : remarkMentions(),
+    ],
+    [owner, repo],
+  );
   return (
     <ReactMarkdown
       remarkPlugins={remarkPlugins}
@@ -278,4 +322,4 @@ export function GithubMarkdown({
       {children}
     </ReactMarkdown>
   );
-}
+}, sameMarkdownInputs);
