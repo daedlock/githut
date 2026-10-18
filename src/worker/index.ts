@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "./env";
+import { fetchGitHubMeta, githubPathFor, injectMeta, isLinkPreviewBot } from "./og";
 import { previewOrigin } from "./previewAuth";
 
 const OAUTH_SCOPES = "repo read:user read:org";
@@ -323,6 +324,21 @@ app.get("/api/actions/jobs/:jobId/logs", async (c) => {
     { error: "github_error", status: gh.status, detail: bodyText.slice(0, 200) },
     gh.status === 401 || gh.status === 403 || gh.status === 404 ? gh.status : 502,
   );
+});
+
+// Link-preview crawlers get GitHub's OG tags for the matching page; everyone
+// else gets the plain SPA shell straight from assets.
+app.get("*", async (c) => {
+  const url = new URL(c.req.url);
+  const githubPath = isLinkPreviewBot(c.req.header("User-Agent")) ? githubPathFor(url) : null;
+  if (!githubPath) return c.env.ASSETS.fetch(c.req.raw);
+
+  const [shell, meta] = await Promise.all([
+    c.env.ASSETS.fetch(new Request(new URL("/", url), { headers: { Accept: "text/html" } })),
+    fetchGitHubMeta(githubPath, c.executionCtx),
+  ]);
+  if (!meta || !shell.ok) return c.env.ASSETS.fetch(c.req.raw);
+  return injectMeta(shell, meta, `${c.env.APP_URL}${url.pathname}${url.search}`);
 });
 
 app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));
