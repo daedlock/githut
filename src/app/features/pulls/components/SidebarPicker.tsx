@@ -151,6 +151,7 @@ export function SidebarPicker({
                     <CommandItem
                       key={item.id}
                       value={item.id}
+                      style={{ contentVisibility: "auto", containIntrinsicSize: "auto 32px" }}
                       data-checked={isSelected ? "true" : isMixed ? "mixed" : "false"}
                       onSelect={() => {
                         if (unavailable) return;

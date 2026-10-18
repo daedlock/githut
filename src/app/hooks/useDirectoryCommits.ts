@@ -48,14 +48,14 @@ export const directoryCommitsQueryOptions = (
           )
           .join("\n");
         const variables = batch.map((_, i) => `$p${i}: String!`).join(", ");
-        // object(expression:) accepts branch names, tags and commit SHAs, like REST's sha.
+        // Peel annotated tags too: their GitObject is a Tag, not a Commit.
         const query = ref
           ? `query($owner: String!, $repo: String!, $ref: String!, ${variables}) { repository(owner: $owner, name: $repo) { head: object(expression: $ref) { ... on Commit { ${histories} } } } }`
           : `query($owner: String!, $repo: String!, ${variables}) { repository(owner: $owner, name: $repo) { head: defaultBranchRef { target { ... on Commit { ${histories} } } } } }`;
         const raw = await client.graphql(query, {
           owner,
           repo,
-          ...(ref ? { ref } : {}),
+          ...(ref ? { ref: `${ref}^{commit}` } : {}),
           ...Object.fromEntries(batch.map((path, i) => [`p${i}`, path])),
           request: { signal },
         });

@@ -1,7 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { QueryClient } from "@tanstack/react-query";
-import { directoryCommitsQueryOptions } from "./useDirectoryCommits";
 import { useAuthStore } from "@/app/stores/auth";
+import { directoryCommitsQueryOptions } from "./useDirectoryCommits";
 
 const originalFetch = globalThis.fetch;
 const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -19,7 +19,7 @@ test("116 directory rows use three requests and retain each path's commit", asyn
     const paths = Object.entries(variables).filter(([key]) => /^p\d+$/.test(key));
     sizes.push(paths.length);
     expect(query).toContain("object(expression: $ref)");
-    expect(variables.ref).toBe("feature/topic");
+    expect(variables.ref).toBe("feature/topic^{commit}");
     return Response.json({
       data: {
         repository: {
@@ -73,4 +73,37 @@ test("default branch supports empty histories and an empty directory makes no re
   });
   expect(await client.fetchQuery(directoryCommitsQueryOptions("demo", "repo", []))).toEqual({});
   expect(calls).toBe(1);
+});
+
+test("annotated tags are peeled to a commit before reading path histories", async () => {
+  useAuthStore.setState({ token: "tag-fixture" });
+  globalThis.fetch = (async (_input, init) => {
+    const { variables } = JSON.parse(String(init?.body));
+    // GitHub returns a Tag without a Commit fragment for the unpeeled name.
+    return Response.json({
+      data: {
+        repository: {
+          head:
+            variables.ref === "v1.0^{commit}"
+              ? {
+                  p0: {
+                    nodes: [
+                      {
+                        oid: "tagged123",
+                        message: "Tagged version",
+                        committedDate: "2026-10-18T12:00:00Z",
+                        author: null,
+                      },
+                    ],
+                  },
+                }
+              : {},
+        },
+      },
+    });
+  }) as typeof fetch;
+  expect(
+    (await client.fetchQuery(directoryCommitsQueryOptions("demo", "repo", ["file"], "v1.0"))).file
+      ?.message,
+  ).toBe("Tagged version");
 });
