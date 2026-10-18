@@ -99,7 +99,7 @@ export function useReviewRequestedPrs() {
     queryKey: ["dashboard", "your-work", "review-requested"] as const,
     enabled: !!token,
     staleTime: 30_000,
-    refetchInterval: live("changing", SEARCH_FLOOR),
+    refetchInterval: () => live("changing", SEARCH_FLOOR),
     queryFn: () =>
       fetchSearch(
         "is:open is:pr review-requested:@me archived:false",
@@ -121,7 +121,7 @@ export function useMyOpenPrs() {
     queryKey: ["dashboard", "my-open-prs", since] as const,
     enabled: !!token,
     staleTime: 30_000,
-    refetchInterval: live("changing", SEARCH_FLOOR),
+    refetchInterval: () => live("changing", SEARCH_FLOOR),
     queryFn: () =>
       fetchSearch(
         `is:open is:pr author:@me archived:false updated:>=${since}`,
