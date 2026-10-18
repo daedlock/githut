@@ -20,6 +20,7 @@ import { TooltipProvider } from "@/app/components/ui/tooltip";
 
 import { IslandFocusRefresh } from "@/app/lib/freshness";
 import { tabQueryClient } from "@/app/lib/query";
+import { restoreScroll } from "@/app/lib/scrollRestore";
 import { getTabRouter, releaseTabRouter } from "@/app/lib/tabRouters";
 import { type TabScope, TabScopeContext } from "@/app/lib/tabScope";
 import { useAuthStore } from "@/app/stores/auth";
@@ -150,47 +151,42 @@ const TabPane = memo(
       [id],
     );
 
-    // Runs on every reveal (Activity re-mounts effects), before paint. A tab
-    // rebuilt after its router was released has no content on first commit
-    // (the router loads in an effect), so keep restoring each frame until the
-    // page is tall enough, the user scrolls, or a few seconds pass.
+    // Runs on every reveal (Activity re-mounts effects). Nothing here may read
+    // or write geometry synchronously: the pane was display:none, so any such
+    // access would force a full layout of it inside the click. The restore
+    // runs in the next frame instead (still before it paints) and keeps
+    // retrying while a rebuilt page is still too short; see restoreScroll.
     useLayoutEffect(() => {
       const el = ref.current;
       if (!el) return;
-      const target = scrollMemory.get(id) ?? 0;
-      let frame = 0;
-      let restoring = true;
-      const stop = () => {
-        restoring = false;
-        cancelAnimationFrame(frame);
-      };
-      const deadline = performance.now() + 3000;
-      const restore = () => {
-        el.scrollTop = target;
-        if (Math.abs(el.scrollTop - target) <= 1 || performance.now() > deadline) stop();
-        else frame = requestAnimationFrame(restore);
-      };
+      const restore = restoreScroll(el, scrollMemory.get(id) ?? 0);
       const onScroll = () => {
-        if (!restoring) scrollMemory.set(id, el.scrollTop);
+        if (!restore.restoring) scrollMemory.set(id, el.scrollTop);
       };
-      restore();
       const interactions = ["wheel", "touchstart", "pointerdown", "keydown"] as const;
-      for (const type of interactions) el.addEventListener(type, stop, { passive: true });
+      for (const type of interactions) el.addEventListener(type, restore.stop, { passive: true });
       el.addEventListener("scroll", onScroll, { passive: true });
       return () => {
-        stop();
-        for (const type of interactions) el.removeEventListener(type, stop);
+        restore.stop();
+        for (const type of interactions) el.removeEventListener(type, restore.stop);
         el.removeEventListener("scroll", onScroll);
       };
     }, [id]);
 
     // Pages size full-height regions against the pane, not the viewport:
-    // `var(--pane-height, 100dvh)`.
+    // `var(--pane-height, 100dvh)`. The observer reports after layout, so on a
+    // reveal (the property survives display:none) there is no forced read; only
+    // a pane's very first commit measures synchronously, while it is empty.
     useLayoutEffect(() => {
       const el = ref.current;
       if (!el) return;
-      const sync = () => el.style.setProperty("--pane-height", `${el.clientHeight}px`);
-      sync();
+      const sync = () => {
+        const height = `${el.clientHeight}px`;
+        if (el.style.getPropertyValue("--pane-height") !== height) {
+          el.style.setProperty("--pane-height", height);
+        }
+      };
+      if (!el.style.getPropertyValue("--pane-height")) sync();
       const ro = new ResizeObserver(sync);
       ro.observe(el);
       return () => ro.disconnect();

@@ -102,11 +102,18 @@ export function DiffLayout({
   const [treePopoverOpen, setTreePopoverOpen] = useState(false);
 
   // Layout follows the island, not the window: measure the layout itself.
+  // Measure synchronously only on first mount (so the first paint picks the
+  // right tree/split mode). This effect re-runs when the tab is revealed; the
+  // width survives that, and a synchronous read there would force a layout
+  // of the whole diff inside the click, so the observer's first report
+  // (after layout, before paint) covers any change.
+  const measured = useRef(false);
   useLayoutEffect(() => {
     const layout = layoutRef.current;
     if (!layout) return;
     const sync = () => setLayoutWidth(layout.clientWidth);
-    sync();
+    if (!measured.current) sync();
+    measured.current = true;
     const observer = new ResizeObserver(sync);
     observer.observe(layout);
     return () => observer.disconnect();

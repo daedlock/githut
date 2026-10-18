@@ -103,9 +103,10 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
         strip.scrollLeft = right - strip.clientWidth;
       }
     };
-    reveal();
-    // The island can resize and the selected title can arrive late: re-check
-    // on those only. Other tabs resizing (titles, unread dots) must not undo
+    // No synchronous reveal(): this runs on every tab switch, where reading
+    // offsets would force a layout of the just-revealed pane. The observer's
+    // first report (after layout, before paint) does it. The island can
+    // resize and the selected title can arrive late: re-check on those only. Other tabs resizing (titles, unread dots) must not undo
     // the user's own scroll of the strip.
     const ro = new ResizeObserver(reveal);
     ro.observe(strip);
@@ -125,7 +126,7 @@ export function TabStrip({ island, focused }: { island: Island; focused: boolean
       const end = strip.scrollLeft < hidden - 1;
       setFade((f) => (f.start === start && f.end === end ? f : { start, end }));
     };
-    measure();
+    // The observer's first report measures, after layout (see above).
     const ro = new ResizeObserver(measure);
     ro.observe(strip);
     for (const item of strip.querySelectorAll<HTMLElement>("[data-tab-id]")) ro.observe(item);
