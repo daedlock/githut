@@ -140,7 +140,6 @@ export function InlineThread({ owner, repo, number, root, replies }: InlineThrea
               repo={repo}
               number={number}
               comment={c}
-              meId={meId}
               meLogin={meLogin}
               participants={participants}
               onToggleReaction={(content, existingId) =>
@@ -219,7 +218,6 @@ function ThreadComment({
   repo,
   number,
   comment,
-  meId,
   meLogin,
   participants,
   onToggleReaction,
@@ -228,12 +226,11 @@ function ThreadComment({
   repo: string;
   number: number;
   comment: ReviewComment;
-  meId: number | undefined;
   meLogin: string | undefined;
   participants: MentionUser[];
   onToggleReaction: (content: ReactionContent, existingId?: number) => void;
 }) {
-  const myReactionsQuery = useMyReviewCommentReactions(owner, repo, comment.id, meId);
+  const myReactionsQuery = useMyReviewCommentReactions(owner, repo, number, comment.id);
   const myReactions = myReactionsQuery.data ?? EMPTY_MY_REACTIONS;
   const updateMutation = useUpdateReviewComment(owner, repo, number);
   const deleteMutation = useDeleteReviewComment(owner, repo, number);
