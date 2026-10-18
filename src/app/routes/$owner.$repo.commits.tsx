@@ -7,6 +7,7 @@ import { CommitRow } from "@/app/components/repo/CommitRow";
 import { Button } from "@/app/components/ui/button";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
+import { useVisibleSignal } from "@/app/features/activity/visibleSignal";
 import { useListNavigation } from "@/app/hooks/useListNavigation";
 import { repoQueryOptions, useRepo } from "@/app/hooks/useRepo";
 import { repoBranchesQueryOptions, useRepoBranches } from "@/app/hooks/useRepoBranches";
@@ -36,6 +37,18 @@ function CommitsPage() {
   const defaultBranch = repoData?.default_branch;
   const branch = searchBranch ?? defaultBranch;
   const commitsQuery = useInfiniteRepoCommits(owner, repo, branch);
+  const head = commitsQuery.data?.pages[0]?.[0];
+  useVisibleSignal(
+    "/" +
+      owner +
+      "/" +
+      repo +
+      "/commits?branch=" +
+      encodeURIComponent(JSON.stringify(searchBranch ?? "")),
+    head?.sha,
+    Date.parse(head?.commit.committer.date ?? "") || 0,
+    commitsQuery.dataUpdatedAt,
+  );
   const commits = useMemo(() => commitsQuery.data?.pages.flat() ?? [], [commitsQuery.data]);
 
   const grouped = useMemo(() => groupByDay(commits, (c) => c.commit.author.date), [commits]);

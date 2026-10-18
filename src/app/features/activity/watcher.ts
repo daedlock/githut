@@ -1,6 +1,7 @@
 import { onlineManager } from "@tanstack/react-query";
 import { issueKeys } from "@/app/features/issues/hooks";
 import {
+  isParticipating,
   type NotificationFeed,
   notificationHref,
   notificationPageKey,
@@ -19,7 +20,8 @@ import { useWorkspaceView } from "@/app/stores/workspaceView";
 import { focusedTab, islands } from "@/app/workspace/model";
 import { useWorkspaceStore } from "@/app/workspace/store";
 import { visibleTabIds } from "@/app/workspace/view";
-import { fetchTabStatuses, pageEntity, STATUS_BATCH_SIZE } from "./api";
+import { fetchActionSignal, fetchTabStatuses, pageEntity, STATUS_BATCH_SIZE } from "./api";
+import { activityPage, useIssueActivityFilters } from "./pages";
 import {
   acknowledgePage as acknowledgeStoredPage,
   publishStatuses,
@@ -30,6 +32,7 @@ type Session = {
   token: string;
   attempts: Map<string, number>;
   views: Map<string, number>;
+  shown: Map<string, number>;
   notifications: Set<string>;
   /** The focused page being viewed (`tabId:pageKey`), its page key, and the last time it was seen on screen. */
   visit: string | null;
@@ -37,6 +40,7 @@ type Session = {
   visitSeenAt: number;
   /** Start of the last background status round; every background page shares one cadence. */
   roundAt: number;
+  actionsAt: number;
   controller: AbortController;
   identityAt: number;
   pending?: Promise<void>;
@@ -61,11 +65,13 @@ function currentSession(): Session | undefined {
           token,
           attempts: new Map(),
           views: new Map(),
+          shown: new Map(),
           notifications: new Set(),
           visit: null,
           visitPage: null,
           visitSeenAt: 0,
           roundAt: 0,
+          actionsAt: 0,
           controller: new AbortController(),
           identityAt: 0,
         }
@@ -80,12 +86,12 @@ function backgroundPages() {
   const shown = visibleTabIds(workspace, useWorkspaceView.getState().narrow);
   const tabs = islands(workspace.layout).flatMap((island) => island.tabs);
   const visiblePages = new Set(
-    tabs.filter((tab) => shown.has(tab.id)).map((tab) => notificationPageKey(tab.href)),
+    tabs.filter((tab) => shown.has(tab.id)).map((tab) => activityPage(tab.href, tab.id)?.key),
   );
   return [
     ...new Map(
       tabs.flatMap((tab) => {
-        const page = pageEntity(tab.href);
+        const page = activityPage(tab.href, tab.id);
         return page && !visiblePages.has(page.key) ? [[page.key, page] as const] : [];
       }),
     ).values(),
@@ -127,6 +133,27 @@ function acknowledgePage(key: string, at: number) {
  */
 function recordView(active: Session, now: number) {
   const { workspace } = useWorkspaceStore.getState();
+  // List/code/action signals acknowledge every shown pane; entity details
+  // retain their existing focused-visit/notification semantics.
+  const nextShown = new Map<string, number>();
+  if (windowVisible()) {
+    const shown = visibleTabIds(workspace, useWorkspaceView.getState().narrow);
+    for (const tab of islands(workspace.layout).flatMap((island) => island.tabs)) {
+      const page = activityPage(tab.href, tab.id);
+      if (page && page.kind !== "pull" && page.kind !== "issue" && shown.has(tab.id)) {
+        const at = Math.max(active.shown.get(page.key) ?? 0, now);
+        nextShown.set(page.key, at);
+        active.views.set(page.key, at);
+        acknowledgePage(page.key, active.shown.has(page.key) ? 0 : at);
+      }
+    }
+  }
+  for (const [key, at] of active.shown)
+    if (!nextShown.has(key)) {
+      active.views.set(key, at);
+      acknowledgeStoredPage(key, at);
+    }
+  active.shown = nextShown;
   const tab = focusedTab(workspace);
   const page = pageEntity(tab.href);
   const viewing =
@@ -180,8 +207,8 @@ function notificationPages(): Map<string, boolean> | undefined {
 }
 
 /** Shared notification read state wins over the local fallback, including device-only unread. */
-export function pageIsUnread(href: string): boolean {
-  const key = notificationPageKey(href);
+export function pageIsUnread(href: string, tabId?: string): boolean {
+  const key = activityPage(href, tabId)?.key ?? notificationPageKey(href);
   const pages = notificationPages();
   if (pages?.has(key)) return pages.get(key)!;
   const { account, statuses, seen } = useTabActivityStore.getState();
@@ -211,8 +238,22 @@ function reconcileNotifications(active: Session, now: number) {
 export async function refreshBackgroundTabs(now = Date.now()): Promise<void> {
   const active = currentSession();
   if (!active) return;
+  const tabIds = new Set(
+    islands(useWorkspaceStore.getState().workspace.layout).flatMap((i) => i.tabs.map((t) => t.id)),
+  );
+  const filters = useIssueActivityFilters.getState().tabs;
+  if (Object.keys(filters).some((id) => !tabIds.has(id)))
+    useIssueActivityFilters.setState({
+      tabs: Object.fromEntries(Object.entries(filters).filter(([id]) => tabIds.has(id))),
+    });
+  const pullText = useIssueActivityFilters.getState().pullText;
+  if (Object.keys(pullText).some((id) => !tabIds.has(id)))
+    useIssueActivityFilters.setState({
+      pullText: Object.fromEntries(Object.entries(pullText).filter(([id]) => tabIds.has(id))),
+    });
   recordView(active, now);
   reconcileNotifications(active, now);
+  publishInbox(active, now);
   if (!canRefresh()) return;
   if (active.pending) {
     await active.pending;
@@ -225,7 +266,12 @@ export async function refreshBackgroundTabs(now = Date.now()): Promise<void> {
   const round = now - active.roundAt >= cadence;
   if (round) active.roundAt = now;
   const due = round
-    ? backgroundPages().filter((page) => now - lastObserved(active, page.key) >= cadence / 2)
+    ? backgroundPages().filter(
+        (page) =>
+          page.kind !== "actions" &&
+          page.kind !== "inbox" &&
+          now - lastObserved(active, page.key) >= cadence / 2,
+      )
     : [];
   // A window containing only visible copies still needs a verified account
   // for local read history; this small identity read runs once, not every tick.
@@ -233,9 +279,15 @@ export async function refreshBackgroundTabs(now = Date.now()): Promise<void> {
     !useTabActivityStore.getState().account &&
     now - active.identityAt >= cadence &&
     islands(useWorkspaceStore.getState().workspace.layout).some((island) =>
-      island.tabs.some((tab) => pageEntity(tab.href)),
+      island.tabs.some((tab) => activityPage(tab.href, tab.id)),
     );
-  if (!due.length && !identify) return;
+  const actionsCadence = 60_000 * getRateBackoff("core", now);
+  const actionsDue =
+    now - active.actionsAt >= actionsCadence
+      ? backgroundPages().filter((page) => page.kind === "actions")
+      : [];
+  if (actionsDue.length) active.actionsAt = now;
+  if (!due.length && !identify && !actionsDue.length) return;
   active.pending = (async () => {
     for (
       let offset = 0;
@@ -267,6 +319,27 @@ export async function refreshBackgroundTabs(now = Date.now()): Promise<void> {
         // Retain the last successful metadata; retry on the next ordinary cadence.
       }
     }
+    for (const page of actionsDue) {
+      if (
+        session !== active ||
+        useAuthStore.getState().token !== active.token ||
+        !canRefresh() ||
+        getRateBackoff("core", now) === Infinity
+      )
+        break;
+      if (page.kind !== "actions" || !backgroundPages().some((p) => p.key === page.key)) continue;
+      try {
+        const item = await fetchActionSignal(page, active.controller.signal);
+        const account = useTabActivityStore.getState().account;
+        if (session !== active || useAuthStore.getState().token !== active.token || !canRefresh())
+          break;
+        recordView(active, now);
+        if (account) publishStatuses(account, [item], now, active.views);
+      } catch {
+        /* Retain the last successful signal and ordinary retry cadence. */
+      }
+    }
+    publishInbox(active, now);
   })();
   try {
     await active.pending;
@@ -290,6 +363,7 @@ export function startBackgroundWatcher(): () => void {
   const timer = setInterval(refresh, 1000);
   const cleanups = [
     useWorkspaceStore.subscribe(refresh),
+    useIssueActivityFilters.subscribe(refresh),
     useWorkspaceView.subscribe(refresh),
     useAuthStore.subscribe(refresh),
     useNotificationState.subscribe(refresh),
@@ -307,4 +381,26 @@ export function startBackgroundWatcher(): () => void {
     });
     document.removeEventListener("visibilitychange", refresh);
   };
+}
+
+/** Inbox activity reuses the existing feed and local unread overrides, never a second poll. */
+function publishInbox(active: Session, now: number) {
+  const { account } = useTabActivityStore.getState();
+  const feed = queryClient.getQueryData<NotificationFeed>(NOTIFICATIONS_KEY);
+  if (!account || !feed) return;
+  const items = [false, true].map((all) => ({
+    key: all ? "/?view=all" : "/",
+    title: "",
+    state: "open" as const,
+    ci: null,
+    activityAt: Math.max(
+      0,
+      ...feed.items
+        .filter((item) => (all || isParticipating(item)) && notificationIsUnread(item))
+        .map((item) => Date.parse(item.updated_at) || 0),
+    ),
+  }));
+  const statuses = useTabActivityStore.getState().statuses;
+  if (items.some((item) => !statuses[item.key] || item.activityAt > statuses[item.key]!.activityAt))
+    publishStatuses(account, items, now, active.views);
 }
