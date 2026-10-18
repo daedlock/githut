@@ -23,9 +23,14 @@ export function PageScrollControls({
     const scroller = scrollerRef.current;
     if (!scroller) return;
     const updateTopVisibility = () => setCanScrollToTop(scroller.scrollTop > 0);
-    updateTopVisibility();
+    // Not synchronously: this re-runs when the tab is revealed, and reading
+    // scrollTop there would force a layout of the whole pane inside the click.
+    const frame = requestAnimationFrame(updateTopVisibility);
     scroller.addEventListener("scroll", updateTopVisibility, { passive: true });
-    return () => scroller.removeEventListener("scroll", updateTopVisibility);
+    return () => {
+      cancelAnimationFrame(frame);
+      scroller.removeEventListener("scroll", updateTopVisibility);
+    };
   }, [scrollerRef]);
 
   useEffect(() => {

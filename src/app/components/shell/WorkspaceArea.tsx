@@ -59,19 +59,32 @@ export function WorkspaceArea({ children }: { children: ReactNode }) {
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
   const measureRef = useRef<() => void>(() => {});
+  // Last measured room. Tab switches and in-tab navigation change the layout
+  // but not the area's size; re-deciding from the cached size avoids reading
+  // geometry in the commit that reveals a pane, which would force a full
+  // synchronous layout of it before the click can paint.
+  const room = useRef<{ width: number; height: number; viewportWidth: number } | null>(null);
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;
-    const measure = () =>
+    const decide = () => {
+      if (!room.current) return;
       setNarrow(
         isNarrowLayout(layoutRef.current, {
-          width: element.clientWidth,
-          height: element.clientHeight,
-          viewportWidth: window.innerWidth,
+          ...room.current,
           sidebarWidth: collapsed ? SIDEBAR_RAIL_WIDTH : width,
         }),
       );
-    measureRef.current = measure;
+    };
+    const measure = () => {
+      room.current = {
+        width: element.clientWidth,
+        height: element.clientHeight,
+        viewportWidth: window.innerWidth,
+      };
+      decide();
+    };
+    measureRef.current = decide;
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
@@ -81,7 +94,7 @@ export function WorkspaceArea({ children }: { children: ReactNode }) {
       window.removeEventListener("resize", measure);
     };
   }, [width, collapsed, setNarrow]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-measure whenever the layout changes.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-decide whenever the layout changes.
   useLayoutEffect(() => measureRef.current(), [layout]);
   return (
     <div
