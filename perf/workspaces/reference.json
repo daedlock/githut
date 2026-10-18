@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "workspace": {
+    "layout": {
+      "kind": "split",
+      "id": "smvd3jxwd7",
+      "direction": "row",
+      "children": [
+        {
+          "kind": "island",
+          "id": "imvd3ja6l4",
+          "tabs": [
+            {
+              "id": "tmvd3ja6l3",
+              "href": "/"
+            },
+            {
+              "id": "tmvd3kd5yw",
+              "href": "/daedlock/githut/code"
+            },
+            {
+              "id": "tmvd3l13q1q",
+              "href": "/daedlock/githut/code?path=src"
+            },
+            {
+              "id": "tmvd3kkx2x",
+              "href": "/daedlock/githut/pulls"
+            },
+            {
+              "id": "tmvd3koe3y",
+              "href": "/daedlock/githut/issues"
+            }
+          ],
+          "selectedTabId": "tmvd3kkx2x",
+          "pinned": []
+        },
+        {
+          "kind": "split",
+          "id": "smvd3k96po",
+          "direction": "column",
+          "children": [
+            {
+              "kind": "island",
+              "id": "imvd3jxwd6",
+              "tabs": [
+                {
+                  "id": "tmvd3jxwd5",
+                  "href": "/daedlock/githut/pull/41"
+                },
+                {
+                  "id": "tmvd3llq62p",
+                  "href": "/daedlock/githut/pr/41"
+                }
+              ],
+              "selectedTabId": "tmvd3llq62p",
+              "pinned": []
+            },
+            {
+              "kind": "island",
+              "id": "imvd3k96pn",
+              "tabs": [
+                {
+                  "id": "tmvd3k96pm",
+                  "href": "/getnickai/nickai-app/pull/326"
+                },
+                {
+                  "id": "tmvd3m3nu3h",
+                  "href": "/getnickai/nickai-app/code"
+                },
+                {
+                  "id": "tmvd3m7sc3i",
+                  "href": "/getnickai/nickai-app/pulls?sort=comments&state=closed"
+                },
+                {
+                  "id": "tmvd3nlp84a",
+                  "href": "/getnickai/nickai-app/pull/790"
+                },
+                {
+                  "id": "tmvd3nw5j52",
+                  "href": "/getnickai/nickai-app/actions/runs/39065881813"
+                }
+              ],
+              "selectedTabId": "tmvd3nlp84a",
+              "pinned": []
+            }
+          ],
+          "sizes": [0.5, 0.5]
+        }
+      ],
+      "sizes": [0.5356838401927464, 0.4643161598072536]
+    },
+    "focusedIslandId": "imvd3jxwd6",
+    "focusHistory": ["imvd3jxwd6", "imvd3k96pn", "imvd3ja6l4"],
+    "maximizedIslandId": null
+  }
+}

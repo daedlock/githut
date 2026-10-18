@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "workspace": {
+    "layout": {
+      "kind": "split",
+      "id": "sstress0",
+      "direction": "row",
+      "children": [
+        {
+          "kind": "island",
+          "id": "istressA",
+          "tabs": [
+            {
+              "id": "tstress741c",
+              "href": "/getnickai/nickai-app/pull/741"
+            },
+            {
+              "id": "tstress741f",
+              "href": "/getnickai/nickai-app/pr/741"
+            },
+            {
+              "id": "tstress727f",
+              "href": "/getnickai/nickai-app/pr/727"
+            }
+          ],
+          "selectedTabId": "tstress741f",
+          "pinned": []
+        },
+        {
+          "kind": "island",
+          "id": "istressB",
+          "tabs": [
+            {
+              "id": "tstress717f",
+              "href": "/getnickai/nickai-app/pr/717"
+            },
+            {
+              "id": "tstressd1f",
+              "href": "/getnickai/nickai-data/pr/1"
+            },
+            {
+              "id": "tstressd1c",
+              "href": "/getnickai/nickai-data/pull/1"
+            }
+          ],
+          "selectedTabId": "tstress717f",
+          "pinned": []
+        }
+      ],
+      "sizes": [0.5, 0.5]
+    },
+    "focusedIslandId": "istressA",
+    "focusHistory": ["istressA", "istressB"],
+    "maximizedIslandId": null
+  }
+}
