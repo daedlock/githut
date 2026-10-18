@@ -64,7 +64,7 @@ export function useRepoIssues(owner: string, repo: string) {
   return useQuery({
     ...repoIssuesQueryOptions(owner, repo),
     enabled: !!token && !!owner && !!repo,
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
   });
 }
 
@@ -90,7 +90,7 @@ export function useRepoIssue(owner: string, repo: string, issueNumber: number | 
     ...issueDetailQueryOptions(owner, repo, issueNumber ?? 0),
     queryKey: issueKeys.detail(owner, repo, issueNumber),
     enabled: !!token && !!owner && !!repo && !!issueNumber,
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
   });
 }
 
@@ -100,7 +100,7 @@ export function useRepoIssueComments(owner: string, repo: string, issueNumber: n
   return useQuery({
     queryKey: issueKeys.comments(owner, repo, issueNumber),
     enabled: !!token && !!owner && !!repo && !!issueNumber,
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
     queryFn: async (): Promise<RepoIssueComment[]> => {
       const client = getGitHubClient();
       const res = await client.request("GET /repos/{owner}/{repo}/issues/{issue_number}/comments", {

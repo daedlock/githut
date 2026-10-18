@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
-import { CADENCE, freshnessLevel, liveInterval, shownLevel } from "@/app/lib/freshness";
+import { environmentManager, QueryClient, QueryObserver } from "@tanstack/react-query";
+import { CADENCE, freshnessLevel, liveInterval, retimeLiveQueries } from "@/app/lib/freshness";
 import {
   bucketBackoff,
   clearRateLimit,
@@ -70,14 +71,37 @@ test("a low bucket slows only its own queries 4x and an empty one pauses them un
   expect(getRateBackoff("graphql")).toBe(1);
 });
 
-test("hiding a tab keeps its last shown level, so a show/hide alone doesn't re-render live pages", () => {
-  // Shown levels pass straight through.
-  expect(shownLevel("focused", undefined)).toBe("focused");
-  expect(shownLevel("visible", "focused")).toBe("visible");
-  expect(shownLevel("focused", "visible")).toBe("focused");
-  // A hidden tab (whose observers are paused) keeps the level it was shown at…
-  expect(shownLevel("background", "focused")).toBe("focused");
-  expect(shownLevel("background", "visible")).toBe("visible");
-  // …and a tab mounted hidden, never shown yet, reads as visible.
-  expect(shownLevel("background", undefined)).toBe("visible");
+test("re-timing picks up a new polling cadence without re-rendering the page that set it", async () => {
+  const client = new QueryClient();
+  let interval: number | false = false;
+  let fetches = 0;
+  const observer = new QueryObserver(client, {
+    queryKey: ["retime"],
+    queryFn: () => ++fetches,
+    refetchInterval: () => interval,
+  });
+  // Bun has no window, so TanStack would treat it as a server and never poll.
+  environmentManager.setIsServer(() => false);
+  const unsubscribe = observer.subscribe(() => {});
+  try {
+    await Bun.sleep(20);
+    expect(fetches).toBe(1);
+    // The tab is focused now: its live queries poll, though nothing re-rendered.
+    interval = 10;
+    await Bun.sleep(40);
+    expect(fetches).toBe(1);
+    retimeLiveQueries(client.getQueryCache());
+    await Bun.sleep(60);
+    expect(fetches).toBeGreaterThan(2);
+    // Hidden again: polling stops.
+    interval = false;
+    retimeLiveQueries(client.getQueryCache());
+    const settled = fetches;
+    await Bun.sleep(40);
+    expect(fetches).toBe(settled);
+  } finally {
+    unsubscribe();
+    client.clear();
+    environmentManager.setIsServer(() => typeof window === "undefined");
+  }
 });

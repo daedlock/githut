@@ -296,7 +296,7 @@ export function useFullPr(owner: string, repo: string, number: number) {
   return useQuery({
     ...prDetailQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
   });
 }
 
@@ -368,7 +368,7 @@ export function usePrComments(owner: string, repo: string, number: number) {
   return useQuery({
     ...prCommentsQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
   });
 }
 
@@ -398,7 +398,7 @@ export function usePrReviews(owner: string, repo: string, number: number) {
   return useQuery({
     ...prReviewsQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
   });
 }
 
@@ -460,7 +460,7 @@ export function usePrTimeline(owner: string, repo: string, number: number) {
   return useQuery({
     ...prTimelineQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
   });
 }
 
@@ -1211,7 +1211,7 @@ export function usePrMergeStatus(owner: string, repo: string, number: number) {
   return useQuery({
     ...prMergeStatusQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
   });
 }
 
@@ -1562,7 +1562,7 @@ export function usePrReviewComments(owner: string, repo: string, number: number)
   return useQuery({
     ...prReviewCommentsQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
   });
 }
 
@@ -1819,7 +1819,7 @@ export function useThreadResolution(owner: string, repo: string, number: number)
     queryKey: pullsKeys.threadResolution(owner, repo, number),
     staleTime: 15_000,
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: live("changing"),
+    refetchInterval: () => live("changing"),
     queryFn: async (): Promise<ThreadResolutionMap> => {
       const client = getGitHubClient();
       const map: ThreadResolutionMap = new Map();
