@@ -68,7 +68,12 @@ export function RepoIssuesPage({
   const createIssueMutation = useCreateIssue(owner, repo);
   const createCommentMutation = useCreateIssueComment(owner, repo, me);
   const updateStateMutation = useUpdateIssueState(owner, repo);
-  const toggleIssueReactionMutation = useToggleIssueReaction(owner, repo, me?.id);
+  const toggleIssueReactionMutation = useToggleIssueReaction(
+    owner,
+    repo,
+    selectedIssueNumber,
+    me?.id,
+  );
   const toggleCommentReactionMutation = useToggleCommentReaction(
     owner,
     repo,

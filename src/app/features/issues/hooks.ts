@@ -1,16 +1,19 @@
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  EMPTY_MY_REACTIONS,
   IssueCommentSchema,
   IssueCommentsSchema,
   IssueDetailSchema,
   IssueListSchema,
-  type MyReactionsMap,
   type ReactionContent,
-  ReactionListSchema,
+  type ReactionsMap,
   type RepoIssue,
   type RepoIssueComment,
 } from "@/app/features/issues/schemas";
+import {
+  type ReactionToggleVars,
+  useViewerReactionToggle,
+  viewerReactionKeys,
+} from "@/app/features/issues/viewerReactions";
 import { type RepoLabel, repoLabelsKey } from "@/app/features/pulls/pickers";
 import { useLiveInterval } from "@/app/lib/freshness";
 import { getGitHubClient } from "@/app/lib/github/client";
@@ -28,14 +31,6 @@ export const issueKeys = {
     ["repo-issue", owner, repo, issueNumber] as const,
   comments: (owner: string, repo: string, issueNumber: number | undefined) =>
     ["repo-issue-comments", owner, repo, issueNumber] as const,
-  myIssueReactions: (
-    owner: string,
-    repo: string,
-    issueNumber: number | undefined,
-    meId: number | undefined,
-  ) => ["issue-my-reactions", owner, repo, issueNumber, meId] as const,
-  myCommentReactions: (owner: string, repo: string, commentId: number, meId: number | undefined) =>
-    ["comment-my-reactions", owner, repo, commentId, meId] as const,
 };
 
 // ─── Queries ────────────────────────────────────────────────────────────────
@@ -111,78 +106,6 @@ export function useRepoIssueComments(owner: string, repo: string, issueNumber: n
         per_page: 100,
       });
       return IssueCommentsSchema.parse(res.data);
-    },
-  });
-}
-
-// "My reactions" — content → reactionId map for the logged-in viewer.
-// Needed so the UI can (a) highlight pills we've reacted to and (b) DELETE
-// by id to toggle off without guessing.
-
-function buildMyMap(
-  reactions: Array<{ id: number; content: ReactionContent; user: { id: number } | null }>,
-  meId: number,
-): MyReactionsMap {
-  const map: MyReactionsMap = new Map();
-  for (const r of reactions) {
-    if (r.user?.id === meId) map.set(r.content, r.id);
-  }
-  return map;
-}
-
-export function useMyIssueReactions(
-  owner: string,
-  repo: string,
-  issueNumber: number | undefined,
-  meId: number | undefined,
-) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    queryKey: issueKeys.myIssueReactions(owner, repo, issueNumber, meId),
-    enabled: !!token && !!owner && !!repo && !!issueNumber && !!meId,
-    staleTime: 60_000,
-    queryFn: async (): Promise<MyReactionsMap> => {
-      const client = getGitHubClient();
-      const res = await client.request(
-        "GET /repos/{owner}/{repo}/issues/{issue_number}/reactions",
-        {
-          owner,
-          repo,
-          issue_number: issueNumber!,
-          per_page: 100,
-          headers: { accept: "application/vnd.github+json" },
-        },
-      );
-      return buildMyMap(ReactionListSchema.parse(res.data), meId as number);
-    },
-  });
-}
-
-export function useMyCommentReactions(
-  owner: string,
-  repo: string,
-  commentId: number,
-  meId: number | undefined,
-) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    queryKey: issueKeys.myCommentReactions(owner, repo, commentId, meId),
-    // Optimistic temp comments have negative ids — skip the fetch for those
-    enabled: !!token && !!owner && !!repo && commentId > 0 && !!meId,
-    staleTime: 60_000,
-    queryFn: async (): Promise<MyReactionsMap> => {
-      const client = getGitHubClient();
-      const res = await client.request(
-        "GET /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions",
-        {
-          owner,
-          repo,
-          comment_id: commentId,
-          per_page: 100,
-          headers: { accept: "application/vnd.github+json" },
-        },
-      );
-      return buildMyMap(ReactionListSchema.parse(res.data), meId as number);
     },
   });
 }
@@ -364,96 +287,26 @@ export function useUpdateIssueState(owner: string, repo: string) {
 }
 
 /**
- * Toggle an issue-level reaction. Optimistic path:
- *   1. Flip count in the issue cache (+1 or -1)
- *   2. Flip my-reactions map entry (set → placeholder id / delete)
- *   3. onSuccess writes the real reaction id back
- *   4. onSettled runs a cheap invalidation to reconcile
+ * Toggle a reaction on the issue body. The viewer's reaction state lives in
+ * the issue's viewer-reactions entry (one GraphQL request per issue, #61).
  */
-export function useToggleIssueReaction(owner: string, repo: string, meId: number | undefined) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      issueNumber,
-      content,
-      existingReactionId,
-    }: {
-      issueNumber: number;
-      content: ReactionContent;
-      existingReactionId?: number;
-    }) => {
-      const client = getGitHubClient();
-      if (existingReactionId && existingReactionId > 0) {
-        await client.request(
-          "DELETE /repos/{owner}/{repo}/issues/{issue_number}/reactions/{reaction_id}",
-          {
-            owner,
-            repo,
-            issue_number: issueNumber,
-            reaction_id: existingReactionId,
-            headers: { accept: "application/vnd.github+json" },
-          },
-        );
-        return { newReactionId: null as number | null, content };
-      }
-      const res = await client.request(
-        "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions",
-        {
-          owner,
-          repo,
-          issue_number: issueNumber,
-          content,
-          headers: { accept: "application/vnd.github+json" },
-        },
-      );
-      return { newReactionId: (res.data as { id: number }).id, content };
-    },
-    onMutate: async ({ issueNumber, content, existingReactionId }) => {
-      const iKey = issueKeys.detail(owner, repo, issueNumber);
-      const myKey = issueKeys.myIssueReactions(owner, repo, issueNumber, meId);
-      await queryClient.cancelQueries({ queryKey: iKey });
-      await queryClient.cancelQueries({ queryKey: myKey });
-      const prevIssue = queryClient.getQueryData<RepoIssue>(iKey);
-      const prevMy = queryClient.getQueryData<MyReactionsMap>(myKey);
-      const delta = existingReactionId ? -1 : 1;
-
-      if (prevIssue) {
-        queryClient.setQueryData<RepoIssue>(iKey, {
-          ...prevIssue,
-          reactions: {
-            ...prevIssue.reactions,
-            [content]: Math.max(0, (prevIssue.reactions[content] ?? 0) + delta),
-          },
-        });
-      }
-      const nextMy: MyReactionsMap = new Map(prevMy ?? EMPTY_MY_REACTIONS);
-      if (existingReactionId) nextMy.delete(content);
-      else nextMy.set(content, -Date.now()); // placeholder until POST returns
-      queryClient.setQueryData(myKey, nextMy);
-
-      return { prevIssue, prevMy, iKey, myKey };
-    },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.prevIssue) queryClient.setQueryData(ctx.iKey, ctx.prevIssue);
-      if (ctx?.prevMy !== undefined) queryClient.setQueryData(ctx.myKey, ctx.prevMy);
-    },
-    onSuccess: (data, vars, ctx) => {
-      // Write the real reaction id so a second click knows how to DELETE
-      // without waiting for a full refetch.
-      if (!ctx) return;
-      const current = queryClient.getQueryData<MyReactionsMap>(ctx.myKey);
-      if (!current) return;
-      const next = new Map(current);
-      if (data.newReactionId) next.set(vars.content, data.newReactionId);
-      else next.delete(vars.content);
-      queryClient.setQueryData(ctx.myKey, next);
-    },
-    onSettled: (_data, _err, vars) => {
-      queryClient.invalidateQueries({ queryKey: issueKeys.detail(owner, repo, vars.issueNumber) });
-      queryClient.invalidateQueries({
-        queryKey: issueKeys.myIssueReactions(owner, repo, vars.issueNumber, meId),
-      });
-    },
+export function useToggleIssueReaction(
+  owner: string,
+  repo: string,
+  issueNumber: number | undefined,
+  meId: number | undefined,
+) {
+  return useViewerReactionToggle({
+    owner,
+    repo,
+    meId,
+    reactionsKey: viewerReactionKeys.issue(owner, repo, issueNumber),
+    countsKey: issueKeys.detail(owner, repo, issueNumber),
+    targetOf: (vars: ReactionToggleVars & { issueNumber: number }) => ({
+      kind: "subject",
+      number: vars.issueNumber,
+    }),
+    patchCounts: (issue: RepoIssue, vars, delta) => bumpReaction(issue, vars.content, delta),
   });
 }
 
@@ -463,95 +316,33 @@ export function useToggleCommentReaction(
   issueNumber: number | undefined,
   meId: number | undefined,
 ) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      commentId,
-      content,
-      existingReactionId,
-    }: {
-      commentId: number;
-      content: ReactionContent;
-      existingReactionId?: number;
-    }) => {
-      const client = getGitHubClient();
-      if (existingReactionId && existingReactionId > 0) {
-        await client.request(
-          "DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions/{reaction_id}",
-          {
-            owner,
-            repo,
-            comment_id: commentId,
-            reaction_id: existingReactionId,
-            headers: { accept: "application/vnd.github+json" },
-          },
-        );
-        return { newReactionId: null as number | null, content };
-      }
-      const res = await client.request(
-        "POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions",
-        {
-          owner,
-          repo,
-          comment_id: commentId,
-          content,
-          headers: { accept: "application/vnd.github+json" },
-        },
-      );
-      return { newReactionId: (res.data as { id: number }).id, content };
-    },
-    onMutate: async ({ commentId, content, existingReactionId }) => {
-      const key = issueKeys.comments(owner, repo, issueNumber);
-      const myKey = issueKeys.myCommentReactions(owner, repo, commentId, meId);
-      await queryClient.cancelQueries({ queryKey: key });
-      await queryClient.cancelQueries({ queryKey: myKey });
-      const prevList = queryClient.getQueryData<RepoIssueComment[]>(key);
-      const prevMy = queryClient.getQueryData<MyReactionsMap>(myKey);
-      const delta = existingReactionId ? -1 : 1;
-
-      if (prevList) {
-        queryClient.setQueryData<RepoIssueComment[]>(
-          key,
-          prevList.map((c) =>
-            c.id === commentId
-              ? {
-                  ...c,
-                  reactions: {
-                    ...c.reactions,
-                    [content]: Math.max(0, (c.reactions[content] ?? 0) + delta),
-                  },
-                }
-              : c,
-          ),
-        );
-      }
-      const nextMy: MyReactionsMap = new Map(prevMy ?? EMPTY_MY_REACTIONS);
-      if (existingReactionId) nextMy.delete(content);
-      else nextMy.set(content, -Date.now());
-      queryClient.setQueryData(myKey, nextMy);
-
-      return { prevList, prevMy, key, myKey };
-    },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.prevList) queryClient.setQueryData(ctx.key, ctx.prevList);
-      if (ctx?.prevMy !== undefined) queryClient.setQueryData(ctx.myKey, ctx.prevMy);
-    },
-    onSuccess: (data, vars, ctx) => {
-      if (!ctx) return;
-      const current = queryClient.getQueryData<MyReactionsMap>(ctx.myKey);
-      if (!current) return;
-      const next = new Map(current);
-      if (data.newReactionId) next.set(vars.content, data.newReactionId);
-      else next.delete(vars.content);
-      queryClient.setQueryData(ctx.myKey, next);
-    },
-    onSettled: (_data, _err, vars) => {
-      queryClient.invalidateQueries({ queryKey: issueKeys.comments(owner, repo, issueNumber) });
-      queryClient.invalidateQueries({
-        queryKey: issueKeys.myCommentReactions(owner, repo, vars.commentId, meId),
-      });
-    },
+  return useViewerReactionToggle({
+    owner,
+    repo,
+    meId,
+    reactionsKey: viewerReactionKeys.issue(owner, repo, issueNumber),
+    countsKey: issueKeys.comments(owner, repo, issueNumber),
+    targetOf: (vars: ReactionToggleVars & { commentId: number }) => ({
+      kind: "comment",
+      id: vars.commentId,
+    }),
+    patchCounts: (list: RepoIssueComment[], vars, delta) =>
+      list.map((c) => (c.id === vars.commentId ? bumpReaction(c, vars.content, delta) : c)),
   });
+}
+
+function bumpReaction<T extends { reactions: ReactionsMap }>(
+  item: T,
+  content: ReactionContent,
+  delta: number,
+): T {
+  return {
+    ...item,
+    reactions: {
+      ...item.reactions,
+      [content]: Math.max(0, (item.reactions[content] ?? 0) + delta),
+    },
+  };
 }
 
 // ─── Issue assignees ──────────────────────────────────────────────────────
