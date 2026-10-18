@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { fileURLToPath } from "node:url";
 
 // Guards #58. Radix's modal overlays mount react-remove-scroll, whose
 // getGapWidth calls getComputedStyle(document.body) on open and forces a
@@ -31,7 +32,7 @@ describe("overlays never mount Radix's scroll lock", () => {
 
   test("no other Radix overlay with a scroll lock is wrapped", async () => {
     const glob = new Bun.Glob("*.tsx");
-    const dir = new URL(".", import.meta.url).pathname;
+    const dir = fileURLToPath(new URL(".", import.meta.url));
     for await (const file of glob.scan(dir)) {
       const src = await read(file);
       expect(src).not.toMatch(/\b(AlertDialog|Select)Primitive\b/);

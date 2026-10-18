@@ -39,6 +39,7 @@ export const directoryCommitsQueryOptions = (
       const result: Record<string, PathCommit | null> = Object.create(null);
       const client = getGitHubClient();
       for (let offset = 0; offset < sorted.length; offset += 50) {
+        signal.throwIfAborted();
         const batch = sorted.slice(offset, offset + 50);
         const histories = batch
           .map(

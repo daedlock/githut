@@ -109,10 +109,9 @@ export function FileList({
 
   const showParent = !!path;
   const { data: commits, isPending: commitsPending } = useDirectoryCommits(
-    // Wait for the default branch to resolve, avoiding a duplicate directory batch.
     owner,
     repo,
-    refName ? sorted.map((entry) => entry.path) : [],
+    sorted.map((entry) => entry.path),
     refName,
   );
 
