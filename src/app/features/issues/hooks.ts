@@ -4,16 +4,14 @@ import {
   IssueCommentsSchema,
   IssueDetailSchema,
   IssueListSchema,
-  type ReactionContent,
-  type ReactionsMap,
   type RepoIssue,
   type RepoIssueComment,
 } from "@/app/features/issues/schemas";
 import {
+  bumpReaction,
   type ReactionToggleVars,
   useViewerReactionToggle,
-  viewerReactionKeys,
-} from "@/app/features/issues/viewerReactions";
+} from "@/app/features/reactions/viewerReactions";
 import { type RepoLabel, repoLabelsKey } from "@/app/features/pulls/pickers";
 import { useLiveInterval } from "@/app/lib/freshness";
 import { getGitHubClient } from "@/app/lib/github/client";
@@ -296,18 +294,17 @@ export function useToggleIssueReaction(
   issueNumber: number | undefined,
   meId: number | undefined,
 ) {
-  return useViewerReactionToggle({
-    owner,
-    repo,
-    meId,
-    reactionsKey: viewerReactionKeys.issue(owner, repo, issueNumber),
-    countsKey: issueKeys.detail(owner, repo, issueNumber),
-    targetOf: (vars: ReactionToggleVars & { issueNumber: number }) => ({
-      kind: "subject",
-      number: vars.issueNumber,
-    }),
-    patchCounts: (issue: RepoIssue, vars, delta) => bumpReaction(issue, vars.content, delta),
-  });
+  return useViewerReactionToggle(
+    { kind: "issue", owner, repo, number: issueNumber, meId },
+    {
+      countsKey: issueKeys.detail(owner, repo, issueNumber),
+      targetOf: (vars: ReactionToggleVars & { issueNumber: number }) => ({
+        kind: "subject",
+        number: vars.issueNumber,
+      }),
+      patchCounts: (issue: RepoIssue, vars, delta) => bumpReaction(issue, vars.content, delta),
+    },
+  );
 }
 
 export function useToggleCommentReaction(
@@ -316,33 +313,18 @@ export function useToggleCommentReaction(
   issueNumber: number | undefined,
   meId: number | undefined,
 ) {
-  return useViewerReactionToggle({
-    owner,
-    repo,
-    meId,
-    reactionsKey: viewerReactionKeys.issue(owner, repo, issueNumber),
-    countsKey: issueKeys.comments(owner, repo, issueNumber),
-    targetOf: (vars: ReactionToggleVars & { commentId: number }) => ({
-      kind: "comment",
-      id: vars.commentId,
-    }),
-    patchCounts: (list: RepoIssueComment[], vars, delta) =>
-      list.map((c) => (c.id === vars.commentId ? bumpReaction(c, vars.content, delta) : c)),
-  });
-}
-
-function bumpReaction<T extends { reactions: ReactionsMap }>(
-  item: T,
-  content: ReactionContent,
-  delta: number,
-): T {
-  return {
-    ...item,
-    reactions: {
-      ...item.reactions,
-      [content]: Math.max(0, (item.reactions[content] ?? 0) + delta),
+  return useViewerReactionToggle(
+    { kind: "issue", owner, repo, number: issueNumber, meId },
+    {
+      countsKey: issueKeys.comments(owner, repo, issueNumber),
+      targetOf: (vars: ReactionToggleVars & { commentId: number }) => ({
+        kind: "comment",
+        id: vars.commentId,
+      }),
+      patchCounts: (list: RepoIssueComment[], vars, delta) =>
+        list.map((c) => (c.id === vars.commentId ? bumpReaction(c, vars.content, delta) : c)),
     },
-  };
+  );
 }
 
 // ─── Issue assignees ──────────────────────────────────────────────────────

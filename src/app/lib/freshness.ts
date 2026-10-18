@@ -114,12 +114,24 @@ function levelKey(workspace: Workspace, narrow: boolean): string {
   return `${focusedTab(workspace).id}|${[...visibleTabIds(workspace, narrow)].sort().join(",")}`;
 }
 
-let following = false;
+let followers = 0;
+let stopFollowing: (() => void) | undefined;
 
-/** Once per window: re-time live queries whenever a tab's level or a bucket's backoff changes. */
-function followFreshness() {
-  if (following) return;
-  following = true;
+/** Share subscriptions while live hooks are mounted; the last disposer tears them down. */
+export function followFreshness() {
+  if (followers++ === 0) stopFollowing = subscribeToFreshness();
+  let disposed = false;
+  return () => {
+    if (disposed) return;
+    disposed = true;
+    if (--followers === 0) {
+      stopFollowing?.();
+      stopFollowing = undefined;
+    }
+  };
+}
+
+function subscribeToFreshness() {
   let key = levelKey(getWorkspace(), useWorkspaceView.getState().narrow);
   const levelsChanged = () => {
     const next = levelKey(getWorkspace(), useWorkspaceView.getState().narrow);
@@ -127,11 +139,16 @@ function followFreshness() {
     key = next;
     retimeLiveQueries(queryClient.getQueryCache());
   };
-  useWorkspaceStore.subscribe(levelsChanged);
-  useWorkspaceView.subscribe(levelsChanged);
-  useRateLimitStore.subscribe((state, prev) => {
+  const stopWorkspace = useWorkspaceStore.subscribe(levelsChanged);
+  const stopView = useWorkspaceView.subscribe(levelsChanged);
+  const stopRateLimit = useRateLimitStore.subscribe((state, prev) => {
     if (state.buckets !== prev.buckets) retimeLiveQueries(queryClient.getQueryCache());
   });
+  return () => {
+    stopWorkspace();
+    stopView();
+    stopRateLimit();
+  };
 }
 
 /**

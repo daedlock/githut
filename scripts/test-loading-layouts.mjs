@@ -6,13 +6,14 @@ import { chromium } from "playwright";
 
 const out = "test-results/loading-layouts";
 await mkdir(out, { recursive: true });
-const app = process.env.UI_BASE_URL || "http://127.0.0.1:5176";
+const port = process.env.UI_PORT || "5176";
+const app = process.env.UI_BASE_URL || `http://127.0.0.1:${port}`;
 assert.ok(["localhost", "127.0.0.1"].includes(new URL(app).hostname), "Use a local test server");
 const server = process.env.UI_BASE_URL
   ? null
   : spawn(
       process.execPath,
-      ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5176", "--strictPort"],
+      ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", port, "--strictPort"],
       { stdio: ["ignore", "pipe", "pipe"] },
     );
 let serverLog = "";
@@ -294,7 +295,34 @@ async function fixture(
         submitted_at: now,
       });
     }
-    if (path === "/graphql") return json({ data: { repository: { pullRequest: null } } });
+    if (path === "/graphql") {
+      const { variables = {}, query = "" } = route.request().postDataJSON();
+      if (query.includes("history(first: 1")) {
+        const histories = Object.fromEntries(
+          Object.entries(variables)
+            .filter(([key]) => /^p\d+$/.test(key))
+            .map(([key, value]) => [
+              key,
+              {
+                nodes: [
+                  {
+                    oid: sha,
+                    message: `Update ${value}`,
+                    committedDate: now,
+                    author: { name: "Demo", user: { login: "demo" } },
+                  },
+                ],
+              },
+            ]),
+        );
+        return json({
+          data: { repository: { head: variables.ref ? histories : { target: histories } } },
+        });
+      }
+      return json({
+        data: { viewer: { id: "fixture-account" }, repository: { pullRequest: null } },
+      });
+    }
     // Fail closed: fixtures must never write to a real GitHub repository.
     assert.equal(route.request().method(), "GET", `Unexpected API mutation: ${path}`);
 
@@ -439,6 +467,55 @@ function checkBounds(m, name, width, preset) {
   assert.ok(Math.abs(m.width - Math.min(expected, m.pane)) < 1, `Wrong width ${name}`);
 }
 try {
+  if (process.env.CASE === "directory-commits") {
+    const f = await fixture(1280, "md", { hold: false });
+    const net = [];
+    const cdp = await f.page.context().newCDPSession(f.page);
+    await cdp.send("Network.enable");
+    cdp.on("Network.requestWillBeSent", ({ request }) => {
+      if (request.url.startsWith("https://api.github.com/"))
+        net.push(new URL(request.url).pathname);
+    });
+    await f.context.route(
+      /^https:\/\/api\.github\.com\/repos\/demo\/project\/contents(?:[/?]|$)/,
+      async (route) => {
+        const url = new URL(route.request().url());
+        if (!/\/contents\/?$/.test(url.pathname)) return route.fallback();
+        await route.fulfill({
+          json: Array.from({ length: 116 }, (_, i) => ({
+            type: "file",
+            name: `file-${i}.ts`,
+            path: `file-${i}.ts`,
+            sha: `${sha}${i}`,
+            size: 25,
+            html_url: "",
+            download_url: "",
+          })),
+        });
+      },
+    );
+    await f.page.goto(`${app}/demo/project/code`);
+    await f.page.locator('table a[title="Update file-99.ts"]').waitFor({ state: "attached" });
+    const commits = net.filter((path) => path.endsWith("/commits"));
+    const graphql = net.filter((path) => path === "/graphql");
+    assert.ok(
+      commits.length <= 2,
+      "Only header requests before/after default branch resolution use REST commits",
+    );
+    assert.equal(graphql.length, 3, "116 row histories need three GraphQL batches");
+    assert.equal(await f.page.locator("table tbody tr").count(), 116);
+    assert.deepEqual(f.errors, []);
+    const evidence = {
+      rows: 116,
+      net: { commits: commits.length, graphql: graphql.length, urls: net },
+    };
+    console.log(JSON.stringify(evidence));
+    await writeFile(`${out}/directory-commits.json`, JSON.stringify(evidence, null, 2));
+    await f.close();
+    await browser.close();
+    server?.kill();
+    process.exit(0);
+  }
   if (process.env.CASE === "session-motion") {
     const f = await fixture(1280, "md", { hold: false });
     const p = f.page;

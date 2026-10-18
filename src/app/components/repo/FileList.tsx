@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, FileText, Folder, GitCommitHorizontal } from "lucide-react";
 import { Skeleton } from "@/app/components/ui/skeleton";
-import { type PathCommit, usePathCommit } from "@/app/hooks/usePathCommit";
+import { useDirectoryCommits } from "@/app/hooks/useDirectoryCommits";
+import type { PathCommit } from "@/app/hooks/usePathCommit";
 import type { ContentEntry } from "@/app/hooks/useRepoContents";
 import { cn } from "@/app/lib/cn";
 
@@ -107,6 +108,13 @@ export function FileList({
     : [];
 
   const showParent = !!path;
+  const { data: commits, isPending: commitsPending } = useDirectoryCommits(
+    // Wait for the default branch to resolve, avoiding a duplicate directory batch.
+    owner,
+    repo,
+    refName ? sorted.map((entry) => entry.path) : [],
+    refName,
+  );
 
   return (
     <div className="overflow-hidden rounded-md border border-border">
@@ -172,7 +180,8 @@ export function FileList({
                   key={entry.sha || entry.path}
                   owner={owner}
                   repo={repo}
-                  refName={refName}
+                  entryCommit={commits?.[entry.path]}
+                  entryCommitPending={commitsPending}
                   entry={entry}
                   onNavigate={onNavigate}
                 />
@@ -210,23 +219,19 @@ function ParentRow({ onNavigate }: { onNavigate: () => void }) {
 function FileRow({
   owner,
   repo,
-  refName,
+  entryCommit,
+  entryCommitPending,
   entry,
   onNavigate,
 }: {
   owner: string;
   repo: string;
-  refName?: string;
+  entryCommit: PathCommit | null | undefined;
+  entryCommitPending: boolean;
   entry: ContentEntry;
   onNavigate?: (entry: ContentEntry) => void;
 }) {
   const isDir = entry.type === "dir";
-  const { data: entryCommit, isPending: entryCommitPending } = usePathCommit(
-    owner,
-    repo,
-    entry.path,
-    refName,
-  );
 
   return (
     <tr

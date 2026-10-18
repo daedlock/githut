@@ -6,7 +6,7 @@ same probes. It has two parts:
 - **React render attribution** (`hook/`): a profiling build (`react-dom/profiling`, names kept) with a
   small `__REACT_DEVTOOLS_GLOBAL_HOOK__` stub inlined first in `<head>`. `window.__perf.start()` /
   `stop()` returns which components rendered, why (props / state / context / parent) and where
-  (visible pane, hidden tab, other island, sidebar, overlay). See [`hook/README.md`](hook/README.md).
+  (visible pane, background tab, other island, sidebar, overlay). See [`hook/README.md`](hook/README.md).
 - **Interaction timings** (`cdp/`): scripts that drive a real, signed-in Chrome over the DevTools
   Protocol with trusted input. They record the worst Event Timing entry per trial, long tasks, request
   counts, and optionally one Chrome trace per probe and the React attribution above.
@@ -39,6 +39,9 @@ same probes. It has two parts:
 **WSL + Windows Chrome:** WSL can't reach Chrome's `[::1]` listener. Run the scripts with Windows
 Node (`"/mnt/c/Program Files/nodejs/node.exe" perf/cdp/suite.mjs …`) and set
 `PERF_CDP=http://[::1]:9222` if another Chrome already holds `127.0.0.1:9222`.
+Pass the variable to Windows with `WSLENV=PERF_CDP` (no `/u` flag). The harness also
+tries IPv6 loopback if the IPv4 endpoint fails or returns non-JSON content.
+The commit hook retains its `hidden` JSON bucket for compatibility; it means background tabs.
 
 ## Running
 

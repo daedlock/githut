@@ -43,12 +43,18 @@ export function restoreScroll(
   };
   if (!handle.restoring) return handle;
   const deadline = frames.now() + timeout;
+  let attempted = false;
   const step = () => {
     frame = 0;
+    // Read the previous frame's result before writing. Reading immediately
+    // after the write forces layout even inside requestAnimationFrame.
+    if (attempted && (Math.abs(el.scrollTop - target) <= 1 || frames.now() > deadline)) {
+      handle.restoring = false;
+      return;
+    }
     el.scrollTop = target;
-    if (Math.abs(el.scrollTop - target) > 1 && frames.now() <= deadline) {
-      frame = frames.request(step);
-    } else handle.restoring = false;
+    attempted = true;
+    frame = frames.request(step);
   };
   frame = frames.request(step);
   return handle;
