@@ -7,7 +7,14 @@ import { ChevronRightIcon, CheckIcon } from "lucide-react"
 function ContextMenu({
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.Root>) {
-  return <ContextMenuPrimitive.Root data-slot="context-menu" {...props} />
+  // Non-modal, like DropdownMenu: a modal menu mounts react-remove-scroll,
+  // whose getComputedStyle(document.body) forces a whole-document style recalc
+  // on every open (#58), and sets pointer-events: none on <body>. Keyboard
+  // nav, typeahead, Tab containment, Escape and outside-click dismissal are
+  // the same in non-modal menus; outside clicks now also reach their target.
+  return (
+    <ContextMenuPrimitive.Root data-slot="context-menu" modal={false} {...props} />
+  )
 }
 
 function ContextMenuTrigger({
