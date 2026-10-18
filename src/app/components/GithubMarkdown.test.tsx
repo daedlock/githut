@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { GithubMarkdown } from "./GithubMarkdown";
+import { GithubMarkdown, sameMarkdownInputs } from "./GithubMarkdown";
 
 function render(markdown: string) {
   return renderToStaticMarkup(<GithubMarkdown>{markdown}</GithubMarkdown>);
@@ -79,5 +79,45 @@ describe("comment videos", () => {
     expect(html).toContain(
       'src="https://raw.githubusercontent.com/daedlock/githut/main/docs/media/demo.mp4"',
     );
+  });
+});
+
+describe("re-rendering", () => {
+  test("the same source and contexts, even as fresh object literals, skip re-parsing", () => {
+    expect(
+      sameMarkdownInputs(
+        { children: "# hi", repoContext: { owner: "a", repo: "b" } },
+        { children: "# hi", repoContext: { owner: "a", repo: "b" } },
+      ),
+    ).toBe(true);
+    expect(
+      sameMarkdownInputs(
+        { children: "x", assetContext: { owner: "a", repo: "b", ref: "main", basePath: "docs" } },
+        { children: "x", assetContext: { owner: "a", repo: "b", ref: "main", basePath: "docs" } },
+      ),
+    ).toBe(true);
+    expect(sameMarkdownInputs({ children: "x" }, { children: "x" })).toBe(true);
+  });
+
+  test("a changed source or context re-renders", () => {
+    expect(sameMarkdownInputs({ children: "a" }, { children: "b" })).toBe(false);
+    expect(
+      sameMarkdownInputs(
+        { children: "x", repoContext: { owner: "a", repo: "b" } },
+        { children: "x", repoContext: { owner: "a", repo: "c" } },
+      ),
+    ).toBe(false);
+    expect(
+      sameMarkdownInputs(
+        { children: "x", assetContext: { owner: "a", repo: "b", ref: "main" } },
+        { children: "x", assetContext: { owner: "a", repo: "b", ref: "dev" } },
+      ),
+    ).toBe(false);
+    expect(
+      sameMarkdownInputs(
+        { children: "x" },
+        { children: "x", repoContext: { owner: "a", repo: "b" } },
+      ),
+    ).toBe(false);
   });
 });

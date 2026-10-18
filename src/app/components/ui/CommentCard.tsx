@@ -85,7 +85,12 @@ export function CommentCardDisplay({
 
   // Keep draft in sync if the parent updates rawBody while we're idle
   // (e.g. cache refetch after another tab edited).
+  // Effects re-run each time the tab is shown again (<Activity>), so only
+  // sync on a real change; a no-op set can still re-render the card (#59).
+  const synced = useRef({ rawBody, editing });
   useEffect(() => {
+    if (synced.current.rawBody === rawBody && synced.current.editing === editing) return;
+    synced.current = { rawBody, editing };
     if (!editing) setDraft(rawBody ?? "");
   }, [rawBody, editing]);
 
