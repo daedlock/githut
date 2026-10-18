@@ -52,6 +52,36 @@ export function useFreshnessLevel(): FreshnessLevel | null {
   );
 }
 
+/**
+ * The level a page's live queries poll at. Showing or hiding a tab must not
+ * re-render its page (#59): a hidden tab's observers are torn down by
+ * <Activity>, so it never polls whatever its level, and it keeps reporting
+ * the level it was last shown at. A tab mounted hidden reads as visible.
+ */
+export function shownLevel(
+  level: FreshnessLevel,
+  previous: Exclude<FreshnessLevel, "background"> | undefined,
+): Exclude<FreshnessLevel, "background"> {
+  if (level !== "background") return level;
+  return previous ?? "visible";
+}
+
+/**
+ * `shownLevel` for the tab this component renders in. Only a focused ↔
+ * visible change re-renders the caller; becoming a background tab (or coming
+ * back from one at the same level) does not.
+ */
+function useShownLevel(): Exclude<FreshnessLevel, "background"> {
+  const { tabId } = useTabScope();
+  const narrow = useWorkspaceView((state) => state.narrow);
+  const last = useRef<Exclude<FreshnessLevel, "background"> | undefined>(undefined);
+  const level = useWorkspaceStore((state) =>
+    tabId ? shownLevel(freshnessLevel(state.workspace, narrow, tabId), last.current) : "visible",
+  );
+  last.current = level;
+  return level;
+}
+
 /** A `refetchInterval` value: the level's cadence, never faster than `floor`, times the backoff. */
 export function liveInterval(
   level: FreshnessLevel,
@@ -74,7 +104,7 @@ export function liveInterval(
  * Outside a tab (sidebar, title bar) the visible cadence applies.
  */
 export function useLiveInterval(resource: RateResource = "core") {
-  const level = useFreshnessLevel() ?? "visible";
+  const level = useShownLevel();
   const backoff = useRateLimitStore((state) => bucketBackoff(state.buckets[resource]));
   return useCallback(
     (kind: LiveKind, floor?: number) => liveInterval(level, kind, { floor, backoff }),

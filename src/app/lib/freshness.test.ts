@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { CADENCE, freshnessLevel, liveInterval } from "@/app/lib/freshness";
+import { CADENCE, freshnessLevel, liveInterval, shownLevel } from "@/app/lib/freshness";
 import {
   bucketBackoff,
   clearRateLimit,
@@ -68,4 +68,16 @@ test("a low bucket slows only its own queries 4x and an empty one pauses them un
   // A fresh window clears the bucket.
   recordRateLimit(headers("graphql", 4000));
   expect(getRateBackoff("graphql")).toBe(1);
+});
+
+test("hiding a tab keeps its last shown level, so a show/hide alone doesn't re-render live pages", () => {
+  // Shown levels pass straight through.
+  expect(shownLevel("focused", undefined)).toBe("focused");
+  expect(shownLevel("visible", "focused")).toBe("visible");
+  expect(shownLevel("focused", "visible")).toBe("focused");
+  // A hidden tab (whose observers are paused) keeps the level it was shown at…
+  expect(shownLevel("background", "focused")).toBe("focused");
+  expect(shownLevel("background", "visible")).toBe("visible");
+  // …and a tab mounted hidden, never shown yet, reads as visible.
+  expect(shownLevel("background", undefined)).toBe("visible");
 });
