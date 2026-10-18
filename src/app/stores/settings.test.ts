@@ -51,9 +51,24 @@ describe("container width preference", () => {
     await useSettingsStore.persist.rehydrate();
     expect(useSettingsStore.getState()).toMatchObject({
       containerWidth: "md",
-      tabsEnabled: false,
       codeFont: "jetbrains-mono",
       diffMode: "unified",
     });
   });
+});
+
+test("repo colours default on, persist off, and retired tab preferences disappear on upgrade", async () => {
+  expect(useSettingsStore.getState().repoColor).toBe(true);
+  values.set(
+    "githut.settings",
+    JSON.stringify({ state: { tabsEnabled: false, codeFont: "jetbrains-mono" }, version: 0 }),
+  );
+  await useSettingsStore.persist.rehydrate();
+  expect(useSettingsStore.getState().repoColor).toBe(true);
+  expect(useSettingsStore.getState()).not.toHaveProperty("tabsEnabled");
+  expect(JSON.parse(values.get("githut.settings")!).state).not.toHaveProperty("tabsEnabled");
+  useSettingsStore.getState().setRepoColor(false);
+  const restored = createSettingsStore(storage);
+  expect(restored.getState().repoColor).toBe(false);
+  expect(restored.getState().codeFont).toBe("jetbrains-mono");
 });

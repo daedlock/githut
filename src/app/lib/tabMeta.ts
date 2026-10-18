@@ -1,10 +1,11 @@
 import {
   CircleDot,
   Code2,
+  FileDiff,
   FileText,
   GitCommitHorizontal,
   GitPullRequest,
-  Home,
+  Inbox,
   type LucideIcon,
   Play,
   Settings,
@@ -35,7 +36,7 @@ type PatternRule = {
 const RULES: PatternRule[] = [
   {
     match: /^\/$/,
-    meta: () => ({ label: "Dashboard", icon: Home }),
+    meta: () => ({ label: "Inbox", icon: Inbox }),
   },
   {
     match: /^\/settings$/,
@@ -62,11 +63,12 @@ const RULES: PatternRule[] = [
     meta: (g) => ({ label: "PRs", sublabel: `${g.owner}/${g.repo}`, icon: GitPullRequest }),
   },
   {
+    // The review (files) view of a PR: told apart from its conversation tab.
     match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/pr\/(?<number>\d+)(?:\/.*)?$/,
     meta: (g) => ({
-      label: `PR #${g.number}`,
+      label: `PR #${g.number} · Files`,
       sublabel: `${g.owner}/${g.repo}`,
-      icon: GitPullRequest,
+      icon: FileDiff,
     }),
   },
   {
@@ -75,6 +77,14 @@ const RULES: PatternRule[] = [
       label: `PR #${g.number}`,
       sublabel: `${g.owner}/${g.repo}`,
       icon: GitPullRequest,
+    }),
+  },
+  {
+    match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/review\/(?<number>\d+)$/,
+    meta: (g) => ({
+      label: `PR #${g.number} · Files`,
+      sublabel: `${g.owner}/${g.repo}`,
+      icon: FileDiff,
     }),
   },
   {
@@ -106,12 +116,18 @@ const RULES: PatternRule[] = [
     meta: (g) => ({ label: "Actions", sublabel: `${g.owner}/${g.repo}`, icon: Play }),
   },
   {
+    // The URL holds the run id, not the run number people know; the tab strip
+    // shows the number once the run is loaded.
     match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/actions\/runs\/(?<runId>[^/]+)$/,
     meta: (g) => ({
-      label: `Run #${g.runId}`,
+      label: "Workflow run",
       sublabel: `${g.owner}/${g.repo}`,
       icon: Play,
     }),
+  },
+  {
+    match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)$/,
+    meta: (g) => ({ label: g.repo!, sublabel: `${g.owner}/${g.repo}`, icon: Code2 }),
   },
   {
     match: /^\/(?<username>[^/]+)$/,
@@ -141,4 +157,36 @@ export function getTabMeta(pathname: string): TabMeta {
 export function getDocumentTitle(pathname: string): string {
   const meta = getTabMeta(pathname);
   return meta.sublabel ? `${meta.label} · ${meta.sublabel} · GitHut` : `${meta.label} · GitHut`;
+}
+
+/** The repo (`owner/name`) a page belongs to, or undefined for app-wide pages. */
+export function tabRepo(pathname: string): string | undefined {
+  return getTabMeta(pathname).sublabel;
+}
+
+export type RepoSection = "code" | "commits" | "pulls" | "issues" | "actions";
+
+/** Which repo section a page sits in — PR detail pages count as PRs, etc. */
+export function tabSection(pathname: string): RepoSection | null {
+  if (!tabRepo(pathname)) return null;
+  const rest = /^\/[^/]+\/[^/]+(\/[^/]+)?/.exec(pathname)?.[1] ?? "";
+  switch (rest) {
+    case "":
+    case "/code":
+      return "code";
+    case "/commits":
+    case "/commit":
+      return "commits";
+    case "/pulls":
+    case "/pull":
+    case "/pr":
+    case "/review":
+      return "pulls";
+    case "/issues":
+      return "issues";
+    case "/actions":
+      return "actions";
+    default:
+      return null;
+  }
 }

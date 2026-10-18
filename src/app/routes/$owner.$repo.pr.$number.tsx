@@ -33,11 +33,13 @@ import type { PrFile, PullRequest, ReviewComment } from "@/app/features/pulls/sc
 import {
   type PendingComment,
   usePendingComments,
+  useReviewHasDraft,
   useReviewMode,
   useReviewStore,
 } from "@/app/features/pulls/stores/review";
 import { useMe } from "@/app/hooks/useMe";
 import { detectLang } from "@/app/lib/detectLang";
+import { draftKey, draftPage, hasDraft, useDraftsStore } from "@/app/stores/drafts";
 
 // ─── PR review route ──────────────────────────────────────────────────────
 //
@@ -101,7 +103,7 @@ function ReviewPage() {
       if (!canReview) return undefined;
       let hooks = hooksCache.current.get(filename);
       if (!hooks) {
-        const prk = `${owner}/${repo}/${number}`;
+        const prk = draftPage(owner, repo, number);
         hooks = {
           useComposerLine: () => {
             const composer = useReviewStore(s => s.composerByPr[prk]);
@@ -126,7 +128,10 @@ function ReviewPage() {
               (c: { path: string; side: string; line: number }) => c.path === filename && c.side === args.side && c.line === args.line,
             )) return true;
             const composer = s.composerByPr[prk];
-            return !!composer && composer.path === filename && composer.side === args.side && composer.line === args.line;
+            if (composer && composer.path === filename && composer.side === args.side && composer.line === args.line) return true;
+            // A line keeps its comment box while it still holds draft text, so
+            // moving to another line never hides what was typed here.
+            return hasDraft(draftKey(prk, `inline:${filename}:${args.side}:${args.line}`));
           },
           renderLineTrailer: (args) => {
             if (!hooks!.hasComment!(args)) return null;
@@ -147,7 +152,7 @@ function ReviewPage() {
   }, [canReview, owner, repo, number]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-full flex-col bg-background">
       <div className="flex-1">
         {!Number.isSafeInteger(number) || number <= 0 || (prQuery.isError && !pr) ? (
           <Container className="py-20 text-center text-sm text-muted-foreground" role="alert">
@@ -190,7 +195,9 @@ const LineSlotContent = memo(function LineSlotContent({
   owner, repo, number, path, side, line, meLogin, meAvatarUrl,
 }: { owner: string; repo: string; number: number; path: string; side: "LEFT" | "RIGHT"; line: number; meLogin?: string; meAvatarUrl?: string }) {
   const store = useReviewStore();
-  const prKey = `${owner}/${repo}/${number}`;
+  const prKey = draftPage(owner, repo, number);
+  const inlineKey = draftKey(prKey, `inline:${path}:${side}:${line}`);
+  const hasInlineDraft = useDraftsStore(s => inlineKey in s.drafts);
 
   const isComposerHere = useReviewStore(s => {
     const c = s.composerByPr[prKey];
@@ -215,15 +222,21 @@ const LineSlotContent = memo(function LineSlotContent({
       {pendingHere.map(c => (
         <PendingCard key={c.id} comment={c} onRemove={() => store.removePending(owner, repo, number, c.id)} />
       ))}
-      {isComposerHere && (
+      {(isComposerHere || hasInlineDraft) && (
         <InlineComposer
           login={meLogin ?? "ghost"}
           avatarUrl={meAvatarUrl}
           owner={owner}
           repo={repo}
-          onSubmit={(body: string) => { store.addPending(owner, repo, number, { path, side, line, body }); store.closeComposer(owner, repo, number); }}
-          onCancel={() => store.closeComposer(owner, repo, number)}
+          onSubmit={(body: string) => {
+            store.addPending(owner, repo, number, { path, side, line, body });
+            if (isComposerHere) store.closeComposer(owner, repo, number);
+          }}
+          onCancel={() => {
+            if (isComposerHere) store.closeComposer(owner, repo, number);
+          }}
           submitLabel="Add review comment"
+          draftKey={inlineKey}
         />
       )}
     </>
@@ -378,6 +391,7 @@ function ReviewActions({
   owner: string; repo: string; number: number; canReview: boolean; isAuthor: boolean;
 }) {
   const reviewMode = useReviewMode(owner, repo, number);
+  const reviewHasDraft = useReviewHasDraft(owner, repo, number);
   const pending = usePendingComments(owner, repo, number);
   const cancelReview = useReviewStore(s => s.cancelReview);
   const reviewCommentsQuery = usePrReviewComments(owner, repo, number);
@@ -396,7 +410,7 @@ function ReviewActions({
           <span className="font-medium text-foreground">{pending.length}</span>{" "}
           pending
         </span>
-        {reviewMode && (
+        {(reviewMode || reviewHasDraft) && (
           <Button size="xs" variant="ghost" onClick={() => cancelReview(owner, repo, number)}>Cancel</Button>
         )}
         <PrReviewPopover
@@ -405,7 +419,6 @@ function ReviewActions({
           number={number}
           isAuthor={isAuthor}
           pendingComments={pending}
-          onReviewSubmitted={() => cancelReview(owner, repo, number)}
         />
       </div>
     </div>

@@ -51,13 +51,13 @@ export function toBulkItem(item: ListItemLike): BulkItem {
 }
 
 /** Toggle the row at `index`; with `range`, apply its new state from the anchor to it. */
-export function toggleSelection(
-  selected: ReadonlySet<number>,
-  order: readonly number[],
+export function toggleSelection<T>(
+  selected: ReadonlySet<T>,
+  order: readonly T[],
   index: number,
   anchor: number | null,
   range: boolean,
-): Set<number> {
+): Set<T> {
   const next = new Set(selected);
   const number = order[index];
   if (number === undefined) return next;

@@ -7,6 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
+import { useCanMutate } from "@/app/lib/connectivity";
 import { useCancelRun, useRerunFailedJobs, useRerunRun } from "../hooks";
 import { isFailure, isTerminal, toUiStatus } from "../lib/statusMap";
 import type { WorkflowRun } from "../schemas";
@@ -20,6 +21,7 @@ export function RunActions({
   repo: string;
   run: WorkflowRun;
 }) {
+  const { canMutate, reason } = useCanMutate();
   const ui = toUiStatus(run.status, run.conclusion);
   const live = !isTerminal(ui);
   const rerun = useRerunRun(owner, repo);
@@ -38,7 +40,8 @@ export function RunActions({
         <Button
           variant="outline"
           size="sm"
-          disabled={pending}
+          disabled={pending || !canMutate}
+          title={reason}
           onClick={() => (live ? cancel.mutate(run.id) : rerun.mutate(run.id))}
         >
           {live ? <Ban /> : <RotateCcw />}
@@ -52,7 +55,7 @@ export function RunActions({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {!live && isFailure(ui) ? (
-              <DropdownMenuItem onSelect={() => failed.mutate(run.id)}>
+              <DropdownMenuItem disabled={!canMutate} onSelect={() => failed.mutate(run.id)}>
                 <RefreshCw />
                 Re-run failed jobs
               </DropdownMenuItem>

@@ -8,7 +8,9 @@ import {
 } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import { useRepoFile } from "@/app/hooks/useRepoFile";
+import { useLiveInterval } from "@/app/lib/freshness";
 import { getGitHubClient } from "@/app/lib/github/client";
+import { retrySessionExpiry } from "@/app/lib/query";
 import { useAuthStore } from "@/app/stores/auth";
 import { parseDispatchInputs } from "./lib/parseDispatchInputs";
 import {
@@ -62,8 +64,8 @@ export type RunsFilters = {
 };
 const validId = (id: number) => Number.isSafeInteger(id) && id > 0;
 const retry = (count: number, error: unknown) =>
-  count < 2 && ![401, 403, 404, 422, 429].includes((error as { status?: number })?.status ?? 0);
-const requestOptions = { retry, refetchIntervalInBackground: false };
+  count < 2 && ![403, 404, 422, 429].includes((error as { status?: number })?.status ?? 0);
+const requestOptions = { retry };
 
 export const workflowsQueryOptions = (owner: string, repo: string) =>
   queryOptions({
@@ -122,14 +124,19 @@ export const workflowRunsQueryOptions = (owner: string, repo: string, filters: R
   });
 export function useWorkflowRuns(owner: string, repo: string, filters: RunsFilters = {}) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useInfiniteQuery({
     ...workflowRunsQueryOptions(owner, repo, filters),
     enabled: !!token && !!owner && !!repo,
-    // Idle lists also refresh so newly dispatched runs can appear.
-    refetchInterval: (q) =>
-      q.state.data?.pages.some((page) => page.some((run) => run.status !== "completed"))
-        ? 5_000
-        : 30_000,
+    // Idle lists also refresh so newly dispatched runs can appear. Only the
+    // first page polls: refetching re-reads every loaded page.
+    refetchInterval: (q) => {
+      const pages = q.state.data?.pages ?? [];
+      if (pages.length > 1) return false;
+      return pages.some((page) => page.some((run) => run.status !== "completed"))
+        ? live("ci", 5_000)
+        : live("changing", 30_000);
+    },
   });
 }
 
@@ -153,10 +160,14 @@ export const workflowRunQueryOptions = (owner: string, repo: string, runId: numb
   });
 export function useWorkflowRun(owner: string, repo: string, runId: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...workflowRunQueryOptions(owner, repo, runId),
     enabled: !!token && !!owner && !!repo && validId(runId),
-    refetchInterval: (q) => (q.state.data && q.state.data.status !== "completed" ? 3_000 : false),
+    // A finished run still refreshes at the tab's cadence so a rerun started
+    // elsewhere (or still propagating) shows up.
+    refetchInterval: (q) =>
+      live(q.state.data && q.state.data.status !== "completed" ? "ci" : "changing"),
   });
 }
 
@@ -193,6 +204,7 @@ export function useRunJobs(owner: string, repo: string, runId: number, run?: Wor
   const qc = useQueryClient();
   const attempt = run?.run_attempt;
   const status = run?.status;
+  const live = useLiveInterval();
   // Reconcile once on completion even if a jobs response briefly trails run metadata.
   useEffect(() => {
     if (status === "completed")
@@ -202,12 +214,15 @@ export function useRunJobs(owner: string, repo: string, runId: number, run?: Wor
     ...runJobsQueryOptions(owner, repo, runId, attempt),
     enabled: !!token && validId(runId) && !!run,
     refetchInterval: (q) =>
-      status !== "completed" || q.state.data?.some((j) => j.status !== "completed") ? 3_000 : false,
+      live(
+        (status !== "completed" || !!q.state.data?.some((j) => j.status !== "completed")) && "ci",
+      ),
   });
 }
 
 export function useJob(owner: string, repo: string, jobId: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...requestOptions,
     queryKey: ["actions-job", owner, repo, jobId],
@@ -225,7 +240,7 @@ export function useJob(owner: string, repo: string, jobId: number) {
       );
       return JobSchema.parse(res.data);
     },
-    refetchInterval: (q) => (q.state.data && q.state.data.status !== "completed" ? 3_000 : false),
+    refetchInterval: (q) => live(!!q.state.data && q.state.data.status !== "completed" && "ci"),
   });
 }
 
@@ -259,6 +274,7 @@ export function useRunArtifacts(owner: string, repo: string, runId: number, run?
   const qc = useQueryClient();
   const status = run?.status;
   const attempt = run?.run_attempt;
+  const live = useLiveInterval();
   useEffect(() => {
     if (status === "completed" && attempt)
       void qc.invalidateQueries({ queryKey: actionsKeys.artifacts(owner, repo, runId) });
@@ -266,7 +282,7 @@ export function useRunArtifacts(owner: string, repo: string, runId: number, run?
   return useQuery({
     ...runArtifactsQueryOptions(owner, repo, runId),
     enabled: !!token && validId(runId) && !!run,
-    refetchInterval: status && status !== "completed" ? 10_000 : false,
+    refetchInterval: live(!!status && status !== "completed" && "ci", 10_000),
   });
 }
 
@@ -274,13 +290,23 @@ export const jobLogsQueryOptions = (
   owner: string,
   repo: string,
   jobId: number,
-  { isLive = false }: { isLive?: boolean } = {},
+  { isLive = false, pollUntil }: { isLive?: boolean; pollUntil?: number } = {},
 ) =>
-  queryOptions({
+  queryOptions<string>({
     queryKey: actionsKeys.logs(owner, repo, jobId),
     staleTime: isLive ? 0 : Infinity,
     gcTime: 10 * 60_000,
-    retry: false,
+    retry: retrySessionExpiry,
+    refetchInterval: (q) => {
+      const status = (q.state.error as { status?: number } | null)?.status;
+      if (status === 401 || status === 403 || status === 410 || status === 429) return false;
+      if (isLive) return 5_000;
+      return pollUntil &&
+        Date.now() < pollUntil &&
+        (!q.state.data || q.state.isInvalidated || q.state.status === "error")
+        ? 3_000
+        : false;
+    },
     queryFn: async ({ signal }): Promise<string> => {
       const token = useAuthStore.getState().token;
       if (!token) throw new Error("Not authenticated");
@@ -291,6 +317,8 @@ export const jobLogsQueryOptions = (
           signal,
         },
       );
+      if (res.status === 401 && useAuthStore.getState().token === token)
+        useAuthStore.getState().markExpired();
       if (!res.ok)
         throw Object.assign(new Error(`Could not load logs (${res.status}).`), {
           status: res.status,
@@ -316,19 +344,8 @@ export function useJobLogs(
       void qc.invalidateQueries({ queryKey: actionsKeys.logs(owner, repo, jobId) });
   }, [qc, owner, repo, jobId, enabled, isLive]);
   return useQuery({
-    ...jobLogsQueryOptions(owner, repo, jobId, { isLive }),
+    ...jobLogsQueryOptions(owner, repo, jobId, { isLive, pollUntil }),
     enabled: enabled && !!token && validId(jobId),
-    refetchInterval: (q) => {
-      const status = (q.state.error as { status?: number } | null)?.status;
-      if (status === 401 || status === 403 || status === 410 || status === 429) return false;
-      if (isLive) return 5_000;
-      return pollUntil &&
-        Date.now() < pollUntil &&
-        (!q.state.data || q.state.isInvalidated || q.state.status === "error")
-        ? 3_000
-        : false;
-    },
-    refetchIntervalInBackground: false,
   });
 }
 
@@ -338,9 +355,6 @@ function useRunCommand(owner: string, repo: string, command: RunCommand) {
   return useMutation({
     mutationKey: ["actions-command", owner, repo],
     mutationFn: async (runId: number) => {
-      const previousAttempt = qc.getQueryData<WorkflowRun>(
-        actionsKeys.run(owner, repo, runId),
-      )?.run_attempt;
       await getGitHubClient().request(
         `POST /repos/{owner}/{repo}/actions/runs/{run_id}/${command}`,
         {
@@ -349,23 +363,12 @@ function useRunCommand(owner: string, repo: string, command: RunCommand) {
           run_id: runId,
         },
       );
-      return previousAttempt;
     },
-    onSuccess: async (previousAttempt, runId) => {
-      // Keep server state truthful while GitHub propagates the command. Never
-      // overwrite a completed attempt with a fabricated queued/cancelled state.
-      for (let i = 0; i < 10; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 3_000));
-        const run = await qc
-          .fetchQuery({ ...workflowRunQueryOptions(owner, repo, runId), staleTime: 0 })
-          .catch(() => undefined);
-        if (
-          run &&
-          (command === "cancel" ? run.status === "completed" : run.run_attempt !== previousAttempt)
-        )
-          break;
-      }
+    onSuccess: async (_, runId) => {
+      // Reconcile the accepted command; the run's live polling follows
+      // propagation. A detached polling loop would keep fetching hidden tabs.
       await Promise.all([
+        qc.invalidateQueries({ queryKey: actionsKeys.run(owner, repo, runId) }),
         qc.invalidateQueries({ queryKey: actionsKeys.jobs(owner, repo, runId) }),
         qc.invalidateQueries({ queryKey: actionsKeys.artifacts(owner, repo, runId) }),
         qc.invalidateQueries({ queryKey: ["actions-runs", owner, repo] }),

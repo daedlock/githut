@@ -398,8 +398,11 @@ async function fixture(
 }
 async function bounds(page) {
   return page.evaluate(() => {
-    const nav = document.querySelector("header > div").getBoundingClientRect();
-    const skeletons = [...document.querySelectorAll('#main-content [data-slot="skeleton"]')]
+    // Pages render inside the island's tab pane; the page Container carries
+    // the width preference.
+    const pane = document.querySelector("[data-tab-pane]");
+    const nav = pane.querySelector('[data-slot="container"]').getBoundingClientRect();
+    const skeletons = [...document.querySelectorAll('[data-tab-pane] [data-slot="skeleton"]')]
       .map((e) => {
         const r = e.getBoundingClientRect();
         return {
@@ -416,6 +419,7 @@ async function bounds(page) {
       right: nav.right,
       width: nav.width,
       viewport: document.documentElement.clientWidth,
+      pane: pane.clientWidth,
       scroll: document.documentElement.scrollWidth,
       skeletons,
     };
@@ -432,9 +436,137 @@ function checkBounds(m, name, width, preset) {
     assert.equal(rect.animation, "none", "reduced motion");
   }
   const expected = preset === "sm" ? 896 : preset === "md" ? 1280 : preset === "lg" ? 1536 : width;
-  assert.ok(Math.abs(m.width - Math.min(expected, m.viewport)) < 1, `Wrong width ${name}`);
+  assert.ok(Math.abs(m.width - Math.min(expected, m.pane)) < 1, `Wrong width ${name}`);
 }
 try {
+  if (process.env.CASE === "session-motion") {
+    const f = await fixture(1280, "md", { hold: false });
+    const p = f.page;
+    await p.goto(`${app}/demo/project/issues/1`);
+    await p.getByRole("button", { name: "Edit labels", exact: true }).waitFor();
+    const samples = await p.evaluate(async () => {
+      const { useAuthStore } = await import("/src/app/stores/auth.ts");
+      const samples = [];
+      return new Promise((resolve) => {
+        const observer = new MutationObserver(() => {
+          const notice = document.querySelector('[role="alert"]');
+          if (!notice?.textContent?.includes("Your GitHub sign-in expired")) return;
+          observer.disconnect();
+          const sample = () => {
+            const matrix = new DOMMatrixReadOnly(getComputedStyle(notice).transform);
+            samples.push({ x: matrix.m41, y: matrix.m42, scaleX: matrix.m11, scaleY: matrix.m22 });
+            if (samples.length < 12) requestAnimationFrame(sample);
+            else resolve(samples);
+          };
+          sample();
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        useAuthStore.getState().markExpired();
+      });
+    });
+    assert.equal(samples.length, 12);
+    assert.ok(
+      samples.every(
+        ({ x, y, scaleX, scaleY }) => x === 0 && y === 0 && scaleX === 1 && scaleY === 1,
+      ),
+      `Reduced-motion notice must not translate or scale: ${JSON.stringify(samples)}`,
+    );
+    await p.getByRole("button", { name: "Sign in again", exact: true }).waitFor();
+    assert.deepEqual(f.errors, []);
+    await f.close();
+    console.log("PASS expired-session notice respects reduced motion throughout its entrance");
+    await browser.close();
+    server?.kill();
+    process.exit(0);
+  }
+  // Run against Vite: this case drives the public token-adoption boundary in
+  // the live document, where a pending review observer can survive adoption.
+  if (process.env.CASE === "review-account-callback") {
+    const f = await fixture(1280, "md", { hold: false });
+    const p = f.page;
+    let releaseReview;
+    const reviewGate = new Promise((resolve) => {
+      releaseReview = resolve;
+    });
+    await f.context.route(
+      "https://api.github.com/repos/demo/project/pulls/1/reviews",
+      async (route) => {
+        if (route.request().method() !== "POST") return route.fallback();
+        await reviewGate;
+        await route.fallback();
+      },
+    );
+    await p.goto(`${app}/demo/project/pr/1`);
+    await p.getByRole("button", { name: "Submit review", exact: true }).waitFor();
+    await p.evaluate(() => {
+      localStorage.setItem(
+        "githut.drafts.v1.account.2",
+        JSON.stringify({
+          state: {
+            drafts: {
+              "demo/project/1#review": { body: "Bob saved summary", at: Date.now() },
+              "demo/project/1#inline:src/main.ts:RIGHT:1": {
+                body: "Bob saved inline",
+                at: Date.now(),
+              },
+            },
+          },
+          version: 0,
+        }),
+      );
+      localStorage.setItem(
+        "githut.review-drafts.v1.account.2",
+        JSON.stringify({
+          state: {
+            pendingByPr: {
+              "demo/project/1": [
+                { id: -1, path: "src/main.ts", line: 1, side: "RIGHT", body: "Bob saved pending" },
+              ],
+            },
+            composerByPr: { "demo/project/1": { path: "src/main.ts", line: 2, side: "RIGHT" } },
+          },
+          version: 0,
+        }),
+      );
+    });
+    const snapshot = () =>
+      p.evaluate(() => ({
+        drafts: JSON.parse(localStorage.getItem("githut.drafts.v1.account.2")),
+        review: JSON.parse(localStorage.getItem("githut.review-drafts.v1.account.2")),
+      }));
+    const expected = await snapshot();
+    await p.getByRole("button", { name: "Submit review", exact: true }).click();
+    await p.getByRole("textbox", { name: "Review summary" }).fill("Alice submitted summary");
+    const sent = p.waitForRequest(
+      (request) => request.method() === "POST" && request.url().endsWith("/reviews"),
+    );
+    await p
+      .getByRole("dialog", { name: "Submit review" })
+      .getByRole("button", { name: "Submit review", exact: true })
+      .click();
+    await sent;
+    await p.evaluate(async () => {
+      const { adoptToken } = await import("/src/app/lib/github/client.ts");
+      adoptToken("bob-token", { sameUser: false, accountId: 2 });
+    });
+    const returned = p.waitForResponse(
+      (response) => response.request().method() === "POST" && response.url().endsWith("/reviews"),
+    );
+    releaseReview();
+    await returned;
+    await p.getByRole("button", { name: "Submitting…", exact: true }).waitFor({ state: "hidden" });
+    assert.deepEqual(
+      await snapshot(),
+      expected,
+      "Alice's late success preserves every Bob review draft",
+    );
+    assert.deepEqual(f.errors, []);
+    await f.close();
+    console.log("PASS late review success preserves the adopted account's drafts");
+    await browser.close();
+    server?.kill();
+    process.exit(0);
+  }
   const configs =
     process.env.CASE === "review-flow"
       ? []
@@ -454,7 +586,7 @@ try {
       const f = await fixture(width, preset);
       try {
         await f.page.goto(app + path, { waitUntil: "domcontentloaded" });
-        await f.page.locator('#main-content [data-slot="skeleton"]:visible').first().waitFor();
+        await f.page.locator('[data-tab-pane] [data-slot="skeleton"]:visible').first().waitFor();
         await f.page.evaluate(() => document.fonts.ready);
         const before = await bounds(f.page);
         checkBounds(before, name, width, preset);
@@ -465,7 +597,7 @@ try {
           await f.page.screenshot({ path: `${out}/${name}-${width}-${preset}-loading.png` });
         f.release();
         await f.page.waitForFunction(
-          () => !document.querySelector('#main-content [data-slot="skeleton"]'),
+          () => !document.querySelector('[data-tab-pane] [data-slot="skeleton"]'),
           {},
           { timeout: 15000 },
         );
@@ -591,11 +723,11 @@ try {
     try {
       await f.page.goto(app + path);
       await f.page.getByRole("heading", { name: heading, exact: false }).first().waitFor();
-      await f.page.locator('#main-content [data-slot="skeleton"]:visible').first().waitFor();
+      await f.page.locator('[data-tab-pane] [data-slot="skeleton"]:visible').first().waitFor();
       checkBounds(await bounds(f.page), name, 390, "md");
       f.release();
       await f.page.waitForFunction(
-        () => !document.querySelector('#main-content [data-slot="skeleton"]'),
+        () => !document.querySelector('[data-tab-pane] [data-slot="skeleton"]'),
       );
       assert.deepEqual(f.errors, []);
       console.log("PASS partial response", name);
@@ -615,7 +747,7 @@ try {
         .waitFor();
       await f.page.goBack();
       await f.page.getByRole("button", { name: "Submit review", exact: true }).waitFor();
-      assert.equal(await f.page.locator('#main-content [data-slot="skeleton"]').count(), 0);
+      assert.equal(await f.page.locator('[data-tab-pane] [data-slot="skeleton"]').count(), 0);
       assert.deepEqual(f.errors, []);
       console.log("PASS cached navigation");
     } finally {
@@ -668,7 +800,7 @@ try {
       await f.page.getByText(text, { exact: true }).waitFor();
       assert.equal(
         await f.page
-          .locator('#main-content [role="status"][aria-label="Loading changed files"]')
+          .locator('[data-tab-pane] [role="status"][aria-label="Loading changed files"]')
           .count(),
         0,
       );

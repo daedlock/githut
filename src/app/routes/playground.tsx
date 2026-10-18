@@ -51,7 +51,7 @@ function PlaygroundPage() {
         <ThemeToggle />
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-10 px-6 py-10">
+      <div className="mx-auto max-w-3xl space-y-10 px-6 py-10">
         <div className="space-y-2">
           <h1 className="font-mono text-heading font-medium">
             UI primitives<span className="text-[var(--color-brand)]">_</span>
@@ -167,15 +167,14 @@ function PlaygroundPage() {
             </p>
           </div>
         </Section>
-
-      </main>
+      </div>
 
       {/*
        * Diff layout preview — full viewport width, pinned height. DiffLayout
        * owns both the tree sidebar and the stacked diffs + their own scroll
        * container, so the tree stays anchored while diffs scroll. h-[80vh]
        * is there just to give the demo a canvas; in a real PR route it would
-       * be flex-1 inside AppShell's main.
+       * be flex-1 inside the tab's pane.
        */}
       <section className="w-full px-6 py-10">
         <header className="mb-4 flex items-baseline gap-3 border-t border-[var(--color-border)] pt-8">

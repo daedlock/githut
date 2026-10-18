@@ -1,4 +1,4 @@
-import { useNavigate, useParams, useRouterState } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
 import type { CommitDetail, CommitFile } from "@/app/hooks/useRepoCommit";
 import { useRepoCommit } from "@/app/hooks/useRepoCommit";
@@ -57,13 +57,14 @@ export function useFileHistorySession(): FileHistorySession {
   const search = useRouterState({
     select: (s) => s.location.search as FileHistorySearch,
   });
-  const params = useParams({ strict: false }) as {
-    owner?: string;
-    repo?: string;
-  };
-
-  const owner = params.owner;
-  const repo = params.repo;
+  // Read params from router state rather than useParams: the history sheet is
+  // an app-level overlay that renders outside any route match.
+  const owner = useRouterState({
+    select: (s) => (s.matches.at(-1)?.params as { owner?: string } | undefined)?.owner,
+  });
+  const repo = useRouterState({
+    select: (s) => (s.matches.at(-1)?.params as { repo?: string } | undefined)?.repo,
+  });
   const path = search.fhPath;
   const branch = search.fhBranch;
   const activeSha = search.fhSha;

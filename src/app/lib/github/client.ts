@@ -1,7 +1,8 @@
 import { Octokit } from "@octokit/core";
 import type { OctokitResponse } from "@octokit/types";
-import { logout } from "@/app/lib/auth";
+import { assertCanMutate } from "@/app/lib/connectivity";
 import { useAuthStore } from "@/app/stores/auth";
+import { clearRateLimit, recordRateLimit } from "@/app/stores/rateLimit";
 
 // ─── ETag cache ────────────────────────────────────────────────────────────
 //
@@ -18,7 +19,8 @@ import { useAuthStore } from "@/app/stores/auth";
 const ETAG_CACHE_MAX = 500;
 
 type CachedResponse = {
-  etag: string;
+  etag?: string;
+  lastModified?: string;
   data: unknown;
   status: number;
   url: string;
@@ -27,27 +29,39 @@ type CachedResponse = {
 
 const etagCache = new Map<string, CachedResponse>();
 
-function buildCacheKey(options: Record<string, unknown>): string {
-  const method = String(options.method ?? "GET").toUpperCase();
-  const url = String(options.url ?? "");
-  const rest: Record<string, unknown> = {};
-  for (const k of Object.keys(options).sort()) {
-    if (k === "method" || k === "url" || k === "headers") continue;
-    if (k === "request" || k === "mediaType" || k === "baseUrl") continue;
-    rest[k] = options[k];
+/**
+ * Keyed by the expanded URL (`/repos/acme/app/pulls?page=2`), never the route
+ * template, so repo-scoped eviction can match real paths. The accept header
+ * is part of the key: the same URL can return different media types.
+ */
+function buildCacheKey(endpoint: { method: string; url: string; headers: object }): string {
+  const accept = (endpoint.headers as Record<string, unknown>).accept ?? "";
+  const url = new URL(endpoint.url);
+  return `${endpoint.method.toUpperCase()} ${url.pathname}${url.search} ${String(accept)}`;
+}
+
+/** Least recently used first: a hit moves the entry to the end. */
+function touchETag(key: string): CachedResponse | undefined {
+  const entry = etagCache.get(key);
+  if (entry) {
+    etagCache.delete(key);
+    etagCache.set(key, entry);
   }
-  return `${method} ${url} ${JSON.stringify(rest)}`;
+  return entry;
 }
 
 function rememberETag(key: string, response: OctokitResponse<unknown>): void {
   const etag = response.headers?.etag;
-  if (typeof etag !== "string") return;
+  const lastModified = response.headers?.["last-modified"];
+  if (typeof etag !== "string" && typeof lastModified !== "string") return;
+  etagCache.delete(key);
   if (etagCache.size >= ETAG_CACHE_MAX) {
-    const first = etagCache.keys().next().value;
-    if (first !== undefined) etagCache.delete(first);
+    const oldest = etagCache.keys().next().value;
+    if (oldest !== undefined) etagCache.delete(oldest);
   }
   etagCache.set(key, {
-    etag,
+    etag: typeof etag === "string" ? etag : undefined,
+    lastModified: typeof lastModified === "string" ? lastModified : undefined,
     data: response.data,
     status: response.status,
     url: response.url,
@@ -59,16 +73,84 @@ export function clearETagCache(): void {
   etagCache.clear();
 }
 
+/** Drop cached GETs for one repo: its REST paths and searches qualified with `repo:owner/name`. */
 function evictETagsForRepo(owner: string, repo: string): void {
-  const needle = `/${owner}/${repo}`;
+  const path = `/repos/${owner}/${repo}`.toLowerCase();
+  const search = encodeURIComponent(`repo:${owner}/${repo}`).toLowerCase();
   for (const key of etagCache.keys()) {
-    if (key.includes(needle)) etagCache.delete(key);
+    const lower = key.toLowerCase();
+    if (
+      lower.includes(`${path}/`) ||
+      lower.includes(`${path}?`) ||
+      lower.includes(`${path} `) ||
+      lower.includes(search)
+    )
+      etagCache.delete(key);
+  }
+}
+
+/** GraphQL queries and Markdown rendering are POSTs that change nothing. */
+function isRead(method: string, url: string, options: Record<string, unknown>): boolean {
+  if (method === "GET" || method === "HEAD") return true;
+  if (url === "/markdown" || url === "/markdown/raw") return true;
+  if (url === "/graphql") {
+    const query = typeof options.query === "string" ? options.query.trimStart() : "";
+    return !query.startsWith("mutation");
+  }
+  return false;
+}
+
+/**
+ * A thread write leaves the cached notification listings one step behind.
+ * Dropping their validators would make the next poll a full-cost request
+ * (and auto mark-read runs on every visit), so apply the write to the
+ * cached bodies instead: a later 304 then replays an up-to-date list.
+ * Writes we can't mirror (mark all read) still drop the snapshots.
+ */
+function patchNotificationSnapshots(method: string, options: Record<string, unknown>): void {
+  const url = String(options.url ?? "");
+  const match = /\/notifications\/threads\/([^/?]+)(\/subscription)?$/.exec(url);
+  const id = String(options.thread_id ?? decodeURIComponent(match?.[1] ?? ""));
+  // Subscription changes don't alter the listing.
+  if (match?.[2]) return;
+  const patch =
+    match && id && method === "DELETE"
+      ? (items: { id: string }[]) => items.filter((item) => item.id !== id)
+      : match && id && method === "PATCH"
+        ? (items: { id: string }[]) =>
+            items.map((item) => (item.id === id ? { ...item, unread: false } : item))
+        : null;
+  for (const [key, entry] of etagCache) {
+    if (!key.startsWith("GET /notifications")) continue;
+    if (patch && Array.isArray(entry.data)) entry.data = patch(entry.data as { id: string }[]);
+    else etagCache.delete(key);
   }
 }
 
 // ─── Client singleton ──────────────────────────────────────────────────────
 
 let cached: { token: string; client: Octokit } | null = null;
+
+function sessionExpiredError(): Error {
+  return Object.assign(new Error("GitHub sign-in expired"), { status: 401 });
+}
+
+/**
+ * Switch to a fresh token after signing in again. The ETag cache is kept when
+ * the new token belongs to the same user (cheap 304 refetches); otherwise the
+ * previous user's cached bodies are dropped.
+ */
+export function adoptToken(
+  token: string,
+  { sameUser, accountId }: { sameUser: boolean; accountId?: number },
+): void {
+  cached = null;
+  if (!sameUser) {
+    clearETagCache();
+    clearRateLimit();
+  }
+  useAuthStore.getState().setToken(token, accountId);
+}
 
 export function getGitHubClient(): Octokit {
   const token = useAuthStore.getState().token;
@@ -77,10 +159,16 @@ export function getGitHubClient(): Octokit {
 
   // Token changed — the new session may see different visibility, so drop
   // the ETag cache rather than serve a previous user's cached bodies.
-  if (cached && cached.token !== token) clearETagCache();
+  if (cached && cached.token !== token) {
+    clearETagCache();
+    clearRateLimit();
+  }
 
-  const noCacheFetch = ((input: RequestInfo | URL, init?: RequestInit) =>
-    globalThis.fetch(input, { ...init, cache: "no-store" })) as typeof fetch;
+  const noCacheFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const response = await globalThis.fetch(input, { ...init, cache: "no-store" });
+    if (useAuthStore.getState().token === token) recordRateLimit(response.headers);
+    return response;
+  }) as typeof fetch;
 
   const client = new Octokit({
     auth: token,
@@ -89,36 +177,40 @@ export function getGitHubClient(): Octokit {
   });
 
   client.hook.wrap("request", async (request, options) => {
+    // Known-dead token: fail like GitHub would without spending a request.
+    if (useAuthStore.getState().expired) throw sessionExpiredError();
+
     const method = String(options.method ?? "GET").toUpperCase();
-    const versionedOptions = {
-      ...options,
-      headers: {
-        ...options.headers,
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
+    // Earlier Octokit hooks hold this options object. Replacing it loses
+    // headers through that hook chain; update the shared options in place.
+    options.headers = {
+      ...options.headers,
+      "x-github-api-version": "2022-11-28",
     };
 
     if (method !== "GET") {
-      const response = await request(versionedOptions);
+      const url = String(options.url ?? "");
+      if (isRead(method, url, options as Record<string, unknown>)) return request(options);
+      assertCanMutate();
+      const response = await request(options);
       // After any write, evict cached GET responses for the same repo so
       // subsequent refetches bypass the ETag 304 path and get fresh data.
-      const url = String(options.url ?? "");
-      const match = url.match(/\/repos\/([^/]+)\/([^/]+)/);
-      if (match?.[1] && match[2]) evictETagsForRepo(match[1], match[2]);
+      // `options.url` is the route template; the expanded URL has the real repo.
+      const path = new URL(client.request.endpoint.parse(options).url).pathname;
+      const match = path.match(/^\/repos\/([^/]+)\/([^/]+)/);
+      if (match?.[1] && match[2])
+        evictETagsForRepo(decodeURIComponent(match[1]), decodeURIComponent(match[2]));
+      if (path.startsWith("/notifications")) patchNotificationSnapshots(method, options);
       return response;
     }
 
-    const key = buildCacheKey(options as Record<string, unknown>);
-    const prev = etagCache.get(key);
-    const opts = prev
-      ? {
-          ...versionedOptions,
-          headers: { ...versionedOptions.headers, "if-none-match": prev.etag },
-        }
-      : versionedOptions;
+    const key = buildCacheKey(client.request.endpoint.parse(options));
+    const prev = touchETag(key);
+    if (prev?.etag) options.headers["if-none-match"] = prev.etag;
+    else if (prev?.lastModified) options.headers["if-modified-since"] = prev.lastModified;
 
     try {
-      const response = await request(opts);
+      const response = await request(options);
       if (response.status === 304 && prev) {
         return {
           data: prev.data,
@@ -131,9 +223,10 @@ export function getGitHubClient(): Octokit {
       return response;
     } catch (err) {
       if (err && typeof err === "object" && "status" in err && err.status === 304 && prev) {
+        const response = (err as { response?: { headers?: CachedResponse["headers"] } }).response;
         return {
           data: prev.data,
-          headers: prev.headers,
+          headers: { ...prev.headers, ...response?.headers },
           status: 200,
           url: prev.url,
         } as OctokitResponse<unknown>;
@@ -142,13 +235,12 @@ export function getGitHubClient(): Octokit {
     }
   });
 
-  // If the token is revoked or expired GitHub returns 401.
-  // Clear the session immediately so the user is sent back to login.
+  // If the token is revoked or expired GitHub returns 401. Don't sign out:
+  // mark the session expired so the workspace (tabs, drafts, cached pages)
+  // stays put and a banner offers to sign in again (see lib/session.ts).
   client.hook.error("request", (error) => {
-    if ("status" in error && error.status === 401) {
-      cached = null;
-      clearETagCache();
-      logout();
+    if ("status" in error && error.status === 401 && useAuthStore.getState().token === token) {
+      useAuthStore.getState().markExpired();
     }
     throw error;
   });

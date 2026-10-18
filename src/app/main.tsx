@@ -1,26 +1,74 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createRouter, RouterProvider } from "@tanstack/react-router";
+import { type AnyRouter, createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { NotFound } from "@/app/components/NotFound";
+import { TabHost } from "@/app/components/shell/TabHost";
 import { bootstrapAuthFromHash } from "@/app/lib/auth";
 import { queryClient } from "@/app/lib/query";
+import { listenForSignIn } from "@/app/lib/session";
+import { setTabRouterFactory, startBrowserSync } from "@/app/lib/tabRouters";
+import { useAuthStore } from "@/app/stores/auth";
+import {
+  isSettingsHref,
+  openSettings,
+  restoreSettingsAfterSignIn,
+} from "@/app/stores/settingsModal";
 import { bootstrapTheme } from "@/app/stores/theme";
+import { normalizeHref } from "@/app/workspace/model";
+import { dispatch, getFocusedTab, initWorkspace } from "@/app/workspace/store";
 import "./styles/index.css";
 import { routeTree } from "./routeTree.gen";
 
 bootstrapTheme();
-bootstrapAuthFromHash();
+const authStart = bootstrapAuthFromHash();
 
-const router = createRouter({
-  routeTree,
-  context: { queryClient },
-  defaultPreload: "intent",
-});
+/** Every tab runs its own router over an in-memory history (see TabHost). */
+function createAppRouter(href: string, history?: AnyRouter["history"]) {
+  return createRouter({
+    routeTree,
+    context: { queryClient },
+    defaultPreload: "intent",
+    defaultNotFoundComponent: NotFound,
+    history: history ?? createMemoryHistory({ initialEntries: [href] }),
+  });
+}
 
 declare module "@tanstack/react-router" {
   interface Register {
-    router: typeof router;
+    router: ReturnType<typeof createAppRouter>;
   }
+}
+
+setTabRouterFactory(createAppRouter);
+
+// A sign-in popup only hands back its token; it must not save a workspace.
+// An OAuth redirect restores this window's focused page instead of opening
+// the callback's root URL as a new tab.
+if (authStart !== "handoff") {
+  const href = normalizeHref(window.location.href);
+  // Settings needs a session; signed out, /settings shows the login page.
+  const signedIn = !!useAuthStore.getState().token;
+  const showSettings =
+    signedIn &&
+    (isSettingsHref(href) || (authStart === "redirect" && restoreSettingsAfterSignIn()));
+  initWorkspace(isSettingsHref(href) ? "/" : href);
+  if (authStart === "redirect") window.history.replaceState(null, "", getFocusedTab().href);
+  else if (!showSettings)
+    dispatch({
+      type: "openOrJump",
+      href: isSettingsHref(href) ? "/login" : href,
+      match: "href",
+    });
+  if (showSettings) openSettings({ replace: true });
+}
+
+function SignedInHandoff() {
+  return (
+    <div className="flex h-full items-center justify-center bg-background p-6 text-body text-muted-foreground">
+      Signed in. You can close this window.
+    </div>
+  );
 }
 
 const rootEl = document.getElementById("root");
@@ -29,10 +77,19 @@ if (!rootEl) throw new Error("Root element #root not found");
 const shell = document.getElementById("shell");
 if (shell) shell.classList.add("hide");
 
-createRoot(rootEl).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
-  </StrictMode>,
-);
+if (authStart === "handoff") {
+  // The sign-in popup: its token went to the workspace window. Close, or
+  // say so if the browser won't let a script close this window.
+  window.close();
+  createRoot(rootEl).render(<SignedInHandoff />);
+} else {
+  startBrowserSync();
+  listenForSignIn();
+  createRoot(rootEl).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <TabHost />
+      </QueryClientProvider>
+    </StrictMode>,
+  );
+}

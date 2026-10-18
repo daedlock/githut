@@ -4,6 +4,7 @@ import { Avatar } from "@/app/components/ui/avatar";
 import { PrStateIcon } from "@/app/features/pulls/components/PrStatePill";
 import type { ListGroup, ListGrouping, ListKind } from "@/app/features/repo/listGrouping";
 import { cn } from "@/app/lib/cn";
+import { useTabScope } from "@/app/lib/tabScope";
 
 type GroupedListProps<T> = {
   groups: ListGroup<T>[];
@@ -24,11 +25,13 @@ export function GroupedList<T>({
 }: GroupedListProps<T>) {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
+  const { isFocused } = useTabScope();
 
   useEffect(() => {
     if (groupBy === "none") return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (
+        !isFocused() ||
         event.defaultPrevented ||
         event.repeat ||
         event.metaKey ||
@@ -71,7 +74,7 @@ export function GroupedList<T>({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [groupBy, groups, collapsedGroups, onGroupsCollapsed]);
+  }, [groupBy, groups, collapsedGroups, onGroupsCollapsed, isFocused]);
 
   if (groupBy === "none") {
     return (
@@ -90,7 +93,7 @@ export function GroupedList<T>({
             data-list-group={group.key}
             aria-labelledby={`${contentId}-heading`}
           >
-            <h2 id={`${contentId}-heading`} className="sticky top-(--app-header-height) z-30 bg-background">
+            <h2 id={`${contentId}-heading`} className="sticky top-0 z-30 bg-background">
               <button
                 type="button"
                 aria-expanded={expanded}

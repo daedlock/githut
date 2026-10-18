@@ -1,13 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { useEffect } from "react";
-
-import { AppShell } from "@/app/components/shell/AppShell";
-import { UnifiedNav } from "@/app/components/shell/UnifiedNav";
 import { repoQueryOptions } from "@/app/hooks/useRepo";
 import { useAuthStore } from "@/app/stores/auth";
-import { useTabsStore } from "@/app/stores/tabs";
-
-// Sticky content follows the header's second row on narrow screens.
 
 export const Route = createFileRoute("/$owner/$repo")({
   beforeLoad: () => {
@@ -24,45 +17,12 @@ export const Route = createFileRoute("/$owner/$repo")({
   component: RepoLayout,
 });
 
+// Repo identity and sections live in the island header and title bar (see
+// TabHost), so the layout itself is just the page.
 function RepoLayout() {
-  const { owner, repo } = Route.useParams();
-
   return (
-    <AppShell
-      header={<UnifiedNav repoContext={{ owner, repo }} />}
-      className="[--app-header-height:80px] md:[--app-header-height:40px]"
-      stickyHeader
-    >
-      <TabScrollRegistrar />
+    <div className="flex min-h-full min-w-0 flex-col">
       <Outlet />
-    </AppShell>
+    </div>
   );
-}
-
-/**
- * Saves scroll position to the active tab on unmount,
- * restores it on mount. Replaces WorkspaceRegistrar.
- */
-function TabScrollRegistrar() {
-  const activeTabId = useTabsStore((s) => s.activeTabId);
-  const saveScroll = useTabsStore((s) => s.saveScroll);
-
-  // Restore scroll on mount
-  useEffect(() => {
-    if (!activeTabId) return;
-    const tab = useTabsStore.getState().tabs.find((t) => t.id === activeTabId);
-    if (tab && tab.scrollY > 0) {
-      requestAnimationFrame(() => window.scrollTo(0, tab.scrollY));
-    }
-  }, [activeTabId]);
-
-  // Save scroll on unmount
-  useEffect(() => {
-    return () => {
-      const id = useTabsStore.getState().activeTabId;
-      if (id) saveScroll(id, window.scrollY);
-    };
-  }, [saveScroll]);
-
-  return null;
 }

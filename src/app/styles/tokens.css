@@ -37,6 +37,26 @@
     0.86866 0.00447 60.2545
   ); /* stone-300 — form controls, focused borders */
 
+  /*
+   * ─── Islands workspace ──────────────────────────────────────────────────
+   *
+   * The window frame sits behind the title bar and between islands. It is
+   * derived from the page background — deeper in light themes, darker in
+   * dark ones (see .dark) — so islands read as raised sheets in every
+   * palette. A theme overrides it by setting --color-frame itself.
+   *
+   * Island edges follow Linear: a translucent tint of the text colour, so
+   * they read as a faint highlight on dark themes and a faint shade on light
+   * ones, in every palette. Focus only firms the edge a little; the focused
+   * tab carries the brand tint.
+   */
+  --color-frame: color-mix(in oklab, var(--color-bg) 95%, var(--color-fg));
+  --color-island-edge: color-mix(in oklab, var(--color-fg) 9%, transparent);
+  --color-island-edge-focus: color-mix(in oklab, var(--color-fg) 13%, transparent);
+  --radius-island: 10px;
+  /* Island tabs sit above the sheet; the sheet starts 1px under their bottom edge. */
+  --island-tabs-height: 2.25rem;
+
   /* form controls: translucent so focus states lift relative to their local surface */
   --color-control-bg: transparent;
   --color-control-bg-active: color-mix(in oklab, var(--color-fg-muted) 5%, transparent);
@@ -248,6 +268,14 @@
   --text-micro--line-height: 1.2;
   --text-micro--letter-spacing: 0.015em;
 
+  /* --- mark / mark-sm: 9.5px / 8.5px / 1 ---
+     Repo-mark glyphs only (RepoMark). An identity graphic sized like an icon
+     inside a 16px / 14px square, never running text. */
+  --text-mark: 9.5px;
+  --text-mark--line-height: 1;
+  --text-mark-sm: 8.5px;
+  --text-mark-sm--line-height: 1;
+
   /* --- caption: 12px / 1.4 / +0.01em ---
      Small meta text (counts, timestamps, language names, keyboard hints). */
   --text-caption: 12px;
@@ -343,6 +371,8 @@
 .dark {
   --color-popover: color-mix(in oklab, var(--color-bg-subtle) 98%, white);
   --color-popover-active: color-mix(in oklab, var(--color-popover) 96%, white);
+
+  --color-frame: color-mix(in oklab, var(--color-bg) 84%, black);
 
   /* surfaces */
   --color-bg: oklch(0.1469 0.00423 52.7554); /* stone-950 — warm near-black; fg contrast 17.4:1 */

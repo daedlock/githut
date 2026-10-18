@@ -1,6 +1,7 @@
 import { CheckCircle2, CircleDot, X } from "lucide-react";
 import { useMemo } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
+import { LiveUpdates } from "@/app/components/LiveUpdates";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Avatar } from "@/app/components/ui/avatar";
 import { Button } from "@/app/components/ui/button";
@@ -28,6 +29,7 @@ import {
 } from "@/app/features/issues/schemas";
 import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 import { formatRelativeTime } from "@/app/lib/time";
 
 export type IssueDetailProps = {
@@ -79,6 +81,7 @@ export function IssueDetail({
   // CommentCardWithReactions so each comment has an independently-keyed cache.
   const { data: myIssueReactions } = useMyIssueReactions(owner, repo, issue?.number, me?.id);
   const updateIssueMutation = useUpdateIssue(owner, repo);
+  const { canMutate, reason: cannotMutateReason } = useCanMutate();
 
   const isMyIssue = !!me && !!issue && me.login === issue.user.login;
 
@@ -96,7 +99,7 @@ export function IssueDetail({
   }, [issue, comments]);
 
   return (
-    <Container className="py-5 sm:py-6">
+    <Container className="py-5 @xl/pane:py-6">
       <div className="mb-4 flex items-center justify-between gap-3">
         <button
           type="button"
@@ -114,7 +117,8 @@ export function IssueDetail({
           <Button
             variant={issue.state === "open" ? "secondary" : "default"}
             size="sm"
-            disabled={isTogglingState}
+            disabled={isTogglingState || !canMutate}
+            title={cannotMutateReason}
             onClick={onToggleState}
           >
             {issue.state === "open" ? (
@@ -141,7 +145,7 @@ export function IssueDetail({
       ) : (
         <>
           <div className="mb-5">
-            <h1 className="text-xl font-semibold leading-snug tracking-tight text-foreground sm:text-2xl">
+            <h1 className="text-xl font-semibold leading-snug tracking-tight text-foreground @xl/pane:text-2xl">
               {issue.title}{" "}
               <span className="font-mono text-title font-normal text-[var(--color-fg-faint)]">
                 #{issue.number}
@@ -163,37 +167,46 @@ export function IssueDetail({
             </div>
           </div>
 
-          <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
+          <div className="flex flex-col gap-4 @4xl/pane:flex-row @4xl/pane:gap-6">
             {/* Main column */}
-            <div className="min-w-0 flex-1 flex flex-col gap-3">
-              <IssueCommentCard
-                login={issue.user.login}
-                avatarUrl={issue.user.avatar_url}
-                date={issue.created_at}
-                isAuthor
-                reactions={issue.reactions}
-                myReactions={myIssueReactions ?? EMPTY_MY_REACTIONS}
-                onToggleReaction={onToggleIssueReaction}
-                canEdit={isMyIssue}
-                rawBody={issue.body ?? ""}
-                onSave={async (next) => {
-                  await updateIssueMutation.mutateAsync({ issueNumber: issue.number, body: next });
-                }}
-                participants={participants}
-                repoOwner={owner}
-                repoName={repo}
-                isSaving={updateIssueMutation.isPending}
-              >
-                {issue.body?.trim() ? (
-                  <div className="readme-prose max-w-none text-body">
-                    <GithubMarkdown repoContext={{ owner, repo }}>{issue.body}</GithubMarkdown>
-                  </div>
-                ) : (
-                  <p className="text-body italic text-[var(--color-fg-faint)]">
-                    No description provided.
-                  </p>
-                )}
-              </IssueCommentCard>
+            <LiveUpdates
+              key={`${owner}/${repo}/${issue.number}`}
+              ready={!commentsLoading}
+              className="min-w-0 flex-1 flex flex-col gap-3"
+            >
+              <div data-live-anchor>
+                <IssueCommentCard
+                  login={issue.user.login}
+                  avatarUrl={issue.user.avatar_url}
+                  date={issue.created_at}
+                  isAuthor
+                  reactions={issue.reactions}
+                  myReactions={myIssueReactions ?? EMPTY_MY_REACTIONS}
+                  onToggleReaction={onToggleIssueReaction}
+                  canEdit={isMyIssue}
+                  rawBody={issue.body ?? ""}
+                  onSave={async (next) => {
+                    await updateIssueMutation.mutateAsync({
+                      issueNumber: issue.number,
+                      body: next,
+                    });
+                  }}
+                  participants={participants}
+                  repoOwner={owner}
+                  repoName={repo}
+                  isSaving={updateIssueMutation.isPending}
+                >
+                  {issue.body?.trim() ? (
+                    <div className="readme-prose max-w-none text-body">
+                      <GithubMarkdown repoContext={{ owner, repo }}>{issue.body}</GithubMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-body italic text-[var(--color-fg-faint)]">
+                      No description provided.
+                    </p>
+                  )}
+                </IssueCommentCard>
+              </div>
 
               {commentsLoading ? (
                 <CommentSkeleton label="Loading comments" />
@@ -201,23 +214,29 @@ export function IssueDetail({
                 <StatusMessage tone="danger">Could not load comments.</StatusMessage>
               ) : (
                 comments.map((c) => (
-                  <CommentCardWithReactions
-                    key={c.id}
-                    owner={owner}
-                    repo={repo}
-                    meId={me?.id}
-                    meLogin={me?.login}
-                    issueNumber={issue.number}
-                    comment={c}
-                    onToggleReaction={onToggleCommentReaction}
-                    participants={participants}
-                  />
+                  <div key={c.id} data-live-item={`c-${c.id}`} tabIndex={-1}>
+                    <CommentCardWithReactions
+                      owner={owner}
+                      repo={repo}
+                      meId={me?.id}
+                      meLogin={me?.login}
+                      issueNumber={issue.number}
+                      comment={c}
+                      onToggleReaction={onToggleCommentReaction}
+                      participants={participants}
+                    />
+                  </div>
                 ))
               )}
 
-              <div className="flex gap-3">
+              <div data-live-anchor className="flex gap-3">
                 {me?.avatar_url && (
-                  <Avatar login={me.login} avatarUrl={me.avatar_url} size="sm" className="mt-2 shrink-0" />
+                  <Avatar
+                    login={me.login}
+                    avatarUrl={me.avatar_url}
+                    size="sm"
+                    className="mt-2 shrink-0"
+                  />
                 )}
                 <div className="min-w-0 flex-1">
                   <ComposeBox
@@ -235,11 +254,11 @@ export function IssueDetail({
                   />
                 </div>
               </div>
-            </div>
+            </LiveUpdates>
 
             {/* Sidebar */}
-            <aside className="w-full lg:w-[328px] lg:flex-shrink-0 self-stretch">
-              <div className="sticky top-[calc(var(--app-header-height)+16px)]">
+            <aside className="w-full self-stretch @4xl/pane:w-[328px] @4xl/pane:shrink-0">
+              <div className="@4xl/pane:sticky @4xl/pane:top-4">
                 <IssueSidebar owner={owner} repo={repo} issue={issue} />
               </div>
             </aside>
@@ -260,12 +279,12 @@ function IssueDetailSkeleton() {
           <Skeleton className="h-4 w-64" />
         </div>
       </SkeletonGroup>
-      <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
+      <div className="flex flex-col gap-4 @4xl/pane:flex-row @4xl/pane:gap-6">
         <div className="min-w-0 flex-1 space-y-3">
           <CommentSkeleton label="Loading issue description" />
           <CommentSkeleton label="Loading comments" />
         </div>
-        <div className="w-full lg:w-[328px] lg:shrink-0">
+        <div className="w-full @4xl/pane:w-[328px] @4xl/pane:shrink-0">
           <MetadataSkeleton />
         </div>
       </div>

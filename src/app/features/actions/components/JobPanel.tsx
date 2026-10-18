@@ -106,7 +106,7 @@ export function JobPanel({ owner, repo, job, defaultOpen = false }: JobPanelProp
             when the panel is closed so the user doesn't have to expand to
             see liveness. */}
         {isLive && activeStep && !open ? (
-          <span className="hidden items-center gap-1.5 text-caption text-(--color-warning) md:inline-flex">
+          <span className="hidden items-center gap-1.5 text-caption text-(--color-warning) @2xl/pane:inline-flex">
             <span className="animate-pulse">▶</span>
             <span className="font-mono truncate max-w-[220px]">{activeStep.name}</span>
           </span>

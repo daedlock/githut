@@ -54,7 +54,7 @@ export function ProfileView({ login }: { login: string }) {
   }
 
   return (
-    <Container className="py-8 sm:py-10">
+    <Container className="py-8 @xl/pane:py-10">
       <div className="flex flex-col gap-10">
         <ProfileHero profile={profile.data} isLoading={profile.isPending} />
 
@@ -67,7 +67,7 @@ export function ProfileView({ login }: { login: string }) {
           membersCount={isOrg ? members.data?.length : undefined}
         />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 @xl/pane:grid-cols-2">
           <ProfileLanguages repos={repos.data} isLoading={repos.isPending} />
           <ProfileLatestActivity events={events.data} isLoading={events.isPending} />
         </div>

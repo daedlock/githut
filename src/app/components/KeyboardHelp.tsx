@@ -4,9 +4,10 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/app/com
 import { Kbd } from "@/app/components/ui/kbd";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { cn } from "@/app/lib/cn";
+import { MOD_KEY } from "@/app/lib/shortcuts";
 import { useKeyboardHelpStore } from "@/app/stores/keyboardHelp";
 
-type Scope = "global" | "repo" | "diff" | "list";
+type Scope = "global" | "tabs" | "repo" | "diff" | "list" | "inbox";
 
 type Shortcut = {
   chord: string;
@@ -17,11 +18,25 @@ type Shortcut = {
 const SHORTCUTS: readonly Shortcut[] = [
   // Global
   { chord: "⌘ K", label: "Open command palette", scope: "global" },
+  { chord: "⌘ B", label: "Toggle sidebar", scope: "global" },
   { chord: "?", label: "Open keyboard help", scope: "global" },
   { chord: "g h", label: "Go to inbox", scope: "global" },
   { chord: "g i", label: "Go to issues", scope: "global" },
   { chord: "g p", label: "Go to pull requests", scope: "global" },
   { chord: "g c", label: "Go to code", scope: "global" },
+
+  // Tabs
+  { chord: "⇧ Click", label: "Open link in new tab", scope: "tabs" },
+  { chord: "Alt W", label: "Close tab", scope: "tabs" },
+  { chord: "⌘ Z", label: "Undo layout change", scope: "tabs" },
+  { chord: "⌘ ⇧ Z", label: "Redo layout change", scope: "tabs" },
+  { chord: "Alt ⇧ T", label: "Reopen closed tab", scope: "tabs" },
+  { chord: "Alt [", label: "Previous tab", scope: "tabs" },
+  { chord: "Alt ]", label: "Next tab", scope: "tabs" },
+  { chord: "Alt 1–9", label: "Jump to tab (9 = last)", scope: "tabs" },
+  { chord: "Alt \\", label: "Split island right", scope: "tabs" },
+  { chord: "Alt ⇧ ←↑↓→", label: "Focus neighbouring island", scope: "tabs" },
+  { chord: "←↑↓→", label: "Resize the focused gap (⇧ for larger steps)", scope: "tabs" },
 
   // Diff viewer (already wired in DiffLayout)
   { chord: "j", label: "Next file", scope: "diff" },
@@ -39,16 +54,20 @@ const SHORTCUTS: readonly Shortcut[] = [
   { chord: "s", label: "Change status of selection", scope: "list" },
   { chord: "l", label: "Label selection", scope: "list" },
   { chord: "a", label: "Assign selection", scope: "list" },
+  { chord: "e", label: "Mark notification or selection done", scope: "inbox" },
+  { chord: "⇧ U", label: "Toggle read / unread (unread is device only)", scope: "inbox" },
 ];
 
 const SCOPE_TITLES: Record<Scope, string> = {
   global: "Global",
+  tabs: "Tabs and islands",
   repo: "Repo",
   diff: "Diff viewer",
   list: "List",
+  inbox: "Inbox",
 };
 
-const DEFAULT_ORDER: readonly Scope[] = ["global", "repo", "diff", "list"];
+const DEFAULT_ORDER: readonly Scope[] = ["global", "tabs", "repo", "diff", "list", "inbox"];
 
 function promoteScope(scope: Scope): readonly Scope[] {
   if (scope === "global") return DEFAULT_ORDER;
@@ -56,10 +75,10 @@ function promoteScope(scope: Scope): readonly Scope[] {
 }
 
 function scopeForPath(pathname: string): Scope {
+  if (pathname === "/") return "inbox";
   if (/\/[^/]+\/[^/]+\/commit\/[^/]+/.test(pathname)) return "diff";
   if (/\/[^/]+\/[^/]+\/pr\/[^/]+/.test(pathname)) return "diff";
-  if (pathname === "/" || /^\/[^/]+\/[^/]+\/(pulls|issues|commits|actions)\/?$/.test(pathname))
-    return "list";
+  if (/^\/[^/]+\/[^/]+\/(pulls|issues|commits|actions)\/?$/.test(pathname)) return "list";
   if (/^\/[^/]+\/[^/]+(\/|$)/.test(pathname) && !pathname.startsWith("/w/")) return "repo";
   return "global";
 }
@@ -69,7 +88,7 @@ function renderChord(chord: string): React.ReactNode {
   return (
     <span className="inline-flex items-center gap-[3px]">
       {tokens.map((token) => (
-        <Kbd key={token}>{token}</Kbd>
+        <Kbd key={token}>{token === "⌘" ? MOD_KEY : token}</Kbd>
       ))}
     </span>
   );
@@ -92,7 +111,14 @@ export function KeyboardHelp() {
   const order = useMemo(() => promoteScope(scopeForPath(pathname)), [pathname]);
 
   const grouped = useMemo(() => {
-    const byScope: Record<Scope, Shortcut[]> = { global: [], repo: [], diff: [], list: [] };
+    const byScope: Record<Scope, Shortcut[]> = {
+      global: [],
+      tabs: [],
+      repo: [],
+      diff: [],
+      list: [],
+      inbox: [],
+    };
     for (const s of SHORTCUTS) byScope[s.scope].push(s);
     return order
       .map((scope) => ({ scope, items: byScope[scope] }))

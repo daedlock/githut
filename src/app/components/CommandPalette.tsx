@@ -1,4 +1,5 @@
-import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { useRouterState } from "@tanstack/react-router";
+import { defaultFilter } from "cmdk";
 import {
   BookMarked,
   CheckCircle2,
@@ -37,16 +38,16 @@ import {
 } from "@/app/hooks/useCommandPaletteItems";
 import { useKeybindings } from "@/app/hooks/useKeybindings";
 import { useRepos } from "@/app/hooks/useRepos";
+import { useWorkspacePaletteCommands } from "@/app/hooks/useWorkspacePaletteCommands";
 import { track } from "@/app/lib/analytics";
 import { logout } from "@/app/lib/auth";
 import { cn } from "@/app/lib/cn";
 import { clearRecentItems, pushRecentItem, type RecentItem } from "@/app/lib/recentItems";
-import { getTabMeta } from "@/app/lib/tabMeta";
+import { MOD_KEY } from "@/app/lib/shortcuts";
+import { openOrJump, openToSide, replaceFocusedTab } from "@/app/lib/tabActions";
 import { THEME_OPTIONS } from "@/app/lib/themeCatalog";
 import { formatRelativeTime } from "@/app/lib/time";
 import { useCommandPalette, useCommandPaletteStore } from "@/app/stores/commandPalette";
-import { useSettingsStore } from "@/app/stores/settings";
-import { hrefToTabId, useTabsStore } from "@/app/stores/tabs";
 import { useThemeStore } from "@/app/stores/theme";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -58,6 +59,9 @@ type PaletteCommand = {
   keywords?: string[];
   shortcut?: string;
   run: () => void;
+  disabled?: boolean;
+  /** Dynamic layout destinations must never enter ordinary page-aware telemetry. */
+  workspace?: boolean;
 };
 
 type RepoContext = { owner: string; repo: string } | null;
@@ -65,29 +69,7 @@ type RepoContext = { owner: string; repo: string } | null;
 // ─── Command builder ─────────────────────────────────────────────────────────
 // Returns a flat array of all available commands. cmdk handles the filtering.
 
-/**
- * Navigate to an href — through the tab system if enabled, or direct router
- * navigation if tabs are off.
- */
-function openTabOrNavigate(href: string, navigate: ReturnType<typeof useNavigate>) {
-  if (useSettingsStore.getState().tabsEnabled) {
-    const id = hrefToTabId(href);
-    const meta = getTabMeta(id);
-    useTabsStore.getState().openTab(href, {
-      label: meta.label,
-      sublabel: meta.sublabel,
-      icon: meta.icon.displayName ?? meta.icon.name ?? "File",
-    });
-    // Opening a different search result in the same page tab (for example
-    // /code?path=a.ts → /code?path=b.ts) keeps the same activeTabId, so the
-    // tab-sync subscription will not fire. Navigate directly as well so
-    // search-param-only tab updates are applied immediately.
-    navigate({ to: href });
-    return;
-  }
-
-  navigate({ to: href });
-}
+type NavigationIntent = "jump" | "side" | "replace";
 
 function repoCodeHref(
   owner: string,
@@ -107,11 +89,11 @@ function repoCodeHref(
 function buildCommands(
   close: () => void,
   repoContext: RepoContext,
-  navigate: ReturnType<typeof useNavigate>,
+  navigateTo: (href: string) => void,
 ): { actions: PaletteCommand[]; themes: PaletteCommand[] } {
   const goTo = (path: string) => () => {
     close();
-    openTabOrNavigate(path, navigate);
+    navigateTo(path);
   };
   const r = repoContext;
   const base = r ? `/${r.owner}/${r.repo}` : null;
@@ -210,7 +192,14 @@ export function CommandPalette() {
   const open = useCommandPaletteStore((s) => s.open);
   const setOpen = useCommandPaletteStore((s) => s.setOpen);
   const { close, toggle } = useCommandPalette();
-  const navigate = useNavigate();
+  const navigationIntent = useRef<NavigationIntent>("jump");
+  const navigateTo = useCallback((href: string) => {
+    const intent = navigationIntent.current;
+    navigationIntent.current = "jump";
+    if (intent === "side") openToSide(href);
+    else if (intent === "replace") replaceFocusedTab(href);
+    else openOrJump(href);
+  }, []);
 
   // Close on route change
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -230,25 +219,22 @@ export function CommandPalette() {
     return { owner: parts[0]!, repo: parts[1]! };
   }, [pathname]);
 
-  // ⌘K + vim-style navigation shortcuts — all go through openTab
+  // ⌘K + vim-style navigation shortcuts
   const shortcuts = useMemo(
     () => ({
       "⌘k": toggle,
-      "g h": () => openTabOrNavigate("/", navigate),
+      "g h": () => openOrJump("/"),
       "g i": () => {
-        if (repoContext)
-          openTabOrNavigate(`/${repoContext.owner}/${repoContext.repo}/issues`, navigate);
+        if (repoContext) openOrJump(`/${repoContext.owner}/${repoContext.repo}/issues`);
       },
       "g p": () => {
-        if (repoContext)
-          openTabOrNavigate(`/${repoContext.owner}/${repoContext.repo}/pulls`, navigate);
+        if (repoContext) openOrJump(`/${repoContext.owner}/${repoContext.repo}/pulls`);
       },
       "g c": () => {
-        if (repoContext)
-          openTabOrNavigate(`/${repoContext.owner}/${repoContext.repo}/code`, navigate);
+        if (repoContext) openOrJump(`/${repoContext.owner}/${repoContext.repo}/code`);
       },
     }),
-    [toggle, repoContext, navigate],
+    [toggle, repoContext],
   );
   useKeybindings(shortcuts);
 
@@ -281,9 +267,19 @@ export function CommandPalette() {
     return hasQuery ? data : data.slice(0, 50);
   }, [repos.data, hasQuery]);
   const { actions, themes } = useMemo(
-    () => buildCommands(close, repoContext, navigate),
-    [close, repoContext, navigate],
+    () => buildCommands(close, repoContext, navigateTo),
+    [close, repoContext, navigateTo],
   );
+  const layoutActions = useWorkspacePaletteCommands(open, close);
+  // Layout commands rank below pages, repos and search results, so a word
+  // like "island" or "tab" never pushes the content being looked for away.
+  const filter = useMemo(() => {
+    const layout = new Set(layoutActions.map(commandValue));
+    return (value: string, search: string, keywords?: string[]) => {
+      const score = defaultFilter(value, search, keywords);
+      return layout.has(value) ? score * 0.25 : score;
+    };
+  }, [layoutActions]);
 
   // Track opens + reset query on close.
   const wasOpen = useRef(open);
@@ -299,9 +295,9 @@ export function CommandPalette() {
       track("command_palette_result_selected", { kind: item.kind });
       void pushRecentItem(item);
       close();
-      openTabOrNavigate(item.href, navigate);
+      navigateTo(item.href);
     },
-    [close, navigate],
+    [close, navigateTo],
   );
 
   const jumpToNumber = useCallback(
@@ -354,18 +350,30 @@ export function CommandPalette() {
       title="Command palette"
       description="Search, navigate, or run a command"
       shouldFilter={shouldFilter}
+      filter={filter}
     >
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: cmdk owns focus; we intercept Enter for number-mode jump */}
       <div
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        onKeyDownCapture={(e) => {
+          if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+          navigationIntent.current =
+            e.metaKey || e.ctrlKey ? "replace" : e.altKey ? "side" : "jump";
+          // Keep the intent through React's separate capture/bubble listeners.
+          // A microtask can run before cmdk's bubble handler selects the result.
+          setTimeout(() => {
+            navigationIntent.current = "jump";
+          });
+          if (numberMode) {
             e.preventDefault();
-            return;
-          }
-          if (numberMode && e.key === "Enter") {
-            e.preventDefault();
+            e.stopPropagation();
             jumpToNumber(mode.number);
           }
+        }}
+        onClickCapture={(e) => {
+          navigationIntent.current =
+            e.metaKey || e.ctrlKey ? "replace" : e.altKey ? "side" : "jump";
+          setTimeout(() => {
+            navigationIntent.current = "jump";
+          });
         }}
       >
         <CommandInput
@@ -411,10 +419,8 @@ export function CommandPalette() {
                   <span
                     className={cn(
                       "min-w-0 flex-1 truncate",
-                      (item.kind === "repo" ||
-                        item.kind === "issue" ||
-                        item.kind === "pr" ||
-                        item.kind === "file") &&
+                      // Repo names, paths and bare numbers are identifiers; page, issue and PR labels are titles.
+                      (item.kind === "file" || /^[^\s/]+\/[^\s/]+$|^#\d+$/.test(item.label)) &&
                         "font-mono tabular-nums",
                     )}
                   >
@@ -432,6 +438,13 @@ export function CommandPalette() {
           {showCommands && (
             <CommandGroup heading="Commands">
               {actions.map((cmd) => (
+                <CommandRow key={cmd.id} cmd={cmd} />
+              ))}
+            </CommandGroup>
+          )}
+          {showCommands && (
+            <CommandGroup heading="Layout">
+              {layoutActions.map((cmd) => (
                 <CommandRow key={cmd.id} cmd={cmd} />
               ))}
             </CommandGroup>
@@ -632,9 +645,10 @@ export function CommandPalette() {
         </CommandList>
 
         {/* ── Footer ── */}
-        <div className="flex items-center gap-3 border-t border-border px-3 py-2">
-          <FooterHint keys={["↵"]} label="select" />
-          <FooterHint keys={["↑", "↓"]} label="navigate" />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border px-3 py-2">
+          <FooterHint keys={["↵"]} label="open or jump" />
+          <FooterHint keys={["Alt", "↵"]} label="to side" />
+          <FooterHint keys={["⌘/Ctrl", "↵"]} label="replace" />
           <span className="flex-1" />
           <FooterHint keys={[">"]} label="commands" />
           <FooterHint keys={["@"]} label="repos" />
@@ -649,13 +663,19 @@ export function CommandPalette() {
 
 // ─── Subcomponents ───────────────────────────────────────────────────────────
 
+function commandValue(cmd: PaletteCommand): string {
+  return `> ${cmd.label} ${cmd.keywords?.join(" ") ?? ""}`;
+}
+
 function CommandRow({ cmd }: { cmd: PaletteCommand }) {
   const Icon = cmd.icon;
   return (
     <CommandItem
-      value={`> ${cmd.label} ${cmd.keywords?.join(" ") ?? ""}`}
+      aria-label={cmd.label}
+      disabled={cmd.disabled}
+      value={commandValue(cmd)}
       onSelect={() => {
-        track("command_palette_command_selected", { id: cmd.id });
+        if (!cmd.workspace) track("command_palette_command_selected", { id: cmd.id });
         cmd.run();
       }}
     >
@@ -696,7 +716,7 @@ function ShortcutKeys({ chord }: { chord: string }) {
   return (
     <span className="inline-flex items-center gap-0.75">
       {chord.split(" ").map((k) => (
-        <Kbd key={k}>{k}</Kbd>
+        <Kbd key={k}>{k === "⌘" ? MOD_KEY : k}</Kbd>
       ))}
     </span>
   );
@@ -708,7 +728,7 @@ function FooterHint({ keys, label }: { keys: string[]; label: string }) {
       {keys.map((k) => (
         <Kbd key={k}>{k}</Kbd>
       ))}
-      <span className="text-micro">{label}</span>
+      <span className="whitespace-nowrap text-micro">{label}</span>
     </span>
   );
 }

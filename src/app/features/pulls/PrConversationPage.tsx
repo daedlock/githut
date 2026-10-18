@@ -1,6 +1,7 @@
 import { AlertCircle, Check, EyeOff, GitMerge, MessageSquare, X } from "lucide-react";
 import { useMemo } from "react";
 import { GithubMarkdown } from "@/app/components/GithubMarkdown";
+import { LiveUpdates } from "@/app/components/LiveUpdates";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { CommentCardDisplay, CommentComposeCard } from "@/app/components/ui/CommentCard";
 import { CommentSkeleton } from "@/app/components/ui/CommentSkeleton";
@@ -28,6 +29,7 @@ import type { Review, ReviewComment } from "@/app/features/pulls/schemas";
 import { useMe } from "@/app/hooks/useMe";
 import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
+import { draftKey, draftPage, sentDraft } from "@/app/stores/drafts";
 
 export type PrConversationPageProps = {
   owner: string;
@@ -104,9 +106,11 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
     return users;
   }, [pr, comments, reviews]);
 
+  const commentDraftKey = draftKey(draftPage(owner, repo, number), "comment");
+
   function handleSubmit(body: string) {
-    if (!body || postComment.isPending) return;
-    postComment.mutate({ body });
+    if (!body || postComment.isPending) return false;
+    return postComment.mutateAsync({ body, draft: sentDraft(commentDraftKey, body) });
   }
 
   if (prQuery.isPending) return <ConversationSkeleton />;
@@ -120,13 +124,19 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
   }
 
   return (
-    <div className="relative">
+    <LiveUpdates
+      key={`${owner}/${repo}/${number}`}
+      className="relative"
+      ready={
+        ![commentsQuery, reviewsQuery, timelineQuery, commitsQuery].some((query) => query.isPending)
+      }
+    >
       {/* Vertical line */}
       <div className="absolute left-[11px] top-0 bottom-0 w-0.5 bg-muted" />
 
       {/* PR body */}
       {pr.user && (
-        <div className="relative flex gap-4">
+        <div data-live-anchor className="relative flex gap-4">
           <div className="pt-1">
             <TimelineMarker type="author" avatarUrl={pr.user.avatar_url} />
           </div>
@@ -168,7 +178,11 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
         <div className="flex flex-col">
           {feed.map((item, i) => {
             if (item.kind === "commitGroup") {
-              return <PrCommitGroupRow key={`cg-${item.at}-${item.commits.length}`} item={item} />;
+              return (
+                <div key={`cg-${item.at}`} data-live-item={`cg-${item.at}`} tabIndex={-1}>
+                  <PrCommitGroupRow item={item} />
+                </div>
+              );
             }
             if (item.kind === "comment") {
               return (
@@ -193,7 +207,12 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
               const hasNewThreads = inline.some((c) => !c.in_reply_to_id);
               if (!hasBody && !hasNewThreads) return null;
               return (
-                <div key={`r-${item.review.id}`} className="relative flex gap-4 pt-4">
+                <div
+                  key={`r-${item.review.id}`}
+                  data-live-item={`r-${item.review.id}`}
+                  tabIndex={-1}
+                  className="relative flex gap-4 pt-4"
+                >
                   <div className="pt-1">
                     <TimelineMarker type="review" reviewState={item.review.state} />
                   </div>
@@ -210,7 +229,12 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
               );
             }
             return (
-              <div key={`e-${item.id ?? i}`} className="relative">
+              <div
+                key={`e-${item.id ?? i}`}
+                data-live-item={`e-${item.id ?? `${item.event}-${item.at}`}`}
+                tabIndex={-1}
+                className="relative"
+              >
                 <PrTimelineRow event={item} />
               </div>
             );
@@ -219,7 +243,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
       )}
 
       {/* Merge status box */}
-      <div className="relative flex gap-4 pt-4">
+      <div data-live-anchor className="relative flex gap-4 pt-4">
         <div className="pt-1">
           <TimelineMarker type="merge" />
         </div>
@@ -230,7 +254,7 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
 
       {/* Add a comment */}
       {meQuery.data && (
-        <div className="relative flex gap-4 pt-4">
+        <div data-live-anchor className="relative flex gap-4 pt-4">
           <div className="pt-1">
             <TimelineMarker type="comment" avatarUrl={meQuery.data.avatar_url} />
           </div>
@@ -246,11 +270,12 @@ export function PrConversationPage({ owner, repo, number }: PrConversationPagePr
               submitLabel="Comment"
               hideAvatar
               participants={participants}
+              draftKey={commentDraftKey}
             />
           </div>
         </div>
       )}
-    </div>
+    </LiveUpdates>
   );
 }
 
@@ -285,7 +310,7 @@ function PrCommentRow({
   const isMine = !!meLogin && !!item.user && meLogin === item.user.login;
 
   return (
-    <div className="relative flex gap-4 pt-4">
+    <div data-live-item={`c-${item.id}`} tabIndex={-1} className="relative flex gap-4 pt-4">
       <div className="pt-1">
         <TimelineMarker type="comment" avatarUrl={item.user?.avatar_url} />
       </div>

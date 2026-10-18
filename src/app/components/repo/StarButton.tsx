@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRepoStarred, useToggleStar } from "@/app/hooks/useRepoStarred";
 import { track } from "@/app/lib/analytics";
 import { cn } from "@/app/lib/cn";
+import { useCanMutate } from "@/app/lib/connectivity";
 
 type StarButtonProps = {
   owner: string;
@@ -24,6 +25,7 @@ const PARTICLES = [0, 60, 120, 180, 240, 300].map((deg) => {
 });
 
 export function StarButton({ owner, repo, starCount, className }: StarButtonProps) {
+  const { canMutate, reason } = useCanMutate();
   const { data: starred } = useRepoStarred(owner, repo);
   const toggle = useToggleStar(owner, repo);
   const reduced = useReducedMotion();
@@ -41,7 +43,7 @@ export function StarButton({ owner, repo, starCount, className }: StarButtonProp
   }, [starred, reduced]);
 
   const onClick = () => {
-    if (toggle.isPending) return;
+    if (toggle.isPending || !canMutate) return;
     track("star_toggled", { action: isStarred ? "unstar" : "star" });
     toggle.mutate(!isStarred);
   };
@@ -50,7 +52,8 @@ export function StarButton({ owner, repo, starCount, className }: StarButtonProp
     <button
       type="button"
       onClick={onClick}
-      disabled={starred === undefined}
+      disabled={starred === undefined || !canMutate}
+      title={reason}
       aria-pressed={isStarred}
       data-starred={isStarred ? "true" : "false"}
       className={cn(

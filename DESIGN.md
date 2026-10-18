@@ -26,7 +26,8 @@ colors and every theme works for free.
 
 | Token | Class | Use |
 |---|---|---|
-| `--color-bg` | `bg-background` | Page canvas. Rows at rest, sidebars, cards. |
+| `--color-frame` | `bg-(--color-frame)` | Window frame behind the sidebar and islands (see Islands). Nothing else. |
+| `--color-bg` | `bg-background` | Island and page canvas. Rows at rest, in-page sidebars, cards. |
 | `--color-bg-subtle` | `bg-muted` | Raised: toolbars, row hover, file and hunk headers, group headers (`/60`). |
 | `--color-bg-sunken` | `bg-accent` | Active: selected rows, pressed or open controls. |
 | `--color-popover` | `bg-popover` | Every overlay: popovers, menus, dialogs, floating bars, notices. |
@@ -48,7 +49,7 @@ color is shadcn's `primary`.
 
 | Token | Class | Use |
 |---|---|---|
-| `--color-brand` | `bg-primary`, `text-primary` | Primary button, checked controls, links, active tab indicator, focus. |
+| `--color-brand` | `bg-primary`, `text-primary` | Primary button, checked controls, links, sub-tab indicator, focus. |
 | `--color-success` | `text-(--color-success)` | Open, additions, passing checks. |
 | `--color-danger` | `text-destructive`, `bg-destructive` | Closed (PRs), deletions, failures, errors. |
 | `--color-warning` | `text-(--color-warning)` | Pending, draft. |
@@ -66,7 +67,7 @@ Use them only for structure:
 | Use | Class |
 |---|---|
 | Form controls | `border-input` (primitives already apply it) |
-| Separators between unrelated regions (app header bottom, diff file cards) | `border-border` |
+| Separators between unrelated regions (sticky page bars, diff file cards) | `border-border` |
 | Code and diff containment | `border-border` |
 
 Never use borders to separate list rows, wrap cards, underline toolbars, or
@@ -88,6 +89,7 @@ Only these sizes exist. **Never use `text-xs`, `text-sm`, `text-base`,
 | `text-title` | 18 / 1.35 | Section titles |
 | `text-heading` | 24 / 1.25 | Page headings, issue and PR titles |
 | `text-display` | 32 / 1.15 | Login and empty-state centerpieces |
+| `text-mark` / `text-mark-sm` | 9.5 / 8.5, line-height 1 | Repo-mark glyphs only (an identity graphic, like an icon) |
 
 - Tokens set size, line-height and tracking; **callers set weight.** Row
   titles use `font-[475]`, emphasis and labels use `font-medium`, and
@@ -121,13 +123,15 @@ The tokens override Tailwind's defaults; **`rounded-lg` is 6px here.**
 | `rounded-sm` | 3px | Kbd, tiny chips |
 | `rounded-md` | 4px | Items inside overlays, small icon buttons, group headers |
 | `rounded-lg` | 6px | Rows, toolbars, buttons, inputs, popovers, menus, code blocks |
+| `rounded-island` | 10px | Islands, and the top corners of island tabs (they are part of the sheet) |
 | `rounded-xl` | 12px | Dialogs, floating bars, notices |
 | `rounded-full` | — | Avatars, label pills, status dots |
 
 ## Elevation and layering
 
 In-flow surfaces never cast shadows: headers, toolbars, sidebars, rows,
-cards. Overlays use their primitive's recipe and nothing else:
+cards. Islands are the one exception, with a fixed recipe (see Islands).
+Overlays use their primitive's recipe and nothing else:
 
 | Overlay | Recipe |
 |---|---|
@@ -142,7 +146,7 @@ Use only this z-index scale:
 | `z-10` | Stretched row link (`after:` overlay) |
 | `z-20` | Interactive controls inside a row (label pills, author links, checkboxes) |
 | `z-30` | Sticky in-page bars (group headers, diff toolbar), fixed page affordances |
-| `z-40` | Sticky app header, floating action bar |
+| `z-40` | Floating action bar |
 | `z-50` | Radix overlays: popovers, menus, dialogs, tooltips |
 
 ## Interaction states
@@ -165,10 +169,13 @@ Use only this z-index scale:
 ## Layout
 
 ### Chrome
-- The app header is sticky; its height is `--app-header-height` (40px, or
-  80px where repo navigation wraps on narrow screens). Rows inside chrome
-  are `h-10 flex items-center`. **Never use `py-*` on a chrome bar.**
-- Secondary sticky bars stick at `top-(--app-header-height)`.
+- Pages have no navigation bar of their own. Global controls live in the sidebar; each island owns its header (`h-9`); see Islands. Rows inside
+  chrome are `h-* flex items-center`. **Never use `py-*` on a chrome bar.**
+- Each tab scrolls in its own pane, with no chrome above the page inside it.
+  Sticky page bars stick at `top-0`; sticky sidebars offset only by the page's
+  own padding (`top-6` under a `py-6` container).
+- Full-height regions size against the pane, never the viewport:
+  `var(--pane-height, 100dvh)`, not `100dvh` or `min-h-screen`.
 
 ### Containers
 Wrap every page in `<Container>`. It owns horizontal padding
@@ -204,6 +211,202 @@ Full viewport, no Container
   └── Diff cards (gap-3)
 ```
 
+## Islands
+
+The workspace is a darker **frame** holding a sidebar and rounded **islands**. Every page renders inside an island. Vocabulary is in
+`GLOSSARY.md`; the shell lives in `components/shell/TabHost.tsx`.
+
+### Frame
+- `--color-frame` is derived from the theme's `--color-bg` with Linear's
+  low contrast: 5% toward the text colour in light themes, 16% toward
+  black in dark themes. Islands sit barely above the frame; the hairline
+  edge does most of the separating.
+  A palette that needs a different frame sets `--color-frame` in its
+  `themes/*.css` block. Never hardcode a frame colour in a component.
+- The frame leaves a consistent `max(8px, safe-area)` gutter on every outer edge, including narrow screens. The sidebar-to-island gap is `8px`; gaps between islands are `12px`. No global header row reserves space above the islands.
+
+### Island
+- An island is its header (tabs, on the frame) above its **sheet**: the
+  sheet is `bg-background rounded-island overflow-hidden`, with
+  `shadow-(--island-shadow)` at rest and `shadow-(--island-shadow-focus)`
+  for the focused island. The recipe is a 1px hairline edge plus
+  `--island-elev`: a barely-there drop in light themes, a 1px top
+  highlight in dark themes. Don't add others.
+- Edges are Linear-style: a translucent tint of the text colour, never a
+  border colour. Idle `--color-island-edge` (fg 9%), focused
+  `--color-island-edge-focus` (fg 13%). No brand on the edge or the tabs.
+- An island is a `@container`, so its header adapts to the island's
+  width, not the window's.
+- Islands are labelled regions (`<section aria-label>` naming the
+  selected tab's page and repo). A press or keyboard focus anywhere in an
+  island focuses it.
+
+### Layout and gaps
+- The layout is a tree of islands and row/column splits
+  (`src/app/workspace/model.ts`). Islands render as flat, absolutely
+  positioned siblings (`IslandLayout`), so splitting or resizing never
+  remounts a page.
+- Minimum island size is **320×200**. Resizing never goes past it.
+- A gap is a focusable `role="separator"` with `aria-orientation`. At rest
+  it is just frame; on hover (after 150ms), focus or drag a 2px
+  `bg-primary` line appears, inset 12px from its ends. Cursor
+  `col-resize` / `row-resize`.
+- Gaps resize by drag, or with arrow keys while focused (16px, Shift
+  64px, Home/End to the limits). Double-clicking a gap equalizes its
+  split.
+- Docking drags hit-test against the islands: the outer 28% of an island
+  from its nearest edge splits it, the centre moves into it, the strip
+  inserts at a 2px `bg-primary` line, and the outer 24px of the islands
+  area docks at the window edge. Every preview but the line carries a
+  centred label chip ("Split right", "Move here", "Merge tabs", "Dock at
+  window left"). Dropping on your own island's centre does nothing.
+- Double-clicking an island header (outside buttons, links and sections)
+  maximizes the island over the others; again restores the exact
+  previous sizes. Nothing animates.
+
+### Global controls
+- The sidebar's top row (`h-10`) is the account switcher (avatar, login, ⌄) on
+  the left, then the command-search icon and the sidebar toggle. The collapsed
+  rail keeps only the toggle on top and stacks search and account at its foot. There is no global title
+  bar or visible command-search field. Cmd/Ctrl+K still opens command search.
+- Repo identity and sections live in each island's breadcrumb row; focused
+  context is reflected by the focused island and browser URL.
+- Offline, rate-limit and storage-full notices float at the workspace's
+  bottom-right while needed, without reserving space (all focusable `Badge`s
+  with a tooltip).
+  An expired sign-in shows a persistent top-centre toast with its recovery
+  action and never replaces tabs or drafts.
+### Island header
+- `h-9 flex items-center gap-1 pr-0.5` (tab row inset `pl-2.5`, the island radius, so the first tab clears the sheet corner), sitting on the frame outside the
+  sheet and overlapping it by 1px (`-mb-px`, above it) so the selected tab
+  covers the sheet's top edge. The tab row takes the
+  remaining width, then the island menu (`Button ghost icon-sm`,
+  `Columns2`: Split right, Split down, Maximize/Restore). The header holds
+  only tabs and island actions; location lives in the breadcrumb row below.
+- **Tabs:** `h-[31px] rounded-t-island pl-2.5 pr-1.5 gap-1.5 text-ui`, 64–220px
+  wide, bottom-aligned in the row.
+  Order: repo mark (`sm`) → state icon (16px box, `size-3.5`, coloured by
+  open / merged / closed / draft) → mono `#number` in `--color-fg-faint` →
+  title (truncates) → close `×` (shown on hover and on the selected tab).
+  A tab whose page has an unsent draft shows a 6px `--color-warning` draft
+  dot in the close slot instead; `×` replaces it on hover. Closing never
+  prompts: the draft stays with the page.
+- Tab states: rest has no fill; hover `bg-accent` (the sunken token).
+  The selected tab is part of the sheet, like a folder tab: `bg-background`,
+  and the sheet's edge continues around its sides and top (a 1px border
+  drawn just outside the tab, no bottom) in the same colour as the
+  island's edge, idle or focused. Its text is `text-foreground` in the
+  focused island, muted elsewhere.
+- Tabs activate on pointer-down. Nothing animates on switch.
+- Pinned tabs lead the row and show only their repo mark and state icon,
+  with the title in the tooltip. They keep their draft dot and survive
+  bulk close actions. Pin and unpin are in the tab menu and command palette.
+- The tab row scrolls horizontally and keeps the selected tab visible.
+  While it overflows, a chevron menu lists every tab, including pins. In
+  narrow mode the island switcher lists them instead, so there is never a
+  second menu with the same list.
+- A maximized island shows a Restore button (`Minimize2`) before the
+  island menu, so hidden islands never look closed.
+- In narrow mode the header is sidebar toggle → tabs → island switcher:
+  no island menu, no tab chevron.
+
+### Breadcrumb row
+`BreadcrumbRow` (`components/shell/BreadcrumbRow.tsx`), directly under every
+island's tabs, for its selected tab:
+
+```
+[mark] owner / repo ⌄  ›  Section ⌄  ›  #n Title ⌄          ⎇ branch ⌄  ↗
+```
+
+- `mt-1 h-8 flex items-center gap-2 pl-2 pr-1.5 text-ui text-muted-foreground`. The `mt-1` keeps it clear of the tabs above.
+  Crumbs are `h-6` links; a crumb and its chevron share one hover surface
+  (`bg-accent/60`). Separators are `›` in `--color-fg-faint`. The current
+  crumb is `font-medium text-foreground` and goes nowhere.
+- Crumbs are links that navigate the island's tab: ⇧-click opens a new tab,
+  ⌥-click opens to the side, ⌘/Ctrl-click goes to the browser.
+- Each chevron opens a `SiblingPicker` (shadcn Popover + Command) listing
+  the crumb's siblings: repos grouped by owner (picking one keeps the
+  section), the five sections, or the repo's other PRs/issues with state
+  icons and mono numbers. It opens on the current item; ↵ opens here, ⇧↵ in
+  a new tab, ⌥↵ to the side, Esc closes, and the chevron toggles it.
+- Remote lists share their queries with the sidebar and list pages and load
+  only while a picker is open: `Skeleton` rows on first load, cached rows at
+  once with a silent refresh, and the empty-state pattern with Retry when
+  loading fails with nothing cached.
+- Branch-aware pages (Code, Commits, Actions) add a mono branch chip with
+  the same picker; choosing a branch switches the page (`?branch=`).
+  Actions also offers All branches. Then Open in GitHub (`ExternalLink`,
+  only where GitHub has the page) ends the row.
+- An unknown PR or issue title shows a `Skeleton` (`h-3 w-36`).
+- Unfocused islands dim the row (`opacity-65`). Islands at 480px and
+  narrower drop the owner, the item title and the branch name.
+- App-wide pages (Inbox, profiles) show one crumb naming the page.
+
+### Sidebar
+
+The sidebar holds Inbox, Favorites, Your repos, then Organizations. Repository
+lists start with six rows and reveal more on request. There is no filter
+field: command search (Cmd/Ctrl+K) finds repos and favorites. Organizations
+start collapsed and load accessible repos when expanded; their repos indent
+under a hairline guide (`bg-foreground/8`) with the caret beside the name.
+
+- Section headers are quiet: `h-7 text-caption font-medium` in
+  `--color-fg-faint`, sentence case, no icons. Hovering shows a collapse caret
+  and the section's one action (Favorites: favorite this page). In the rail a
+  section header is a hairline.
+- Rows are `h-7 rounded-md px-2 gap-2 text-ui`, icon or repo mark first.
+  Each row has one trailing slot: at rest a count pill (Inbox) or up to three
+  3px dots for tabs open on that repo; on hover the favorite star takes the
+  slot. No star shows at rest.
+- Favorited views read like the breadcrumb: `nickai-app › PRs`, with the
+  section in `--color-fg-faint`.
+- The current row is `bg-accent text-foreground`; others are
+  `text-foreground/90` with muted icons. Gaps between sections are `gap-3.5`. Your repos includes owned and direct-collaborator
+repos, not every repo from organization membership.
+
+Favorites are explicit local navigation preferences for this verified account
+on this device. Repos and specific pages are independent entries; a page label
+uses `repo › section` on screen, `repo · section · owner/repo` as its
+accessible label, and the owner/repo in its tooltip. Keep the favorite action
+keyboard accessible (it reveals on focus too, and always shows on touch). Do not populate the
+sidebar with GitHub stars, recent pages, or expanded pull request queues.
+
+### Repo marks
+- `RepoMark` (`components/shell/RepoMark.tsx`): a 16px (`sm` 14px)
+  rounded square with the repo's initial (`text-mark`, `sm` uses
+  `text-mark-sm`), two letters when two open or favorite repos share one.
+  Only open tabs and favorites count, both local state, so a mark never
+  changes when network data arrives.
+- Colour hashes the repo's full name onto a curated hue set that skips
+  the status hues. Every hue shares `--repo-l` / `--repo-c`, so no repo
+  is louder than another. Fill is the colour at 20% over `bg-muted`, `ring-1 ring-inset`
+  at 35%. With `<html data-repo-color="off">` marks go neutral.
+
+### Settings
+- Settings is a scrollable shadcn Dialog over the workspace, including direct
+  `/settings` visits. Opening and closing it preserves tabs, focus and layout;
+  closing restores the focused tab's URL. It has a visible title and close
+  button, traps keyboard focus, and dismisses with Escape.
+- Repository colours default on and can be turned off in Settings. Preferences
+  remain local to the browser. There is no tabs on/off mode.
+- The avatar menu contains Settings, theme controls, Reset layout and Sign out.
+  Reset layout gathers all open tabs and pins into one island, keeps the
+  focused tab selected, and offers Undo.
+
+### Narrow workspace
+
+Below 720px, or when the saved island sizes cannot each provide 320×200px,
+show only the focused island at full width. A compact icon in its existing tab strip lists every island and tab. Use the same tab labels as the tab strips, retain
+keyboard menu navigation, and return focus to the selected page.
+
+The sidebar toggle in the island strip and Cmd/Ctrl+B open the sidebar in a left Sheet. Reuse the desktop
+sidebar content, close it after a launch or when a drag begins, and keep
+docking targets available after the drawer closes. A resize never changes
+the saved layout or sidebar width: determine fit using the hypothetical
+desktop sidebar space, and restore the exact layout when it fits again.
+Hidden selections pause their page queries and share the eight recent-tab
+memory budget; pinned tabs remain mounted.
+
 ## Components
 
 Use the shadcn primitives in `src/app/components/ui/` for every popover,
@@ -227,7 +430,7 @@ yourself.
 right. Toolbars recede; they never dominate.
 
 ### Group headers
-Sticky at `top-(--app-header-height)` with `z-30 bg-background`. The header
+Sticky at `top-0` with `z-30 bg-background`. The header
 button is `min-h-10 rounded-md bg-muted/60 px-3 text-ui font-medium`:
 chevron, icon, label, then the count in `text-caption tabular-nums
 text-muted-foreground`.
@@ -269,7 +472,24 @@ h-8, `lg` h-9, plus `icon-*` squares. Icons take
 `data-icon="inline-start|inline-end"` and no manual size. Don't invent
 variants.
 
-### Tooltips and shortcuts
+### Tooltips and previews
+Two hover surfaces, each with one job:
+
+- **Shell tooltip** (`ShellTipContent`) for islands and app chrome: tabs,
+  sidebar rows, island controls. Inverted to the theme (the tooltip
+  primitive). A title line (`text-caption font-medium`, two lines max), then
+  one quiet detail line (`text-micro`, `text-background/65`) whose parts join
+  with `·`: a state dot and mono `owner/repo#n`, state, pinned, draft.
+  Identifiers truncate, never wrap. 500ms first, instant between neighbours.
+- **Preview card** (`EntityHoverCard`) for content refs: #issues, PRs and
+  @people inside comments and descriptions. The hover-card primitive, `w-72`.
+  An identity line (state icon, mono `owner/repo#n`, age in fg-faint), the
+  title (`text-ui font-medium`, two lines), the first line of the body, labels,
+  then author and comment count. Loading is a `Skeleton` card.
+
+Never use a preview card on chrome or a shell tooltip on content.
+
+### Shortcuts
 Every icon-only control gets a tooltip. Put shortcuts in the tooltip as
 `<Kbd>`, set `aria-keyshortcuts`, register them with `useKeybindings`, and
 list them in `KeyboardHelp.tsx`. `Esc` belongs to the innermost layer
@@ -315,7 +535,10 @@ always shown on touch.
   hovers use `transition-colors`.
 - Radix primitives animate through `tw-animate-css` `data-[state]` classes.
   Never add keyframes.
-- App-owned enter and exit (floating bars, notices, sidebar lists) uses
+- Toasts (the layout undo notice, the expired sign-in alert) use shadcn
+  `sonner` (`components/ui/sonner.tsx`): it owns their motion, stacking,
+  and pauses auto-dismiss on hover and keyboard focus. Never hand-roll one.
+- Other app-owned enter and exit (floating bars, sidebar lists) uses
   framer-motion `AnimatePresence`: opacity plus at most 8px of translation.
   Under `useReducedMotion`, drop translation and scale; for CSS transitions
   use `motion-reduce:`.
@@ -326,7 +549,10 @@ always shown on touch.
 - Card wrappers or borders around list rows.
 - `primary` as a fill for rows, selections or sections.
 - Shadows on in-flow surfaces.
-- A sidebar on a different surface from the page.
+- An in-page sidebar on a different surface from the page. (The workspace
+  sidebar is chrome and sits on the frame.)
+- Navigation bars inside pages. Repo identity and sections belong to the
+  island header; search and account to the sidebar.
 - `text-xs` / `text-sm`, arbitrary pixel sizes, or z-index values off the scale.
 - Hover reveals that shift layout, or skeletons that don't match the loaded rows.
 - Hand-rolled popovers, menus, checkboxes or tooltips.

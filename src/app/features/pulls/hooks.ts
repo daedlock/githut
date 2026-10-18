@@ -26,8 +26,12 @@ import {
   type TimelineEvent,
   TimelineEventSchema,
 } from "@/app/features/pulls/schemas";
+import { finishReview } from "@/app/features/pulls/stores/review";
+import { useLiveInterval } from "@/app/lib/freshness";
 import { getGitHubClient } from "@/app/lib/github/client";
+import type { StorageOwner } from "@/app/stores/accountStorage";
 import { useAuthStore } from "@/app/stores/auth";
+import { clearSentDraft, type SentDraft } from "@/app/stores/drafts";
 
 // ─── PR-list schema (search API `items` shape) ─────────────────────────────
 //
@@ -216,9 +220,14 @@ export const pullsQueryOptions = (owner: string, repo: string, filters: PullsFil
 
 export function usePulls(owner: string, repo: string, filters: PullsFilters = {}) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval("search");
   return useInfiniteQuery({
     ...pullsQueryOptions(owner, repo, filters),
     enabled: !!token && !!owner && !!repo,
+    // Refetching an infinite query re-reads every loaded page from the Search
+    // API (30 requests a minute). Only the first page polls; a list scrolled
+    // further refreshes on focus and after writes instead.
+    refetchInterval: (q) => live((q.state.data?.pages.length ?? 0) <= 1 && "changing"),
   });
 }
 
@@ -283,9 +292,11 @@ export const prDetailQueryOptions = (owner: string, repo: string, number: number
 
 export function useFullPr(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...prDetailQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: live("changing"),
   });
 }
 
@@ -353,9 +364,11 @@ export const prCommentsQueryOptions = (owner: string, repo: string, number: numb
 
 export function usePrComments(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...prCommentsQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: live("changing"),
   });
 }
 
@@ -381,9 +394,11 @@ export const prReviewsQueryOptions = (owner: string, repo: string, number: numbe
 
 export function usePrReviews(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...prReviewsQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: live("changing"),
   });
 }
 
@@ -441,9 +456,11 @@ export const prTimelineQueryOptions = (owner: string, repo: string, number: numb
 
 export function usePrTimeline(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...prTimelineQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: live("changing"),
   });
 }
 
@@ -461,7 +478,7 @@ export function usePostPrComment(
 ) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ body }: { body: string }) => {
+    mutationFn: async ({ body }: { body: string; draft?: SentDraft }) => {
       const client = getGitHubClient();
       const res = await client.request(
         "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
@@ -502,7 +519,9 @@ export function usePostPrComment(
       // Roll back to previous state on error
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSuccess: async (created, _vars, ctx) => {
+    onSuccess: async (created, vars, ctx) => {
+      // Hook-level, so it runs even after the composer's tab is gone.
+      clearSentDraft(vars.draft);
       if (ctx) {
         queryClient.setQueryData<IssueCommentOnPr[]>(ctx.key, (old) =>
           (old ?? []).map((c) => (c.id === ctx.tempId ? created : c)),
@@ -729,19 +748,21 @@ export const prChecksQueryOptions = (owner: string, repo: string, sha: string) =
 
 export function usePrChecks(owner: string, repo: string, sha: string | undefined) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...prChecksQueryOptions(owner, repo, sha ?? ""),
     enabled: !!token && !!owner && !!repo && !!sha,
     refetchInterval: (q) => {
       const data = q.state.data;
       if (!data) return false;
+      // GitHub reports a combined state of "pending" when a commit has no
+      // statuses at all; only real pending statuses count as running.
       const anyLive =
         data.checkRuns.some(
           (r) => r.status === "queued" || r.status === "in_progress" || r.status === "pending",
-        ) || data.combined.state === "pending";
-      return anyLive ? 10_000 : false;
+        ) || data.combined.statuses.some((status) => status.state === "pending");
+      return live(anyLive && "ci", 10_000);
     },
-    refetchIntervalInBackground: false,
   });
 }
 
@@ -953,14 +974,16 @@ export function usePrCheckRollups(
   numbers: number[],
 ): Map<number, PrCheckRollup> {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval("graphql");
   const uniqueNumbers = Array.from(new Set(numbers)).filter(Number.isFinite);
   const results = useQueries({
     queries: uniqueNumbers.map((number) => ({
       ...prCheckRollupQueryOptions(owner, repo, number),
       enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-      // Keep ticking while a PR's checks are still running; stop once terminal.
+      // One GraphQL request per row: rows with running checks refresh about
+      // once a minute at most, terminal rows only on focus and after writes.
       refetchInterval: (q: { state: { data?: PrCheckRollup | null } }) =>
-        q.state.data?.state === "pending" ? 15_000 : false,
+        live(q.state.data?.state === "pending" && "changing", 60_000),
     })),
   });
 
@@ -1184,9 +1207,11 @@ export const prMergeStatusQueryOptions = (owner: string, repo: string, number: n
 
 export function usePrMergeStatus(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval("graphql");
   return useQuery({
     ...prMergeStatusQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: live("changing"),
   });
 }
 
@@ -1427,6 +1452,8 @@ export function useSubmitPrReview(owner: string, repo: string, number: number) {
       comments,
     }: {
       event: ReviewEvent;
+      /** Who submitted: their pending comments and drafts are cleared on success. */
+      owner?: StorageOwner;
       body?: string;
       comments?: Array<{
         path: string;
@@ -1446,7 +1473,10 @@ export function useSubmitPrReview(owner: string, repo: string, number: number) {
       });
       return ReviewSchema.parse(res.data);
     },
-    onSuccess: async () => {
+    onSuccess: async (_review, vars) => {
+      // Hook-level, so the pending review is cleared even if the tab closed
+      // (or the window switched accounts) while the request was in flight.
+      if (vars.owner) finishReview(vars.owner, owner, repo, number);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: pullsKeys.reviews(owner, repo, number) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) }),
@@ -1528,9 +1558,11 @@ export const prReviewCommentsQueryOptions = (owner: string, repo: string, number
 
 export function usePrReviewComments(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval();
   return useQuery({
     ...prReviewCommentsQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: live("changing"),
   });
 }
 
@@ -1542,7 +1574,14 @@ export function useReplyToReviewComment(
 ) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ inReplyToId, body }: { inReplyToId: number; body: string }) => {
+    mutationFn: async ({
+      inReplyToId,
+      body,
+    }: {
+      inReplyToId: number;
+      body: string;
+      draft?: SentDraft;
+    }) => {
       const client = getGitHubClient();
       const res = await client.request(
         "POST /repos/{owner}/{repo}/pulls/{pull_number}/comments/{comment_id}/replies",
@@ -1596,7 +1635,8 @@ export function useReplyToReviewComment(
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
-    onSuccess: (created, _vars, ctx) => {
+    onSuccess: (created, vars, ctx) => {
+      clearSentDraft(vars.draft);
       // Swap temp → real in place
       if (ctx) {
         queryClient.setQueryData<ReviewComment[]>(ctx.key, (old) =>
@@ -1774,10 +1814,12 @@ type ThreadResolutionQueryResponse = {
 
 export function useThreadResolution(owner: string, repo: string, number: number) {
   const token = useAuthStore((s) => s.token);
+  const live = useLiveInterval("graphql");
   return useQuery({
     queryKey: pullsKeys.threadResolution(owner, repo, number),
     staleTime: 15_000,
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
+    refetchInterval: live("changing"),
     queryFn: async (): Promise<ThreadResolutionMap> => {
       const client = getGitHubClient();
       const map: ThreadResolutionMap = new Map();

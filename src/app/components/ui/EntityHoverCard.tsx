@@ -1,5 +1,6 @@
 import { Buildings, MapPin } from "@phosphor-icons/react";
 import {
+  CommentIcon,
   GitPullRequestIcon,
   IssueClosedIcon,
   IssueOpenedIcon,
@@ -108,6 +109,41 @@ export function EntityHoverLink({
   );
 }
 
+// ─── Shared anatomy ───────────────────────────────────────────────────────
+// One preview card for every content ref: an identity line (icon, mono id,
+// age), a title, a short description, then meta. Loading uses Skeleton.
+
+function CardSkeleton({ avatar = false }: { avatar?: boolean }) {
+  return (
+    <div role="status" className="flex flex-col gap-2 p-3">
+      <span className="sr-only">Loading preview</span>
+      <div className="flex items-center gap-2">
+        <Skeleton className={cn("shrink-0", avatar ? "size-9 rounded-full" : "size-4")} />
+        <Skeleton className="h-2.5 w-36" />
+      </div>
+      <Skeleton className="h-3 w-4/5" />
+      <Skeleton className="h-2.5 w-3/5" />
+    </div>
+  );
+}
+
+function CardError({ children }: { children: React.ReactNode }) {
+  return <p className="p-3 text-caption text-muted-foreground">{children}</p>;
+}
+
+/** First readable line of a markdown body, for the card's description. */
+function snippet(body: string): string {
+  for (const raw of body.split("\n")) {
+    const line = raw
+      .replace(/<!--.*?-->|<[^>]+>/g, "")
+      .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/^[#>*\-\s]+|[*_`~]/g, "")
+      .trim();
+    if (line) return line;
+  }
+  return "";
+}
+
 // ─── User card ────────────────────────────────────────────────────────────
 
 function UserCard({ login }: { login: string }) {
@@ -117,61 +153,40 @@ function UserCard({ login }: { login: string }) {
     enabled: !!token && !!login,
   });
 
-  if (isPending) {
-    return (
-      <div className="p-3">
-        <div className="flex items-center gap-3">
-          <Skeleton className="size-10 rounded-full" />
-          <div className="flex-1 space-y-1.5">
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-2.5 w-16" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div className="p-3 text-center text-xs text-muted-foreground">Could not load profile</div>
-    );
-  }
+  if (isPending) return <CardSkeleton avatar />;
+  if (!profile) return <CardError>Couldn't load @{login}.</CardError>;
 
   return (
-    <div className="animate-in fade-in-0 duration-150 p-3">
-      <div className="flex items-start gap-3">
+    <div className="flex flex-col gap-2 p-3">
+      <div className="flex items-center gap-2.5">
         <Avatar login={profile.login} avatarUrl={profile.avatar_url} size="lg" />
-        <div className="min-w-0 flex-1">
-          {profile.name && (
-            <Link
-              to="/$username"
-              params={{ username: profile.login }}
-              className="block truncate text-caption font-medium text-foreground hover:text-[var(--color-brand)]"
-            >
-              {profile.name}
-            </Link>
-          )}
+        <div className="flex min-w-0 flex-col">
           <Link
             to="/$username"
             params={{ username: profile.login }}
-            className="block truncate text-caption text-muted-foreground hover:text-[var(--color-brand)]"
+            className="truncate text-ui font-medium text-foreground hover:text-primary"
           >
-            @{profile.login}
+            {profile.name || profile.login}
           </Link>
+          <span className="truncate font-mono text-caption text-muted-foreground">
+            @{profile.login}
+          </span>
         </div>
       </div>
-      {profile.bio && <p className="mt-2 line-clamp-2 text-xs text-foreground/80">{profile.bio}</p>}
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+      {profile.bio && (
+        <p className="line-clamp-2 text-caption text-muted-foreground">{profile.bio}</p>
+      )}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted-foreground">
         {profile.company && (
-          <span className="inline-flex items-center gap-1">
-            <Buildings className="size-3" />
-            <span className="truncate max-w-[120px]">{profile.company}</span>
+          <span className="inline-flex min-w-0 items-center gap-1">
+            <Buildings className="size-3 shrink-0" />
+            <span className="max-w-30 truncate">{profile.company}</span>
           </span>
         )}
         {profile.location && (
-          <span className="inline-flex items-center gap-1">
-            <MapPin className="size-3" />
-            <span className="truncate max-w-[120px]">{profile.location}</span>
+          <span className="inline-flex min-w-0 items-center gap-1">
+            <MapPin className="size-3 shrink-0" />
+            <span className="max-w-30 truncate">{profile.location}</span>
           </span>
         )}
         <span className="inline-flex items-center gap-1">
@@ -206,51 +221,43 @@ function IssueCard({ owner, repo, number }: { owner: string; repo: string; numbe
     },
   });
 
-  if (isPending) {
-    return (
-      <div className="p-3 space-y-2">
-        <Skeleton className="h-3 w-3/4" />
-        <Skeleton className="h-2.5 w-1/2" />
-      </div>
-    );
-  }
-
-  if (!issue) {
-    return (
-      <div className="p-3 text-center text-xs text-muted-foreground">Could not load #{number}</div>
-    );
-  }
+  if (isPending) return <CardSkeleton />;
+  if (!issue) return <CardError>Couldn't load #{number}.</CardError>;
 
   const isPR = !!issue.pull_request;
   const isOpen = issue.state === "open";
+  const description = snippet(issue.body);
+  const titleClass =
+    "line-clamp-2 text-ui font-medium leading-snug text-foreground text-pretty hover:text-primary";
 
   return (
-    <div className="p-3">
-      {/* State + number */}
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-2 p-3">
+      <div className="flex min-w-0 items-center gap-2 text-caption text-muted-foreground">
         {isPR ? (
           <GitPullRequestIcon
             className={cn(
               "size-3.5 shrink-0",
-              isOpen ? "text-[var(--color-success)]" : "text-[var(--color-pr-merged)]",
+              isOpen ? "text-(--color-success)" : "text-(--color-pr-merged)",
             )}
           />
         ) : isOpen ? (
-          <IssueOpenedIcon className="size-3.5 shrink-0 text-[var(--color-success)]" />
+          <IssueOpenedIcon className="size-3.5 shrink-0 text-(--color-success)" />
         ) : (
-          <IssueClosedIcon className="size-3.5 shrink-0 text-muted-foreground" />
+          <IssueClosedIcon className="size-3.5 shrink-0 text-(--color-pr-merged)" />
         )}
-        <span className="font-mono text-xs text-muted-foreground">
+        <span className="min-w-0 flex-1 truncate font-mono">
           {owner}/{repo}#{number}
+        </span>
+        <span className="shrink-0 text-(--color-fg-faint)">
+          {formatRelativeTime(issue.created_at)}
         </span>
       </div>
 
-      {/* Title */}
       {isPR ? (
         <Link
           to="/$owner/$repo/pull/$number"
           params={{ owner, repo, number }}
-          className="mt-1.5 block line-clamp-2 text-caption font-medium text-foreground leading-relaxed hover:text-[var(--color-brand)]"
+          className={titleClass}
         >
           {issue.title}
         </Link>
@@ -258,31 +265,39 @@ function IssueCard({ owner, repo, number }: { owner: string; repo: string; numbe
         <Link
           to="/$owner/$repo/issues/$number"
           params={{ owner, repo, number }}
-          className="mt-1.5 block line-clamp-2 text-caption font-medium text-foreground leading-relaxed hover:text-[var(--color-brand)]"
+          className={titleClass}
         >
           {issue.title}
         </Link>
       )}
 
-      {/* Meta */}
-      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-        <Avatar login={issue.user.login} avatarUrl={issue.user.avatar_url} size="sm" />
-        <span>{issue.user.login}</span>
-        <span>·</span>
-        <span>{formatRelativeTime(issue.created_at)}</span>
-      </div>
+      {description && (
+        <p className="line-clamp-2 text-caption text-muted-foreground">{description}</p>
+      )}
 
-      {/* Labels */}
       {issue.labels.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1">
           {issue.labels.slice(0, 4).map((l) => (
             <LabelPill key={l.id} label={l} size="xs" />
           ))}
           {issue.labels.length > 4 && (
-            <span className="text-xs text-muted-foreground">+{issue.labels.length - 4}</span>
+            <span className="text-caption text-muted-foreground">+{issue.labels.length - 4}</span>
           )}
         </div>
       )}
+
+      <div className="flex items-center gap-3 text-caption text-muted-foreground">
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <Avatar login={issue.user.login} avatarUrl={issue.user.avatar_url} size="xs" />
+          <span className="truncate">{issue.user.login}</span>
+        </span>
+        {issue.comments > 0 && (
+          <span className="inline-flex items-center gap-1">
+            <CommentIcon className="size-3" />
+            {issue.comments}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

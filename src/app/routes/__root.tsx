@@ -1,23 +1,8 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
-import { CommandPalette } from "@/app/components/CommandPalette";
-import { FileHistorySheet } from "@/app/components/code/FileHistorySheet";
-import { KeyboardHelp } from "@/app/components/KeyboardHelp";
-import { OpenInGithubLink } from "@/app/components/OpenInGithubLink";
-import { PageScrollControls } from "@/app/components/PageScrollControls";
-import { DocumentTitle } from "@/app/components/shell/DocumentTitle";
-import { TabSyncProvider } from "@/app/components/shell/TabSyncProvider";
 
+// Each tab renders its own copy of this tree (see TabHost). App-wide overlays
+// — palette, help, scroll controls — live once in TabHost, bound to the focused tab.
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  component: () => (
-    <TabSyncProvider>
-      <DocumentTitle />
-      <Outlet />
-      <PageScrollControls />
-      <CommandPalette />
-      <KeyboardHelp />
-      <FileHistorySheet />
-      <OpenInGithubLink />
-    </TabSyncProvider>
-  ),
+  component: Outlet,
 });

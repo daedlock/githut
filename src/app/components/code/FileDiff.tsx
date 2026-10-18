@@ -13,6 +13,7 @@ import {
   proxyGitHubImage,
   rawFileUrl,
 } from "@/app/lib/github/media";
+import { tabScrollContainer } from "@/app/lib/tabScope";
 import { Button } from "../ui/button";
 import type { DiffReviewHooks } from "./DiffView";
 import { DiffView, useDiffMode } from "./DiffView";
@@ -84,7 +85,7 @@ export const FileDiff = memo(function FileDiff({
           io.disconnect();
         }
       },
-      { rootMargin: "600px 0px" },
+      { root: tabScrollContainer(el), rootMargin: "600px 0px" },
     );
     io.observe(el);
     return () => io.disconnect();
@@ -125,13 +126,12 @@ export const FileDiff = memo(function FileDiff({
       : undefined;
 
   return (
-    <section
-      ref={sectionRef}
-      className={cn("overflow-visible", className)}
-    >
+    <section ref={sectionRef} className={cn("overflow-visible", className)}>
       <header
         className={cn(
-          embedded ? "relative z-[1]" : "sticky top-[calc(var(--app-header-height,40px)+var(--diff-toolbar-height,44px)+20px)] z-[5]",
+          embedded
+            ? "relative z-[1]"
+            : "sticky top-[calc(var(--diff-toolbar-height,44px)+20px)] z-[5]",
           "isolate flex items-center gap-2.5 rounded-lg border border-border px-3 py-2 shadow-sm",
           "bg-muted",
         )}
@@ -153,7 +153,9 @@ export const FileDiff = memo(function FileDiff({
         <div className="flex min-w-0 flex-1 items-baseline gap-1 font-mono text-code">
           {status === "renamed" && previousFilename && previousFilename !== filename && (
             <>
-              <span className="truncate text-[var(--color-fg-faint)] line-through">{previousFilename}</span>
+              <span className="truncate text-[var(--color-fg-faint)] line-through">
+                {previousFilename}
+              </span>
               <span className="shrink-0 text-[var(--color-fg-faint)]">→</span>
             </>
           )}
@@ -371,7 +373,10 @@ export function FileContextPanel({
       {isLoading ? (
         loadingVariant === "spinner" ? (
           <div className="flex h-32 items-center justify-center">
-            <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label="Loading file" />
+            <Loader2
+              className="size-4 animate-spin text-muted-foreground"
+              aria-label="Loading file"
+            />
           </div>
         ) : (
           <div className="skeleton-fade flex flex-col gap-1.5 p-3">
@@ -412,7 +417,15 @@ function buildLineHighlights(
 
 function StatusBadge({ status }: { status: FileStatus }) {
   const label =
-    status === "added" ? "A" : status === "removed" ? "D" : status === "renamed" ? "R" : status === "copied" ? "C" : "M";
+    status === "added"
+      ? "A"
+      : status === "removed"
+        ? "D"
+        : status === "renamed"
+          ? "R"
+          : status === "copied"
+            ? "C"
+            : "M";
   const tone =
     status === "added"
       ? "text-[var(--diff-add-marker)]"
@@ -431,14 +444,21 @@ function ChangeStats({ additions, deletions }: { additions: number; deletions: n
   const squares: Array<"add" | "del" | "empty"> = [];
   let aLeft = additions > 0 ? Math.max(1, Math.round((additions / total) * 5)) : 0;
   let dLeft = deletions > 0 ? Math.max(1, Math.round((deletions / total) * 5)) : 0;
-  while (aLeft + dLeft > 5) { if (aLeft >= dLeft) aLeft--; else dLeft--; }
+  while (aLeft + dLeft > 5) {
+    if (aLeft >= dLeft) aLeft--;
+    else dLeft--;
+  }
   for (let i = 0; i < aLeft; i++) squares.push("add");
   for (let i = 0; i < dLeft; i++) squares.push("del");
   while (squares.length < 5) squares.push("empty");
   return (
     <div className="flex shrink-0 items-center gap-1.5">
-      <span className="font-mono text-caption tabular-nums text-[var(--diff-add-marker)]">+{additions}</span>
-      <span className="font-mono text-caption tabular-nums text-[var(--diff-del-marker)]">−{deletions}</span>
+      <span className="font-mono text-caption tabular-nums text-[var(--diff-add-marker)]">
+        +{additions}
+      </span>
+      <span className="font-mono text-caption tabular-nums text-[var(--diff-del-marker)]">
+        −{deletions}
+      </span>
       <span className="flex items-center gap-px">
         {squares.map((kind, i) => (
           <span

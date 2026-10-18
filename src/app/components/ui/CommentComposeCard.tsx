@@ -1,8 +1,9 @@
-import { useState, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Avatar } from "@/app/components/ui/avatar";
 import { ComposeBox } from "@/app/components/ui/ComposeBox";
 import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
+import { useDraft } from "@/app/stores/drafts";
 
 export function CommentComposeCard({
   login,
@@ -20,6 +21,7 @@ export function CommentComposeCard({
   participants,
   rows = 4,
   autoFocus,
+  draftKey,
 }: {
   login: string;
   avatarUrl?: string;
@@ -28,7 +30,13 @@ export function CommentComposeCard({
   placeholder?: string;
   submitLabel?: string;
   cancelLabel?: string;
-  onSubmit: (body: string) => void;
+  /**
+   * Return the send's promise when it goes over the network: the draft then
+   * stays stored until the mutation clears it on success (see `sentDraft`),
+   * so a failed send keeps the text. `false` means nothing was sent and keeps
+   * the text too. A void return clears the draft at once.
+   */
+  onSubmit: (body: string) => unknown;
   onCancel?: () => void;
   isPending?: boolean;
   hideAvatar?: boolean;
@@ -36,19 +44,47 @@ export function CommentComposeCard({
   participants?: MentionUser[];
   rows?: number;
   autoFocus?: boolean;
+  /** Keep the text as a draft under this key (see stores/drafts). Cancel discards it. */
+  draftKey?: string;
 }) {
-  const [draft, setDraft] = useState("");
+  const [localDraft, setLocalDraft] = useState("");
+  const [savedDraft, setSavedDraft, discardSavedDraft] = useDraft(draftKey ?? "");
+  const draft = draftKey ? savedDraft : localDraft;
+  const setDraft = draftKey ? setSavedDraft : setLocalDraft;
 
   const handleSubmit = useCallback(() => {
     const body = draft.trim();
     if (!body || isPending) return;
-    onSubmit(body);
+    const sending = onSubmit(body);
+    if (sending === false) return;
+    if (sending instanceof Promise) {
+      // The text stays until the send succeeds; a failure leaves it in place.
+      sending.then(
+        () => {
+          if (!draftKey) setLocalDraft((d) => (d.trim() === body ? "" : d));
+        },
+        () => {},
+      );
+      return;
+    }
     setDraft("");
-  }, [draft, isPending, onSubmit]);
+  }, [draft, isPending, onSubmit, setDraft, draftKey]);
+
+  const handleCancel = useMemo(
+    () =>
+      onCancel &&
+      (() => {
+        if (draftKey) discardSavedDraft();
+        onCancel();
+      }),
+    [onCancel, draftKey, discardSavedDraft],
+  );
 
   return (
     <div className={cn(hideAvatar ? "" : "flex gap-3", className)}>
-      {!hideAvatar && <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="mt-2 shrink-0" />}
+      {!hideAvatar && (
+        <Avatar login={login} avatarUrl={avatarUrl} size="sm" className="mt-2 shrink-0" />
+      )}
       <div className="min-w-0 flex-1">
         <ComposeBox
           owner={owner}
@@ -56,7 +92,7 @@ export function CommentComposeCard({
           value={draft}
           onChange={setDraft}
           onSubmit={handleSubmit}
-          onCancel={onCancel}
+          onCancel={handleCancel}
           submitLabel={submitLabel}
           cancelLabel={cancelLabel}
           submitDisabled={!draft.trim()}
