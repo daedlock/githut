@@ -1,6 +1,14 @@
-import { MutationCache, QueryClient } from "@tanstack/react-query";
+import { focusManager, MutationCache, QueryClient } from "@tanstack/react-query";
 // Wires TanStack's onlineManager to browser connectivity + session expiry.
 import { assertCanMutate } from "@/app/lib/connectivity";
+import { listenForWindowFocus } from "@/app/lib/windowFocus";
+
+// v5's default only observes visibilitychange. An OS app switch can leave
+// the document visible, so also listen to native focus without invalidating
+// fresh data or bypassing each observer's refetchOnWindowFocus policy.
+focusManager.setEventListener((notify) =>
+  typeof window === "undefined" ? undefined : listenForWindowFocus(notify),
+);
 
 function isUnauthorized(error: unknown): boolean {
   return !!error && typeof error === "object" && "status" in error && error.status === 401;

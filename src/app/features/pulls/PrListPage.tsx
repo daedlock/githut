@@ -18,6 +18,7 @@ import {
 } from "@/app/components/ui/filter-bar";
 import { Input } from "@/app/components/ui/input";
 import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
+import { usePullActivityFilter } from "@/app/features/activity/pages";
 import { PrRow } from "@/app/features/pulls/components/PrRow";
 import { PrStateTab } from "@/app/features/pulls/components/PrStateTab";
 import {
@@ -43,6 +44,7 @@ import { useRepo } from "@/app/hooks/useRepo";
 import { holdGroupItems, useStableList } from "@/app/hooks/useStableList";
 import { cn } from "@/app/lib/cn";
 import { useListGrouping } from "@/app/stores/listGrouping";
+import { matchesPullText } from "./search";
 
 export type PrListPageProps = {
   owner: string;
@@ -127,6 +129,7 @@ function activeToPatch(active: ActiveFilter[]) {
 export function PrListPage({ owner, repo, search }: PrListPageProps) {
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState("");
+  usePullActivityFilter(searchText);
   const grouping = useListGrouping(owner, repo, "pulls");
 
   const filters: PullsFilters = {
@@ -152,15 +155,10 @@ export function PrListPage({ owner, repo, search }: PrListPageProps) {
 
   const currentState = (filters.state ?? "open") as PullsState;
   const filtered = useMemo(() => {
-    const q = searchText.trim().toLowerCase();
     return items.filter(
       (pr) =>
         // Rows closed or reopened from this page leave it before search catches up.
-        (currentState === "all" || pr.state === currentState) &&
-        (!q ||
-          pr.title.toLowerCase().includes(q) ||
-          pr.user?.login.toLowerCase().includes(q) ||
-          pr.labels.some((l) => l.name.toLowerCase().includes(q))),
+        (currentState === "all" || pr.state === currentState) && matchesPullText(pr, searchText),
     );
   }, [items, searchText, currentState]);
 

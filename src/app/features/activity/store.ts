@@ -45,7 +45,18 @@ export function publishStatuses(
 ) {
   const current = useTabActivityStore.getState();
   const statuses = current.account === account ? { ...current.statuses } : {};
-  for (const item of items) statuses[item.key] = { ...item, observedAt };
+  for (const item of items) {
+    const previous = statuses[item.key];
+    const changed =
+      item.fingerprint !== undefined &&
+      previous?.fingerprint !== undefined &&
+      item.fingerprint !== previous.fingerprint;
+    statuses[item.key] = {
+      ...item,
+      activityAt: Math.max(item.activityAt, previous?.activityAt ?? 0, changed ? observedAt : 0),
+      observedAt,
+    };
+  }
   useTabActivityStore.setState({ account, statuses });
   for (const [key, viewedAt] of views) rememberPage(key, viewedAt);
   for (const item of items) {
