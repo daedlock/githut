@@ -17,9 +17,34 @@ export async function resultsDir(...parts) {
   return dir;
 }
 
+/** Discover Chrome, including machines where another process owns IPv4 loopback. */
+export async function discoverTargets(endpoint = CDP, request = fetch) {
+  const candidates = [endpoint];
+  const url = new URL(endpoint);
+  if (url.hostname === "127.0.0.1" || url.hostname === "localhost") {
+    url.hostname = "[::1]";
+    candidates.push(url.origin);
+  }
+  const failures = [];
+  for (const candidate of candidates) {
+    try {
+      const response = await request(`${candidate}/json/list`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const list = await response.json();
+      if (!Array.isArray(list)) throw new Error("expected a JSON array of Chrome targets");
+      return list;
+    } catch (error) {
+      failures.push(`${candidate}: ${error.message}`);
+    }
+  }
+  throw new Error(
+    `Cannot discover Chrome DevTools targets. Check --remote-debugging-port and PERF_CDP. ${failures.join("; ")}`,
+  );
+}
+
 /** Connects to the first page tab on ORIGIN and returns the CDP helpers. */
 export async function connect() {
-  const list = await (await fetch(`${CDP}/json/list`)).json();
+  const list = await discoverTargets();
   const target = list.find((p) => p.type === "page" && p.url.startsWith(ORIGIN));
   if (!target) throw new Error(`no page on ${ORIGIN} at ${CDP}`);
   // Chrome reports IPv6 loopback as [0000:...:0001], which WebSocket hosts reject.

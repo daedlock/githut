@@ -9,14 +9,6 @@ import {
 } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { z } from "zod";
-import type { ReactionContent } from "@/app/features/issues/schemas";
-import {
-  type ReactionToggleVars,
-  selectMine,
-  usePrViewerReactions,
-  useViewerReactionToggle,
-  viewerReactionKeys,
-} from "@/app/features/issues/viewerReactions";
 import {
   type ReviewDecision as AggregatedReviewDecision,
   aggregateReviews,
@@ -36,6 +28,13 @@ import {
   TimelineEventSchema,
 } from "@/app/features/pulls/schemas";
 import { finishReview } from "@/app/features/pulls/stores/review";
+import {
+  bumpReaction,
+  type ReactionToggleVars,
+  selectMine,
+  usePrViewerReactions,
+  useViewerReactionToggle,
+} from "@/app/features/reactions/viewerReactions";
 import { useLiveInterval } from "@/app/lib/freshness";
 import { getGitHubClient } from "@/app/lib/github/client";
 import type { StorageOwner } from "@/app/stores/accountStorage";
@@ -1672,39 +1671,24 @@ export function useMyReviewCommentReactions(
   return usePrViewerReactions(owner, repo, number, select);
 }
 
-function bumpReaction<T extends { reactions: Record<ReactionContent, number> }>(
-  item: T,
-  content: ReactionContent,
-  delta: number,
-): T {
-  return {
-    ...item,
-    reactions: {
-      ...item.reactions,
-      [content]: Math.max(0, (item.reactions[content] ?? 0) + delta),
-    },
-  };
-}
-
 export function useToggleReviewCommentReaction(
   owner: string,
   repo: string,
   prNumber: number,
   meId: number | undefined,
 ) {
-  return useViewerReactionToggle({
-    owner,
-    repo,
-    meId,
-    reactionsKey: viewerReactionKeys.pr(owner, repo, prNumber),
-    countsKey: pullsKeys.reviewComments(owner, repo, prNumber),
-    targetOf: (vars: ReactionToggleVars & { commentId: number }) => ({
-      kind: "reviewComment",
-      id: vars.commentId,
-    }),
-    patchCounts: (list: ReviewComment[], vars, delta) =>
-      list.map((c) => (c.id === vars.commentId ? bumpReaction(c, vars.content, delta) : c)),
-  });
+  return useViewerReactionToggle(
+    { kind: "pr", owner, repo, number: prNumber, meId },
+    {
+      countsKey: pullsKeys.reviewComments(owner, repo, prNumber),
+      targetOf: (vars: ReactionToggleVars & { commentId: number }) => ({
+        kind: "reviewComment",
+        id: vars.commentId,
+      }),
+      patchCounts: (list: ReviewComment[], vars, delta) =>
+        list.map((c) => (c.id === vars.commentId ? bumpReaction(c, vars.content, delta) : c)),
+    },
+  );
 }
 
 // ─── Thread resolution (GraphQL-only) ─────────────────────────────────────
@@ -1841,19 +1825,18 @@ export function useTogglePrCommentReaction(
   prNumber: number,
   meId: number | undefined,
 ) {
-  return useViewerReactionToggle({
-    owner,
-    repo,
-    meId,
-    reactionsKey: viewerReactionKeys.pr(owner, repo, prNumber),
-    countsKey: pullsKeys.comments(owner, repo, prNumber),
-    targetOf: (vars: ReactionToggleVars & { commentId: number }) => ({
-      kind: "comment",
-      id: vars.commentId,
-    }),
-    patchCounts: (list: IssueCommentOnPr[], vars, delta) =>
-      list.map((c) => (c.id === vars.commentId ? bumpReaction(c, vars.content, delta) : c)),
-  });
+  return useViewerReactionToggle(
+    { kind: "pr", owner, repo, number: prNumber, meId },
+    {
+      countsKey: pullsKeys.comments(owner, repo, prNumber),
+      targetOf: (vars: ReactionToggleVars & { commentId: number }) => ({
+        kind: "comment",
+        id: vars.commentId,
+      }),
+      patchCounts: (list: IssueCommentOnPr[], vars, delta) =>
+        list.map((c) => (c.id === vars.commentId ? bumpReaction(c, vars.content, delta) : c)),
+    },
+  );
 }
 
 // ─── Edit / delete: PR body, conversation comments, reviews, inline comments

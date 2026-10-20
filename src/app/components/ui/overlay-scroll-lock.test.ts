@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { fileURLToPath } from "node:url";
 
 // Guards #58. Radix's modal overlays mount react-remove-scroll, whose
 // getGapWidth calls getComputedStyle(document.body) on open and forces a
@@ -6,8 +7,7 @@ import { describe, expect, test } from "bun:test";
 // workspace body never scrolls, so the shadcn wrappers must not mount it.
 // There is no DOM test environment in this repo, so this checks the wrappers'
 // source: a `shadcn add` that restores the upstream files fails here.
-const read = (name: string) =>
-  Bun.file(new URL(`./${name}`, import.meta.url)).text();
+const read = (name: string) => Bun.file(new URL(`./${name}`, import.meta.url)).text();
 
 describe("overlays never mount Radix's scroll lock", () => {
   test("dialog and sheet do not render DialogPrimitive.Overlay", async () => {
@@ -22,16 +22,13 @@ describe("overlays never mount Radix's scroll lock", () => {
     expect(sheet).toMatch(/<Dialog\b/);
   });
 
-  test.each(["context-menu.tsx", "dropdown-menu.tsx"])(
-    "%s root is non-modal",
-    async (file) => {
-      expect(await read(file)).toMatch(/Primitive\.Root[^>]*modal=\{false\}/);
-    },
-  );
+  test.each(["context-menu.tsx", "dropdown-menu.tsx"])("%s root is non-modal", async (file) => {
+    expect(await read(file)).toMatch(/Primitive\.Root[^>]*modal=\{false\}/);
+  });
 
   test("no other Radix overlay with a scroll lock is wrapped", async () => {
     const glob = new Bun.Glob("*.tsx");
-    const dir = new URL(".", import.meta.url).pathname;
+    const dir = fileURLToPath(new URL(".", import.meta.url));
     for await (const file of glob.scan(dir)) {
       const src = await read(file);
       expect(src).not.toMatch(/\b(AlertDialog|Select)Primitive\b/);

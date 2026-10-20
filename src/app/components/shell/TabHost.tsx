@@ -110,7 +110,7 @@ export function TabHost() {
     return (
       <main className="relative h-full">
         {renderPanes(focusedIsland(workspace), true)}
-        <RouterContextProvider router={focusedRouter}>{OVERLAYS}</RouterContextProvider>
+        <RouterContextProvider router={focusedRouter}>{SHARED_OVERLAYS}</RouterContextProvider>
       </main>
     );
   }
@@ -120,8 +120,8 @@ export function TabHost() {
       <RepoMarkScope>
         <div className="relative flex h-full flex-col bg-(--color-frame) pt-[max(0.5rem,env(safe-area-inset-top))] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pl-[max(0.5rem,env(safe-area-inset-left))]">
           <RouterContextProvider router={focusedRouter}>
-            {OVERLAYS}
-            {WORKSPACE_OVERLAYS}
+            {SHARED_OVERLAYS}
+            {SIGNED_IN_OVERLAYS}
             <WorkspaceArea>
               <IslandLayout
                 layout={layout}
@@ -142,7 +142,7 @@ export function TabHost() {
 
 // Window-wide overlays. Hoisted so a workspace change (an island focus) re-renders
 // only those that read what changed, not every overlay with the host.
-const OVERLAYS = (
+const SHARED_OVERLAYS = (
   <>
     <DocumentTitle />
     <TabShortcuts />
@@ -154,7 +154,7 @@ const OVERLAYS = (
 );
 
 // One Toaster for the whole window, centred under the workspace.
-const WORKSPACE_OVERLAYS = (
+const SIGNED_IN_OVERLAYS = (
   <>
     <LayoutUndo />
     <Toaster position="bottom-center" />

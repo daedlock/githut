@@ -53,6 +53,7 @@ test("revealing a tab restores its scroll position in the next frame, not during
   expect(restore.restoring).toBe(true);
   frames.tick();
   expect(el.scrollTop).toBe(1200);
+  frames.tick();
   expect(restore.restoring).toBe(false);
   expect(frames.pending()).toBe(0);
 });
@@ -66,6 +67,7 @@ test("a page still loading keeps being restored each frame until it is tall enou
   el.maxScroll = 5000;
   frames.tick();
   expect(el.scrollTop).toBe(1200);
+  frames.tick();
   expect(frames.pending()).toBe(0);
 });
 
@@ -99,4 +101,26 @@ test("a tab at the top is left alone", () => {
   frames.tick();
   expect(el.writes).toBe(0);
   expect(frames.pending()).toBe(0);
+});
+
+test("checking a restore never reads scroll geometry in the frame that wrote it", () => {
+  const frames = manualFrames();
+  let wrote = false;
+  let top = 0;
+  const el = {
+    get scrollTop() {
+      expect(wrote).toBe(false);
+      return top;
+    },
+    set scrollTop(value: number) {
+      wrote = true;
+      top = value;
+    },
+  };
+  const restore = restoreScroll(el, 1200, frames);
+  frames.tick();
+  expect(top).toBe(1200);
+  wrote = false;
+  frames.tick();
+  expect(restore.restoring).toBe(false);
 });

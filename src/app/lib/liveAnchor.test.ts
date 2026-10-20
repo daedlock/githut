@@ -17,7 +17,7 @@ test("a commit that did not change the content measures nothing", () => {
   expect(commitMeasure("settled", { previousReady: true, childrenChanged: false })).toBe("none");
 });
 
-test("a hidden tab, or one just revealed and not yet laid out, never measures in commit", () => {
+test("a background tab, or one just revealed and not yet laid out, never measures in commit", () => {
   for (const pane of ["hidden", "revealed"] as const) {
     expect(commitMeasure(pane, { previousReady: true, childrenChanged: true })).toBe("none");
     expect(commitMeasure(pane, { previousReady: false, childrenChanged: true })).toBe("none");

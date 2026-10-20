@@ -26,7 +26,7 @@ import {
   type RepoIssue,
   type RepoIssueComment,
 } from "@/app/features/issues/schemas";
-import { useIssueViewerReactions } from "@/app/features/issues/viewerReactions";
+import { useIssueViewerReactions } from "@/app/features/reactions/viewerReactions";
 import type { MentionUser } from "@/app/hooks/useMentionSearch";
 import { cn } from "@/app/lib/cn";
 import { useCanMutate } from "@/app/lib/connectivity";

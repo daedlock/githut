@@ -1,6 +1,13 @@
 import { afterEach, expect, test } from "bun:test";
 import { environmentManager, QueryClient, QueryObserver } from "@tanstack/react-query";
-import { CADENCE, freshnessLevel, liveInterval, retimeLiveQueries } from "@/app/lib/freshness";
+import {
+  CADENCE,
+  followFreshness,
+  freshnessLevel,
+  liveInterval,
+  retimeLiveQueries,
+} from "@/app/lib/freshness";
+import { queryClient } from "@/app/lib/query";
 import {
   bucketBackoff,
   clearRateLimit,
@@ -12,6 +19,46 @@ import {
 import { createWorkspace, focusedTab, islands, runCommand } from "@/app/workspace/model";
 
 afterEach(() => clearRateLimit());
+
+test("freshness followers share one subscription and release it after the last disposer", () => {
+  let checks = 0;
+  const observer = new QueryObserver(queryClient, {
+    queryKey: ["freshness-lifecycle"],
+    enabled: false,
+    refetchInterval: () => {
+      checks++;
+      return false;
+    },
+  });
+  const unsubscribe = observer.subscribe(() => {});
+  const first = followFreshness();
+  const second = followFreshness();
+  const change = () => useRateLimitStore.setState({ buckets: {} });
+  try {
+    checks = 0;
+    change();
+    expect(checks).toBe(1);
+    first();
+    first();
+    checks = 0;
+    change();
+    expect(checks).toBe(1);
+    second();
+    checks = 0;
+    change();
+    expect(checks).toBe(0);
+    const restarted = followFreshness();
+    checks = 0;
+    change();
+    expect(checks).toBe(1);
+    restarted();
+  } finally {
+    first();
+    second();
+    unsubscribe();
+    queryClient.removeQueries({ queryKey: ["freshness-lifecycle"] });
+  }
+});
 
 test("a tab's level follows the workspace: focused, visible beside it, background otherwise", () => {
   let workspace = runCommand(createWorkspace(["/one", "/two"]), {

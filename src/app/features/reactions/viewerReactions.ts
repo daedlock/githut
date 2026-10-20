@@ -95,7 +95,9 @@ const emptyViewerReactions = (): ViewerReactions => ({
 
 const REACTABLE = `fullDatabaseId reactionGroups { content viewerHasReacted }`;
 
-// Threads with more than 100 comments only report their first 100.
+// Known limits: threads report only their first 100 comments; newly arrived comments
+// get viewer state on the next stale refetch (60s), not every live counts poll.
+// Each comment selection still owns a cache observer, but makes no extra request.
 const PR_VIEWER_REACTIONS_QUERY = `
   query(
     $owner: String!, $repo: String!, $number: Int!,
@@ -130,7 +132,7 @@ type PrViewerReactionsResponse = {
 };
 
 export const prViewerReactionsQueryOptions = (owner: string, repo: string, number: number) =>
-  queryOptions({
+  queryOptions<ViewerReactions, Error, ViewerReactions, QueryKey>({
     queryKey: viewerReactionKeys.pr(owner, repo, number),
     // Not polled: counts stay live through the REST comment lists, and the
     // viewer's own toggles write here directly.
@@ -192,7 +194,7 @@ type IssueViewerReactionsResponse = {
 };
 
 export const issueViewerReactionsQueryOptions = (owner: string, repo: string, number: number) =>
-  queryOptions({
+  queryOptions<ViewerReactions, Error, ViewerReactions, QueryKey>({
     queryKey: viewerReactionKeys.issue(owner, repo, number),
     staleTime: 60_000,
     queryFn: async (): Promise<ViewerReactions> => {
@@ -227,25 +229,65 @@ export const issueViewerReactionsQueryOptions = (owner: string, repo: string, nu
 /** Marks a reaction as added while its POST is in flight. */
 const PENDING_REACTION_ID = -1;
 
-function mineFor(data: ViewerReactions | undefined, target: ReactionTarget): MyReactionsMap {
-  if (!data) return EMPTY_MY_REACTIONS;
-  if (target.kind === "subject") return data.subject;
-  const map = target.kind === "comment" ? data.comments : data.reviewComments;
-  return map.get(target.id) ?? EMPTY_MY_REACTIONS;
+type ReactionAccess = {
+  path: string;
+  parameter: string;
+  read(data: ViewerReactions, id: number): MyReactionsMap;
+  write(data: ViewerReactions, id: number, mine: MyReactionsMap): ViewerReactions;
+};
+function commentAccess(path: string, field: "comments" | "reviewComments"): ReactionAccess {
+  return {
+    path,
+    parameter: "comment_id",
+    read: (data, id) => data[field].get(id) ?? EMPTY_MY_REACTIONS,
+    write: (data, id, mine) => {
+      const next = new Map(data[field]);
+      if (mine.size) next.set(id, mine);
+      else next.delete(id);
+      return { ...data, [field]: next };
+    },
+  };
+}
+const endpoints: Record<ReactionTarget["kind"], ReactionAccess> = {
+  subject: {
+    path: "issues",
+    parameter: "issue_number",
+    read: (data) => data.subject,
+    write: (data, _id, mine) => ({ ...data, subject: mine }),
+  },
+  comment: commentAccess("issues/comments", "comments"),
+  reviewComment: commentAccess("pulls/comments", "reviewComments"),
+};
+const targetId = (target: ReactionTarget) => ("number" in target ? target.number : target.id);
+
+function reactionEndpoint(target: ReactionTarget) {
+  const endpoint = endpoints[target.kind];
+  return {
+    url: `/repos/{owner}/{repo}/${endpoint.path}/{${endpoint.parameter}}/reactions`,
+    params: { [endpoint.parameter]: targetId(target) },
+  };
 }
 
+export function bumpReaction<T extends { reactions: Record<ReactionContent, number> }>(
+  item: T,
+  content: ReactionContent,
+  delta: number,
+): T {
+  return {
+    ...item,
+    reactions: { ...item.reactions, [content]: Math.max(0, item.reactions[content] + delta) },
+  };
+}
+
+function mineFor(data: ViewerReactions | undefined, target: ReactionTarget): MyReactionsMap {
+  return data ? endpoints[target.kind].read(data, targetId(target)) : EMPTY_MY_REACTIONS;
+}
 function withMine(
   data: ViewerReactions | undefined,
   target: ReactionTarget,
   mine: MyReactionsMap,
 ): ViewerReactions {
-  const base = data ?? emptyViewerReactions();
-  if (target.kind === "subject") return { ...base, subject: mine };
-  const field = target.kind === "comment" ? "comments" : "reviewComments";
-  const next = new Map(base[field]);
-  if (mine.size > 0) next.set(target.id, mine);
-  else next.delete(target.id);
-  return { ...base, [field]: next };
+  return endpoints[target.kind].write(data ?? emptyViewerReactions(), targetId(target), mine);
 }
 
 function writeMine(
@@ -320,19 +362,12 @@ export async function resolveMyReactionId(
   const client = getGitHubClient();
   const params = { owner, repo, content, per_page: 100 };
   for (let page = 1; ; page++) {
-    const res =
-      target.kind === "subject"
-        ? await client.request("GET /repos/{owner}/{repo}/issues/{issue_number}/reactions", {
-            ...params,
-            issue_number: target.number,
-            page,
-          })
-        : await client.request(
-            target.kind === "comment"
-              ? "GET /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions"
-              : "GET /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions",
-            { ...params, comment_id: target.id, page },
-          );
+    const endpoint = reactionEndpoint(target);
+    const res = await client.request(`GET ${endpoint.url}`, {
+      ...params,
+      ...endpoint.params,
+      page,
+    });
     const list = ReactionListSchema.parse(res.data);
     const mine = list.find((r) => r.user?.id === meId && r.content === content);
     if (mine) return mine.id;
@@ -342,35 +377,39 @@ export async function resolveMyReactionId(
 
 // ─── Hooks ──────────────────────────────────────────────────────────────────
 
-/** The viewer's reactions on one PR's conversation, comments and review comments. */
+/** Shared hook shape; each conversation keeps its established cache key and loader. */
+export function useViewerReactions<T = ViewerReactions>(
+  kind: "pr" | "issue",
+  owner: string,
+  repo: string,
+  number: number | undefined,
+  select?: (data: ViewerReactions) => T,
+) {
+  const token = useAuthStore((state) => state.token);
+  const options = kind === "pr" ? prViewerReactionsQueryOptions : issueViewerReactionsQueryOptions;
+  return useQuery({
+    ...options(owner, repo, number ?? 0),
+    enabled: !!token && !!owner && !!repo && !!number && Number.isFinite(number),
+    select,
+  });
+}
+
 export function usePrViewerReactions<T = ViewerReactions>(
   owner: string,
   repo: string,
   number: number | undefined,
   select?: (data: ViewerReactions) => T,
 ) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    ...prViewerReactionsQueryOptions(owner, repo, number ?? 0),
-    enabled: !!token && !!owner && !!repo && !!number && Number.isFinite(number),
-    select,
-  });
+  return useViewerReactions("pr", owner, repo, number, select);
 }
 
-/** The viewer's reactions on one issue: its body and its comments. */
 export function useIssueViewerReactions<T = ViewerReactions>(
   owner: string,
   repo: string,
   number: number | undefined,
   select?: (data: ViewerReactions) => T,
 ) {
-  const token = useAuthStore((s) => s.token);
-  return useQuery({
-    ...issueViewerReactionsQueryOptions(owner, repo, number ?? 0),
-    queryKey: viewerReactionKeys.issue(owner, repo, number),
-    enabled: !!token && !!owner && !!repo && !!number,
-    select,
-  });
+  return useViewerReactions("issue", owner, repo, number, select);
 }
 
 export const selectMine =
@@ -394,6 +433,7 @@ async function sendReactionToggle(
 ): Promise<number | null> {
   const client = getGitHubClient();
   const headers = { accept: "application/vnd.github+json" };
+  const endpoint = reactionEndpoint(target);
   if (existingReactionId !== undefined) {
     const reactionId =
       existingReactionId > 0
@@ -401,36 +441,22 @@ async function sendReactionToggle(
         : await resolveMyReactionId(owner, repo, target, content, meId);
     // Already gone on GitHub: the removal is done.
     if (reactionId == null) return null;
-    if (target.kind === "subject") {
-      await client.request(
-        "DELETE /repos/{owner}/{repo}/issues/{issue_number}/reactions/{reaction_id}",
-        { owner, repo, issue_number: target.number, reaction_id: reactionId, headers },
-      );
-    } else {
-      await client.request(
-        target.kind === "comment"
-          ? "DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions/{reaction_id}"
-          : "DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions/{reaction_id}",
-        { owner, repo, comment_id: target.id, reaction_id: reactionId, headers },
-      );
-    }
+    await client.request(`DELETE ${endpoint.url}/{reaction_id}`, {
+      owner,
+      repo,
+      ...endpoint.params,
+      reaction_id: reactionId,
+      headers,
+    });
     return null;
   }
-  const res =
-    target.kind === "subject"
-      ? await client.request("POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", {
-          owner,
-          repo,
-          issue_number: target.number,
-          content,
-          headers,
-        })
-      : await client.request(
-          target.kind === "comment"
-            ? "POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions"
-            : "POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions",
-          { owner, repo, comment_id: target.id, content, headers },
-        );
+  const res = await client.request(`POST ${endpoint.url}`, {
+    owner,
+    repo,
+    ...endpoint.params,
+    content,
+    headers,
+  });
   return (res.data as { id: number }).id;
 }
 
@@ -443,23 +469,26 @@ async function sendReactionToggle(
  * Toggles in one conversation run one after another (mutation scope), so a
  * quick add-then-remove deletes the reaction the add created.
  */
-export function useViewerReactionToggle<V extends ReactionToggleVars, T>({
-  owner,
-  repo,
-  meId,
-  reactionsKey,
-  countsKey,
-  targetOf,
-  patchCounts,
-}: {
-  owner: string;
-  repo: string;
-  meId: number | undefined;
-  reactionsKey: QueryKey;
-  countsKey: QueryKey;
-  targetOf: (vars: V) => ReactionTarget;
-  patchCounts: (data: T, vars: V, delta: number) => T;
-}) {
+export function useViewerReactionToggle<V extends ReactionToggleVars, T>(
+  conversation: {
+    kind: "pr" | "issue";
+    owner: string;
+    repo: string;
+    number: number | undefined;
+    meId: number | undefined;
+  },
+  {
+    countsKey,
+    targetOf,
+    patchCounts,
+  }: {
+    countsKey: QueryKey;
+    targetOf: (vars: V) => ReactionTarget;
+    patchCounts: (data: T, vars: V, delta: number) => T;
+  },
+) {
+  const { owner, repo, meId } = conversation;
+  const reactionsKey = viewerReactionKeys[conversation.kind](owner, repo, conversation.number);
   const queryClient = useQueryClient();
   return useMutation({
     scope: { id: JSON.stringify(reactionsKey) },
