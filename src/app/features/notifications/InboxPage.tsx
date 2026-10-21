@@ -9,6 +9,7 @@ import {
   GitCommitHorizontal,
   GitPullRequest,
   KeyRound,
+  ListFilter,
   type LucideIcon,
   Mail,
   MailOpen,
@@ -30,8 +31,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
+import { type ActiveFilter, FilterBar, FilterTrigger } from "@/app/components/ui/filter-bar";
 import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/app/components/ui/toggle-group";
+import { useMyOpenPrs } from "@/app/features/dashboard/hooks";
 import { YourWorkView } from "@/app/features/dashboard/YourWorkView";
 import {
   BarAction,
@@ -63,7 +66,16 @@ import {
   type Notification,
   notificationGitHubHref,
   notificationHref,
+  notificationPageKey,
 } from "./api";
+import {
+  activeToSearch,
+  feedRepos,
+  type InboxSearch,
+  inboxFilter,
+  searchToActive,
+} from "./filters";
+import { buildInboxFilterFields } from "./inboxFilterFields";
 import {
   loadMoreNotifications,
   type NotificationAction,
@@ -71,60 +83,141 @@ import {
   runNotificationAction,
   useNotificationState,
   useNotifications,
-  useNotificationUnreadCount,
 } from "./service";
 
 export type HomeView = "all" | "work" | undefined;
+type InboxFilterMode = "participating" | "all";
 
 /**
  * Home: the Inbox (Participating, or All at `/?view=all`) and Your work at
  * `/?view=work`. One heading and one switch; no navigation bar in the page.
+ * The Inbox narrows by repo, type and who through the filter bar; filters
+ * live in the route search and survive switching views.
  */
-export function InboxPage({ view }: { view?: HomeView }) {
+export function InboxPage({ view, filters = {} }: { view?: HomeView; filters?: InboxSearch }) {
   const navigate = useNavigate();
-  const unread = useNotificationUnreadCount(view === "all" ? "all" : "participating");
+  const mode: InboxFilterMode = view === "all" ? "all" : "participating";
   const value = view ?? "participating";
+  const inbox = useInboxFilters(mode, filters);
   return (
     <div className="min-h-full min-w-0 pb-24">
       <Container className="pt-6 sm:pr-14">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-baseline gap-3">
-            <h1 className="text-heading font-semibold">
-              {view === "work" ? "Your work" : "Inbox"}
-            </h1>
-            {view !== "work" && unread > 0 && (
-              <span className="text-caption tabular-nums text-muted-foreground">
-                {unread} unread
-              </span>
-            )}
+        <div className="mb-5 flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-baseline gap-3">
+              <h1 className="text-heading font-semibold">
+                {view === "work" ? "Your work" : "Inbox"}
+              </h1>
+              {view !== "work" && inbox.unread > 0 && (
+                <span className="text-caption tabular-nums text-muted-foreground">
+                  {inbox.unread} unread
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {view !== "work" && (
+                <FilterTrigger
+                  fields={inbox.fields}
+                  active={inbox.active}
+                  onChange={inbox.setActive}
+                />
+              )}
+              <ToggleGroup
+                type="single"
+                size="sm"
+                value={value}
+                onValueChange={(next) => {
+                  if (next === "participating" || next === "all" || next === "work")
+                    void navigate({
+                      from: "/",
+                      to: "/",
+                      search: (prev) => ({
+                        ...prev,
+                        view: next === "participating" ? undefined : next,
+                      }),
+                    });
+                }}
+                aria-label="Home view"
+              >
+                <ToggleGroupItem value="participating">Participating</ToggleGroupItem>
+                <ToggleGroupItem value="all">All</ToggleGroupItem>
+                <ToggleGroupItem value="work">Your work</ToggleGroupItem>
+              </ToggleGroup>
+            </div>
           </div>
-          <ToggleGroup
-            type="single"
-            size="sm"
-            value={value}
-            onValueChange={(next) => {
-              if (next === "participating") void navigate({ to: "/", search: {} });
-              else if (next === "all" || next === "work")
-                void navigate({ to: "/", search: { view: next } });
-            }}
-            aria-label="Home view"
-          >
-            <ToggleGroupItem value="participating">Participating</ToggleGroupItem>
-            <ToggleGroupItem value="all">All</ToggleGroupItem>
-            <ToggleGroupItem value="work">Your work</ToggleGroupItem>
-          </ToggleGroup>
+          {view !== "work" && (
+            <FilterBar fields={inbox.fields} active={inbox.active} onChange={inbox.setActive} />
+          )}
         </div>
       </Container>
       {view === "work" ? (
         <YourWorkView />
       ) : (
         <InboxList
-          filter={view === "all" ? "all" : "participating"}
-          onShowAll={() => void navigate({ to: "/", search: { view: "all" } })}
+          filter={mode}
+          matches={inbox.matches}
+          filterKey={inbox.key}
+          onClearFilters={() => inbox.setActive([])}
+          onShowAll={() =>
+            void navigate({ from: "/", to: "/", search: (prev) => ({ ...prev, view: "all" }) })
+          }
         />
       )}
     </div>
   );
+}
+
+/** Filter fields, the row predicate and the matching unread count for one view. */
+function useInboxFilters(mode: InboxFilterMode, filters: InboxSearch) {
+  const navigate = useNavigate();
+  const { data } = useNotifications();
+  const localUnread = useNotificationState((state) => state.unread);
+  const { repo, type, who } = filters;
+  const active = useMemo(() => searchToActive({ repo, type, who }), [repo, type, who]);
+  // Only a Who filter needs your authored PRs; Your work shares this cache.
+  const myPrs = useMyOpenPrs({ enabled: !!who });
+  const mine = useMemo(
+    () =>
+      new Set(
+        (myPrs.data ?? []).map((pr) =>
+          notificationPageKey(`/${pr.ownerRepo.owner}/${pr.ownerRepo.repo}/pull/${pr.number}`),
+        ),
+      ),
+    [myPrs.data],
+  );
+  const matches = useMemo(() => inboxFilter(active, mine), [active, mine]);
+  const inView = useMemo(
+    () => data?.items.filter((item) => mode === "all" || isParticipating(item)) ?? [],
+    [data, mode],
+  );
+  const fields = useMemo(
+    () =>
+      buildInboxFilterFields({
+        repos: feedRepos(inView, (item) => item.unread || !!localUnread[item.id]),
+        types: [...new Set(inView.map((item) => item.subject.type))],
+      }),
+    [inView, localUnread],
+  );
+  const unread = inView.filter(
+    (item) => (item.unread || !!localUnread[item.id]) && matches(item),
+  ).length;
+  const setActive = useCallback(
+    (next: ActiveFilter[]) =>
+      void navigate({
+        from: "/",
+        to: "/",
+        search: (prev) => ({ ...prev, ...activeToSearch(next) }),
+      }),
+    [navigate],
+  );
+  return {
+    active,
+    fields,
+    matches,
+    unread,
+    setActive,
+    key: [repo, type, who].join("|"),
+  };
 }
 
 const SUBJECT_ICONS: Record<string, LucideIcon> = {
@@ -150,9 +243,16 @@ const rowKey = (id: string) => Number(id);
 
 function InboxList({
   filter,
+  matches,
+  filterKey,
+  onClearFilters,
   onShowAll,
 }: {
-  filter: "participating" | "all";
+  filter: InboxFilterMode;
+  matches: (item: Notification) => boolean;
+  /** Changes with the filters, so the stable list starts over. */
+  filterKey: string;
+  onClearFilters: () => void;
   onShowAll: () => void;
 }) {
   const { data, isPending, isError, error, isFetching } = useNotifications();
@@ -163,17 +263,21 @@ function InboxList({
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState<string | null>(null);
   const incoming = useMemo(
-    () => data?.items.filter((item) => filter === "all" || isParticipating(item)) ?? [],
-    [data, filter],
+    () =>
+      data?.items.filter((item) => (filter === "all" || isParticipating(item)) && matches(item)) ??
+      [],
+    [data, filter, matches],
   );
   const { items: rows, listProps } = useStableList(incoming, {
     key: (item) => item.id,
-    resetKey: `${filter}:${actionVersion}`,
+    resetKey: `${filter}:${filterKey}:${actionVersion}`,
   });
+  const filtered = filterKey !== "||";
   const hiddenUnread =
     filter === "participating"
-      ? (data?.items.filter((item) => !isParticipating(item) && notificationIsUnread(item))
-          .length ?? 0)
+      ? (data?.items.filter(
+          (item) => !isParticipating(item) && matches(item) && notificationIsUnread(item),
+        ).length ?? 0)
       : 0;
   useListNavigation(!isPending);
 
@@ -259,6 +363,13 @@ function InboxList({
               </div>
             ))}
           </SkeletonGroup>
+        ) : !rows.length && !isError && filtered ? (
+          <NoMatches
+            hasMore={!!data?.hasMore}
+            hiddenUnread={hiddenUnread}
+            onClear={onClearFilters}
+            onShowAll={onShowAll}
+          />
         ) : !rows.length && !isError && !data?.hasMore ? (
           <CaughtUp hiddenUnread={hiddenUnread} onShowAll={onShowAll} />
         ) : (
@@ -502,6 +613,41 @@ function CaughtUp({ hiddenUnread, onShowAll }: { hiddenUnread: number; onShowAll
           }}
         >
           Your repos
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function NoMatches({
+  hasMore,
+  hiddenUnread,
+  onClear,
+  onShowAll,
+}: {
+  hasMore: boolean;
+  hiddenUnread: number;
+  onClear: () => void;
+  onShowAll: () => void;
+}) {
+  return (
+    <div role="status" className="flex flex-col items-center gap-3 py-16 text-center">
+      <ListFilter className="size-5 text-(--color-fg-faint)" />
+      <p className="max-w-sm text-body text-muted-foreground">
+        {hiddenUnread
+          ? `No matches here. ${hiddenUnread} unread match in All, from repos you watch.`
+          : hasMore
+            ? "No matches in the loaded notifications. Older ones may match."
+            : "No notifications match these filters."}
+      </p>
+      <div className="flex gap-2">
+        {hiddenUnread > 0 && (
+          <Button variant="secondary" onClick={onShowAll}>
+            Show All
+          </Button>
+        )}
+        <Button variant="ghost" onClick={onClear}>
+          Clear filters
         </Button>
       </div>
     </div>
