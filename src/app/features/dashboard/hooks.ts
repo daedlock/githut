@@ -112,14 +112,15 @@ export function useReviewRequestedPrs() {
 
 // ─── Your work: your open PRs, recently updated ────────────────────────────
 
-export function useMyOpenPrs() {
+/** `enabled: false` lets the Inbox ask only once a Who filter needs it. */
+export function useMyOpenPrs({ enabled = true }: { enabled?: boolean } = {}) {
   const token = useAuthStore((s) => s.token);
   const live = useLiveInterval("search");
   // The horizon changes once a day; keying on it drops yesterday's results.
   const since = dateAgoIso(90);
   return useQuery({
     queryKey: ["dashboard", "my-open-prs", since] as const,
-    enabled: !!token,
+    enabled: !!token && enabled,
     staleTime: 30_000,
     refetchInterval: () => live("changing", SEARCH_FLOOR),
     queryFn: () =>
