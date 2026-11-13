@@ -8,6 +8,7 @@
 
 <p align="center">
   <a href="https://githut.app"><strong>Open GitHut</strong></a> ·
+  <a href="#demos">Demos</a> ·
   <a href="#run-locally">Run locally</a> ·
   <a href="CONTRIBUTING.md">Contribute</a>
 </p>
@@ -29,6 +30,44 @@ Browse the source on any branch, or open a file’s history to see when it chang
 ![GitHut in dark mode showing a pull request’s changed files, a highlighted TypeScript diff, and an inline review comment](docs/screenshots/review.png)
 
 **Keyboard tip:** Press **Ctrl K** (**⌘ K** on macOS) to open the command palette, or **?** to see the shortcuts for the current page.
+
+## Demos
+
+<details>
+<summary>Split the workspace and read an issue beside the Inbox</summary>
+
+Right-click the issue tab and choose <strong>Move to new island right</strong>. The Inbox stays open while you read the discussion.
+
+![An issue tab moves into its own island to the right of the Inbox](docs/demos/workspace.gif)
+
+</details>
+
+<details>
+<summary>Filter the Inbox by notification type and repository</summary>
+
+Choose **Type → Pull requests**, then add a **Repo** filter to narrow the list to one project.
+
+![Two Inbox filters narrow a list of notifications to one pull request](docs/demos/inbox.gif)
+
+</details>
+
+<details>
+<summary>Compare a pull request in split and unified views</summary>
+
+Switch to **Split** to compare old and new lines side by side. Select another file from **Changed files**, then switch back to **Unified**.
+
+![A reviewer switches diff layouts and selects a second changed file](docs/demos/review.gif)
+
+</details>
+
+<details>
+<summary>Switch between light mode, dark mode, and color palettes</summary>
+
+Open the account menu and choose **Dark** under **Appearance**. Select a palette to see it across the workspace. The clip shows Catppuccin and Ember on the same issue.
+
+![The workspace changes from light mode to dark mode, then to Catppuccin and Ember](docs/demos/theme.gif)
+
+</details>
 
 ## Run locally
 
