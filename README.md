@@ -1,124 +1,65 @@
-# GitHut
+<p align="center">
+  <img src="public/favicon.svg" width="80" height="80" alt="GitHut logo">
+</p>
 
-**GitHub's UI, rebuilt for speed.**
+<h1 align="center">GitHut</h1>
 
-[![GitHub stars](https://img.shields.io/github/stars/daedlock/githut?style=social)](https://github.com/daedlock/githut)
-[![License](https://img.shields.io/github/license/daedlock/githut)](LICENSE)
-[![Issues](https://img.shields.io/github/issues/daedlock/githut)](https://github.com/daedlock/githut/issues)
+<p align="center">A keyboard-friendly workspace for GitHub issues, pull requests, and code.</p>
 
----
+<p align="center">
+  <a href="https://githut.app"><strong>Open GitHut</strong></a> ·
+  <a href="#run-locally">Run locally</a> ·
+  <a href="CONTRIBUTING.md">Contribute</a>
+</p>
 
-**[→ Try GitHut Live](https://githut.app)** *(connects to your GitHub)*
+GitHut brings the repositories you work on into one browser window. Keep your Inbox open on the left, read an issue on the right, and open the pull request that fixes it in its own tab. Sign in with GitHub to use your existing repositories, notifications, and reviews.
 
----
+![GitHut in light mode with notifications from four repositories on the left and an issue discussion on the right](docs/screenshots/workspace.png)
 
-## The Problem
+## Find your next task
 
-GitHub's UI is server-side rendered. Every click waits for a server roundtrip. For developers who live in the repo browser, issues, and PRs — that slowness adds up.
+- **Start in the Inbox.** Filter notifications by repository, type, or who’s involved. Switch to **Your work** for review requests and your own open pull requests.
+- **Keep related pages together.** Drag a tab to the edge of the workspace to open it beside the current page. GitHut calls these groups *islands*. Each island has its own tabs. Pin a tab you want to keep open, or favorite a repository or page to find it again from the sidebar.
+- **Triage a busy repository.** Group issues or pull requests by label, assignee, or milestone under **Display → Grouping**. Collapse the groups you don’t need, then use **J** and **K** to move through the remaining rows.
 
-## The Solution
+## Review a change
 
-GitHut is a client-side GitHub UI:
-- **Instant navigation** — No page reloads, no waiting
-- **Full GitHub integration** — OAuth login, real data from GitHub API
-- **World-class UX** — Clean, stays out of your way, dark/light modes
+Browse the source on any branch, or open a file’s history to see when it changed. In a pull request, move from the conversation to the changed files. Switch between unified and split diffs, leave a comment on a line, and submit your review. To investigate a failure, open the repository’s **Actions** section and drill into the run, job, and step logs.
 
-```
-GitHub:  Click → Wait 800ms → Render
-GitHut:  Click → Render (instant)
-```
+![GitHut in dark mode showing a pull request’s changed files, a highlighted TypeScript diff, and an inline review comment](docs/screenshots/review.png)
 
-## Features
+**Keyboard tip:** Press **Ctrl K** (**⌘ K** on macOS) to open the command palette, or **?** to see the shortcuts for the current page.
 
-| Feature | Status |
-|---------|--------|
-| Code browsing | ✅ |
-| Commit & branch browsing | ✅ |
-| Issues (CRUD + reactions) | ✅ |
-| Comment videos with playback, seeking, and fullscreen | ✅ |
-| Pull requests (CRUD + code review) | ✅ |
-| Collapsible issue and PR groups | ✅ |
-| GitHub Actions | 🚧 In progress |
-| Syntax highlighting (Shiki) | ✅ |
-| Diff viewer | ✅ |
-| Virtual scrolling (large repos) | ✅ |
+## Run locally
 
-### Group issues and pull requests
+You’ll need [Bun](https://bun.sh), Node.js 22.12 or later, and a GitHub account.
 
-Open **Display → Grouping** to group a list by status, assignee, author, label, or
-milestone. Choose **No grouping** to return to a flat list. PR ordering is also
-available under **Display → Ordering**.
+1. Clone the repository and install its dependencies:
 
-Click a group header to collapse or expand it. **Alt-click** toggles all groups;
-the Display menu also has **Expand all groups** and **Collapse all groups**.
-Press **Shift V** to open Display, or **T** over a group to toggle it (**Alt T**
-toggles all). Focused headers also support the left/right arrow keys, and **J/K**
-navigation skips collapsed rows.
+   ```sh
+   git clone https://github.com/daedlock/githut.git
+   cd githut
+   bun install --frozen-lockfile
+   cp .dev.vars.example .dev.vars
+   ```
 
-Grouping and collapsed sections are saved separately for each repository's issues
-and PRs. Filters and search apply before grouping, and counts reflect the loaded,
-matching items. Items with multiple labels or assignees appear in each matching
-group. Stacked PRs remain nested when they share a group.
+2. [Register a GitHub OAuth app](https://github.com/settings/applications/new) for local development. Set its **Homepage URL** to `http://localhost:5173` and its **Authorization callback URL** to `http://localhost:5173/api/auth/callback`.
 
-### Choose a page width
+3. In `.dev.vars`, fill in `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` from that OAuth app. For `OAUTH_STATE_SECRET`, generate a separate value with `openssl rand -hex 32`. This file is ignored by Git.
 
-In **Settings → Workspace → Container width**, choose **Small** (896px),
-**Medium** (1280px, the default), **Large** (1536px), or **Full width**. The header
-and page content share the same bounds. Changes apply immediately and stay in
-this browser. Repository names and owners truncate when space is limited; hover
-or focus their header links to read the full text.
+4. Build the static assets once, then start Vite and the local Cloudflare Worker:
 
-## Quick Start
+   ```sh
+   bun run build
+   bun run dev
+   ```
 
-### Use it
-
-Just connect your GitHub account at **[githut.app](https://githut.app)** — no installation needed.
-
-### Run locally
-
-```bash
-git clone https://github.com/daedlock/githut.git
-cd githut
-bun install
-bun run dev
-```
-
-## Deployment
-
-Production is deployed from GitHub. Every commit merged to `main` runs the
-[`Deploy production`](https://github.com/daedlock/githut/actions/workflows/deploy.yml)
-workflow, which typechecks, builds, and deploys the exact commit to Cloudflare.
-
-For routine releases, merge a pull request instead of running `bun run deploy`
-locally. The manual workflow trigger is the break-glass path for redeploying a
-commit that is already on `main`.
-
-## Tech Stack
-
-- **React 19** + **TanStack Router & Query**
-- **Tailwind CSS 4** + **shadcn/ui**
-- **Shiki** for syntax highlighting
-- **Cloudflare Workers** for edge deployment
-- **Octokit** for GitHub API
+   Open [localhost:5173](http://localhost:5173) and sign in. The Worker handles the OAuth callback; the browser uses the resulting token to call GitHub. GitHut requests the `repo`, `read:user`, and `read:org` scopes, so authorized actions such as posting a review also appear on GitHub.
 
 ## Contributing
 
-GitHut is open source and contributor-friendly.
+The [React app](src/app) uses TanStack Router and Query for navigation and GitHub data, and Shiki for code highlighting. The [Cloudflare Worker](src/worker) handles sign-in and uploads. Run `bun test` and `bunx tsc --noEmit` to check your changes.
 
-1. Check [Good First Issues](https://github.com/daedlock/githut/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
-2. Read the [Contributing Guide](CONTRIBUTING.md)
-3. Join the discussion in [GitHub Discussions](https://github.com/daedlock/githut/discussions)
+Read the [contributing guide](CONTRIBUTING.md), [report a bug](https://github.com/daedlock/githut/issues/new?template=bug_report.md), or [suggest a feature](https://github.com/daedlock/githut/issues/new?template=feature_request.md).
 
-## Roadmap
-
-See [plan.md](plan.md) for the full roadmap and current progress.
-
-## License
-
-[MIT](LICENSE)
-
----
-
-<p align="center">
-  <b>Star ⭐ the repo if you find it useful</b>
-</p>
+GitHut is licensed under the [MIT License](LICENSE).
