@@ -8,27 +8,64 @@
 
 <p align="center">
   <a href="https://githut.app"><strong>Open GitHut</strong></a> ·
+  <a href="#demos">Demos</a> ·
   <a href="#run-locally">Run locally</a> ·
   <a href="CONTRIBUTING.md">Contribute</a>
 </p>
 
-GitHut brings the repositories you work on into one browser window. Keep your Inbox open on the left, read an issue on the right, and open the pull request that fixes it in its own tab. Sign in with GitHub to use your existing repositories, notifications, and reviews.
+GitHut brings your GitHub repositories into one browser window. Read an issue beside your Inbox, open the pull request that fixes it, and review the diff without losing your place. [Sign in with GitHub](https://githut.app) to use your existing repositories and notifications.
 
-![GitHut in light mode with notifications from four repositories on the left and an issue discussion on the right](docs/screenshots/workspace.png)
+## Demos
 
-## Find your next task
+**Drag a tab to dock it.** Hold the issue tab, drag it to the right edge, and release when the split preview appears. GitHut calls each group of tabs an *island*.
 
-- **Start in the Inbox.** Filter notifications by repository, type, or who’s involved. Switch to **Your work** for review requests and your own open pull requests.
-- **Keep related pages together.** Drag a tab to the edge of the workspace to open it beside the current page. GitHut calls these groups *islands*. Each island has its own tabs. Pin a tab you want to keep open, or favorite a repository or page to find it again from the sidebar.
-- **Triage a busy repository.** Group issues or pull requests by label, assignee, or milestone under **Display → Grouping**. Collapse the groups you don’t need, then use **J** and **K** to move through the remaining rows.
+<picture>
+  <source media="(prefers-reduced-motion: reduce)" srcset="docs/screenshots/workspace.png">
+  <img src="docs/demos/docking.gif" alt="An issue tab is dragged to the right edge. A highlighted drop area becomes a second island beside the Inbox.">
+</picture>
 
-## Review a change
+[View a still image](docs/screenshots/workspace.png) · [Dock using the tab menu](docs/demos/workspace.gif)
 
-Browse the source on any branch, or open a file’s history to see when it changed. In a pull request, move from the conversation to the changed files. Switch between unified and split diffs, leave a comment on a line, and submit your review. To investigate a failure, open the repository’s **Actions** section and drill into the run, job, and step logs.
+<details>
+<summary><strong>Open a pull request</strong> · Inbox → conversation → changed files</summary>
 
-![GitHut in dark mode showing a pull request’s changed files, a highlighted TypeScript diff, and an inline review comment](docs/screenshots/review.png)
+![Opening a review request in the Inbox, reading the pull request, and selecting Files changed to see the diff](docs/demos/opening-pr.gif)
 
-**Keyboard tip:** Press **Ctrl K** (**⌘ K** on macOS) to open the command palette, or **?** to see the shortcuts for the current page.
+</details>
+
+<details>
+<summary><strong>Use the tab context menu</strong> · Right-click to pin a tab</summary>
+
+![The issue tab’s context menu opens. Selecting Pin tab moves it to the start of the tab strip, and the menu now offers Unpin tab.](docs/demos/context-menu.gif)
+
+</details>
+
+<details>
+<summary><strong>Filter the Inbox</strong> · Combine a notification type and a repository</summary>
+
+![Filtering notifications to pull requests, then narrowing the results to one repository](docs/demos/inbox.gif)
+
+</details>
+
+<details>
+<summary><strong>Review a diff</strong> · Switch layouts and jump between files</summary>
+
+![Switching from unified to split diff, selecting a second file, and returning to unified view](docs/demos/review.gif)
+
+[View a still image of an inline review](docs/screenshots/review.png)
+
+</details>
+
+<details>
+<summary><strong>Switch themes</strong> · Try dark mode, Catppuccin, and Ember</summary>
+
+![Choosing dark mode in the account menu and switching palettes on the same workspace](docs/demos/theme.gif)
+
+</details>
+
+For repository triage, use **Display → Grouping** to organize issues and pull requests by assignee, label, or milestone. For a failing build, open **Actions** and select a job to read its step logs.
+
+Press **Ctrl K** (**⌘ K** on macOS) to open the command palette, or **?** for the shortcuts on the current page.
 
 ## Run locally
 
