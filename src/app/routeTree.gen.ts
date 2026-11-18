@@ -14,9 +14,11 @@ import { Route as PlaygroundRouteImport } from './routes/playground'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as UsernameRouteImport } from './routes/$username'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
 import { Route as OwnerRepoRouteImport } from './routes/$owner.$repo'
 import { Route as OwnerRepoIndexRouteImport } from './routes/$owner.$repo.index'
 import { Route as OwnerRepoPullsRouteImport } from './routes/$owner.$repo.pulls'
+import { Route as OwnerRepoProjectsRouteImport } from './routes/$owner.$repo.projects'
 import { Route as OwnerRepoIssuesRouteImport } from './routes/$owner.$repo.issues'
 import { Route as OwnerRepoCommitsRouteImport } from './routes/$owner.$repo.commits'
 import { Route as OwnerRepoCodeRouteImport } from './routes/$owner.$repo.code'
@@ -24,6 +26,7 @@ import { Route as OwnerRepoActionsRouteImport } from './routes/$owner.$repo.acti
 import { Route as OwnerRepoPullsIndexRouteImport } from './routes/$owner.$repo.pulls.index'
 import { Route as OwnerRepoIssuesIndexRouteImport } from './routes/$owner.$repo.issues.index'
 import { Route as OwnerRepoActionsIndexRouteImport } from './routes/$owner.$repo.actions.index'
+import { Route as ProjectsKindLoginNumberRouteImport } from './routes/projects.$kind.$login.$number'
 import { Route as OwnerRepoReviewNumberRouteImport } from './routes/$owner.$repo.review.$number'
 import { Route as OwnerRepoPullNumberRouteImport } from './routes/$owner.$repo.pull.$number'
 import { Route as OwnerRepoPrNumberRouteImport } from './routes/$owner.$repo.pr.$number'
@@ -60,6 +63,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OwnerRepoRoute = OwnerRepoRouteImport.update({
   id: '/$owner/$repo',
   path: '/$owner/$repo',
@@ -73,6 +81,11 @@ const OwnerRepoIndexRoute = OwnerRepoIndexRouteImport.update({
 const OwnerRepoPullsRoute = OwnerRepoPullsRouteImport.update({
   id: '/pulls',
   path: '/pulls',
+  getParentRoute: () => OwnerRepoRoute,
+} as any)
+const OwnerRepoProjectsRoute = OwnerRepoProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
   getParentRoute: () => OwnerRepoRoute,
 } as any)
 const OwnerRepoIssuesRoute = OwnerRepoIssuesRouteImport.update({
@@ -109,6 +122,11 @@ const OwnerRepoActionsIndexRoute = OwnerRepoActionsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => OwnerRepoActionsRoute,
+} as any)
+const ProjectsKindLoginNumberRoute = ProjectsKindLoginNumberRouteImport.update({
+  id: '/projects/$kind/$login/$number',
+  path: '/projects/$kind/$login/$number',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const OwnerRepoReviewNumberRoute = OwnerRepoReviewNumberRouteImport.update({
   id: '/review/$number',
@@ -172,10 +190,12 @@ export interface FileRoutesByFullPath {
   '/playground': typeof PlaygroundRoute
   '/settings': typeof SettingsRoute
   '/$owner/$repo': typeof OwnerRepoRouteWithChildren
+  '/projects/': typeof ProjectsIndexRoute
   '/$owner/$repo/actions': typeof OwnerRepoActionsRouteWithChildren
   '/$owner/$repo/code': typeof OwnerRepoCodeRoute
   '/$owner/$repo/commits': typeof OwnerRepoCommitsRoute
   '/$owner/$repo/issues': typeof OwnerRepoIssuesRouteWithChildren
+  '/$owner/$repo/projects': typeof OwnerRepoProjectsRoute
   '/$owner/$repo/pulls': typeof OwnerRepoPullsRouteWithChildren
   '/$owner/$repo/': typeof OwnerRepoIndexRoute
   '/$owner/$repo/commit/$sha': typeof OwnerRepoCommitShaRoute
@@ -183,6 +203,7 @@ export interface FileRoutesByFullPath {
   '/$owner/$repo/pr/$number': typeof OwnerRepoPrNumberRouteWithChildren
   '/$owner/$repo/pull/$number': typeof OwnerRepoPullNumberRouteWithChildren
   '/$owner/$repo/review/$number': typeof OwnerRepoReviewNumberRoute
+  '/projects/$kind/$login/$number': typeof ProjectsKindLoginNumberRoute
   '/$owner/$repo/actions/': typeof OwnerRepoActionsIndexRoute
   '/$owner/$repo/issues/': typeof OwnerRepoIssuesIndexRoute
   '/$owner/$repo/pulls/': typeof OwnerRepoPullsIndexRoute
@@ -198,13 +219,16 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/playground': typeof PlaygroundRoute
   '/settings': typeof SettingsRoute
+  '/projects': typeof ProjectsIndexRoute
   '/$owner/$repo/code': typeof OwnerRepoCodeRoute
   '/$owner/$repo/commits': typeof OwnerRepoCommitsRoute
+  '/$owner/$repo/projects': typeof OwnerRepoProjectsRoute
   '/$owner/$repo': typeof OwnerRepoIndexRoute
   '/$owner/$repo/commit/$sha': typeof OwnerRepoCommitShaRoute
   '/$owner/$repo/issues/$number': typeof OwnerRepoIssuesNumberRoute
   '/$owner/$repo/pr/$number': typeof OwnerRepoPrNumberRouteWithChildren
   '/$owner/$repo/review/$number': typeof OwnerRepoReviewNumberRoute
+  '/projects/$kind/$login/$number': typeof ProjectsKindLoginNumberRoute
   '/$owner/$repo/actions': typeof OwnerRepoActionsIndexRoute
   '/$owner/$repo/issues': typeof OwnerRepoIssuesIndexRoute
   '/$owner/$repo/pulls': typeof OwnerRepoPullsIndexRoute
@@ -222,10 +246,12 @@ export interface FileRoutesById {
   '/playground': typeof PlaygroundRoute
   '/settings': typeof SettingsRoute
   '/$owner/$repo': typeof OwnerRepoRouteWithChildren
+  '/projects/': typeof ProjectsIndexRoute
   '/$owner/$repo/actions': typeof OwnerRepoActionsRouteWithChildren
   '/$owner/$repo/code': typeof OwnerRepoCodeRoute
   '/$owner/$repo/commits': typeof OwnerRepoCommitsRoute
   '/$owner/$repo/issues': typeof OwnerRepoIssuesRouteWithChildren
+  '/$owner/$repo/projects': typeof OwnerRepoProjectsRoute
   '/$owner/$repo/pulls': typeof OwnerRepoPullsRouteWithChildren
   '/$owner/$repo/': typeof OwnerRepoIndexRoute
   '/$owner/$repo/commit/$sha': typeof OwnerRepoCommitShaRoute
@@ -233,6 +259,7 @@ export interface FileRoutesById {
   '/$owner/$repo/pr/$number': typeof OwnerRepoPrNumberRouteWithChildren
   '/$owner/$repo/pull/$number': typeof OwnerRepoPullNumberRouteWithChildren
   '/$owner/$repo/review/$number': typeof OwnerRepoReviewNumberRoute
+  '/projects/$kind/$login/$number': typeof ProjectsKindLoginNumberRoute
   '/$owner/$repo/actions/': typeof OwnerRepoActionsIndexRoute
   '/$owner/$repo/issues/': typeof OwnerRepoIssuesIndexRoute
   '/$owner/$repo/pulls/': typeof OwnerRepoPullsIndexRoute
@@ -251,10 +278,12 @@ export interface FileRouteTypes {
     | '/playground'
     | '/settings'
     | '/$owner/$repo'
+    | '/projects/'
     | '/$owner/$repo/actions'
     | '/$owner/$repo/code'
     | '/$owner/$repo/commits'
     | '/$owner/$repo/issues'
+    | '/$owner/$repo/projects'
     | '/$owner/$repo/pulls'
     | '/$owner/$repo/'
     | '/$owner/$repo/commit/$sha'
@@ -262,6 +291,7 @@ export interface FileRouteTypes {
     | '/$owner/$repo/pr/$number'
     | '/$owner/$repo/pull/$number'
     | '/$owner/$repo/review/$number'
+    | '/projects/$kind/$login/$number'
     | '/$owner/$repo/actions/'
     | '/$owner/$repo/issues/'
     | '/$owner/$repo/pulls/'
@@ -277,13 +307,16 @@ export interface FileRouteTypes {
     | '/login'
     | '/playground'
     | '/settings'
+    | '/projects'
     | '/$owner/$repo/code'
     | '/$owner/$repo/commits'
+    | '/$owner/$repo/projects'
     | '/$owner/$repo'
     | '/$owner/$repo/commit/$sha'
     | '/$owner/$repo/issues/$number'
     | '/$owner/$repo/pr/$number'
     | '/$owner/$repo/review/$number'
+    | '/projects/$kind/$login/$number'
     | '/$owner/$repo/actions'
     | '/$owner/$repo/issues'
     | '/$owner/$repo/pulls'
@@ -300,10 +333,12 @@ export interface FileRouteTypes {
     | '/playground'
     | '/settings'
     | '/$owner/$repo'
+    | '/projects/'
     | '/$owner/$repo/actions'
     | '/$owner/$repo/code'
     | '/$owner/$repo/commits'
     | '/$owner/$repo/issues'
+    | '/$owner/$repo/projects'
     | '/$owner/$repo/pulls'
     | '/$owner/$repo/'
     | '/$owner/$repo/commit/$sha'
@@ -311,6 +346,7 @@ export interface FileRouteTypes {
     | '/$owner/$repo/pr/$number'
     | '/$owner/$repo/pull/$number'
     | '/$owner/$repo/review/$number'
+    | '/projects/$kind/$login/$number'
     | '/$owner/$repo/actions/'
     | '/$owner/$repo/issues/'
     | '/$owner/$repo/pulls/'
@@ -328,6 +364,8 @@ export interface RootRouteChildren {
   PlaygroundRoute: typeof PlaygroundRoute
   SettingsRoute: typeof SettingsRoute
   OwnerRepoRoute: typeof OwnerRepoRouteWithChildren
+  ProjectsIndexRoute: typeof ProjectsIndexRoute
+  ProjectsKindLoginNumberRoute: typeof ProjectsKindLoginNumberRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -367,6 +405,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/projects/': {
+      id: '/projects/'
+      path: '/projects'
+      fullPath: '/projects/'
+      preLoaderRoute: typeof ProjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$owner/$repo': {
       id: '/$owner/$repo'
       path: '/$owner/$repo'
@@ -386,6 +431,13 @@ declare module '@tanstack/react-router' {
       path: '/pulls'
       fullPath: '/$owner/$repo/pulls'
       preLoaderRoute: typeof OwnerRepoPullsRouteImport
+      parentRoute: typeof OwnerRepoRoute
+    }
+    '/$owner/$repo/projects': {
+      id: '/$owner/$repo/projects'
+      path: '/projects'
+      fullPath: '/$owner/$repo/projects'
+      preLoaderRoute: typeof OwnerRepoProjectsRouteImport
       parentRoute: typeof OwnerRepoRoute
     }
     '/$owner/$repo/issues': {
@@ -436,6 +488,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/$owner/$repo/actions/'
       preLoaderRoute: typeof OwnerRepoActionsIndexRouteImport
       parentRoute: typeof OwnerRepoActionsRoute
+    }
+    '/projects/$kind/$login/$number': {
+      id: '/projects/$kind/$login/$number'
+      path: '/projects/$kind/$login/$number'
+      fullPath: '/projects/$kind/$login/$number'
+      preLoaderRoute: typeof ProjectsKindLoginNumberRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/$owner/$repo/review/$number': {
       id: '/$owner/$repo/review/$number'
@@ -580,6 +639,7 @@ interface OwnerRepoRouteChildren {
   OwnerRepoCodeRoute: typeof OwnerRepoCodeRoute
   OwnerRepoCommitsRoute: typeof OwnerRepoCommitsRoute
   OwnerRepoIssuesRoute: typeof OwnerRepoIssuesRouteWithChildren
+  OwnerRepoProjectsRoute: typeof OwnerRepoProjectsRoute
   OwnerRepoPullsRoute: typeof OwnerRepoPullsRouteWithChildren
   OwnerRepoIndexRoute: typeof OwnerRepoIndexRoute
   OwnerRepoCommitShaRoute: typeof OwnerRepoCommitShaRoute
@@ -593,6 +653,7 @@ const OwnerRepoRouteChildren: OwnerRepoRouteChildren = {
   OwnerRepoCodeRoute: OwnerRepoCodeRoute,
   OwnerRepoCommitsRoute: OwnerRepoCommitsRoute,
   OwnerRepoIssuesRoute: OwnerRepoIssuesRouteWithChildren,
+  OwnerRepoProjectsRoute: OwnerRepoProjectsRoute,
   OwnerRepoPullsRoute: OwnerRepoPullsRouteWithChildren,
   OwnerRepoIndexRoute: OwnerRepoIndexRoute,
   OwnerRepoCommitShaRoute: OwnerRepoCommitShaRoute,
@@ -612,6 +673,8 @@ const rootRouteChildren: RootRouteChildren = {
   PlaygroundRoute: PlaygroundRoute,
   SettingsRoute: SettingsRoute,
   OwnerRepoRoute: OwnerRepoRouteWithChildren,
+  ProjectsIndexRoute: ProjectsIndexRoute,
+  ProjectsKindLoginNumberRoute: ProjectsKindLoginNumberRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

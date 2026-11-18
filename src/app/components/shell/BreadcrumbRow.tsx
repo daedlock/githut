@@ -4,6 +4,7 @@ import {
   GitPullRequestIcon,
   IssueOpenedIcon,
   PlayIcon,
+  ProjectIcon,
 } from "@primer/octicons-react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { CheckCircle2, ChevronDown, CircleDot, CircleSlash, GitBranch } from "lucide-react";
@@ -62,6 +63,7 @@ const SECTIONS: readonly { id: RepoSection; label: string; icon: typeof CodeIcon
   { id: "commits", label: "Commits", icon: GitCommitIcon },
   { id: "pulls", label: "Pull requests", icon: GitPullRequestIcon },
   { id: "issues", label: "Issues", icon: IssueOpenedIcon },
+  { id: "projects", label: "Projects", icon: ProjectIcon },
   { id: "actions", label: "Actions", icon: PlayIcon },
 ];
 

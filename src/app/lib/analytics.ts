@@ -36,13 +36,14 @@ export function setAnalyticsEnabledPreference(enabled: boolean) {
 // PR/issue titles. Pageviews and events carry a route shape instead, e.g.
 // `/:owner/:repo/pull/:n/files`.
 
-const TOP_LEVEL = new Set(["", "login", "settings", "playground"]);
+const TOP_LEVEL = new Set(["", "login", "settings", "playground", "projects"]);
 const SECTIONS = new Set([
   "pull",
   "pulls",
   "pr",
   "review",
   "issues",
+  "projects",
   "actions",
   "runs",
   "commits",
@@ -58,6 +59,8 @@ export function pagePath(href: string): string {
   const parts = path.split("/").filter(Boolean);
   if (parts.length === 0) return "/";
   if (parts.length === 1) return TOP_LEVEL.has(parts[0]!) ? `/${parts[0]}` : "/:user";
+  if (parts[0] === "projects" && ["users", "orgs"].includes(parts[1]!))
+    return "/projects/:kind/:owner/:number";
   const shape = ["", ":owner", ":repo"];
   for (const part of parts.slice(2, 6)) shape.push(SECTIONS.has(part) ? part : ":id");
   return shape.join("/");

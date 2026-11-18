@@ -39,6 +39,7 @@ const SECTION_PATH: Record<RepoSection, string> = {
   commits: "/commits",
   pulls: "/pulls",
   issues: "/issues",
+  projects: "/projects",
   actions: "/actions",
 };
 

@@ -1,6 +1,10 @@
 const RESERVED_PROFILE_PATHS = new Set(["login", "playground", "settings"]);
 
-const FULL_WIDTH_REPO_PATHS = [/^commit\/[^/]+\/?$/, /^pr\/\d+(?:\/code)?\/?$/, /^review\/\d+\/?$/] as const;
+const FULL_WIDTH_REPO_PATHS = [
+  /^commit\/[^/]+\/?$/,
+  /^pr\/\d+(?:\/code)?\/?$/,
+  /^review\/\d+\/?$/,
+] as const;
 
 type LocationLike = {
   pathname: string;
@@ -11,6 +15,15 @@ type LocationLike = {
 export function getOpenInGithubHref(location: LocationLike): string | null {
   const parts = location.pathname.split("/").filter(Boolean).map(decodeURIComponent);
 
+  if (parts[0] === "projects") {
+    if (parts.length === 1) return "https://github.com/dashboard/projects";
+    if (parts.length === 4 && ["orgs", "users"].includes(parts[1]!) && /^\d+$/.test(parts[3]!)) {
+      const base = `https://github.com/${parts[1]}/${encodePathPart(parts[2]!)}/projects/${parts[3]}`;
+      const view = String(location.search?.view ?? "");
+      const url = new URL(/^\d+$/.test(view) ? `${base}/views/${view}` : base);
+      return url.href;
+    }
+  }
   if (parts.length === 1) {
     const [username] = parts;
     if (!username || RESERVED_PROFILE_PATHS.has(username.toLowerCase())) return null;
@@ -37,6 +50,8 @@ export function getOpenInGithubHref(location: LocationLike): string | null {
       return restParts[1] ? `${base}/issues/${encodePathPart(restParts[1])}` : `${base}/issues`;
     case "commits":
       return commitsHref(base, location);
+    case "projects":
+      return `${base}/projects`;
     case "actions":
       return actionsHref(base, restParts);
     default:

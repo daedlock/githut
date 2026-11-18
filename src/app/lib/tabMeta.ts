@@ -3,6 +3,7 @@ import {
   Code2,
   FileDiff,
   FileText,
+  FolderKanban,
   GitCommitHorizontal,
   GitPullRequest,
   Inbox,
@@ -34,6 +35,15 @@ type PatternRule = {
  * to the default (last segment as label, generic file icon).
  */
 const RULES: PatternRule[] = [
+  { match: /^\/projects$/, meta: () => ({ label: "Projects", icon: FolderKanban }) },
+  {
+    match: /^\/projects\/(?:orgs|users)\/(?<owner>[^/]+)\/(?<number>\d+)$/,
+    meta: (g) => ({ label: `@${g.owner} · Project #${g.number}`, icon: FolderKanban }),
+  },
+  {
+    match: /^\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/projects$/,
+    meta: (g) => ({ label: "Projects", sublabel: `${g.owner}/${g.repo}`, icon: FolderKanban }),
+  },
   {
     match: /^\/$/,
     meta: () => ({ label: "Inbox", icon: Inbox }),
@@ -164,7 +174,7 @@ export function tabRepo(pathname: string): string | undefined {
   return getTabMeta(pathname).sublabel;
 }
 
-export type RepoSection = "code" | "commits" | "pulls" | "issues" | "actions";
+export type RepoSection = "code" | "commits" | "pulls" | "issues" | "projects" | "actions";
 
 /** Which repo section a page sits in — PR detail pages count as PRs, etc. */
 export function tabSection(pathname: string): RepoSection | null {
@@ -184,6 +194,8 @@ export function tabSection(pathname: string): RepoSection | null {
       return "pulls";
     case "/issues":
       return "issues";
+    case "/projects":
+      return "projects";
     case "/actions":
       return "actions";
     default:

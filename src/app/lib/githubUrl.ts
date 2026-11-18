@@ -48,6 +48,15 @@ const RESERVED_ROOT = new Set([
 ]);
 
 const RULES: Rule[] = [
+  { name: "projects", match: (p) => (p === "/dashboard/projects" ? "/projects" : null) },
+  {
+    name: "project",
+    match: (p) => {
+      const m = p.match(/^\/(users|orgs)\/([^/]+)\/projects\/(\d+)(?:\/views\/(\d+))?\/?$/);
+      return m ? `/projects/${m[1]}/${m[2]}/${m[3]}${m[4] ? "?view=" + m[4] : ""}` : null;
+    },
+  },
+  { name: "repo:projects", match: (p) => (/^\/[^/]+\/[^/]+\/projects$/.test(p) ? p : null) },
   {
     name: "repo:commit",
     match: (p) => {
