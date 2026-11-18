@@ -49,7 +49,7 @@ An unsent comment or review kept for a page until you send or discard it, even i
 _Avoid_: Unsaved changes, pending comment
 
 **Repo mark**:
-The small rounded square, with the repo's initial, that identifies which repo a tab, sidebar entry or link belongs to.
+The small rounded square, with the repo's initial, that identifies which repo a tab, sidebar entry or link belongs to. A repo that ships a favicon shows its favicon in that square instead.
 _Avoid_: Repo badge, repo icon, repo chip
 
 ## Navigation

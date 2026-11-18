@@ -72,3 +72,13 @@ test("repo colours default on, persist off, and retired tab preferences disappea
   expect(restored.getState().repoColor).toBe(false);
   expect(restored.getState().codeFont).toBe("jetbrains-mono");
 });
+
+test("repo favicons default on and persist off", async () => {
+  expect(useSettingsStore.getState().repoFavicons).toBe(true);
+  values.set("githut.settings", JSON.stringify({ state: { repoFavicons: "no" }, version: 1 }));
+  await useSettingsStore.persist.rehydrate();
+  expect(useSettingsStore.getState().repoFavicons).toBe(true);
+  useSettingsStore.getState().setRepoFavicons(false);
+  const restored = createSettingsStore(storage);
+  expect(restored.getState().repoFavicons).toBe(false);
+});

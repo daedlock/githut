@@ -381,13 +381,21 @@ sidebar with GitHub stars, recent pages, or expanded pull request queues.
   the status hues. Every hue shares `--repo-l` / `--repo-c`, so no repo
   is louder than another. Fill is the colour at 20% over `bg-muted`, `ring-1 ring-inset`
   at 35%. With `<html data-repo-color="off">` marks go neutral.
+- A repo that ships a favicon (`favicon.svg|ico|png` at the root or in the
+  usual static folders, `lib/repoFavicon.ts`) shows it in the mark's box
+  instead: same size and radius, `object-contain`, no fill or ring. The
+  letter shows until the icon is known, so the first visit to a repo can
+  swap letter → favicon once. Afterwards the icon comes from the IndexedDB
+  cache with no request: it replaces the letter as soon as that local read
+  finishes, right after load. Repository favicons can be turned off in
+  Settings.
 
 ### Settings
 - Settings is a scrollable shadcn Dialog over the workspace, including direct
   `/settings` visits. Opening and closing it preserves tabs, focus and layout;
   closing restores the focused tab's URL. It has a visible title and close
   button, traps keyboard focus, and dismisses with Escape.
-- Repository colours default on and can be turned off in Settings. Preferences
+- Repository colours and repository favicons default on and can be turned off in Settings. Preferences
   remain local to the browser. There is no tabs on/off mode.
 - The avatar menu contains Settings, theme controls, Reset layout and Sign out.
   Reset layout gathers all open tabs and pins into one island, keeps the
