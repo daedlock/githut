@@ -382,7 +382,9 @@ sidebar with GitHub stars, recent pages, or expanded pull request queues.
   is louder than another. Fill is the colour at 20% over `bg-muted`, `ring-1 ring-inset`
   at 35%. With `<html data-repo-color="off">` marks go neutral.
 - A repo that ships a favicon (`favicon.svg|ico|png` at the root or in the
-  usual static folders, `lib/repoFavicon.ts`) shows it in the mark's box
+  usual static folders; failing that, the shallowest favicon, logo or
+  Next.js `app/icon` anywhere outside examples, fixtures, tests and similar
+  folders — `lib/repoFavicon.ts`) shows it in the mark's box
   instead: same size and radius, `object-contain`, no fill or ring. The
   letter shows until the icon is known, so the first visit to a repo can
   swap letter → favicon once. Afterwards the icon comes from the IndexedDB
