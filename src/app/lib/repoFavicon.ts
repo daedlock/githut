@@ -4,8 +4,11 @@
  *
  * Lookup: one GraphQL request asks a batch of repos for a fixed list of
  * conventional favicon paths on their default branch (`HEAD:<path>`). The
- * first hit under the size cap wins, and its bytes come from the git blob API
- * by oid, so private repos work with the session token like everything else.
+ * first hit under the size cap wins. Repos that miss every conventional path
+ * get one recursive tree listing, and the shallowest favicon-like file outside
+ * examples, fixtures, tests and the like wins (`pickFromTree`). Bytes come
+ * from the git blob API by oid, so private repos work with the session token
+ * like everything else.
  *
  * Cache: results — hits as data URLs, misses as `null` — live in memory for
  * synchronous renders and in IndexedDB so a reload never refetches. Entries
@@ -73,9 +76,9 @@ export const FAVICON_PATHS: readonly string[] = [
 export const MAX_FAVICON_BYTES = 128 * 1024;
 /** Repos per GraphQL request. */
 export const BATCH_SIZE = 8;
-/** A found icon is rechecked weekly; a missing one every three days. */
+/** Found and missing icons are both rechecked weekly: a miss can mean a full tree scan. */
 export const HIT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-export const MISS_TTL_MS = 3 * 24 * 60 * 60 * 1000;
+export const MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** A failed lookup (offline, rate limited) is retried after this. */
 export const ERROR_BACKOFF_MS = 10 * 60 * 1000;
 
@@ -142,6 +145,57 @@ export function pickFavicon(result: RepoFaviconResult): { path: string; oid: str
       return { path: FAVICON_PATHS[j]!, oid: blob.oid };
   }
   return null;
+}
+
+export type TreeEntry = { path: string; type: string; sha: string; size?: number };
+
+/**
+ * Folders whose icons belong to something else: sample apps, test apps,
+ * vendored code, editor extensions' assets and dot-folders. Matched per path
+ * segment, so `sfc-playground/` and `template-react/` count too.
+ */
+const FOREIGN_SEGMENT =
+  /^(?:\..+|node_modules|vendor|third[-_]party|tests?|__tests__|__fixtures__|spec|e2e|.*(?:example|fixture|playground|template|demo|sample|bench|sandbox|starter|scaffold|integration).*)$/i;
+
+/** Favicons first, then logos, then Next.js `app/icon.*`. */
+function nameRank(path: string): number {
+  const parts = path.split("/");
+  const base = parts[parts.length - 1]!.toLowerCase();
+  if (/^favicon\.(?:svg|png|ico)$/.test(base)) return 0;
+  if (/^logo\.(?:svg|png)$/.test(base)) return 1;
+  if (/^icon\.(?:svg|png)$/.test(base) && parts[parts.length - 2] === "app") return 2;
+  return -1;
+}
+
+const EXTENSION_RANK: Record<string, number> = { svg: 0, png: 1, ico: 2 };
+
+/**
+ * The repo's own icon from a recursive tree listing: the shallowest
+ * favicon-like file outside foreign folders. Ties prefer favicon over logo,
+ * then SVG over PNG over ICO, then the shorter path.
+ */
+export function pickFromTree(tree: readonly TreeEntry[]): { path: string; oid: string } | null {
+  let best: { path: string; oid: string; key: number[] } | null = null;
+  for (const entry of tree) {
+    if (entry.type !== "blob" || !entry.size || entry.size > MAX_FAVICON_BYTES) continue;
+    const rank = nameRank(entry.path);
+    if (rank < 0) continue;
+    const segments = entry.path.split("/");
+    if (segments.slice(0, -1).some((segment) => FOREIGN_SEGMENT.test(segment))) continue;
+    const key = [
+      segments.length,
+      rank,
+      EXTENSION_RANK[extensionOf(entry.path)] ?? 3,
+      entry.path.length,
+    ];
+    if (!best || compareKeys(key, best.key) < 0) best = { path: entry.path, oid: entry.sha, key };
+  }
+  return best && { path: best.path, oid: best.oid };
+}
+
+function compareKeys(a: number[], b: number[]): number {
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i]! - b[i]!;
+  return 0;
 }
 
 /** Data URL for a file's base64 content (GitHub wraps it at 60 columns). */
@@ -367,43 +421,67 @@ async function lookup(keys: string[]) {
     return;
   }
 
-  await Promise.all(
-    keys.map(async (key, i) => {
-      // Only "no such repo" is a real answer. SSO enforcement, timeouts and
-      // the like are not, so they retry instead of caching a miss.
-      const own = errors.filter((e) => e.path?.[0] === `r${i}`);
-      if (own.some((e) => e.type !== "NOT_FOUND")) {
-        markFailed([key]);
-        return;
-      }
-      const pick = pickFavicon(data?.[`r${i}`] ?? null);
-      const now = Date.now();
-      if (!pick) {
-        remember(key, { src: null, oid: null, checkedAt: now });
-        return;
-      }
-      const previous = memory.get(key);
-      if (previous?.src && previous.oid === pick.oid) {
-        remember(key, { ...previous, checkedAt: now });
-        return;
-      }
-      try {
-        const { data: blob } = await getGitHubClient().request(
-          "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
-          { owner: repos[i]!.owner, repo: repos[i]!.name, file_sha: pick.oid },
-        );
-        if (owner !== account) return;
-        if (blob.encoding !== "base64") throw new Error(`Unexpected encoding ${blob.encoding}`);
-        remember(key, {
-          src: faviconDataUrl(pick.path, blob.content),
-          oid: pick.oid,
-          checkedAt: now,
-        });
-      } catch {
-        markFailed([key]);
-      }
-    }),
+  // One repo at a time: a tree listing can run to megabytes.
+  for (const [i, key] of keys.entries()) {
+    if (owner !== account) return;
+    // Only "no such repo" is a real answer. SSO enforcement, timeouts and
+    // the like are not, so they retry instead of caching a miss.
+    const own = errors.filter((e) => e.path?.[0] === `r${i}`);
+    if (own.some((e) => e.type !== "NOT_FOUND")) {
+      markFailed([key]);
+      continue;
+    }
+    const result = data?.[`r${i}`] ?? null;
+    try {
+      const pick = result ? (pickFavicon(result) ?? (await scanTree(repos[i]!))) : null;
+      if (owner !== account) return;
+      await resolve(key, repos[i]!, pick);
+    } catch {
+      markFailed([key]);
+    }
+  }
+}
+
+/** No conventional path matched: look through the whole tree. */
+async function scanTree(repo: { owner: string; name: string }) {
+  try {
+    const { data } = await getGitHubClient().request(
+      "GET /repos/{owner}/{repo}/git/trees/{tree_sha}",
+      { owner: repo.owner, repo: repo.name, tree_sha: "HEAD", recursive: "1" },
+    );
+    // A truncated listing (huge repos) still holds the shallow paths first.
+    return pickFromTree(data.tree as TreeEntry[]);
+  } catch (error) {
+    // An empty repository has no HEAD: nothing to find.
+    const status = (error as { status?: number } | null)?.status;
+    if (status === 404 || status === 409) return null;
+    throw error;
+  }
+}
+
+async function resolve(
+  key: string,
+  repo: { owner: string; name: string },
+  pick: { path: string; oid: string } | null,
+) {
+  const account = owner;
+  const now = Date.now();
+  if (!pick) {
+    remember(key, { src: null, oid: null, checkedAt: now });
+    return;
+  }
+  const previous = memory.get(key);
+  if (previous?.src && previous.oid === pick.oid) {
+    remember(key, { ...previous, checkedAt: now });
+    return;
+  }
+  const { data: blob } = await getGitHubClient().request(
+    "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
+    { owner: repo.owner, repo: repo.name, file_sha: pick.oid },
   );
+  if (owner !== account) return;
+  if (blob.encoding !== "base64") throw new Error(`Unexpected encoding ${blob.encoding}`);
+  remember(key, { src: faviconDataUrl(pick.path, blob.content), oid: pick.oid, checkedAt: now });
 }
 
 // ─── Public API ────────────────────────────────────────────────────────────

@@ -204,9 +204,10 @@ export function getGitHubClient(): Octokit {
       return response;
     }
 
-    // Blobs are addressed by content and never change: no validator to keep,
-    // and their bodies would crowd the LRU.
-    if (String(options.url ?? "").includes("/git/blobs/")) return request(options);
+    // Git blobs and trees: blobs are addressed by content and never change,
+    // and recursive trees run to megabytes. Either would crowd the LRU.
+    const route = String(options.url ?? "");
+    if (route.includes("/git/blobs/") || route.includes("/git/trees/")) return request(options);
 
     const key = buildCacheKey(client.request.endpoint.parse(options));
     const prev = touchETag(key);
