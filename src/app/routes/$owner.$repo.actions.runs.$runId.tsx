@@ -26,6 +26,7 @@ import {
 } from "@/app/features/actions/hooks";
 import { isTerminal, statusLabel, toUiStatus } from "@/app/features/actions/lib/statusMap";
 import { NowTicker } from "@/app/features/actions/lib/useNow";
+import { useVisibleSignal } from "@/app/features/activity/visibleSignal";
 import { cn } from "@/app/lib/cn";
 
 export const Route = createFileRoute("/$owner/$repo/actions/runs/$runId")({
@@ -48,6 +49,12 @@ function RunDetailPage() {
   const validId = Number.isSafeInteger(runId) && runId > 0;
   const runQuery = useWorkflowRun(owner, repo, runId);
   const run = runQuery.data;
+  useVisibleSignal(
+    `/${owner}/${repo}/actions/runs/${runId}`,
+    run ? JSON.stringify([run.status, run.conclusion, run.run_attempt]) : undefined,
+    Date.parse(run?.updated_at ?? "") || 0,
+    runQuery.dataUpdatedAt,
+  );
   const jobsQuery = useRunJobs(owner, repo, runId, run);
   const artifactsQuery = useRunArtifacts(owner, repo, runId, run);
   const selectJob = useCallback(

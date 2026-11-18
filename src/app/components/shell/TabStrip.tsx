@@ -8,7 +8,6 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { RepoMark } from "@/app/components/shell/RepoMark";
 import { ShellTipContent, TipDot, TipId } from "@/app/components/shell/ShellTip";
@@ -33,6 +32,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 import { actionsKeys } from "@/app/features/actions/hooks";
 import { pageEntity } from "@/app/features/activity/api";
+import { useIssueActivityFilters } from "@/app/features/activity/pages";
 import { useTabActivityStore } from "@/app/features/activity/store";
 import { pageIsUnread } from "@/app/features/activity/watcher";
 import { issueKeys } from "@/app/features/issues/hooks";
@@ -502,6 +502,7 @@ function subscribeDisplaySources(listener: () => void) {
     version++;
     const stops = [
       useTabActivityStore.subscribe(bump),
+      useIssueActivityFilters.subscribe(bump),
       useNotificationState.subscribe(bump),
       subscribeQueryData(bump),
     ];
@@ -532,7 +533,10 @@ function versioned<T>(compute: (key: string) => T) {
   };
 }
 
-const unreadSnapshot = versioned((href) => pageIsUnread(href));
+const unreadSnapshot = versioned((key) => {
+  const [href, tabId] = JSON.parse(key) as [string, string];
+  return pageIsUnread(href, tabId);
+});
 
 /** Display metadata for a tab. A tab on screen never shows the unread dot: you are looking at it. */
 export function useTabDisplay(href: string, tabId: string): TabDisplay {
@@ -544,7 +548,9 @@ export function useTabDisplay(href: string, tabId: string): TabDisplay {
   );
   const narrow = useWorkspaceView((s) => s.narrow);
   const shown = useWorkspaceStore((s) => visibleTabIds(s.workspace, narrow).has(tabId));
-  const hasUnread = useSyncExternalStore(subscribeDisplaySources, () => unreadSnapshot(href));
+  const hasUnread = useSyncExternalStore(subscribeDisplaySources, () =>
+    unreadSnapshot(JSON.stringify([href, tabId])),
+  );
   const unread = hasUnread && !shown;
   const base = { icon: meta.icon, tone: "none" as Tone, repo: meta.sublabel, unread };
 

@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouterState } from "@tanstack/react-router";
 import { z } from "zod";
 import type { ActiveLineRange } from "@/app/components/code";
@@ -11,7 +12,8 @@ import { StarButton } from "@/app/components/repo/StarButton";
 import { StatusMessage } from "@/app/components/StatusMessage";
 import { Container } from "@/app/components/ui/Container";
 import { Skeleton, SkeletonGroup } from "@/app/components/ui/skeleton";
-import { usePathCommit } from "@/app/hooks/usePathCommit";
+import { useVisibleSignal } from "@/app/features/activity/visibleSignal";
+import { pathCommitQueryOptions, usePathCommit } from "@/app/hooks/usePathCommit";
 import { repoQueryOptions, useRepo } from "@/app/hooks/useRepo";
 import { repoBranchesQueryOptions, useRepoBranches } from "@/app/hooks/useRepoBranches";
 import type { ContentEntry } from "@/app/hooks/useRepoContents";
@@ -23,8 +25,8 @@ import { repoReadmeQueryOptions, useRepoReadme } from "@/app/hooks/useRepoReadme
 import { repoReleasesQueryOptions, useRepoReleases } from "@/app/hooks/useRepoReleases";
 import { repoStarredQueryOptions } from "@/app/hooks/useRepoStarred";
 import { track } from "@/app/lib/analytics";
-
 import { fileHistorySearchSchema } from "@/app/lib/fileHistorySearch";
+import { useAuthStore } from "@/app/stores/auth";
 
 const codeSearchSchema = z.object({
   path: z.string().optional(),
@@ -100,6 +102,25 @@ function CodePage() {
   const dataRef = searchBranch || undefined;
   const branchReady = !!searchBranch || !!defaultBranch;
   const isBlob = view === "blob";
+  const token = useAuthStore((s) => s.token);
+  // Root history is the branch head; a nested path's last commit is not.
+  // At the root this shares the header's request and cache entry.
+  const head = useQuery({
+    ...pathCommitQueryOptions(owner, repo, "", dataRef),
+    staleTime: 60_000,
+    enabled: !!token && branchReady,
+  });
+  useVisibleSignal(
+    "/" +
+      owner +
+      "/" +
+      repo +
+      "/code?branch=" +
+      encodeURIComponent(JSON.stringify(searchBranch ?? "")),
+    head.data?.sha,
+    Date.parse(head.data?.date ?? "") || 0,
+    head.dataUpdatedAt,
+  );
 
   const {
     data: contents,

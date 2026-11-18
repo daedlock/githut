@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ActiveFilter } from "@/app/components/ui/filter-bar";
+import { useIssueActivityFilter } from "@/app/features/activity/pages";
 import type { StateFilter } from "@/app/features/issues/components/StateTab";
 import {
   useCreateIssue,
@@ -15,6 +16,7 @@ import { IssueDetail } from "@/app/features/issues/IssueDetail";
 import { IssueList } from "@/app/features/issues/IssueList";
 import { useMe } from "@/app/hooks/useMe";
 import { draftKey, draftPage, sentDraft, useDraft } from "@/app/stores/drafts";
+import { matchesIssue } from "./filters";
 
 export type RepoIssuesPageProps = {
   owner: string;
@@ -24,23 +26,6 @@ export type RepoIssuesPageProps = {
   onIssueCreated: (issueNumber: number) => void;
   onIssueIsPullRequest: (issueNumber: number) => void;
 };
-
-function matchIssueFilter(
-  issue: { labels: { name: string }[]; user: { login: string }; assignees: { login: string }[] },
-  fieldId: string,
-  value: string,
-): boolean {
-  switch (fieldId) {
-    case "label":
-      return issue.labels.some((l) => l.name === value);
-    case "author":
-      return issue.user.login === value;
-    case "assignee":
-      return issue.assignees.some((a) => a.login === value);
-    default:
-      return false;
-  }
-}
 
 export function RepoIssuesPage({
   owner,
@@ -55,6 +40,7 @@ export function RepoIssuesPage({
   const [stateFilter, setStateFilter] = useState<StateFilter>("open");
   const [searchText, setSearchText] = useState("");
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
+  useIssueActivityFilter(stateFilter, searchText, activeFilters);
   const [isComposing, setIsComposing] = useState(false);
   const [newIssueTitle, setNewIssueTitle] = useState("");
   const [newIssueBody, setNewIssueBody] = useState("");
@@ -90,25 +76,13 @@ export function RepoIssuesPage({
     [issuesQuery.data],
   );
 
-  const filteredIssues = useMemo(() => {
-    let list = (issuesQuery.data ?? []).filter((i) => i.state === stateFilter);
-
-    for (const f of activeFilters) {
-      list = list.filter((i) => {
-        const has = matchIssueFilter(i, f.fieldId, f.value);
-        return f.op === "is" ? has : !has;
-      });
-    }
-
-    const q = searchText.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter(
-      (i) =>
-        i.title.toLowerCase().includes(q) ||
-        i.body?.toLowerCase().includes(q) ||
-        i.user.login.toLowerCase().includes(q),
-    );
-  }, [issuesQuery.data, stateFilter, searchText, activeFilters]);
+  const filteredIssues = useMemo(
+    () =>
+      (issuesQuery.data ?? []).filter((i) =>
+        matchesIssue(i, { state: stateFilter, text: searchText, filters: activeFilters }),
+      ),
+    [issuesQuery.data, stateFilter, searchText, activeFilters],
+  );
 
   const selectedIssue = issueQuery.data;
 

@@ -356,3 +356,68 @@ test("visible pages identify the viewer once so later cached activity can mark a
   expect(requests).toHaveLength(1);
   expect(pageIsUnread(key)).toBe(true);
 });
+
+import { activityPage } from "./pages";
+
+test("list dots require newly created items; shown lists acknowledge and Inbox reuses the feed", async () => {
+  const now = Date.now();
+  useAuthStore.getState().setToken("list-watcher");
+  const href = "/demo/project/pulls?label=bug";
+  const workspace = createWorkspace(["/?view=work", href, "/?view=all"]);
+  useWorkspaceStore.setState({ workspace });
+  let created = now - 1000,
+    requests = 0;
+  spyOn(globalThis, "fetch").mockImplementation((async (_input, init) => {
+    requests++;
+    const { variables } = JSON.parse(String(init?.body));
+    expect(variables.search0).toContain('label:"bug"');
+    return Response.json({
+      data: {
+        viewer: { id: "account" },
+        page0: { nodes: [{ createdAt: new Date(created).toISOString() }] },
+      },
+    });
+  }) as typeof fetch);
+  queryClient.setQueryData(NOTIFICATIONS_KEY, { items: [] });
+  await refreshBackgroundTabs(now);
+  expect(pageIsUnread(href)).toBe(false);
+  await refreshBackgroundTabs(now + 61_000);
+  expect(pageIsUnread(href)).toBe(false);
+  created = now + 70_000;
+  await refreshBackgroundTabs(now + 122_000);
+  expect(pageIsUnread(href)).toBe(true);
+  expect(pageIsUnread("/demo/project/pulls?label=feature")).toBe(false);
+  const tabId = islands(workspace.layout)[0]!.tabs[1]!.id;
+  useWorkspaceStore.setState({ workspace: runCommand(workspace, { type: "selectTab", tabId }) });
+  await refreshBackgroundTabs(now + 123_000);
+  expect(pageIsUnread(href)).toBe(false);
+  const before = requests;
+  queryClient.setQueryData(NOTIFICATIONS_KEY, {
+    items: [
+      {
+        id: "new",
+        unread: true,
+        reason: "subscribed",
+        updated_at: new Date(now + 124_000).toISOString(),
+        subject: { type: "Issue", url: "https://api.github.com/repos/demo/project/issues/1" },
+      },
+    ],
+  });
+  await refreshBackgroundTabs(now + 124_000);
+  expect(requests).toBe(before);
+  expect(pageIsUnread("/?view=all")).toBe(true);
+  expect(pageIsUnread("/")).toBe(false);
+  expect(activityPage(href)?.kind).toBe("pulls");
+});
+
+test("idle shown lists do not persist acknowledgements every tick", async () => {
+  const now = Date.now();
+  useAuthStore.getState().setToken("idle-list");
+  useWorkspaceStore.setState({ workspace: createWorkspace(["/o/r/pulls"]) });
+  spyOn(globalThis, "fetch").mockImplementation((async (_input: unknown, _init?: RequestInit) =>
+    Response.json({ data: { viewer: { id: "idle" } } })) as typeof fetch);
+  await refreshBackgroundTabs(now);
+  const seen = useTabActivityStore.getState().seen;
+  for (let i = 1; i < 5; i++) await refreshBackgroundTabs(now + i * 1000);
+  expect(useTabActivityStore.getState().seen).toBe(seen);
+});
