@@ -1,3 +1,4 @@
+import {Memberships} from "@/app/features/projects/Memberships";
 import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Tag, User } from "lucide-react";
@@ -70,6 +71,7 @@ export function IssueSidebar({
 
   return (
     <div className="flex flex-col gap-4">
+      <Memberships owner={owner} repo={repo} number={issue.number} />
       <Card variant="muted" className="p-3">
         <SectionHeader
           icon={<Tag className="size-3" />}

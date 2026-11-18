@@ -12,7 +12,9 @@ GitHut is **the fast read-path for GitHub**. Three user jobs, in order of import
 2. **Triage work** — inbox of what demands your attention today
 3. **Browse code, commits, issues** — fast, keyboard-first, spatial memory preserved
 
-What we are **not** building: Actions, Projects, Wiki, Security, Insights, Marketplace, Discussions, code editing, or writing-path features. If a user needs those, they open github.com.
+The Projects integration adds workspace and repository navigation, List, Board, Roadmap, and GitHub-backed task management. [Projects scope and API coverage](docs/projects.md)
+
+What we are **not** building: Actions, Wiki, Security, Insights, Marketplace, Discussions, code editing, or writing-path features. If a user needs those, they open github.com.
 
 ---
 
@@ -645,7 +647,6 @@ Dispatch with `Agent` tool, `isolation: "worktree"`, `run_in_background: true`. 
 
 - Writing/editing code
 - Actions / CI runs
-- Projects / Boards
 - Wiki
 - Discussions
 - Security / Dependabot

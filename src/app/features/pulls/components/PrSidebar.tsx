@@ -1,3 +1,4 @@
+import {Memberships} from "@/app/features/projects/Memberships";
 import { AnimatePresence, motion } from "framer-motion";
 import { Milestone, Tag, User, UserCheck } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -136,6 +137,7 @@ export function PrSidebar({
 
   return (
     <div className="flex flex-col gap-4">
+      <Memberships owner={owner} repo={repo} number={pr.number} />
       <Card variant="muted" className="p-3">
         <SectionHeader
           icon={<UserCheck className="size-3" />}

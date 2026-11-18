@@ -3,7 +3,7 @@ import type { Env } from "./env";
 import { fetchGitHubMeta, githubPathFor, injectMeta, isLinkPreviewBot } from "./og";
 import { previewOrigin } from "./previewAuth";
 
-const OAUTH_SCOPES = "repo read:user read:org";
+const OAUTH_SCOPES = "repo read:user read:org project";
 const STATE_TTL_MS = 10 * 60 * 1000;
 
 const app = new Hono<{ Bindings: Env }>();

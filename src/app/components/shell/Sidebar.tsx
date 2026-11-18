@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Inbox, Star } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderKanban, Inbox, Star } from "lucide-react";
 import { memo, type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { DockingMenu } from "@/app/components/shell/DockingMenu";
 import { RepoMark } from "@/app/components/shell/RepoMark";
@@ -249,6 +249,7 @@ export function SidebarContent({
     >
       <div className="flex flex-col pt-0.5">
         {renderRow({ href: "/", label: "Inbox", icon: Inbox, count: unreadCount })}
+        {renderRow({ href: "/projects", label: "Projects", icon: FolderKanban })}
       </div>
       <SidebarSection
         title="Favorites"

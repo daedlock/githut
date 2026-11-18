@@ -7,6 +7,7 @@ import {
   Code2,
   Command as CommandIcon,
   FilePlus,
+  FolderKanban,
   FileText,
   Folder,
   GitPullRequest,
@@ -109,6 +110,13 @@ function buildCommands(
       run: goTo("/"),
     },
     {
+      id: "nav:projects",
+      label: "All projects",
+      icon: FolderKanban,
+      keywords: ["planning", "tasks"],
+      run: goTo("/projects"),
+    },
+    {
       id: "nav:settings",
       label: "Settings",
       icon: Settings,
@@ -117,6 +125,13 @@ function buildCommands(
     },
     ...(r && base
       ? [
+          {
+            id: "nav:repo-projects",
+            label: "Repository projects",
+            icon: FolderKanban,
+            keywords: ["planning", ...repoKw],
+            run: goTo(`${base}/projects`),
+          },
           {
             id: "nav:issues",
             label: "Issues",
@@ -215,6 +230,8 @@ export function CommandPalette() {
   const repoContext = useMemo<RepoContext>(() => {
     const parts = pathname.split("/").filter(Boolean);
     if (parts.length < 2) return null;
+    if (pathname.startsWith("/projects/users/") || pathname.startsWith("/projects/orgs/"))
+      return null;
     if (["login", "settings", "playground", "w"].includes(parts[0]!)) return null;
     return { owner: parts[0]!, repo: parts[1]! };
   }, [pathname]);
