@@ -55,6 +55,9 @@ type SettingsState = {
   /** Show the repository identity colour cue. */
   repoColor: boolean;
   setRepoColor: (enabled: boolean) => void;
+  /** Show a repository's own favicon in place of its letter mark. */
+  repoFavicons: boolean;
+  setRepoFavicons: (enabled: boolean) => void;
   /** Allow privacy-friendly product analytics. */
   analyticsEnabled: boolean;
   /** Preferred diff view mode (persisted across navigations). */
@@ -86,6 +89,8 @@ export const createSettingsStore = (storage?: StateStorage) =>
           applyRepoColor(repoColor);
           set({ repoColor });
         },
+        repoFavicons: true,
+        setRepoFavicons: (repoFavicons) => set({ repoFavicons }),
         analyticsEnabled: isAnalyticsEnabled(),
         diffMode: "split",
         uiFont: DEFAULT_UI_FONT,
@@ -125,6 +130,8 @@ export const createSettingsStore = (storage?: StateStorage) =>
           return {
             ...currentState,
             repoColor: typeof persisted.repoColor === "boolean" ? persisted.repoColor : true,
+            repoFavicons:
+              typeof persisted.repoFavicons === "boolean" ? persisted.repoFavicons : true,
             analyticsEnabled:
               typeof persisted.analyticsEnabled === "boolean"
                 ? persisted.analyticsEnabled

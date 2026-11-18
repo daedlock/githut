@@ -28,6 +28,8 @@ export function SettingsModal() {
   const { data: me } = useMe();
   const repoColor = useSettingsStore((s) => s.repoColor);
   const setRepoColor = useSettingsStore((s) => s.setRepoColor);
+  const repoFavicons = useSettingsStore((s) => s.repoFavicons);
+  const setRepoFavicons = useSettingsStore((s) => s.setRepoFavicons);
   const analyticsEnabled = useSettingsStore((s) => s.analyticsEnabled);
   const setAnalyticsEnabled = useSettingsStore((s) => s.setAnalyticsEnabled);
 
@@ -61,6 +63,12 @@ export function SettingsModal() {
               description="Use colour to help distinguish repository marks."
               checked={repoColor}
               onCheckedChange={setRepoColor}
+            />
+            <SettingsSwitch
+              title="Repository favicons"
+              description="Show a repository's own favicon in place of its mark when it has one."
+              checked={repoFavicons}
+              onCheckedChange={setRepoFavicons}
             />
           </FieldSet>
           <FieldSet>

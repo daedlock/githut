@@ -3,14 +3,18 @@ import {
   createContext,
   memo,
   type ReactNode,
+  useCallback,
   useContext,
   useMemo,
+  useSyncExternalStore,
 } from "react";
 import { cn } from "@/app/lib/cn";
+import { getRepoFavicon, markRepoFaviconBroken, subscribeRepoFavicon } from "@/app/lib/repoFavicon";
 import { repoHue, repoMarkLetter, repoMarkLetters } from "@/app/lib/repoMark";
 import { tabRepo } from "@/app/lib/tabMeta";
 import { useAuthStore } from "@/app/stores/auth";
 import { useFavoritesStore } from "@/app/stores/favorites";
+import { useSettingsStore } from "@/app/stores/settings";
 import { hrefPathname, islands } from "@/app/workspace/model";
 import { useWorkspaceStore } from "@/app/workspace/store";
 
@@ -23,6 +27,10 @@ import { useWorkspaceStore } from "@/app/workspace/store";
 // Letters disambiguate only among repos the user is working with: open tabs
 // and favorites. Both are local state, so a mark never flips once the network
 // answers, and nothing crawls the account's repositories for it.
+//
+// A repo that ships a favicon shows it instead of the letter (lib/repoFavicon
+// finds and caches it); the letter shows until it loads, and stays when there
+// is none, it fails to decode, or favicons are turned off in settings.
 
 const EMPTY = new Map<string, string>();
 const LettersContext = createContext<ReadonlyMap<string, string>>(EMPTY);
@@ -53,6 +61,19 @@ function useFavoriteRepos(): string {
   }, [favorites]);
 }
 
+const noop = () => () => {};
+const none = () => null;
+
+/** The repo's cached favicon (data URL), or null to draw the letter. */
+function useRepoFavicon(repo: string, enabled: boolean): string | null {
+  const subscribe = useCallback(
+    (onChange: () => void) => subscribeRepoFavicon(repo, onChange),
+    [repo],
+  );
+  const read = useCallback(() => getRepoFavicon(repo) ?? null, [repo]);
+  return useSyncExternalStore(enabled ? subscribe : noop, enabled ? read : none, none);
+}
+
 /** Computes the letter map once; marks read it and re-render only when it changes. */
 export function RepoMarkScope({ children }: { children: ReactNode }) {
   const open = useOpenRepos();
@@ -75,6 +96,26 @@ export const RepoMark = memo(function RepoMark({
   className?: string;
 }) {
   const letter = useContext(LettersContext).get(repo.toLowerCase()) ?? repoMarkLetter(repo, []);
+  const favicons = useSettingsStore((s) => s.repoFavicons);
+  const favicon = useRepoFavicon(repo, favicons);
+
+  if (favicon)
+    return (
+      <img
+        aria-hidden
+        alt=""
+        data-repo-mark
+        src={favicon}
+        draggable={false}
+        decoding="async"
+        onError={() => markRepoFaviconBroken(repo)}
+        className={cn(
+          "inline-block shrink-0 object-contain",
+          size === "sm" ? "size-3.5 rounded-sm" : "size-4 rounded-md",
+          className,
+        )}
+      />
+    );
 
   return (
     <span

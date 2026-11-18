@@ -1,4 +1,5 @@
 import { forgetRecentItems } from "@/app/lib/recentItems";
+import { forgetRepoFavicons } from "@/app/lib/repoFavicon";
 import { useAuthStore } from "@/app/stores/auth";
 
 const OAUTH_TOKEN_KEY = "githut.oauth_token";
@@ -100,7 +101,11 @@ export function logout() {
   useAuthStore.getState().clear();
   // Recent holds private page titles; don't leave them for the next account.
   // Navigate regardless if IndexedDB is slow or unavailable.
-  const forget = forgetRecentItems(accountId).catch(() => {});
+  const forget = Promise.all([
+    forgetRecentItems(accountId),
+    // Icons can come from private repos.
+    forgetRepoFavicons(),
+  ]).catch(() => {});
   const timeout = new Promise((resolve) => setTimeout(resolve, 500));
   void Promise.race([forget, timeout]).then(() => {
     window.location.href = "/login";

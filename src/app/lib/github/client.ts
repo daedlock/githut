@@ -204,6 +204,10 @@ export function getGitHubClient(): Octokit {
       return response;
     }
 
+    // Blobs are addressed by content and never change: no validator to keep,
+    // and their bodies would crowd the LRU.
+    if (String(options.url ?? "").includes("/git/blobs/")) return request(options);
+
     const key = buildCacheKey(client.request.endpoint.parse(options));
     const prev = touchETag(key);
     if (prev?.etag) options.headers["if-none-match"] = prev.etag;
