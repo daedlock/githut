@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertCircle,
@@ -17,15 +18,18 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { CheckRunPeek } from "@/app/features/pulls/components/CheckRunPeek";
 import { PrMergeDialog } from "@/app/features/pulls/components/PrMergeDialog";
 import {
   type CheckRun,
+  isMergeabilityPollExhausted,
   type MergeMethod,
   type PrChecksData,
   type PrMergeStatusData,
+  pullsKeys,
+  resetMergeabilityPoll,
   useDeletePrHeadRef,
   useMergePr,
   usePrChecks,
@@ -35,21 +39,35 @@ import {
   useTogglePrState,
   useUpdatePrBranch,
 } from "@/app/features/pulls/hooks";
+import {
+  type BypassReason,
+  type BypassStatus,
+  buildCheckBreakdown,
+  type CheckBreakdown,
+  type CheckSummary,
+  evaluateMergeReadiness,
+  hasLiveChecks,
+  type MergeabilityState,
+  resolveMergeability,
+  summarizeChecks,
+} from "@/app/features/pulls/lib/mergeReadiness";
 import { toUiState } from "@/app/features/pulls/lib/prStatus";
 import type { PullRequest } from "@/app/features/pulls/schemas";
 import { useRepo } from "@/app/hooks/useRepo";
 import { cn } from "@/app/lib/cn";
 import { useCanMutate } from "@/app/lib/connectivity";
+import { evictETagsForRepo } from "@/app/lib/github/client";
 import { formatRelativeTime } from "@/app/lib/time";
 
 export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; pr: PullRequest }) {
   const state = toUiState(pr);
+  const queryClient = useQueryClient();
   const repoQuery = useRepo(owner, repo);
   const merge = useMergePr(owner, repo, pr.number);
   const toggleState = useTogglePrState(owner, repo, pr.number);
   const { canMutate, reason: cannotMutateReason } = useCanMutate();
   const checksQuery = usePrChecks(owner, repo, pr.head.sha);
-  const mergeStatusQuery = usePrMergeStatus(owner, repo, pr.number);
+  const mergeStatusQuery = usePrMergeStatus(owner, repo, pr.number, pr.base.ref);
   const updateBranch = useUpdatePrBranch(owner, repo, pr.number);
   const autoMerge = useSetPrAutoMerge(owner, repo, pr.number);
   const deleteHeadRef = useDeletePrHeadRef(owner, repo, pr.number);
@@ -64,6 +82,35 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
     () => buildCheckBreakdown(checksQuery.data, mergeStatus),
     [checksQuery.data, mergeStatus],
   );
+
+  // When live CI checks finish, refresh PR detail + mergeStatus so the merge box
+  // immediately transitions out of BLOCKED/pending without hanging on stale data.
+  const checksLive = hasLiveChecks(checksQuery.data);
+  const prevChecksLiveRef = useRef<{ sha: string; live: boolean }>({
+    sha: pr.head.sha,
+    live: checksLive,
+  });
+  useEffect(() => {
+    const prev = prevChecksLiveRef.current;
+    prevChecksLiveRef.current = { sha: pr.head.sha, live: checksLive };
+    if (prev.sha === pr.head.sha && prev.live && !checksLive) {
+      evictETagsForRepo(owner, repo);
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, pr.number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.mergeStatus(owner, repo, pr.number) }),
+      ]);
+    }
+  }, [checksLive, owner, pr.head.sha, pr.number, queryClient, repo]);
+
+  const handleRefreshStatus = () => {
+    evictETagsForRepo(owner, repo);
+    resetMergeabilityPoll(owner, repo, pr.number);
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, pr.number) }),
+      queryClient.invalidateQueries({ queryKey: pullsKeys.mergeStatus(owner, repo, pr.number) }),
+      queryClient.invalidateQueries({ queryKey: pullsKeys.checks(owner, repo, pr.head.sha) }),
+    ]);
+  };
 
   if (state === "merged") {
     return (
@@ -107,37 +154,55 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
     );
   }
 
-  const hasConflicts =
-    pr.mergeable_state === "dirty" ||
-    pr.mergeable === false ||
-    mergeStatus?.mergeStateStatus === "DIRTY";
+  const mergeability = resolveMergeability(pr, mergeStatus);
+  const hasConflicts = mergeability === "conflicting";
+  const isCheckingMergeability = mergeability === "checking";
+  const mergeabilityTimedOut =
+    isCheckingMergeability && isMergeabilityPollExhausted(owner, repo, pr.number, pr.head.sha);
   const isBehind = pr.mergeable_state === "behind" || mergeStatus?.mergeStateStatus === "BEHIND";
+
+  const previewReadiness = evaluateMergeReadiness({
+    state,
+    mergeability,
+    mergeabilityTimedOut,
+    blockedByRequirements: true,
+    allowedMethods,
+    repoPermissions: repoQuery.data?.permissions,
+    mergeStatus,
+  });
+
   const requirements = buildRequirements({
     pr,
     state,
     mergeStatus,
     checksPending: checksQuery.isPending,
+    checksError: checksQuery.isError,
     checkBreakdown,
     hasConflicts,
     isBehind,
+    bypassStatus: previewReadiness.bypassStatus,
     onUpdateBranch: () => updateBranch.mutate({ expectedHeadSha: pr.head.sha }),
     updateBranchPending: updateBranch.isPending || !canMutate,
   });
   const blockedByRequirements = requirements.some((item) => item.blocksMerge);
-  const canMergeNow =
-    state !== "draft" &&
-    !hasConflicts &&
-    pr.mergeable === true &&
-    !blockedByRequirements &&
-    allowedMethods.length > 0;
-  const canBypassRequirements =
-    state !== "draft" &&
-    !hasConflicts &&
-    pr.mergeable === true &&
-    blockedByRequirements &&
-    !!mergeStatus?.viewerCanMergeAsAdmin &&
-    allowedMethods.length > 0;
-  const canOpenMergeDialog = canMergeNow || canBypassRequirements;
+  const readiness = evaluateMergeReadiness({
+    state,
+    mergeability,
+    mergeabilityTimedOut,
+    blockedByRequirements,
+    allowedMethods,
+    repoPermissions: repoQuery.data?.permissions,
+    mergeStatus,
+  });
+  const {
+    canMergeNow,
+    canBypassRequirements,
+    canOpenMergeDialog,
+    bypassStatus,
+    bypassReason,
+    viewerCanMerge,
+  } = readiness;
+
   const canEnableAutoMerge =
     repoQuery.data?.allow_auto_merge !== false &&
     !mergeStatus?.autoMergeRequest &&
@@ -145,6 +210,8 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
     state !== "draft" &&
     !hasConflicts &&
     allowedMethods.length > 0;
+
+  const isRefreshing = checksQuery.isFetching || mergeStatusQuery.isFetching;
 
   const accentVar = hasConflicts
     ? "--color-danger"
@@ -166,6 +233,7 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
         owner={owner}
         repo={repo}
         loading={checksQuery.isPending}
+        error={checksQuery.isError}
         data={checksQuery.data}
         expanded={checksExpanded}
         onExpandedChange={setChecksExpanded}
@@ -176,6 +244,8 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
         requirements={requirements}
         mergeStatusLoading={mergeStatusQuery.isPending}
         mergeStatusError={mergeStatusQuery.isError}
+        isRefreshing={isRefreshing}
+        onRefresh={handleRefreshStatus}
       />
 
       {mergeStatus?.autoMergeRequest && (
@@ -190,7 +260,7 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
       <div className="flex items-center gap-3 border-t border-border/40 px-4 py-3">
         <ReadinessIcon
           hasConflicts={hasConflicts}
-          checking={pr.mergeable == null}
+          checking={isCheckingMergeability && !mergeabilityTimedOut}
           draft={state === "draft"}
           ready={canMergeNow}
         />
@@ -198,9 +268,13 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
           <p className="text-body font-medium text-foreground">
             {readinessTitle({
               hasConflicts,
+              mergeability,
+              mergeabilityTimedOut,
               state,
               canMergeNow,
               canBypassRequirements,
+              bypassStatus,
+              bypassReason,
               isBehind,
               mergeStatus,
             })}
@@ -208,9 +282,14 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
           <p className="mt-0.5 text-caption text-muted-foreground">
             {readinessDetail({
               hasConflicts,
+              mergeability,
+              mergeabilityTimedOut,
               state,
               canMergeNow,
               canBypassRequirements,
+              bypassStatus,
+              bypassReason,
+              viewerCanMerge,
               isBehind,
               mergeStatus,
               allowedMethods,
@@ -219,6 +298,12 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {mergeabilityTimedOut && (
+            <Button size="sm" variant="outline" onClick={handleRefreshStatus}>
+              <RefreshCcw data-icon="inline-start" />
+              Retry
+            </Button>
+          )}
           <Button
             size="sm"
             variant="ghost"
@@ -243,7 +328,7 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
               Auto-merge
             </Button>
           )}
-          {state !== "draft" && !hasConflicts && pr.mergeable && (
+          {state !== "draft" && !hasConflicts && viewerCanMerge && (
             <Button
               size="sm"
               disabled={merge.isPending || !canOpenMergeDialog || !canMutate}
@@ -261,7 +346,9 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
                 cannotMutateReason ??
                 (canOpenMergeDialog
                   ? undefined
-                  : "Resolve merge requirements first, or use a GitHub account with bypass access")
+                  : isCheckingMergeability && !mergeabilityTimedOut
+                    ? "Checking whether this branch can be merged cleanly"
+                    : "Resolve merge requirements first, or use a GitHub account with bypass access")
               }
             >
               <GitMerge data-icon="inline-start" />
@@ -281,14 +368,12 @@ export function PrMergeBox({ owner, repo, pr }: { owner: string; repo: string; p
         errorMessage={merge.isError ? formatMutationError(merge.error) : undefined}
         onConfirm={(vars) =>
           merge.mutate(
-            canBypassRequirements
-              ? {
-                  ...vars,
-                  pullRequestId: pr.node_id,
-                  expectedHeadOid: pr.head.sha,
-                  bypassRequirements: true,
-                }
-              : vars,
+            {
+              ...vars,
+              pullRequestId: pr.node_id,
+              expectedHeadOid: pr.head.sha,
+              bypassRequirements: canBypassRequirements,
+            },
             { onSuccess: () => setMergeOpen(false) },
           )
         }
@@ -411,6 +496,7 @@ function ChecksSection({
   owner,
   repo,
   loading,
+  error,
   data,
   expanded,
   onExpandedChange,
@@ -419,6 +505,7 @@ function ChecksSection({
   owner: string;
   repo: string;
   loading: boolean;
+  error: boolean;
   data: PrChecksData | undefined;
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
@@ -447,6 +534,11 @@ function ChecksSection({
           <>
             <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
             <span className="text-body text-muted-foreground">Loading checks…</span>
+          </>
+        ) : error ? (
+          <>
+            <AlertCircle className="size-4 shrink-0 text-[var(--color-warning)]" />
+            <span className="text-body text-muted-foreground">Could not load checks</span>
           </>
         ) : !summary || total === 0 ? (
           <>
@@ -520,17 +612,33 @@ function RequirementsSection({
   requirements,
   mergeStatusLoading,
   mergeStatusError,
+  isRefreshing,
+  onRefresh,
 }: {
   requirements: Requirement[];
   mergeStatusLoading: boolean;
   mergeStatusError: boolean;
+  isRefreshing: boolean;
+  onRefresh: () => void;
 }) {
   return (
     <div className="border-t border-border/40 px-4 py-3">
-      <div className="mb-2 flex items-center gap-2 text-caption font-medium uppercase tracking-wider text-muted-foreground">
-        <ShieldCheck className="size-3.5" />
-        Merge requirements
-        {mergeStatusLoading && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-caption font-medium uppercase tracking-wider text-muted-foreground">
+          <ShieldCheck className="size-3.5" />
+          Merge requirements
+          {mergeStatusLoading && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-caption text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+          title="Refresh checks, rules, and mergeability"
+        >
+          <RefreshCcw className={cn("size-3", isRefreshing && "animate-spin")} />
+          <span>Refresh</span>
+        </button>
       </div>
       <div className="flex flex-col gap-2">
         {mergeStatusError && (
@@ -642,18 +750,6 @@ type Requirement = {
   action?: React.ReactNode;
 };
 
-type CheckSummary = { passing: number; failing: number; pending: number; total: number };
-
-type RequiredSummary = CheckSummary & { missing: number };
-
-type CheckBreakdown = {
-  all: CheckSummary;
-  required: RequiredSummary;
-  optional: CheckSummary;
-  requiredNames: Set<string>;
-  missingRequired: string[];
-};
-
 function RequirementRow({ requirement }: { requirement: Requirement }) {
   const config = requirementConfig(requirement.status);
   const Icon = config.Icon;
@@ -689,9 +785,11 @@ function buildRequirements({
   state,
   mergeStatus,
   checksPending,
+  checksError,
   checkBreakdown,
   hasConflicts,
   isBehind,
+  bypassStatus,
   onUpdateBranch,
   updateBranchPending,
 }: {
@@ -699,9 +797,11 @@ function buildRequirements({
   state: "open" | "closed" | "merged" | "draft";
   mergeStatus: PrMergeStatusData | undefined;
   checksPending: boolean;
+  checksError: boolean;
   checkBreakdown: CheckBreakdown;
   hasConflicts: boolean;
   isBehind: boolean;
+  bypassStatus: BypassStatus;
   onUpdateBranch: () => void;
   updateBranchPending: boolean;
 }): Requirement[] {
@@ -709,7 +809,7 @@ function buildRequirements({
   const out: Requirement[] = [];
 
   out.push(reviewRequirement(mergeStatus));
-  out.push(checksRequirement(checkBreakdown, checksPending));
+  out.push(checksRequirement(checkBreakdown, checksPending, checksError, mergeStatus));
 
   const unresolved = mergeStatus?.reviewThreads.unresolvedCount ?? 0;
   const requiresResolution = protection?.requiresConversationResolution ?? false;
@@ -758,13 +858,18 @@ function buildRequirements({
     });
   }
 
-  if (mergeStatus?.mergeStateStatus === "BLOCKED") {
+  const alreadyBlocked = out.some((item) => item.blocksMerge);
+  if (mergeStatus?.mergeStateStatus === "BLOCKED" && !alreadyBlocked) {
     out.push({
       id: "blocked",
       status: "warn",
       label: "Blocked by repository rules",
       detail:
-        "GitHub reports this PR is blocked by branch protection, repository rules, or merge queue policy. Admin override may be required on GitHub.",
+        bypassStatus === "allowed"
+          ? "GitHub reports this PR is blocked by branch protection or repository rules. Your account has permission to bypass and merge."
+          : bypassStatus === "possible"
+            ? "GitHub reports this PR is blocked by branch protection or repository rules. If your account has bypass access, you can bypass and merge."
+            : "GitHub reports this PR is blocked by branch protection, repository rules, or merge queue policy.",
       blocksMerge: true,
     });
   }
@@ -845,15 +950,33 @@ function reviewRequirement(mergeStatus: PrMergeStatusData | undefined): Requirem
   };
 }
 
-function checksRequirement(breakdown: CheckBreakdown, checksPending: boolean): Requirement {
+function checksRequirement(
+  breakdown: CheckBreakdown,
+  checksPending: boolean,
+  checksError: boolean,
+  mergeStatus: PrMergeStatusData | undefined,
+): Requirement {
   const required = breakdown.required;
+  const requiresChecks = mergeStatus?.protection.requiresStatusChecks ?? false;
+  if (checksError) {
+    return {
+      id: "checks",
+      status: "warn",
+      label: "Could not load status checks",
+      detail: "GitHub check runs failed to load. Click Refresh to retry.",
+      blocksMerge: requiresChecks,
+    };
+  }
+
   if (checksPending && required.total === 0) {
+    const blocksWhileLoading =
+      !mergeStatus || requiresChecks || mergeStatus.mergeStateStatus === "BLOCKED";
     return {
       id: "checks",
       status: "pending",
-      label: "Loading required checks",
+      label: requiresChecks ? "Loading required checks" : "Loading checks",
       detail: "GitHub status checks are still loading.",
-      blocksMerge: true,
+      blocksMerge: blocksWhileLoading,
     };
   }
 
@@ -909,23 +1032,36 @@ function branchRequirementDetail({
 
 function readinessTitle({
   hasConflicts,
+  mergeability,
+  mergeabilityTimedOut,
   state,
   canMergeNow,
   canBypassRequirements,
+  bypassStatus,
+  bypassReason,
   isBehind,
   mergeStatus,
 }: {
   hasConflicts: boolean;
+  mergeability: MergeabilityState;
+  mergeabilityTimedOut: boolean;
   state: string;
   canMergeNow: boolean;
   canBypassRequirements: boolean;
+  bypassStatus: BypassStatus;
+  bypassReason: BypassReason;
   isBehind: boolean;
   mergeStatus: PrMergeStatusData | undefined;
 }) {
   if (hasConflicts) return "Conflicts must be resolved";
   if (state === "draft") return "Draft pull request";
+  if (mergeability === "checking") {
+    return mergeabilityTimedOut ? "Mergeability status unavailable" : "Checking mergeability…";
+  }
   if (canMergeNow) return "Ready to merge";
-  if (canBypassRequirements) return "Administrator bypass available";
+  if (canBypassRequirements && bypassStatus === "allowed") {
+    return bypassReason === "admin" ? "Administrator bypass available" : "Rule bypass available";
+  }
   if (mergeStatus?.autoMergeRequest) return "Waiting for auto-merge";
   if (isBehind) return "Branch update needed";
   if (mergeStatus?.mergeStateStatus === "BLOCKED") return "Blocked by repository rules";
@@ -934,17 +1070,27 @@ function readinessTitle({
 
 function readinessDetail({
   hasConflicts,
+  mergeability,
+  mergeabilityTimedOut,
   state,
   canMergeNow,
   canBypassRequirements,
+  bypassStatus,
+  bypassReason,
+  viewerCanMerge,
   isBehind,
   mergeStatus,
   allowedMethods,
 }: {
   hasConflicts: boolean;
+  mergeability: MergeabilityState;
+  mergeabilityTimedOut: boolean;
   state: string;
   canMergeNow: boolean;
   canBypassRequirements: boolean;
+  bypassStatus: BypassStatus;
+  bypassReason: BypassReason;
+  viewerCanMerge: boolean;
   isBehind: boolean;
   mergeStatus: PrMergeStatusData | undefined;
   allowedMethods: MergeMethod[];
@@ -952,9 +1098,21 @@ function readinessDetail({
   if (allowedMethods.length === 0) return "This repository has no merge methods enabled.";
   if (hasConflicts) return "Resolve conflicts locally or on GitHub before merging.";
   if (state === "draft") return "Mark as ready for review to enable merging.";
+  if (!viewerCanMerge) return "You need write access to this repository to merge pull requests.";
+  if (mergeability === "checking") {
+    return mergeabilityTimedOut
+      ? "GitHub is still calculating mergeability. Retry, or attempt to merge directly."
+      : "GitHub is checking whether this branch can be merged cleanly.";
+  }
   if (canMergeNow) return `Available methods: ${allowedMethods.map(formatMethod).join(", ")}.`;
-  if (canBypassRequirements)
-    return "Your GitHub permissions allow merging without waiting for these requirements.";
+  if (canBypassRequirements) {
+    if (bypassStatus === "allowed") {
+      return bypassReason === "ruleset"
+        ? "Your repository ruleset permissions allow bypassing these requirements to merge."
+        : "Your GitHub permissions allow merging without waiting for these requirements.";
+    }
+    return "Requirements are not all met, but you can attempt a bypass merge if your account has access.";
+  }
   if (mergeStatus?.autoMergeRequest)
     return "GitHub will merge this PR once the remaining requirements pass.";
   if (isBehind) return "Update the branch, then wait for required checks to rerun.";
@@ -989,78 +1147,6 @@ function formatMethod(method: MergeMethod): string {
     default:
       return "merge commit";
   }
-}
-
-function buildCheckBreakdown(
-  data: PrChecksData | undefined,
-  mergeStatus: PrMergeStatusData | undefined,
-): CheckBreakdown {
-  const requiredNames = new Set(mergeStatus?.protection.requiredStatusCheckContexts ?? []);
-  const all = data ? summarizeChecks(data) : { passing: 0, failing: 0, pending: 0, total: 0 };
-  const required: RequiredSummary = {
-    passing: 0,
-    failing: 0,
-    pending: 0,
-    missing: 0,
-    total: requiredNames.size,
-  };
-  const seenRequired = new Set<string>();
-
-  if (data) {
-    for (const run of data.checkRuns) {
-      if (!requiredNames.has(run.name)) continue;
-      seenRequired.add(run.name);
-      incrementRequired(required, checkRunState(run));
-    }
-    for (const status of data.combined.statuses) {
-      if (!requiredNames.has(status.context)) continue;
-      seenRequired.add(status.context);
-      incrementRequired(required, statusState(status.state));
-    }
-  }
-
-  const missingRequired = [...requiredNames].filter((name) => !seenRequired.has(name));
-  required.missing = missingRequired.length;
-  const optional = {
-    passing: Math.max(0, all.passing - required.passing),
-    failing: Math.max(0, all.failing - required.failing),
-    pending: Math.max(0, all.pending - required.pending),
-    total: Math.max(0, all.total - (required.total - required.missing)),
-  };
-  return { all, required, optional, requiredNames, missingRequired };
-}
-
-function incrementRequired(summary: RequiredSummary, state: "passing" | "failing" | "pending") {
-  if (state === "passing") summary.passing++;
-  else if (state === "failing") summary.failing++;
-  else summary.pending++;
-}
-
-function checkRunState(run: CheckRun): "passing" | "failing" | "pending" {
-  if (run.status !== "completed") return "pending";
-  if (
-    run.conclusion === "success" ||
-    run.conclusion === "skipped" ||
-    run.conclusion === "neutral"
-  ) {
-    return "passing";
-  }
-  if (
-    run.conclusion === "failure" ||
-    run.conclusion === "timed_out" ||
-    run.conclusion === "action_required"
-  ) {
-    return "failing";
-  }
-  return "pending";
-}
-
-function statusState(
-  state: "pending" | "success" | "failure" | "error",
-): "passing" | "failing" | "pending" {
-  if (state === "success") return "passing";
-  if (state === "failure" || state === "error") return "failing";
-  return "pending";
 }
 
 function ProgressBar({ summary }: { summary: CheckSummary }) {
@@ -1234,23 +1320,4 @@ function iconForState(state: "pending" | "success" | "failure" | "error"): {
     default:
       return { Icon: Clock, tone: "text-[var(--color-warning)]" };
   }
-}
-
-function summarizeChecks(data: PrChecksData): CheckSummary {
-  let passing = 0;
-  let failing = 0;
-  let pending = 0;
-  for (const run of data.checkRuns) {
-    const state = checkRunState(run);
-    if (state === "passing") passing++;
-    else if (state === "failing") failing++;
-    else pending++;
-  }
-  for (const status of data.combined.statuses) {
-    const state = statusState(status.state);
-    if (state === "passing") passing++;
-    else if (state === "failing") failing++;
-    else pending++;
-  }
-  return { passing, failing, pending, total: passing + failing + pending };
 }

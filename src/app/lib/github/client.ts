@@ -50,7 +50,20 @@ function touchETag(key: string): CachedResponse | undefined {
   return entry;
 }
 
+function hasPendingMergeability(data: unknown): boolean {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "mergeable" in data &&
+    (data as { mergeable?: unknown }).mergeable === null
+  );
+}
+
 function rememberETag(key: string, response: OctokitResponse<unknown>): void {
+  if (hasPendingMergeability(response.data)) {
+    etagCache.delete(key);
+    return;
+  }
   const etag = response.headers?.etag;
   const lastModified = response.headers?.["last-modified"];
   if (typeof etag !== "string" && typeof lastModified !== "string") return;
@@ -74,7 +87,7 @@ export function clearETagCache(): void {
 }
 
 /** Drop cached GETs for one repo: its REST paths and searches qualified with `repo:owner/name`. */
-function evictETagsForRepo(owner: string, repo: string): void {
+export function evictETagsForRepo(owner: string, repo: string): void {
   const path = `/repos/${owner}/${repo}`.toLowerCase();
   const search = encodeURIComponent(`repo:${owner}/${repo}`).toLowerCase();
   for (const key of etagCache.keys()) {
