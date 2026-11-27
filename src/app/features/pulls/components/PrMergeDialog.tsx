@@ -108,7 +108,7 @@ export function PrMergeDialog({
             {isAutoMerge
               ? "GitHub will merge this pull request once all required checks and reviews pass."
               : isAdminMerge
-                ? "Your GitHub permissions allow bypassing required checks or reviews. This will close the pull request and write the branch into"
+                ? "This will bypass unmet checks or repository rules if your GitHub account has bypass access, close the pull request, and write the branch into"
                 : "Merging will close this pull request and write the branch into"}{" "}
             <span className="font-mono">{pr.base.ref}</span>.
           </DialogDescription>
@@ -116,8 +116,8 @@ export function PrMergeDialog({
 
         {isAdminMerge && (
           <div className="rounded-md border border-[color-mix(in_oklab,var(--color-warning)_40%,var(--color-border))] bg-[color-mix(in_oklab,var(--color-warning)_8%,var(--color-bg-subtle))] px-3 py-2 text-caption text-foreground">
-            This uses administrator bypass on GitHub. Only proceed if the remaining requirements are
-            intentionally being overridden.
+            This overrides unmet branch protection or repository rules on GitHub. Only proceed if
+            you intend to bypass the remaining requirements.
           </div>
         )}
 

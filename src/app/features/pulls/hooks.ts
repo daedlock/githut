@@ -14,6 +14,15 @@ import {
 import { useMemo } from "react";
 import { z } from "zod";
 import {
+  encodeBranchPath,
+  hasLiveChecks,
+  type RawBranchRule,
+  type RawRepoRuleset,
+  type RulesetBypassStatus,
+  summarizeBranchRulesets,
+  type ViewerPermission,
+} from "@/app/features/pulls/lib/mergeReadiness";
+import {
   type ReviewDecision as AggregatedReviewDecision,
   aggregateReviews,
 } from "@/app/features/pulls/lib/reviewDecision";
@@ -40,7 +49,7 @@ import {
   useViewerReactionToggle,
 } from "@/app/features/reactions/viewerReactions";
 import { useLiveInterval } from "@/app/lib/freshness";
-import { getGitHubClient } from "@/app/lib/github/client";
+import { evictETagsForRepo, getGitHubClient } from "@/app/lib/github/client";
 import type { StorageOwner } from "@/app/stores/accountStorage";
 import { useAuthStore } from "@/app/stores/auth";
 import { clearSentDraft, type SentDraft } from "@/app/stores/drafts";
@@ -242,9 +251,62 @@ export function usePullsCounts(owner: string, repo: string) {
 // ─── PR detail (full REST shape) ───────────────────────────────────────────
 //
 // Everything the detail header needs — title, state, draft/merged flags,
-// head/base refs, mergeable state, body, counts. Polls while the PR is
-// live so the header reflects merge-state changes + status-check results
-// without a refresh.
+// head/base refs, mergeable state, body, counts. GitHub computes `mergeable`
+// asynchronously on first fetch (returning `null` / `"unknown"`), so we poll
+// with bounded backoff until it resolves.
+
+const MERGEABILITY_POLL_DELAYS = [2_000, 3_000, 4_000, 5_000, 6_000] as const;
+const mergeabilityPollCounts = new Map<string, number>();
+
+function mergeabilityPollKey(
+  scope: "detail" | "mergeStatus",
+  owner: string,
+  repo: string,
+  number: number,
+  sha: string | null | undefined,
+): string {
+  return `${scope}:${owner}/${repo}#${number}@${sha ?? ""}`;
+}
+
+function recordMergeabilityPoll(key: string, stillUnknown: boolean): void {
+  if (!stillUnknown) {
+    mergeabilityPollCounts.delete(key);
+    return;
+  }
+  mergeabilityPollCounts.set(key, (mergeabilityPollCounts.get(key) ?? 0) + 1);
+}
+
+function nextMergeabilityPollDelay(key: string): number | false {
+  const count = mergeabilityPollCounts.get(key) ?? 0;
+  if (count <= 0) return MERGEABILITY_POLL_DELAYS[0];
+  if (count > MERGEABILITY_POLL_DELAYS.length) return false;
+  return MERGEABILITY_POLL_DELAYS[count - 1] ?? false;
+}
+
+export function resetMergeabilityPoll(owner: string, repo: string, number: number): void {
+  const detailPrefix = `detail:${owner}/${repo}#${number}@`;
+  const statusPrefix = `mergeStatus:${owner}/${repo}#${number}@`;
+  for (const key of mergeabilityPollCounts.keys()) {
+    if (key.startsWith(detailPrefix) || key.startsWith(statusPrefix)) {
+      mergeabilityPollCounts.delete(key);
+    }
+  }
+}
+
+export function isMergeabilityPollExhausted(
+  owner: string,
+  repo: string,
+  number: number,
+  sha: string | null | undefined,
+): boolean {
+  const detailCount =
+    mergeabilityPollCounts.get(mergeabilityPollKey("detail", owner, repo, number, sha)) ?? 0;
+  const statusCount =
+    mergeabilityPollCounts.get(mergeabilityPollKey("mergeStatus", owner, repo, number, sha)) ?? 0;
+  return (
+    detailCount > MERGEABILITY_POLL_DELAYS.length && statusCount > MERGEABILITY_POLL_DELAYS.length
+  );
+}
 
 export const prDetailQueryOptions = (owner: string, repo: string, number: number) =>
   queryOptions({
@@ -257,7 +319,16 @@ export const prDetailQueryOptions = (owner: string, repo: string, number: number
         repo,
         pull_number: number,
       });
-      return PullRequestSchema.parse(res.data);
+      const pr = PullRequestSchema.parse(res.data);
+      const stillUnknown =
+        pr.state === "open" &&
+        !pr.merged &&
+        (pr.mergeable == null || pr.mergeable_state === "unknown");
+      recordMergeabilityPoll(
+        mergeabilityPollKey("detail", owner, repo, number, pr.head.sha),
+        stillUnknown,
+      );
+      return pr;
     },
   });
 
@@ -267,7 +338,22 @@ export function useFullPr(owner: string, repo: string, number: number) {
   return useQuery({
     ...prDetailQueryOptions(owner, repo, number),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: () => live("changing"),
+    refetchInterval: (q) => {
+      const pr = q.state.data;
+      if (
+        pr &&
+        pr.state === "open" &&
+        !pr.merged &&
+        (pr.mergeable == null || pr.mergeable_state === "unknown")
+      ) {
+        const fastDelay = nextMergeabilityPollDelay(
+          mergeabilityPollKey("detail", owner, repo, number, pr.head.sha),
+        );
+        if (fastDelay !== false) return fastDelay;
+      }
+      return live("changing");
+    },
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -624,19 +710,8 @@ export function usePrCommits(owner: string, repo: string, number: number) {
 const CheckRunSchema = z.object({
   id: z.number(),
   name: z.string(),
-  status: z.enum(["queued", "in_progress", "completed", "waiting", "pending"]),
-  conclusion: z
-    .enum([
-      "success",
-      "failure",
-      "neutral",
-      "cancelled",
-      "skipped",
-      "timed_out",
-      "action_required",
-      "stale",
-    ])
-    .nullable(),
+  status: z.string(),
+  conclusion: z.string().nullable(),
   started_at: z.string().nullable().optional(),
   completed_at: z.string().nullable().optional(),
   html_url: z.string().nullable().optional(),
@@ -699,6 +774,7 @@ export const prChecksQueryOptions = (owner: string, repo: string, sha: string) =
               owner,
               repo,
               ref: sha,
+              filter: "latest",
               per_page: 100,
               page,
             }),
@@ -723,17 +799,8 @@ export function usePrChecks(owner: string, repo: string, sha: string | undefined
   return useQuery({
     ...prChecksQueryOptions(owner, repo, sha ?? ""),
     enabled: !!token && !!owner && !!repo && !!sha,
-    refetchInterval: (q) => {
-      const data = q.state.data;
-      if (!data) return false;
-      // GitHub reports a combined state of "pending" when a commit has no
-      // statuses at all; only real pending statuses count as running.
-      const anyLive =
-        data.checkRuns.some(
-          (r) => r.status === "queued" || r.status === "in_progress" || r.status === "pending",
-        ) || data.combined.statuses.some((status) => status.state === "pending");
-      return live(anyLive && "ci", 10_000);
-    },
+    refetchInterval: (q) => live(hasLiveChecks(q.state.data) && "ci", 10_000),
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -982,7 +1049,9 @@ export type RequiredCheckState = "passing" | "failing" | "pending" | "missing";
 
 export type PrMergeStatusData = {
   reviewDecision: ReviewDecision;
+  mergeable: "MERGEABLE" | "CONFLICTING" | "UNKNOWN" | null;
   mergeStateStatus: string | null;
+  viewerPermission: ViewerPermission;
   autoMergeRequest: {
     enabledAt: string | null;
     mergeMethod: MergeMethod;
@@ -997,6 +1066,11 @@ export type PrMergeStatusData = {
   headRefExists: boolean;
   headRefOid: string | null;
   baseRefOid: string | null;
+  baseRefName: string | null;
+  hasClassicProtection: boolean;
+  classicIsAdminEnforced: boolean;
+  hasMergeQueueRule: boolean;
+  rulesetBypass: RulesetBypassStatus;
   protection: {
     requiresApprovingReviews: boolean;
     requiredApprovingReviewCount: number;
@@ -1015,8 +1089,10 @@ export type PrMergeStatusData = {
 
 type PrMergeStatusQueryResponse = {
   repository?: {
+    viewerPermission?: Exclude<ViewerPermission, null> | null;
     pullRequest?: {
       reviewDecision?: Exclude<ReviewDecision, null> | null;
+      mergeable?: "MERGEABLE" | "CONFLICTING" | "UNKNOWN" | null;
       mergeStateStatus?: string | null;
       autoMergeRequest?: {
         enabledAt?: string | null;
@@ -1032,8 +1108,10 @@ type PrMergeStatusQueryResponse = {
       headRef?: { id?: string } | null;
       headRefOid?: string | null;
       baseRefOid?: string | null;
+      baseRefName?: string | null;
       baseRef?: {
         branchProtectionRule?: {
+          isAdminEnforced?: boolean;
           requiresApprovingReviews?: boolean;
           requiredApprovingReviewCount?: number;
           requiresCodeOwnerReviews?: boolean;
@@ -1053,11 +1131,25 @@ type PrMergeStatusQueryResponse = {
   } | null;
 };
 
+type PrReviewThreadsPageResponse = {
+  repository?: {
+    pullRequest?: {
+      reviewThreads?: {
+        totalCount?: number;
+        pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
+        nodes?: Array<{ isResolved?: boolean | null }>;
+      };
+    } | null;
+  } | null;
+};
+
 const PR_MERGE_STATUS_QUERY = `
-  query($owner: String!, $repo: String!, $number: Int!, $after: String) {
+  query($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
+      viewerPermission
       pullRequest(number: $number) {
         reviewDecision
+        mergeable
         mergeStateStatus
         autoMergeRequest {
           enabledAt
@@ -1073,8 +1165,10 @@ const PR_MERGE_STATUS_QUERY = `
         headRef { id }
         headRefOid
         baseRefOid
+        baseRefName
         baseRef {
           branchProtectionRule {
+            isAdminEnforced
             requiresApprovingReviews
             requiredApprovingReviewCount
             requiresCodeOwnerReviews
@@ -1085,6 +1179,20 @@ const PR_MERGE_STATUS_QUERY = `
             requiredStatusCheckContexts
           }
         }
+        reviewThreads(first: 100) {
+          totalCount
+          pageInfo { hasNextPage endCursor }
+          nodes { isResolved }
+        }
+      }
+    }
+  }
+`;
+
+const PR_REVIEW_THREADS_PAGE_QUERY = `
+  query($owner: String!, $repo: String!, $number: Int!, $after: String!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) {
         reviewThreads(first: 100, after: $after) {
           totalCount
           pageInfo { hasNextPage endCursor }
@@ -1094,6 +1202,48 @@ const PR_MERGE_STATUS_QUERY = `
     }
   }
 `;
+
+const MAX_REVIEW_THREAD_PAGES = 20;
+
+async function fetchBranchRulesetSummary(
+  owner: string,
+  repo: string,
+  branch: string | null | undefined,
+) {
+  if (!branch) return null;
+  const client = getGitHubClient();
+  try {
+    const safeBranch = encodeBranchPath(branch);
+    const rulesRes = await client.request("GET /repos/{owner}/{repo}/rules/branches/{+branch}", {
+      owner,
+      repo,
+      branch: safeBranch,
+    });
+    const branchRules = Array.isArray(rulesRes.data) ? (rulesRes.data as RawBranchRule[]) : [];
+    const hasRulesets = branchRules.some((r) => typeof r.ruleset_id === "number");
+    if (!hasRulesets) {
+      return summarizeBranchRulesets(branchRules, []);
+    }
+
+    let rulesets: RawRepoRuleset[] | null = null;
+    try {
+      const rulesetsRes = await client.request("GET /repos/{owner}/{repo}/rulesets", {
+        owner,
+        repo,
+        includes_parents: true,
+        targets: "branch",
+        per_page: 100,
+      });
+      rulesets = Array.isArray(rulesetsRes.data) ? (rulesetsRes.data as RawRepoRuleset[]) : [];
+    } catch {
+      rulesets = null;
+    }
+
+    return summarizeBranchRulesets(branchRules, rulesets);
+  } catch {
+    return null;
+  }
+}
 
 function fromGraphqlMergeMethod(
   method: "MERGE" | "SQUASH" | "REBASE" | null | undefined,
@@ -1109,42 +1259,84 @@ function toGraphqlMergeMethod(method: MergeMethod): "MERGE" | "SQUASH" | "REBASE
   return "MERGE";
 }
 
-export const prMergeStatusQueryOptions = (owner: string, repo: string, number: number) =>
+export const prMergeStatusQueryOptions = (
+  owner: string,
+  repo: string,
+  number: number,
+  baseRef?: string,
+) =>
   queryOptions({
     queryKey: pullsKeys.mergeStatus(owner, repo, number),
     staleTime: 15_000,
     queryFn: async (): Promise<PrMergeStatusData> => {
       const client = getGitHubClient();
-      let after: string | null | undefined;
-      let firstPull: NonNullable<
-        NonNullable<NonNullable<PrMergeStatusQueryResponse["repository"]>["pullRequest"]>
-      > | null = null;
-      let totalCount = 0;
-      let unresolvedCount = 0;
+      const [firstRes, initialRulesetSummary] = await Promise.all([
+        client.graphql(PR_MERGE_STATUS_QUERY, {
+          owner,
+          repo,
+          number,
+        }) as Promise<PrMergeStatusQueryResponse>,
+        baseRef ? fetchBranchRulesetSummary(owner, repo, baseRef) : Promise.resolve(null),
+      ]);
 
-      do {
-        const res = (await client.graphql(PR_MERGE_STATUS_QUERY, {
+      const pull = firstRes.repository?.pullRequest;
+      if (!pull) throw new Error("Pull request not found");
+
+      let totalCount = pull.reviewThreads?.totalCount ?? 0;
+      let unresolvedCount = (pull.reviewThreads?.nodes ?? []).filter(
+        (thread) => !thread.isResolved,
+      ).length;
+      let after = pull.reviewThreads?.pageInfo?.hasNextPage
+        ? (pull.reviewThreads.pageInfo.endCursor ?? null)
+        : null;
+      let pages = 1;
+
+      while (after && pages < MAX_REVIEW_THREAD_PAGES) {
+        const pageRes = (await client.graphql(PR_REVIEW_THREADS_PAGE_QUERY, {
           owner,
           repo,
           number,
           after,
-        })) as PrMergeStatusQueryResponse;
-        const pull = res.repository?.pullRequest;
-        if (!pull) throw new Error("Pull request not found");
-        firstPull ??= pull;
-        const threads = pull.reviewThreads;
+        })) as PrReviewThreadsPageResponse;
+        const threads = pageRes.repository?.pullRequest?.reviewThreads;
         totalCount = threads?.totalCount ?? totalCount;
         unresolvedCount += (threads?.nodes ?? []).filter((thread) => !thread.isResolved).length;
-        after = threads?.pageInfo?.hasNextPage ? threads.pageInfo.endCursor : null;
-      } while (after);
+        const nextCursor = threads?.pageInfo?.hasNextPage
+          ? (threads.pageInfo.endCursor ?? null)
+          : null;
+        if (!nextCursor || nextCursor === after) break;
+        after = nextCursor;
+        pages++;
+      }
 
-      if (!firstPull) throw new Error("Pull request not found");
-      const rule = firstPull.baseRef?.branchProtectionRule;
-      const autoMerge = firstPull.autoMergeRequest;
+      const rulesetSummary =
+        initialRulesetSummary ??
+        (!baseRef && pull.baseRefName
+          ? await fetchBranchRulesetSummary(owner, repo, pull.baseRefName)
+          : null);
+
+      const rule = pull.baseRef?.branchProtectionRule;
+      const autoMerge = pull.autoMergeRequest;
+      const requiredContexts = Array.from(
+        new Set([
+          ...(rule?.requiredStatusCheckContexts ?? []),
+          ...(rulesetSummary?.requiredStatusCheckContexts ?? []),
+        ]),
+      );
+
+      const mergeable = pull.mergeable ?? null;
+      const mergeStateStatus = pull.mergeStateStatus ?? null;
+      const stillUnknown = mergeable === "UNKNOWN" || mergeStateStatus === "UNKNOWN";
+      recordMergeabilityPoll(
+        mergeabilityPollKey("mergeStatus", owner, repo, number, pull.headRefOid),
+        stillUnknown,
+      );
 
       return {
-        reviewDecision: firstPull.reviewDecision ?? null,
-        mergeStateStatus: firstPull.mergeStateStatus ?? null,
+        reviewDecision: pull.reviewDecision ?? null,
+        mergeable,
+        mergeStateStatus,
+        viewerPermission: firstRes.repository?.viewerPermission ?? null,
         autoMergeRequest: autoMerge
           ? {
               enabledAt: autoMerge.enabledAt ?? null,
@@ -1152,37 +1344,68 @@ export const prMergeStatusQueryOptions = (owner: string, repo: string, number: n
               enabledBy: autoMerge.enabledBy?.login ? { login: autoMerge.enabledBy.login } : null,
             }
           : null,
-        viewerCanEnableAutoMerge: firstPull.viewerCanEnableAutoMerge ?? false,
-        viewerCanDisableAutoMerge: firstPull.viewerCanDisableAutoMerge ?? false,
-        viewerCanMergeAsAdmin: firstPull.viewerCanMergeAsAdmin ?? false,
-        viewerCanDeleteHeadRef: firstPull.viewerCanDeleteHeadRef ?? false,
-        viewerCanUpdateBranch: firstPull.viewerCanUpdate ?? false,
-        viewerCannotUpdateReasons: firstPull.viewerCannotUpdateReasons ?? [],
-        headRefExists: !!firstPull.headRef,
-        headRefOid: firstPull.headRefOid ?? null,
-        baseRefOid: firstPull.baseRefOid ?? null,
+        viewerCanEnableAutoMerge: pull.viewerCanEnableAutoMerge ?? false,
+        viewerCanDisableAutoMerge: pull.viewerCanDisableAutoMerge ?? false,
+        viewerCanMergeAsAdmin: pull.viewerCanMergeAsAdmin ?? false,
+        viewerCanDeleteHeadRef: pull.viewerCanDeleteHeadRef ?? false,
+        viewerCanUpdateBranch: pull.viewerCanUpdate ?? false,
+        viewerCannotUpdateReasons: pull.viewerCannotUpdateReasons ?? [],
+        headRefExists: !!pull.headRef,
+        headRefOid: pull.headRefOid ?? null,
+        baseRefOid: pull.baseRefOid ?? null,
+        baseRefName: pull.baseRefName ?? baseRef ?? null,
+        hasClassicProtection: rule != null,
+        classicIsAdminEnforced: rule?.isAdminEnforced ?? false,
+        hasMergeQueueRule: rulesetSummary?.hasMergeQueueRule ?? false,
+        rulesetBypass:
+          rulesetSummary?.rulesetBypass ?? (baseRef || pull.baseRefName ? "unknown" : "none"),
         protection: {
-          requiresApprovingReviews: rule?.requiresApprovingReviews ?? false,
-          requiredApprovingReviewCount: rule?.requiredApprovingReviewCount ?? 0,
-          requiresCodeOwnerReviews: rule?.requiresCodeOwnerReviews ?? false,
-          dismissesStaleReviews: rule?.dismissesStaleReviews ?? false,
-          requiresStatusChecks: rule?.requiresStatusChecks ?? false,
-          requiresStrictStatusChecks: rule?.requiresStrictStatusChecks ?? false,
-          requiresConversationResolution: rule?.requiresConversationResolution ?? false,
-          requiredStatusCheckContexts: rule?.requiredStatusCheckContexts ?? [],
+          requiresApprovingReviews:
+            (rule?.requiresApprovingReviews ?? false) ||
+            (rulesetSummary?.requiresApprovingReviews ?? false),
+          requiredApprovingReviewCount: Math.max(
+            rule?.requiredApprovingReviewCount ?? 0,
+            rulesetSummary?.requiredApprovingReviewCount ?? 0,
+          ),
+          requiresCodeOwnerReviews:
+            (rule?.requiresCodeOwnerReviews ?? false) ||
+            (rulesetSummary?.requiresCodeOwnerReviews ?? false),
+          dismissesStaleReviews:
+            (rule?.dismissesStaleReviews ?? false) ||
+            (rulesetSummary?.dismissesStaleReviews ?? false),
+          requiresStatusChecks:
+            (rule?.requiresStatusChecks ?? false) ||
+            (rulesetSummary?.requiresStatusChecks ?? false),
+          requiresStrictStatusChecks:
+            (rule?.requiresStrictStatusChecks ?? false) ||
+            (rulesetSummary?.requiresStrictStatusChecks ?? false),
+          requiresConversationResolution:
+            (rule?.requiresConversationResolution ?? false) ||
+            (rulesetSummary?.requiresConversationResolution ?? false),
+          requiredStatusCheckContexts: requiredContexts,
         },
         reviewThreads: { totalCount, unresolvedCount },
       };
     },
   });
 
-export function usePrMergeStatus(owner: string, repo: string, number: number) {
+export function usePrMergeStatus(owner: string, repo: string, number: number, baseRef?: string) {
   const token = useAuthStore((s) => s.token);
   const live = useLiveInterval("graphql");
   return useQuery({
-    ...prMergeStatusQueryOptions(owner, repo, number),
+    ...prMergeStatusQueryOptions(owner, repo, number, baseRef),
     enabled: !!token && !!owner && !!repo && Number.isFinite(number),
-    refetchInterval: () => live("changing"),
+    refetchInterval: (q) => {
+      const data = q.state.data;
+      if (data && (data.mergeable === "UNKNOWN" || data.mergeStateStatus === "UNKNOWN")) {
+        const fastDelay = nextMergeabilityPollDelay(
+          mergeabilityPollKey("mergeStatus", owner, repo, number, data.headRefOid),
+        );
+        if (fastDelay !== false) return fastDelay;
+      }
+      return live("changing");
+    },
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -1209,9 +1432,8 @@ export function useMergePr(owner: string, repo: string, number: number) {
       });
       return res.data as { sha: string; merged: boolean; message: string };
     },
-    onMutate: async () => {
+    onSuccess: async () => {
       const key = pullsKeys.detail(owner, repo, number);
-      await queryClient.cancelQueries({ queryKey: key });
       const prev = queryClient.getQueryData<PullRequest>(key);
       if (prev) {
         queryClient.setQueryData<PullRequest>(key, {
@@ -1221,12 +1443,6 @@ export function useMergePr(owner: string, repo: string, number: number) {
           merged_at: new Date().toISOString(),
         });
       }
-      return { key, prev };
-    },
-    onError: (_err, _vars, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
-    },
-    onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.mergeStatus(owner, repo, number) }),
@@ -1279,6 +1495,7 @@ export function useSetPrAutoMerge(owner: string, repo: string, number: number) {
       );
     },
     onSuccess: async () => {
+      evictETagsForRepo(owner, repo);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.mergeStatus(owner, repo, number) }),
@@ -1305,6 +1522,7 @@ export function useUpdatePrBranch(owner: string, repo: string, number: number) {
       return res.data as { message?: string; url?: string };
     },
     onSuccess: async () => {
+      resetMergeabilityPoll(owner, repo, number);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.mergeStatus(owner, repo, number) }),
@@ -1358,6 +1576,7 @@ export function useRestorePrHeadRef(owner: string, repo: string, number: number)
       );
     },
     onSuccess: async () => {
+      evictETagsForRepo(owner, repo);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.mergeStatus(owner, repo, number) }),
@@ -1397,8 +1616,10 @@ export function useTogglePrState(owner: string, repo: string, number: number) {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
     onSuccess: async (updated) => {
+      resetMergeabilityPoll(owner, repo, number);
       queryClient.setQueryData(pullsKeys.detail(owner, repo, number), updated);
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: pullsKeys.mergeStatus(owner, repo, number) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.counts(owner, repo) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.lists(owner, repo) }),
@@ -1450,6 +1671,7 @@ export function useSubmitPrReview(owner: string, repo: string, number: number) {
       if (vars.owner) finishReview(vars.owner, owner, repo, number);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: pullsKeys.reviews(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.mergeStatus(owner, repo, number) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.timeline(owner, repo, number) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.reviewComments(owner, repo, number) }),
@@ -1490,8 +1712,11 @@ export function useSetPrDraft(owner: string, repo: string, number: number) {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
     onSuccess: async () => {
+      evictETagsForRepo(owner, repo);
+      resetMergeabilityPoll(owner, repo, number);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: pullsKeys.detail(owner, repo, number) }),
+        queryClient.invalidateQueries({ queryKey: pullsKeys.mergeStatus(owner, repo, number) }),
         queryClient.invalidateQueries({ queryKey: pullsKeys.lists(owner, repo) }),
       ]);
     },
@@ -1759,9 +1984,15 @@ export function useResolveThread(owner: string, repo: string, number: number) {
       if (ctx?.prev) queryClient.setQueryData(ctx.key, ctx.prev);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: pullsKeys.threadResolution(owner, repo, number),
-      });
+      evictETagsForRepo(owner, repo);
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: pullsKeys.threadResolution(owner, repo, number),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: pullsKeys.mergeStatus(owner, repo, number),
+        }),
+      ]);
     },
   });
 }

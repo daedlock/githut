@@ -19,6 +19,15 @@ const RepoSchema = z.object({
   allow_squash_merge: z.boolean().optional(),
   allow_rebase_merge: z.boolean().optional(),
   delete_branch_on_merge: z.boolean().optional(),
+  permissions: z
+    .object({
+      admin: z.boolean().optional(),
+      maintain: z.boolean().optional(),
+      push: z.boolean().optional(),
+      triage: z.boolean().optional(),
+      pull: z.boolean().optional(),
+    })
+    .optional(),
   stargazers_count: z.number(),
   subscribers_count: z.number().optional(),
   watchers_count: z.number(),
